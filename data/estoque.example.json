@@ -1,0 +1,14 @@
+{
+  "_instrucoes": "Substitua com dados reais do estoque.",
+  "materiais": [
+    {
+      "id": "uuid-aqui",
+      "nome": "Nome do Material",
+      "categoria": "categoria",
+      "quantidade_total": 0,
+      "quantidade_disponivel": 0,
+      "unidade": "unid | kg | m | cx",
+      "observacoes": ""
+    }
+  ]
+}
