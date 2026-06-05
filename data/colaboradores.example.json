@@ -1,0 +1,12 @@
+{
+  "_instrucoes": "Substitua este arquivo com dados reais dos colaboradores. Para integrar com Supabase, veja config/supabase.template.js",
+  "colaboradores": [
+    {
+      "id": "uuid-aqui",
+      "nome": "Nome do Colaborador",
+      "email": "email@rjnet.com.br",
+      "role": "comercial | marketing | gerencial | admin",
+      "ativo": true
+    }
+  ]
+}
