@@ -101,7 +101,7 @@ Chart.register(...registerables);
           id: "l1", eventoId: "e1", vendedorNome: "Carlos Silva",
           nome: "João Pereira", telefone: "(24) 99876-5432",
           endereco: "Rua das Flores, 45 - Angra dos Reis",
-          servicoInteresse: "fibra_residencial",
+          servicoInteresse: "internet_residencial",
           temperatura: "quente",
           observacao: "Muito interesse, mora em área com cobertura",
           criadoEm: "2025-06-07T14:30:00Z",
@@ -130,15 +130,17 @@ Chart.register(...registerables);
          LABEL HELPERS
          ============================================================ */
       const SERVICO_LABEL = {
-        fibra_residencial: "Fibra Residencial",
-        fibra_empresarial: "Fibra Empresarial",
-        hotspot: "Hotspot",
+        internet_residencial: "Internet Residencial",
+        internet_empresarial: "Internet Empresarial",
+        rjnet_movel: "RJNET Móvel",
+        streamings: "Streamings",
         outro: "Outro",
       };
       const SERVICO_SHORT = {
-        fibra_residencial: "Fibra Res",
-        fibra_empresarial: "Fibra Emp",
-        hotspot: "Hotspot",
+        internet_residencial: "Int. Res.",
+        internet_empresarial: "Int. Emp.",
+        rjnet_movel: "RJ Móvel",
+        streamings: "Streamings",
         outro: "Outro",
       };
       const TIPO_LABEL = {
@@ -1109,7 +1111,7 @@ Chart.register(...registerables);
         const { getEventosAtivos, addLead, removeLead, updateLead, leads } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
-        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "fibra_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
+        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "internet_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
         const [f, setF] = useState(FORM_VAZIO);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const [modoRapido, setModoRapido] = useState(false);
