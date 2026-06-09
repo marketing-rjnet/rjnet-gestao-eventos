@@ -1316,8 +1316,8 @@
               <div className="header-right">
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="dot"></span><span className="ub-name">Marketing</span></span>
-                <button className="btn-ghost" onClick={onLogout}>Sair</button>
               </div>
+              <button className="btn-ghost" style={{ marginLeft: "auto" }} onClick={onLogout}>Sair</button>
             </header>
 
             {tab === "eventos" && (detailId
@@ -1371,7 +1371,8 @@
               <div className="header-right" style={{ marginLeft: "auto" }}>
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span><span className="ub-name">{session.vendedorNome}</span></span>
-                <button className="btn-ghost" onClick={onLogout}>Sair</button>
+              </div>
+              <button className="btn-ghost" onClick={onLogout}>Sair</button>
               </div>
             </header>
 
