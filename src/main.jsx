@@ -43,6 +43,12 @@ Chart.register(...registerables);
           person: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>,
           // Arrow right
           arrow_right: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+          // Search / magnifier
+          search: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+          // Check circle
+          check_circle: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+          // X circle
+          x_circle: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
         };
         return paths[name] || null;
       };
@@ -169,16 +175,35 @@ Chart.register(...registerables);
         return ctx;
       };
 
+      // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
+      function usePersisted(key, fallback) {
+        const [state, setState] = useState(() => {
+          try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+          } catch { return fallback; }
+        });
+        const set = (v) => {
+          setState((prev) => {
+            const next = typeof v === "function" ? v(prev) : v;
+            try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+            return next;
+          });
+        };
+        return [state, set];
+      }
+
       function AppProvider({ children }) {
-        const [materiais, setMateriais] = useState(MOCK_MATERIAIS);
-        const [eventos, setEventos] = useState(MOCK_EVENTOS);
-        const [leads, setLeads] = useState(MOCK_LEADS);
-        const [vendedores, setVendedores] = useState(MOCK_VENDEDORES);
+        const [materiais, setMateriais] = usePersisted("rjnet_materiais", MOCK_MATERIAIS);
+        const [eventos, setEventos] = usePersisted("rjnet_eventos", MOCK_EVENTOS);
+        const [leads, setLeads] = usePersisted("rjnet_leads", MOCK_LEADS);
+        const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", MOCK_VENDEDORES);
 
         const value = {
           materiais, eventos, leads, vendedores,
           addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now(), criadoEm: new Date().toISOString() }]),
           updateEvento: (id, patch) => setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e))),
+          removeEvento: (id) => setEventos((p) => p.filter((e) => e.id !== id)),
           addLead: (l) => setLeads((p) => [...p, { ...l, id: "l" + Date.now(), criadoEm: new Date().toISOString() }]),
           updateLead: (id, patch) => setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l)),
           removeLead: (id) => setLeads((p) => p.filter((l) => l.id !== id)),
@@ -196,7 +221,7 @@ Chart.register(...registerables);
             setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
               ...e, materiais: e.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m)
             })),
-          addVendedor: (nome, cpf = "") => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, cpf, ativo: true }]),
+          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, ativo: true }]),
           updateVendedor: (id, patch) => setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v)),
           toggleVendedor: (id) => setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v))),
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
@@ -577,7 +602,7 @@ Chart.register(...registerables);
          ============================================================ */
       function EventDetail({ eventoId, onBack }) {
         const { eventos, materiais, getLeadsEvento, getMateriaisDisponiveis,
-                addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento } = useApp();
+                addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento, removeEvento } = useApp();
         const ev = eventos.find((e) => e.id === eventoId);
         if (!ev) return null;
 
@@ -617,14 +642,28 @@ Chart.register(...registerables);
 
         return (
           <div className="page">
-            {/* Back + Edit */}
+            {/* Back + Edit + Delete */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 14 }}>
               <button className="back-btn" onClick={onBack} style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <Icon name="back" size={15} /> Voltar para Eventos
               </button>
-              <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
-                Editar Evento
-              </button>
+              <div style={{ display:"flex", gap:8 }}>
+                <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
+                  Editar Evento
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize:13, color:"var(--red)", borderColor:"var(--red)" }}
+                  onClick={() => {
+                    if (confirm(`Excluir o evento "${ev.nome}"? Esta ação também removerá todos os leads vinculados a ele.`)) {
+                      removeEvento(eventoId);
+                      onBack();
+                    }
+                  }}
+                >
+                  <Icon name="x" size={14} stroke="var(--red)" /> Excluir Evento
+                </button>
+              </div>
             </div>
 
             <div className="detail-hero">
@@ -850,6 +889,29 @@ Chart.register(...registerables);
 
         const byService = (s) => leads.filter((l) => l.servicoInteresse === s).length;
 
+        const exportarCSV = () => {
+          const dados = fEvento ? leads.filter((l) => l.eventoId === fEvento) : leads;
+          if (dados.length === 0) return;
+          const nomeEvento = fEvento ? evName(fEvento) : "todos_eventos";
+          const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
+          const linhas = dados.map((l) => [
+            l.nome, l.cpf || "", l.telefone, l.endereco || "",
+            servicoLabel(l.servicoInteresse), l.temperatura,
+            l.jaClienteRjnet ? "Sim" : "Não",
+            l.vendedorNome, evName(l.eventoId),
+            (l.observacao || "").replace(/"/g, '""'),
+            new Date(l.criadoEm).toLocaleString("pt-BR"),
+          ]);
+          const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+          const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `leads_${nomeEvento.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
         const porEvento = useMemo(() => {
           const c = {};
           leads.forEach((l) => { c[l.eventoId] = (c[l.eventoId] || 0) + 1; });
@@ -868,6 +930,15 @@ Chart.register(...registerables);
                 <div className="page-title">Leads</div>
                 <p className="tab-desc">Todos os leads captados pela equipe comercial.</p>
               </div>
+              <button
+                className="btn-primary"
+                style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}
+                onClick={exportarCSV}
+                disabled={leads.length === 0}
+                title={fEvento ? "Exportar leads do evento selecionado" : "Selecione um evento no filtro para exportar"}
+              >
+                ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(selecione evento)"}
+              </button>
             </div>
 
             <div className="grid-kpi">
@@ -937,13 +1008,12 @@ Chart.register(...registerables);
         const { vendedores, leads, eventos, addVendedor, updateVendedor, toggleVendedor } = useApp();
         const [showForm, setShowForm] = useState(false);
         const [novoNome, setNovoNome] = useState("");
-        const [novoCpf, setNovoCpf] = useState("");
 
         const submit = (e) => {
           e.preventDefault();
           if (novoNome.trim()) {
-            addVendedor(novoNome.trim(), novoCpf);
-            setNovoNome(""); setNovoCpf(""); setShowForm(false);
+            addVendedor(novoNome.trim());
+            setNovoNome(""); setShowForm(false);
           }
         };
 
@@ -965,10 +1035,6 @@ Chart.register(...registerables);
                   <div className="field-group">
                     <label>Nome completo *</label>
                     <input required value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
-                  </div>
-                  <div className="field-group">
-                    <label>CPF</label>
-                    <input value={novoCpf} onChange={(e) => setNovoCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
                   </div>
                 </div>
                 <div className="modal-actions">
@@ -994,17 +1060,6 @@ Chart.register(...registerables);
                   <div key={v.id} className="vendor-card">
                     <div className="v-av">{initials(v.nome)}</div>
                     <div className="v-name">{v.nome}</div>
-                    {v.cpf ? (
-                      <div className="v-cpf mono">{v.cpf}</div>
-                    ) : (
-                      <input
-                        className="v-cpf-input mono"
-                        placeholder="Adicionar CPF"
-                        inputMode="numeric"
-                        onBlur={(e) => { if (e.target.value) updateVendedor(v.id, { cpf: maskCpf(e.target.value) }); }}
-                        onChange={(e) => { e.target.value = maskCpf(e.target.value); }}
-                      />
-                    )}
                     <div className="v-big">{vl.length}</div>
                     <div className="v-cap">leads captados</div>
                     <div style={{ marginTop: 8 }}>
@@ -1032,6 +1087,161 @@ Chart.register(...registerables);
       /* ============================================================
          MARKETING APP SHELL
          ============================================================ */
+      /* ============================================================
+         CHECK-IN TAB — consulta de lead por CPF em um evento
+         ============================================================ */
+      function CheckinTab() {
+        const { leads, eventos } = useApp();
+        const [eventoId, setEventoId] = useState("");
+        const [cpfInput, setCpfInput] = useState("");
+        const [resultado, setResultado] = useState(null); // null | { found: bool, lead?: obj }
+        const [buscado, setBuscado] = useState(false);
+
+        const TEMP_LABEL = { frio: "Frio", morno: "Morno", quente: "Quente", convertido: "Convertido" };
+        const TEMP_COLOR = { frio: "#60a5fa", morno: "#fb923c", quente: "#ef4444", convertido: "#22c55e" };
+
+        const handleCpf = (v) => {
+          setCpfInput(maskCpf(v));
+          setResultado(null);
+          setBuscado(false);
+        };
+
+        const buscar = (e) => {
+          e.preventDefault();
+          if (!eventoId || cpfInput.replace(/\D/g, "").length < 11) return;
+          const cpfNorm = cpfInput.replace(/\D/g, "");
+          const lead = leads.find(
+            (l) => l.eventoId === eventoId && l.cpf && l.cpf.replace(/\D/g, "") === cpfNorm
+          );
+          setResultado(lead ? { found: true, lead } : { found: false });
+          setBuscado(true);
+        };
+
+        const limpar = () => {
+          setCpfInput("");
+          setResultado(null);
+          setBuscado(false);
+        };
+
+        const eventoSelecionado = eventos.find((e) => e.id === eventoId);
+
+        return (
+          <div className="page">
+            <div className="page-head">
+              <div>
+                <div className="page-title">Check-in por CPF</div>
+                <p className="tab-desc">Verifique se um lead já foi cadastrado no evento selecionado.</p>
+              </div>
+            </div>
+
+            <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
+              <form onSubmit={buscar} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="form-group">
+                  <label className="form-label">Evento</label>
+                  <select
+                    value={eventoId}
+                    onChange={(e) => { setEventoId(e.target.value); setResultado(null); setBuscado(false); }}
+                    required
+                  >
+                    <option value="">Selecione o evento…</option>
+                    {eventos.map((ev) => (
+                      <option key={ev.id} value={ev.id}>{ev.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">CPF do Lead</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      className="form-input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000.000.000-00"
+                      value={cpfInput}
+                      onChange={(e) => handleCpf(e.target.value)}
+                      style={{ flex: 1, fontFamily: "monospace", letterSpacing: 1 }}
+                    />
+                    {cpfInput && (
+                      <button type="button" className="btn-ghost" onClick={limpar} title="Limpar">
+                        <Icon name="x" size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={!eventoId || cpfInput.replace(/\D/g, "").length < 11}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  <Icon name="search" size={16} stroke="#000" /> Consultar
+                </button>
+              </form>
+            </div>
+
+            {buscado && resultado && (
+              <div style={{ maxWidth: 520, margin: "20px auto 0" }}>
+                {resultado.found ? (
+                  <div className="card" style={{ borderLeft: "4px solid #22c55e" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                      <Icon name="check_circle" size={26} stroke="#22c55e" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#22c55e" }}>Lead cadastrado</div>
+                        <div style={{ fontSize: 12, color: "var(--text-3)" }}>{eventoSelecionado?.nome}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="info-line"><span className="k">Nome</span><span className="v strong">{resultado.lead.nome}</span></div>
+                      <div className="info-line"><span className="k">CPF</span><span className="v mono">{resultado.lead.cpf}</span></div>
+                      <div className="info-line"><span className="k">Telefone</span><span className="v mono">{resultado.lead.telefone}</span></div>
+                      {resultado.lead.endereco && (
+                        <div className="info-line"><span className="k">Endereço</span><span className="v">{resultado.lead.endereco}</span></div>
+                      )}
+                      <div className="info-line">
+                        <span className="k">Serviço</span>
+                        <span className="v"><span className="badge badge-tipo">{servicoLabel(resultado.lead.servicoInteresse)}</span></span>
+                      </div>
+                      <div className="info-line">
+                        <span className="k">Temperatura</span>
+                        <span className="v">
+                          <span style={{ color: TEMP_COLOR[resultado.lead.temperatura], fontWeight: 600 }}>
+                            {TEMP_LABEL[resultado.lead.temperatura] || resultado.lead.temperatura}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="info-line"><span className="k">Vendedor</span><span className="v">{resultado.lead.vendedorNome}</span></div>
+                      <div className="info-line">
+                        <span className="k">Cadastrado em</span>
+                        <span className="v" style={{ fontSize: 12, color: "var(--text-3)" }}>
+                          {new Date(resultado.lead.criadoEm).toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                      {resultado.lead.observacao && (
+                        <div className="info-line"><span className="k">Obs.</span><span className="v" style={{ fontStyle: "italic", color: "var(--text-3)" }}>{resultado.lead.observacao}</span></div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card" style={{ borderLeft: "4px solid #ef4444" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Icon name="x_circle" size={26} stroke="#ef4444" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#ef4444" }}>CPF não encontrado</div>
+                        <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
+                          Nenhum lead com este CPF foi cadastrado em <b>{eventoSelecionado?.nome}</b>.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+
       function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
         const [tab, setTab] = useState("eventos");
         const [detailId, setDetailId] = useState(null);
@@ -1041,6 +1251,7 @@ Chart.register(...registerables);
           { id: "estoque", label: "Estoque", ico: "box" },
           { id: "leads", label: "Leads", ico: "users" },
           { id: "equipe", label: "Equipe", ico: "briefcase" },
+          { id: "checkin", label: "Check-in", ico: "search" },
         ];
 
         const switchTab = (id) => { setTab(id); setDetailId(null); };
@@ -1069,6 +1280,7 @@ Chart.register(...registerables);
             {tab === "estoque" && <EstoqueTab />}
             {tab === "leads" && <LeadsTab />}
             {tab === "equipe" && <EquipeTab />}
+            {tab === "checkin" && <CheckinTab />}
 
             {/* Bottom nav — mobile only */}
             <nav className="bottom-nav">
