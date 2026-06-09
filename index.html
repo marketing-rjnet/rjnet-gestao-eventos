@@ -308,14 +308,107 @@
       .chart-box { position: relative; height: 240px; }
       .chart-box.sm { height: 170px; }
 
+      /* ---------- Light mode ---------- */
+      .light {
+        --bg: #f5f5f5;
+        --surface: #ffffff;
+        --surface2: #f0f0f0;
+        --border: #e0e0e0;
+        --text: #111111;
+        --text-2: #555555;
+        --text-3: #999999;
+        --green-bg: #dcfce7;
+        --red-bg: #fee2e2;
+      }
+      .light .app-header { background: #ffffff; }
+      .light .login-bg { background: radial-gradient(900px 500px at 50% -10%, rgba(245,192,0,.12), transparent), #f5f5f5; }
+      .light input, .light select, .light textarea { background: #ffffff; }
+      .light .btn-ghost { background: #f0f0f0; }
+      .light .btn-ghost:hover { background: #e4e4e4; }
+      .light .bottom-nav { background: #ffffff; border-top-color: #e0e0e0; }
+
+      /* ---------- Theme toggle button ---------- */
+      .theme-toggle {
+        width: 36px; height: 36px; border-radius: 8px; font-size: 17px;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--surface2); box-shadow: 0 0 0 1px var(--border);
+        transition: background .15s ease;
+      }
+      .theme-toggle:hover { background: var(--border); }
+
+      /* ---------- Bottom nav (mobile) ---------- */
+      .bottom-nav {
+        display: none;
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+        height: 62px; background: var(--surface); border-top: 1px solid var(--border);
+        padding: 0 8px; padding-bottom: env(safe-area-inset-bottom, 0);
+      }
+      .bottom-nav-inner { display: flex; height: 62px; align-items: stretch; }
+      .bn-tab {
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 3px; font-size: 10px; font-weight: 600; color: var(--text-3);
+        border-top: 2px solid transparent; transition: color .15s ease;
+        padding: 0 4px;
+      }
+      .bn-tab .bn-ico { font-size: 20px; line-height: 1; }
+      .bn-tab.active { color: var(--rj-blue); border-top-color: var(--rj-blue); }
+
       @media (max-width: 760px) {
-        .grid-kpi, .grid-kpi-3 { grid-template-columns: repeat(2, 1fr); }
+        .grid-kpi { grid-template-columns: repeat(2, 1fr); }
+        .grid-kpi-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-2, .event-grid { grid-template-columns: 1fr; }
-        .vendor-grid { grid-template-columns: 1fr; }
-        .header-nav { gap: 0; }
-        .nav-tab { padding: 8px 9px; font-size: 0; }
-        .nav-tab .ico { font-size: 18px; }
+        .vendor-grid { grid-template-columns: 1fr 1fr; }
         .field-row { grid-template-columns: 1fr; }
+
+        /* Header: hide desktop nav, keep logo + actions */
+        .header-nav { display: none; }
+        .app-header { padding: 0 14px; gap: 10px; }
+        .user-badge .ub-name { display: none; }
+
+        /* Show bottom nav */
+        .bottom-nav { display: block; }
+
+        /* Add bottom padding so content isn't hidden behind bottom nav */
+        .page { padding: 18px 14px 80px; }
+        .vend-shell { padding: 16px 14px 80px; }
+
+        /* Chips: scroll horizontal */
+        .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+        .chips::-webkit-scrollbar { display: none; }
+        .chip { flex-shrink: 0; }
+
+        /* Page head stacks on mobile */
+        .page-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .page-head .btn-primary { align-self: stretch; text-align: center; }
+
+        /* KPI values smaller on mobile */
+        .kpi-value { font-size: 22px; }
+
+        /* Stock rows: hide less critical columns */
+        .sr-num { min-width: 40px; }
+        .stock-row { gap: 10px; padding: 11px 12px; }
+
+        /* Tables: min-width so they scroll */
+        .tbl-wrap table { min-width: 480px; }
+
+        /* Dashboard grid stacks */
+        .dashboard-row { grid-template-columns: 1fr !important; }
+
+        /* Detail hero */
+        .detail-hero h1 { font-size: 19px; }
+        .mini-stat .ms-v { font-size: 20px; }
+
+        /* Segment control: 2x2 */
+        .seg-control { grid-template-columns: 1fr 1fr; }
+
+        /* Modal full screen on mobile */
+        .modal-overlay { padding: 0; align-items: flex-end; }
+        .modal-box { max-width: 100%; border-radius: 16px 16px 0 0; max-height: 92vh; }
+      }
+
+      @media (max-width: 400px) {
+        .grid-kpi { grid-template-columns: 1fr 1fr; }
+        .vendor-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -488,7 +581,7 @@
       /* ============================================================
          LOGIN
          ============================================================ */
-      function Login({ onLogin }) {
+      function Login({ onLogin, darkMode, toggleDark }) {
         const { vendedores } = useApp();
         const [stage, setStage] = useState("login");
         const [u, setU] = useState("");
@@ -543,6 +636,11 @@
                 <button type="submit" className="login-btn">Entrar</button>
               </form>
               <p className="login-hint">Angra dos Reis · RJ</p>
+              <div style={{ textAlign: "center", marginTop: 14 }}>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
+                  {darkMode ? "☀️" : "🌙"}
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -721,7 +819,7 @@
               <Kpi label="Materiais Críticos" value={criticos} icon="📦" alert={criticos > 0} />
               <Kpi label="Vendedores Ativos" value={vendAtivos} icon="🧑‍💼" />
             </div>
-            <div className="grid-2" style={{ marginTop: 16 }}>
+            <div className="grid-2 dashboard-row" style={{ marginTop: 16 }}>
               <div className="card">
                 <div className="section-title">Leads por Serviço</div>
                 {leads.length === 0 ? (
@@ -1150,7 +1248,7 @@
       /* ============================================================
          MARKETING APP SHELL
          ============================================================ */
-      function MarketingApp({ session, onLogout }) {
+      function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
         const [tab, setTab] = useState("eventos");
         const [detailId, setDetailId] = useState(null);
 
@@ -1161,19 +1259,22 @@
           { id: "equipe", label: "Equipe", ico: "🧑‍💼" },
         ];
 
+        const switchTab = (id) => { setTab(id); setDetailId(null); };
+
         return (
           <div>
             <header className="app-header">
               <div className="header-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
               <nav className="header-nav">
                 {tabs.map((t) => (
-                  <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => { setTab(t.id); setDetailId(null); }}>
+                  <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
                     <span className="ico">{t.ico}</span>{t.label}
                   </button>
                 ))}
               </nav>
               <div className="header-right">
-                <span className="user-badge"><span className="dot"></span>Marketing</span>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema">{darkMode ? "☀️" : "🌙"}</button>
+                <span className="user-badge"><span className="dot"></span><span className="ub-name">Marketing</span></span>
                 <button className="btn-ghost" onClick={onLogout}>Sair</button>
               </div>
             </header>
@@ -1184,6 +1285,18 @@
             {tab === "estoque" && <EstoqueTab />}
             {tab === "leads" && <LeadsTab />}
             {tab === "equipe" && <EquipeTab />}
+
+            {/* Bottom nav — mobile only */}
+            <nav className="bottom-nav">
+              <div className="bottom-nav-inner">
+                {tabs.map((t) => (
+                  <button key={t.id} className={"bn-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
+                    <span className="bn-ico">{t.ico}</span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </nav>
           </div>
         );
       }
@@ -1191,7 +1304,7 @@
       /* ============================================================
          VENDEDOR (COMERCIAL) VIEW — mobile-first
          ============================================================ */
-      function VendedorApp({ session, onLogout }) {
+      function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
         const { getEventosAtivos, addLead, leads } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
@@ -1215,7 +1328,8 @@
             <header className="app-header">
               <div className="header-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
               <div className="header-right" style={{ marginLeft: "auto" }}>
-                <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span>{session.vendedorNome}</span>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema">{darkMode ? "☀️" : "🌙"}</button>
+                <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span><span className="ub-name">{session.vendedorNome}</span></span>
                 <button className="btn-ghost" onClick={onLogout}>Sair</button>
               </div>
             </header>
@@ -1290,11 +1404,22 @@
          ============================================================ */
       function Root() {
         const [session, setSession] = useState(null);
+        const [darkMode, setDarkMode] = useState(() => {
+          const saved = localStorage.getItem("rjnet-theme");
+          return saved ? saved === "dark" : true;
+        });
+
+        useEffect(() => {
+          document.documentElement.classList.toggle("light", !darkMode);
+          localStorage.setItem("rjnet-theme", darkMode ? "dark" : "light");
+        }, [darkMode]);
+
+        const toggleDark = () => setDarkMode((d) => !d);
         const logout = () => setSession(null);
 
-        if (!session) return <Login onLogin={setSession} />;
-        if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} />;
-        return <VendedorApp session={session} onLogout={logout} />;
+        if (!session) return <Login onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
+        if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+        return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(
