@@ -1511,7 +1511,6 @@ Chart.register(...registerables);
           const nome = sanitize(f.nome, 120);
           if (!nome) { setFormErro("Nome é obrigatório."); return; }
           if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
-          if (f.cpf && f.cpf.replace(/\D/g, "").length === 11 && !validarCpf(f.cpf)) { setFormErro("CPF inválido. Verifique os dígitos informados."); return; }
           const novoId = "l" + Date.now() + Math.random().toString(36).slice(2,7);
           addLead({
             id: novoId,
