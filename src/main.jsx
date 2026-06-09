@@ -169,10 +169,11 @@ Chart.register(...registerables);
       };
 
       // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
-      function usePersisted(key, fallback) {
+      function usePersisted(key, fallback, { session = false } = {}) {
+        const storage = session ? sessionStorage : localStorage;
         const [state, setState] = useState(() => {
           try {
-            const raw = localStorage.getItem(key);
+            const raw = storage.getItem(key);
             return raw ? JSON.parse(raw) : fallback;
           } catch { return fallback; }
         });
@@ -180,7 +181,11 @@ Chart.register(...registerables);
           setState((prev) => {
             const next = typeof v === "function" ? v(prev) : v;
             try {
-              localStorage.setItem(key, JSON.stringify(next));
+              if (next === null || next === undefined) {
+                storage.removeItem(key);
+              } else {
+                storage.setItem(key, JSON.stringify(next));
+              }
             } catch (err) {
               console.error("[rjnet] Falha ao salvar dados localmente:", err);
               alert("⚠️ Não foi possível salvar os dados. O armazenamento local pode estar cheio. Contate o suporte.");
@@ -1811,7 +1816,7 @@ Chart.register(...registerables);
          ROOT
          ============================================================ */
       function Root() {
-        const [session, setSession] = usePersisted("rjnet_session", null);
+        const [session, setSession] = usePersisted("rjnet_session", null, { session: true });
         const [darkMode, setDarkMode] = useState(() => {
           const saved = localStorage.getItem("rjnet-theme");
           return saved ? saved === "dark" : true;
