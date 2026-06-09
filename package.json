@@ -2,6 +2,9 @@
   "name": "rjnet-gestao-eventos",
   "version": "1.0.0",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "test": "playwright test",
     "test:security": "playwright test tests/security.test.js",
     "test:unit": "node tests/security.unit.test.js",
@@ -10,6 +13,13 @@
     "test:report": "playwright show-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.44.0"
+    "@playwright/test": "^1.44.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }
