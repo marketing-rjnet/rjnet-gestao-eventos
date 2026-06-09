@@ -175,16 +175,35 @@ Chart.register(...registerables);
         return ctx;
       };
 
+      // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
+      function usePersisted(key, fallback) {
+        const [state, setState] = useState(() => {
+          try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+          } catch { return fallback; }
+        });
+        const set = (v) => {
+          setState((prev) => {
+            const next = typeof v === "function" ? v(prev) : v;
+            try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+            return next;
+          });
+        };
+        return [state, set];
+      }
+
       function AppProvider({ children }) {
-        const [materiais, setMateriais] = useState(MOCK_MATERIAIS);
-        const [eventos, setEventos] = useState(MOCK_EVENTOS);
-        const [leads, setLeads] = useState(MOCK_LEADS);
-        const [vendedores, setVendedores] = useState(MOCK_VENDEDORES);
+        const [materiais, setMateriais] = usePersisted("rjnet_materiais", MOCK_MATERIAIS);
+        const [eventos, setEventos] = usePersisted("rjnet_eventos", MOCK_EVENTOS);
+        const [leads, setLeads] = usePersisted("rjnet_leads", MOCK_LEADS);
+        const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", MOCK_VENDEDORES);
 
         const value = {
           materiais, eventos, leads, vendedores,
           addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now(), criadoEm: new Date().toISOString() }]),
           updateEvento: (id, patch) => setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e))),
+          removeEvento: (id) => setEventos((p) => p.filter((e) => e.id !== id)),
           addLead: (l) => setLeads((p) => [...p, { ...l, id: "l" + Date.now(), criadoEm: new Date().toISOString() }]),
           updateLead: (id, patch) => setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l)),
           removeLead: (id) => setLeads((p) => p.filter((l) => l.id !== id)),
@@ -202,7 +221,7 @@ Chart.register(...registerables);
             setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
               ...e, materiais: e.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m)
             })),
-          addVendedor: (nome, cpf = "") => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, cpf, ativo: true }]),
+          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, ativo: true }]),
           updateVendedor: (id, patch) => setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v)),
           toggleVendedor: (id) => setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v))),
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
@@ -583,7 +602,7 @@ Chart.register(...registerables);
          ============================================================ */
       function EventDetail({ eventoId, onBack }) {
         const { eventos, materiais, getLeadsEvento, getMateriaisDisponiveis,
-                addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento } = useApp();
+                addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento, removeEvento } = useApp();
         const ev = eventos.find((e) => e.id === eventoId);
         if (!ev) return null;
 
@@ -623,14 +642,28 @@ Chart.register(...registerables);
 
         return (
           <div className="page">
-            {/* Back + Edit */}
+            {/* Back + Edit + Delete */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 14 }}>
               <button className="back-btn" onClick={onBack} style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <Icon name="back" size={15} /> Voltar para Eventos
               </button>
-              <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
-                Editar Evento
-              </button>
+              <div style={{ display:"flex", gap:8 }}>
+                <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
+                  Editar Evento
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize:13, color:"var(--red)", borderColor:"var(--red)" }}
+                  onClick={() => {
+                    if (confirm(`Excluir o evento "${ev.nome}"? Esta ação também removerá todos os leads vinculados a ele.`)) {
+                      removeEvento(eventoId);
+                      onBack();
+                    }
+                  }}
+                >
+                  <Icon name="x" size={14} stroke="var(--red)" /> Excluir Evento
+                </button>
+              </div>
             </div>
 
             <div className="detail-hero">
@@ -856,6 +889,29 @@ Chart.register(...registerables);
 
         const byService = (s) => leads.filter((l) => l.servicoInteresse === s).length;
 
+        const exportarCSV = () => {
+          const dados = fEvento ? leads.filter((l) => l.eventoId === fEvento) : leads;
+          if (dados.length === 0) return;
+          const nomeEvento = fEvento ? evName(fEvento) : "todos_eventos";
+          const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
+          const linhas = dados.map((l) => [
+            l.nome, l.cpf || "", l.telefone, l.endereco || "",
+            servicoLabel(l.servicoInteresse), l.temperatura,
+            l.jaClienteRjnet ? "Sim" : "Não",
+            l.vendedorNome, evName(l.eventoId),
+            (l.observacao || "").replace(/"/g, '""'),
+            new Date(l.criadoEm).toLocaleString("pt-BR"),
+          ]);
+          const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+          const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `leads_${nomeEvento.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
         const porEvento = useMemo(() => {
           const c = {};
           leads.forEach((l) => { c[l.eventoId] = (c[l.eventoId] || 0) + 1; });
@@ -874,6 +930,15 @@ Chart.register(...registerables);
                 <div className="page-title">Leads</div>
                 <p className="tab-desc">Todos os leads captados pela equipe comercial.</p>
               </div>
+              <button
+                className="btn-primary"
+                style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}
+                onClick={exportarCSV}
+                disabled={leads.length === 0}
+                title={fEvento ? "Exportar leads do evento selecionado" : "Selecione um evento no filtro para exportar"}
+              >
+                ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(selecione evento)"}
+              </button>
             </div>
 
             <div className="grid-kpi">
@@ -943,13 +1008,12 @@ Chart.register(...registerables);
         const { vendedores, leads, eventos, addVendedor, updateVendedor, toggleVendedor } = useApp();
         const [showForm, setShowForm] = useState(false);
         const [novoNome, setNovoNome] = useState("");
-        const [novoCpf, setNovoCpf] = useState("");
 
         const submit = (e) => {
           e.preventDefault();
           if (novoNome.trim()) {
-            addVendedor(novoNome.trim(), novoCpf);
-            setNovoNome(""); setNovoCpf(""); setShowForm(false);
+            addVendedor(novoNome.trim());
+            setNovoNome(""); setShowForm(false);
           }
         };
 
@@ -971,10 +1035,6 @@ Chart.register(...registerables);
                   <div className="field-group">
                     <label>Nome completo *</label>
                     <input required value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
-                  </div>
-                  <div className="field-group">
-                    <label>CPF</label>
-                    <input value={novoCpf} onChange={(e) => setNovoCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
                   </div>
                 </div>
                 <div className="modal-actions">
@@ -1000,17 +1060,6 @@ Chart.register(...registerables);
                   <div key={v.id} className="vendor-card">
                     <div className="v-av">{initials(v.nome)}</div>
                     <div className="v-name">{v.nome}</div>
-                    {v.cpf ? (
-                      <div className="v-cpf mono">{v.cpf}</div>
-                    ) : (
-                      <input
-                        className="v-cpf-input mono"
-                        placeholder="Adicionar CPF"
-                        inputMode="numeric"
-                        onBlur={(e) => { if (e.target.value) updateVendedor(v.id, { cpf: maskCpf(e.target.value) }); }}
-                        onChange={(e) => { e.target.value = maskCpf(e.target.value); }}
-                      />
-                    )}
                     <div className="v-big">{vl.length}</div>
                     <div className="v-cap">leads captados</div>
                     <div style={{ marginTop: 8 }}>
