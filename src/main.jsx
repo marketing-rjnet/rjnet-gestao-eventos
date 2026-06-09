@@ -1398,7 +1398,7 @@ Chart.register(...registerables);
       }
 
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-        const { getEventosAtivos, addLead, removeLead, updateLead, leads } = useApp();
+        const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
         const [aba, setAba] = useState("registrar");
@@ -1410,12 +1410,24 @@ Chart.register(...registerables);
         const toastTimer = useRef(null);
         const [editandoId, setEditandoId] = useState(null);
 
-        const leadsDoEvento = leads.filter((l) =>
-          l.eventoId === eventoId && l.vendedorNome === session.vendedorNome
-        );
+        const eventoAtual = eventos.find((e) => e.id === eventoId);
+        const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
+        const todosLeadsEvento = leads.filter((l) => l.eventoId === eventoId);
 
         const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
         const metaBatida = leadsDoEvento.length >= META_DIARIA;
+
+        const ranking = useMemo(() => {
+          const mapa = {};
+          todosLeadsEvento.forEach((l) => {
+            mapa[l.vendedorNome] = (mapa[l.vendedorNome] || 0) + 1;
+          });
+          return Object.entries(mapa)
+            .map(([nome, total]) => ({ nome, total }))
+            .sort((a, b) => b.total - a.total);
+        }, [todosLeadsEvento]);
+
+        const maxRanking = ranking[0]?.total || 1;
 
         const showToast = (id, nome) => {
           if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -1447,6 +1459,14 @@ Chart.register(...registerables);
           setEditandoId(null);
         };
 
+        const posColors = ["gold", "silver", "bronze"];
+
+        const formatDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—";
+
+        const mapUrl = eventoAtual?.local
+          ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(eventoAtual.local)
+          : null;
+
         return (
           <div>
             <header className="app-header">
@@ -1460,7 +1480,7 @@ Chart.register(...registerables);
 
             <div className="vend-shell">
               {/* Seletor de evento compartilhado */}
-              <div className="big-field big-select" style={{ marginBottom: 14 }}>
+              <div className="big-field big-select" style={{ marginBottom: 20 }}>
                 <label>Evento</label>
                 {ativos.length === 0 ? (
                   <div className="empty" style={{ textAlign: "left", padding: "10px 0" }}>Nenhum evento ativo no momento.</div>
@@ -1471,42 +1491,28 @@ Chart.register(...registerables);
                 )}
               </div>
 
-              {/* Abas */}
-              <div className="vend-tabs">
-                <button className={"vend-tab" + (aba === "registrar" ? " active" : "")} onClick={() => setAba("registrar")}>
-                  <Icon name="plus" size={14} /> Registrar
-                </button>
-                <button className={"vend-tab" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); }}>
-                  <Icon name="person" size={14} /> Meus Leads
-                  {leadsDoEvento.length > 0 && <span className="vend-tab-badge">{leadsDoEvento.length}</span>}
-                </button>
-              </div>
-
               {/* ---- ABA REGISTRAR ---- */}
               {aba === "registrar" && (
                 <>
-                  <div className="vend-top" style={{ marginTop: 16 }}>
+                  <div className="vend-top">
                     <span style={{ fontSize: 18, fontWeight: 700 }}>Novo Lead</span>
-                    <span className="count-badge" style={metaBatida ? { background: "var(--green)", color: "#fff" } : {}}>
+                    <span className="count-badge" style={metaBatida ? { background: "var(--green)" } : {}}>
                       {leadsDoEvento.length}/{META_DIARIA} leads
                     </span>
                   </div>
-
                   <div className="meta-bar-wrap">
                     <div className="meta-bar-header">
-                      <span className="meta-bar-label">{metaBatida ? "Meta batida!" : "Meta diária"}</span>
-                      <span className="meta-bar-count">{leadsDoEvento.length} de {META_DIARIA} leads</span>
+                      <span className="meta-bar-label">{metaBatida ? "Meta batida! 🎯" : "Meta diária"}</span>
+                      <span className="meta-bar-count">{leadsDoEvento.length} de {META_DIARIA}</span>
                     </div>
                     <div className="meta-bar-track">
                       <div className={"meta-bar-fill" + (metaBatida ? " done" : "")} style={{ width: pct + "%" }} />
                     </div>
                   </div>
-
                   <label className="modo-rapido-toggle">
                     <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
                     Modo rápido — só essencial
                   </label>
-
                   {ativos.length > 0 && (
                     <form onSubmit={submit}>
                       <div className="big-field">
@@ -1571,26 +1577,23 @@ Chart.register(...registerables);
 
               {/* ---- ABA MEUS LEADS ---- */}
               {aba === "meus-leads" && (
-                <div style={{ marginTop: 16 }}>
+                <div>
                   {leadsDoEvento.length === 0 ? (
-                    <div className="empty" style={{ padding: "40px 0", textAlign: "center" }}>
-                      <Icon name="person" size={32} stroke="var(--text-3)" />
-                      <div style={{ marginTop: 10, color: "var(--text-3)", fontSize: 14 }}>Nenhum lead registrado neste evento ainda.</div>
+                    <div className="empty" style={{ padding: "48px 0", textAlign: "center" }}>
+                      <Icon name="person" size={36} stroke="var(--text-3)" />
+                      <div style={{ marginTop: 12, color: "var(--text-3)", fontSize: 14 }}>Nenhum lead registrado neste evento ainda.</div>
                     </div>
                   ) : (
-                    <div className="meus-leads" style={{ marginTop: 0 }}>
+                    <div className="meus-leads">
                       <h3>{leadsDoEvento.length} lead{leadsDoEvento.length > 1 ? "s" : ""} neste evento</h3>
                       {leadsDoEvento.map((l) => {
                         const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
                         const editando = editandoId === l.id;
+                        const tel = l.telefone.replace(/\D/g, "");
                         return (
                           <div key={l.id} className={"lead-mini" + (editando ? " editing" : "")}>
                             {editando ? (
-                              <LeadEditInline
-                                lead={l}
-                                onSave={(dados) => salvarEdicao(l.id, dados)}
-                                onCancel={() => setEditandoId(null)}
-                              />
+                              <LeadEditInline lead={l} onSave={(dados) => salvarEdicao(l.id, dados)} onCancel={() => setEditandoId(null)} />
                             ) : (
                               <>
                                 <div className="lm-row">
@@ -1605,28 +1608,24 @@ Chart.register(...registerables);
                                       updateLead(l.id, { temperatura: ordem[(idx + 1) % ordem.length] });
                                     }}
                                     title="Toque para alterar temperatura"
-                                  >
-                                    {tc.label}
-                                  </button>
+                                  >{tc.label}</button>
                                 </div>
-                                <div className="lm-row" style={{ marginTop: 4 }}>
-                                  <div className="lm-sub">
-                                    {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
-                                    {servicoLabel(l.servicoInteresse)}
-                                    {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
-                                  </div>
-                                  <a href={"tel:" + l.telefone.replace(/\D/g, "")} className="lm-tel-btn">
-                                    <Icon name="person" size={12} stroke="var(--rj-blue)" />
-                                    {l.telefone}
+                                <div className="lm-sub" style={{ marginTop: 4 }}>
+                                  {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
+                                  {servicoLabel(l.servicoInteresse)}
+                                  {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
+                                </div>
+                                <div className="lm-contacts">
+                                  <a href={"tel:" + tel} className="lm-contact-btn lm-contact-call">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.33 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.69a16 16 0 0 0 5.93 5.93l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                    Ligar
+                                  </a>
+                                  <a href={"https://wa.me/55" + tel} target="_blank" rel="noreferrer" className="lm-contact-btn lm-contact-whats">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+                                    WhatsApp
                                   </a>
                                 </div>
-                                <button
-                                  type="button"
-                                  className="lm-edit-btn"
-                                  onClick={() => setEditandoId(l.id)}
-                                >
-                                  Editar dados
-                                </button>
+                                <button type="button" className="lm-edit-btn" onClick={() => setEditandoId(l.id)}>Editar dados</button>
                               </>
                             )}
                           </div>
@@ -1636,7 +1635,95 @@ Chart.register(...registerables);
                   )}
                 </div>
               )}
+
+              {/* ---- ABA EVENTO ---- */}
+              {aba === "evento" && (
+                <div>
+                  {!eventoAtual ? (
+                    <div className="empty" style={{ padding: "48px 0", textAlign: "center" }}>Nenhum evento selecionado.</div>
+                  ) : (
+                    <>
+                      <div className="ev-info-card">
+                        <div className="ev-info-row">
+                          <span className="ev-info-label">Nome</span>
+                          <span className="ev-info-value" style={{ fontWeight: 700 }}>{eventoAtual.nome}</span>
+                        </div>
+                        <div className="ev-info-row">
+                          <span className="ev-info-label">Local</span>
+                          <span className="ev-info-value">{eventoAtual.local || "—"}</span>
+                        </div>
+                        <div className="ev-info-row">
+                          <span className="ev-info-label">Período</span>
+                          <span className="ev-info-value">{formatDate(eventoAtual.dataInicio)} → {formatDate(eventoAtual.dataFim)}</span>
+                        </div>
+                        <div className="ev-info-row">
+                          <span className="ev-info-label">Tipo</span>
+                          <span className="ev-info-value">{TIPO_LABEL[eventoAtual.tipo] || eventoAtual.tipo}</span>
+                        </div>
+                        <div className="ev-info-row">
+                          <span className="ev-info-label">Total leads</span>
+                          <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{todosLeadsEvento.length}</span>
+                        </div>
+                        {eventoAtual.observacoes && (
+                          <div className="ev-info-row">
+                            <span className="ev-info-label">Obs.</span>
+                            <span className="ev-info-value" style={{ fontStyle: "italic", color: "var(--text-3)" }}>{eventoAtual.observacoes}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {mapUrl && (
+                        <a href={mapUrl} target="_blank" rel="noreferrer" className="btn-mapa">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          Abrir no Maps
+                        </a>
+                      )}
+
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+                          Placar da equipe
+                        </div>
+                        {ranking.length === 0 ? (
+                          <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
+                        ) : (
+                          <div className="ranking-list">
+                            {ranking.map((item, i) => (
+                              <div key={item.nome} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
+                                <div className="ranking-header">
+                                  <span className={"ranking-pos" + (i < 3 ? " " + posColors[i] : "")}>{i + 1}º</span>
+                                  <span className="ranking-name">{item.nome}{item.nome === session.vendedorNome && <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>(você)</span>}</span>
+                                  <span className="ranking-count">{item.total}</span>
+                                </div>
+                                <div className="ranking-bar-track">
+                                  <div className="ranking-bar-fill" style={{ width: Math.round((item.total / maxRanking) * 100) + "%" }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Barra de navegação inferior */}
+            <nav className="vend-bottom-nav">
+              <button className={"vend-nav-btn" + (aba === "registrar" ? " active" : "")} onClick={() => setAba("registrar")}>
+                <Icon name="plus" size={22} stroke={aba === "registrar" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+                Registrar
+              </button>
+              <button className={"vend-nav-btn" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); }}>
+                <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+                Meus Leads
+                {leadsDoEvento.length > 0 && <span className="vend-nav-badge">{leadsDoEvento.length}</span>}
+              </button>
+              <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
+                <Icon name="calendar" size={22} stroke={aba === "evento" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+                Evento
+              </button>
+            </nav>
 
             {toast && (
               <div className="toast">

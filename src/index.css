@@ -257,41 +257,67 @@
       .mini-stat .ms-l { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 
       /* ---------- Vendedor view ---------- */
-      .vend-shell { max-width: 480px; margin: 0 auto; padding: 18px 16px 60px; }
+      .vend-shell { max-width: 480px; margin: 0 auto; padding: 18px 16px 90px; }
       .vend-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-      .count-badge { background: var(--rj-blue); color: #111; font-weight: 700; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+      .count-badge { background: var(--rj-blue); color: #fff; font-weight: 700; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
       .big-field input, .big-field textarea, .big-select select { padding: 14px; font-size: 16px; border-radius: 10px; }
       .big-field { margin-bottom: 16px; }
       .seg-control { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .seg-btn {
-        padding: 13px 10px; border-radius: 10px; font-size: 14px; font-weight: 600;
-        background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border);
-        transition: all .15s ease;
-      }
-      .seg-btn.active { background: var(--rj-blue); color: #111; box-shadow: none; }
+      .seg-btn { padding: 13px 10px; border-radius: 10px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border); transition: all .15s ease; }
+      .seg-btn.active { background: var(--rj-blue); color: #fff; box-shadow: none; }
       .lead-submit { height: 56px; font-size: 16px; }
-      .meus-leads { margin-top: 28px; }
+      .meus-leads { margin-top: 4px; }
       .meus-leads h3 { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
       .lead-mini { background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--border); padding: 12px 14px; margin-bottom: 8px; }
-      .lead-mini .lm-name { font-weight: 600; }
-      .lead-mini .lm-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+      .lead-mini .lm-name { font-weight: 600; font-size: 15px; }
+      .lead-mini .lm-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
       .lead-mini .lm-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-      .lm-tel-btn { font-size: 12px; color: var(--rj-blue); display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; background: rgba(245,192,0,.1); }
 
-      /* Abas do vendedor */
-      .vend-tabs { display: flex; gap: 6px; margin-bottom: 4px; }
-      .vend-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 8px; border-radius: 10px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border); transition: all .15s; position: relative; }
-      .vend-tab.active { background: var(--rj-blue); color: #fff; box-shadow: none; }
-      .vend-tab-badge { background: #fff; color: var(--rj-blue); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 6px; min-width: 18px; text-align: center; }
-      .vend-tab.active .vend-tab-badge { background: rgba(255,255,255,.25); color: #fff; }
+      /* Botões de contato no card do lead */
+      .lm-contacts { display: flex; gap: 8px; margin-top: 10px; }
+      .lm-contact-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: opacity .15s; }
+      .lm-contact-btn:active { opacity: .75; }
+      .lm-contact-call { background: #e8f0f9; color: var(--rj-blue); }
+      .lm-contact-whats { background: #dcfce7; color: #16a34a; }
+      .lm-edit-btn { margin-top: 8px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--bg); border: 1px solid var(--border); cursor: pointer; transition: all .15s; }
+      .lm-edit-btn:hover { border-color: var(--rj-blue); color: var(--rj-blue); }
+
+      /* Barra de navegação inferior */
+      .vend-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #0d1117; border-top: 1px solid #1e2a3a; display: flex; justify-content: space-around; align-items: stretch; padding: 0; safe-area-inset-bottom: env(safe-area-inset-bottom); }
+      .vend-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 4px 12px; font-size: 11px; font-weight: 600; color: #5a7a9a; background: none; border: none; cursor: pointer; transition: color .15s; position: relative; letter-spacing: .02em; }
+      .vend-nav-btn.active { color: #f5c000; }
+      .vend-nav-btn.active svg { stroke: #f5c000; }
+      .vend-nav-btn svg { transition: stroke .15s; }
+      .vend-nav-badge { position: absolute; top: 6px; right: calc(50% - 18px); background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 5px; min-width: 16px; text-align: center; line-height: 1.4; }
 
       /* Edição inline de lead */
       .lead-mini.editing { box-shadow: 0 0 0 2px var(--rj-blue); }
       .lead-edit-form { display: flex; flex-direction: column; }
       .lead-edit-form .big-field label { font-size: 12px; }
       .lead-edit-form input, .lead-edit-form textarea { padding: 10px 12px; font-size: 15px; }
-      .lm-edit-btn { margin-top: 10px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--rj-blue); background: var(--rj-blue-pale); border: none; cursor: pointer; }
-      .lm-edit-btn:hover { background: var(--rj-blue); color: #fff; }
+
+      /* Aba Evento — ranking */
+      .ranking-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+      .ranking-item { background: var(--surface); border-radius: 10px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--border); }
+      .ranking-item.me { box-shadow: 0 0 0 2px var(--rj-blue); }
+      .ranking-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      .ranking-pos { font-size: 15px; font-weight: 800; color: var(--text-3); width: 22px; text-align: center; }
+      .ranking-pos.gold { color: #f5c000; }
+      .ranking-pos.silver { color: #9ca3af; }
+      .ranking-pos.bronze { color: #b45309; }
+      .ranking-name { font-weight: 600; flex: 1; }
+      .ranking-count { font-size: 14px; font-weight: 700; color: var(--rj-blue); }
+      .ranking-bar-track { height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
+      .ranking-bar-fill { height: 100%; border-radius: 999px; background: var(--rj-blue); transition: width .5s ease; }
+      .ranking-item.me .ranking-bar-fill { background: #f5c000; }
+
+      /* Info do evento */
+      .ev-info-card { background: var(--surface); border-radius: 12px; padding: 16px; box-shadow: 0 0 0 1px var(--border); margin-bottom: 16px; }
+      .ev-info-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+      .ev-info-row:last-child { border-bottom: none; }
+      .ev-info-label { font-size: 12px; color: var(--text-3); min-width: 70px; padding-top: 1px; }
+      .ev-info-value { font-size: 14px; font-weight: 500; flex: 1; }
+      .btn-mapa { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; background: var(--rj-blue); color: #fff; text-decoration: none; margin-bottom: 20px; }
 
       /* Meta diária */
       .meta-bar-wrap { margin-bottom: 18px; }
