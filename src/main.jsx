@@ -285,7 +285,7 @@ Chart.register(...registerables);
           return (
             <div className="login-bg">
               <div className="login-card">
-                <div className="login-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
+                <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",marginBottom:"8px"}} />
                 <p className="login-tag">Gestão de Eventos</p>
                 <p className="login-sub">Selecione seu perfil</p>
                 <div className="vendedor-list">
@@ -313,7 +313,7 @@ Chart.register(...registerables);
         return (
           <div className="login-bg">
             <div className="login-card">
-              <div className="login-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
+              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",marginBottom:"8px"}} />
               <p className="login-tag">Gestão de Eventos</p>
               <p className="login-sub">Sistema de Gestão de Eventos</p>
               <form onSubmit={submit} className="login-form">
@@ -1259,7 +1259,7 @@ Chart.register(...registerables);
         return (
           <div>
             <header className="app-header">
-              <div className="header-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
+              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
               <nav className="header-nav">
                 {tabs.map((t) => (
                   <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
@@ -1366,7 +1366,7 @@ Chart.register(...registerables);
         return (
           <div>
             <header className="app-header">
-              <div className="header-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
+              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
               <div className="header-right" style={{ marginLeft: "auto" }}>
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span><span className="ub-name">{session.vendedorNome}</span></span>
