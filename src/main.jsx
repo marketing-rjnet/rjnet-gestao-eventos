@@ -100,9 +100,28 @@ Chart.register(...registerables);
           nome: "João Pereira", telefone: "(24) 99876-5432",
           endereco: "Rua das Flores, 45 - Angra dos Reis",
           servicoInteresse: "fibra_residencial",
+          temperatura: "quente",
           observacao: "Muito interesse, mora em área com cobertura",
           criadoEm: "2025-06-07T14:30:00Z",
         },
+      ];
+
+      const META_DIARIA = 15;
+
+      const TEMPERATURA_CONFIG = {
+        frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
+        morno:      { label: "Morno",      cor: "#fb923c", cls: "temp-morno" },
+        quente:     { label: "Quente",     cor: "#ef4444", cls: "temp-quente" },
+        convertido: { label: "Convertido", cor: "#22c55e", cls: "temp-convertido" },
+      };
+
+      const OBS_ATALHOS = [
+        "Mora em área coberta",
+        "Já tem outro provedor",
+        "Quer portabilidade",
+        "Interesse em combo",
+        "Retornar amanhã",
+        "Aguardando visita técnica",
       ];
 
       /* ============================================================
@@ -157,6 +176,8 @@ Chart.register(...registerables);
           addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now(), criadoEm: new Date().toISOString() }]),
           updateEvento: (id, patch) => setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e))),
           addLead: (l) => setLeads((p) => [...p, { ...l, id: "l" + Date.now(), criadoEm: new Date().toISOString() }]),
+          updateLead: (id, patch) => setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l)),
+          removeLead: (id) => setLeads((p) => p.filter((l) => l.id !== id)),
           addMaterial: (m) => setMateriais((p) => [...p, { ...m, id: "m" + Date.now() }]),
           updateMaterial: (id, patch) => setMateriais((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m))),
           addMaterialEvento: (eventoId, materialId, quantidade) =>
@@ -1039,26 +1060,62 @@ Chart.register(...registerables);
       }
 
       /* ============================================================
+         HELPERS — máscara de telefone
+         ============================================================ */
+      function maskTel(v) {
+        const d = v.replace(/\D/g, "").slice(0, 11);
+        if (d.length <= 2) return d.length ? "(" + d : "";
+        if (d.length <= 7) return "(" + d.slice(0,2) + ") " + d.slice(2);
+        if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+        return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+      }
+
+      /* ============================================================
          VENDEDOR (COMERCIAL) VIEW — mobile-first
          ============================================================ */
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-        const { getEventosAtivos, addLead, leads } = useApp();
+        const { getEventosAtivos, addLead, removeLead, updateLead, leads } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
-        const [f, setF] = useState({ nome: "", telefone: "", endereco: "", servicoInteresse: "fibra_residencial", observacao: "" });
+        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", servicoInteresse: "fibra_residencial", temperatura: "morno", observacao: "" };
+        const [f, setF] = useState(FORM_VAZIO);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+        const [modoRapido, setModoRapido] = useState(false);
+        const [toast, setToast] = useState(null); // { id, nome }
+        const toastTimer = useRef(null);
 
-        const meusLeadsHoje = leads.filter((l) => {
-          const hoje = new Date().toDateString();
-          return l.vendedorNome === session.vendedorNome && new Date(l.criadoEm).toDateString() === hoje;
-        });
+        const hoje = new Date().toDateString();
+        const meusLeadsHoje = leads.filter((l) =>
+          l.vendedorNome === session.vendedorNome && new Date(l.criadoEm).toDateString() === hoje
+        );
+
+        const pct = Math.min((meusLeadsHoje.length / META_DIARIA) * 100, 100);
+        const metaBatida = meusLeadsHoje.length >= META_DIARIA;
+
+        const showToast = (id, nome) => {
+          if (toastTimer.current) clearTimeout(toastTimer.current);
+          setToast({ id, nome });
+          toastTimer.current = setTimeout(() => setToast(null), 5000);
+        };
+
+        const handleUndo = () => {
+          if (!toast) return;
+          removeLead(toast.id);
+          clearTimeout(toastTimer.current);
+          setToast(null);
+        };
 
         const submit = (e) => {
           e.preventDefault();
           if (!eventoId) return;
-          addLead({ ...f, eventoId, vendedorNome: session.vendedorNome });
-          setF({ nome: "", telefone: "", endereco: "", servicoInteresse: "fibra_residencial", observacao: "" });
+          const id = "l" + Date.now();
+          addLead({ ...f, id, eventoId, vendedorNome: session.vendedorNome });
+          if (typeof navigator.vibrate === "function") navigator.vibrate(80);
+          showToast(id, f.nome);
+          setF(FORM_VAZIO);
         };
+
+        const addObs = (txt) => set("observacao", f.observacao ? f.observacao + ". " + txt : txt);
 
         return (
           <div>
@@ -1074,8 +1131,27 @@ Chart.register(...registerables);
             <div className="vend-shell">
               <div className="vend-top">
                 <h1 style={{ fontSize: 20, fontWeight: 700 }}>Registrar Lead</h1>
-                <span className="count-badge">{meusLeadsHoje.length} hoje</span>
+                <span className={"count-badge" + (metaBatida ? "" : "")} style={metaBatida ? { background: "var(--green)", color: "#fff" } : {}}>
+                  {meusLeadsHoje.length}/{META_DIARIA} hoje
+                </span>
               </div>
+
+              {/* Barra de meta diária */}
+              <div className="meta-bar-wrap">
+                <div className="meta-bar-header">
+                  <span className="meta-bar-label">{metaBatida ? "Meta batida!" : "Meta diária"}</span>
+                  <span className="meta-bar-count">{meusLeadsHoje.length} de {META_DIARIA} leads</span>
+                </div>
+                <div className="meta-bar-track">
+                  <div className={"meta-bar-fill" + (metaBatida ? " done" : "")} style={{ width: pct + "%" }} />
+                </div>
+              </div>
+
+              {/* Modo rápido toggle */}
+              <label className="modo-rapido-toggle">
+                <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
+                Modo rápido — só essencial
+              </label>
 
               <div className="big-field big-select">
                 <label>Evento</label>
@@ -1092,16 +1168,27 @@ Chart.register(...registerables);
                 <form onSubmit={submit}>
                   <div className="big-field">
                     <label>Nome completo *</label>
-                    <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" />
+                    <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" />
                   </div>
                   <div className="big-field">
                     <label>Telefone *</label>
-                    <input required value={f.telefone} onChange={(e) => set("telefone", e.target.value)} placeholder="(24) 99999-9999" inputMode="tel" />
+                    <input
+                      required
+                      value={f.telefone}
+                      onChange={(e) => set("telefone", maskTel(e.target.value))}
+                      placeholder="(24) 99999-9999"
+                      inputMode="tel"
+                      autoComplete="off"
+                    />
                   </div>
-                  <div className="big-field">
-                    <label>Endereço</label>
-                    <input value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
-                  </div>
+
+                  {!modoRapido && (
+                    <div className="big-field">
+                      <label>Endereço</label>
+                      <input value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+                    </div>
+                  )}
+
                   <div className="big-field">
                     <label>Serviço de interesse *</label>
                     <div className="seg-control">
@@ -1112,10 +1199,41 @@ Chart.register(...registerables);
                       ))}
                     </div>
                   </div>
+
                   <div className="big-field">
-                    <label>Observação</label>
-                    <textarea rows="2" value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais sobre o cliente..." />
+                    <label>Temperatura do lead</label>
+                    <div className="temp-grid">
+                      {Object.entries(TEMPERATURA_CONFIG).map(([k, cfg]) => (
+                        <button
+                          type="button"
+                          key={k}
+                          className={"temp-btn " + cfg.cls + (f.temperatura === k ? " active" : "")}
+                          style={{ "--tc": cfg.cor }}
+                          onClick={() => set("temperatura", k)}
+                        >
+                          {cfg.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {!modoRapido && (
+                    <div className="big-field">
+                      <label>Observação</label>
+                      <div className="obs-chips">
+                        {OBS_ATALHOS.map((a) => (
+                          <button type="button" key={a} className="obs-chip" onClick={() => addObs(a)}>{a}</button>
+                        ))}
+                      </div>
+                      <textarea
+                        rows="2"
+                        value={f.observacao}
+                        onChange={(e) => set("observacao", e.target.value)}
+                        placeholder="Informações adicionais..."
+                      />
+                    </div>
+                  )}
+
                   <button type="submit" className="btn-primary btn-full lead-submit">Registrar Lead</button>
                 </form>
               )}
@@ -1123,15 +1241,51 @@ Chart.register(...registerables);
               {meusLeadsHoje.length > 0 && (
                 <div className="meus-leads">
                   <h3>Meus Leads Hoje</h3>
-                  {meusLeadsHoje.map((l) => (
-                    <div key={l.id} className="lead-mini">
-                      <div className="lm-name">{l.nome}</div>
-                      <div className="lm-sub">{l.telefone} · {servicoLabel(l.servicoInteresse)}</div>
-                    </div>
-                  ))}
+                  {meusLeadsHoje.map((l) => {
+                    const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
+                    return (
+                      <div key={l.id} className="lead-mini">
+                        <div className="lm-row">
+                          <div className="lm-name">{l.nome}</div>
+                          <button
+                            type="button"
+                            className="temp-btn"
+                            style={{
+                              "--tc": tc.cor, fontSize: 11, padding: "3px 10px", borderRadius: 999,
+                              color: tc.cor, background: "color-mix(in srgb," + tc.cor + " 12%, transparent)",
+                              boxShadow: "0 0 0 1px " + tc.cor,
+                            }}
+                            onClick={() => {
+                              const ordem = Object.keys(TEMPERATURA_CONFIG);
+                              const idx = ordem.indexOf(l.temperatura || "morno");
+                              updateLead(l.id, { temperatura: ordem[(idx + 1) % ordem.length] });
+                            }}
+                            title="Toque para alterar temperatura"
+                          >
+                            {tc.label}
+                          </button>
+                        </div>
+                        <div className="lm-row" style={{ marginTop: 4 }}>
+                          <div className="lm-sub">{servicoLabel(l.servicoInteresse)}</div>
+                          <a href={"tel:" + l.telefone.replace(/\D/g, "")} className="lm-tel-btn">
+                            <Icon name="person" size={12} stroke="var(--rj-blue)" />
+                            {l.telefone}
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
+
+            {/* Toast desfazer */}
+            {toast && (
+              <div className="toast">
+                <span>Lead <b>{toast.nome}</b> registrado</span>
+                <button className="toast-undo" onClick={handleUndo}>Desfazer</button>
+              </div>
+            )}
           </div>
         );
       }
