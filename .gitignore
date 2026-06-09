@@ -1,0 +1,15 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente — NUNCA commitar
+.env
+.env.local
+.env.*.local
+
+# Relatórios de teste
+playwright-report/
+test-results/
+
+# Misc
+.DS_Store
+*.log

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "test": "playwright test",
+    "test:security": "playwright test tests/security.test.js",
+    "test:unit": "node tests/security.unit.test.js",
+    "test:all": "node tests/security.unit.test.js && playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report"
   },

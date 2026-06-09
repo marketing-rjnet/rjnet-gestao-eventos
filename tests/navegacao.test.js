@@ -1,31 +1,12 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-
-// Helper: log in as Marketing (single step, no vendedor selection needed)
-async function loginMarketing(page) {
-  await page.goto('/');
-  await page.locator('.login-form input[autocomplete="username"]').fill('marketing');
-  await page.locator('.login-form input[type="password"]').fill('mkt2025');
-  await page.locator('.login-form button[type="submit"]').click();
-  await expect(page.locator('.app-header')).toBeVisible();
-}
-
-// Helper: log in as Comercial with first vendedor
-async function loginComercial(page) {
-  await page.goto('/');
-  await page.locator('.login-form input[autocomplete="username"]').fill('comercial');
-  await page.locator('.login-form input[type="password"]').fill('com2025');
-  await page.locator('.login-form button[type="submit"]').click();
-  await page.locator('.vendedor-btn').first().click();
-  await expect(page.locator('.app-header')).toBeVisible();
-}
+const { loginMarketing, loginComercial } = require('./helpers/auth');
 
 test.describe('Navegação entre abas', () => {
 
   test('todas as abas estão visíveis após login Marketing', async ({ page }) => {
     await loginMarketing(page);
     await expect(page.locator('.tab-nav')).toBeVisible();
-    // Expect the four tabs defined in the app
     const tabs = page.locator('.tab-btn');
     await expect(tabs).toHaveCount(4);
     await expect(tabs.nth(0)).toContainText('Eventos');
@@ -69,15 +50,12 @@ test.describe('Navegação entre abas', () => {
 
   test('botão Voltar no detalhe de evento retorna à lista', async ({ page }) => {
     await loginMarketing(page);
-    // Click on the first event card if present
     const eventCard = page.locator('.event-card').first();
     const hasEvents = await eventCard.isVisible().catch(() => false);
     if (hasEvents) {
       await eventCard.click();
-      // Detail view should show a back button
       await expect(page.locator('.detalhe-header, .back-btn')).toBeVisible();
       await page.locator('.back-btn').first().click();
-      // Should be back on card grid
       await expect(page.locator('.card-grid, .event-card')).toBeVisible();
     } else {
       test.skip();
