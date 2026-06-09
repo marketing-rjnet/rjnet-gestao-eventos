@@ -179,7 +179,12 @@ Chart.register(...registerables);
         const set = (v) => {
           setState((prev) => {
             const next = typeof v === "function" ? v(prev) : v;
-            try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+            try {
+              localStorage.setItem(key, JSON.stringify(next));
+            } catch (err) {
+              console.error("[rjnet] Falha ao salvar dados localmente:", err);
+              alert("⚠️ Não foi possível salvar os dados. O armazenamento local pode estar cheio. Contate o suporte.");
+            }
             return next;
           });
         };
@@ -194,13 +199,13 @@ Chart.register(...registerables);
 
         const value = {
           materiais, eventos, leads, vendedores,
-          addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now(), criadoEm: new Date().toISOString() }]),
+          addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now() + Math.random().toString(36).slice(2,7), criadoEm: new Date().toISOString() }]),
           updateEvento: (id, patch) => setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e))),
           removeEvento: (id) => setEventos((p) => p.filter((e) => e.id !== id)),
-          addLead: (l) => setLeads((p) => [...p, { ...l, id: "l" + Date.now(), criadoEm: new Date().toISOString() }]),
+          addLead: (l) => setLeads((p) => [...p, { id: "l" + Date.now() + Math.random().toString(36).slice(2,7), criadoEm: new Date().toISOString(), ...l }]),
           updateLead: (id, patch) => setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l)),
           removeLead: (id) => setLeads((p) => p.filter((l) => l.id !== id)),
-          addMaterial: (m) => setMateriais((p) => [...p, { ...m, id: "m" + Date.now() }]),
+          addMaterial: (m) => setMateriais((p) => [...p, { ...m, id: "m" + Date.now() + Math.random().toString(36).slice(2,7) }]),
           updateMaterial: (id, patch) => setMateriais((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m))),
           addMaterialEvento: (eventoId, materialId, quantidade) =>
             setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
@@ -214,7 +219,7 @@ Chart.register(...registerables);
             setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
               ...e, materiais: e.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m)
             })),
-          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, ativo: true }]),
+          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now() + Math.random().toString(36).slice(2,7), nome, ativo: true }]),
           updateVendedor: (id, patch) => setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v)),
           toggleVendedor: (id) => setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v))),
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
@@ -233,8 +238,8 @@ Chart.register(...registerables);
       }
 
       const AUTH = {
-        marketing: { user: "marketing", pass: "mkt2025" },
-        comercial: { user: "comercial", pass: "com2025" },
+        marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS },
+        comercial: { user: import.meta.env.VITE_COMERCIAL_USER || "comercial", pass: import.meta.env.VITE_COMERCIAL_PASS },
       };
 
       /* ============================================================
@@ -349,8 +354,17 @@ Chart.register(...registerables);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const submit = (e) => {
           e.preventDefault();
-          if (evento) updateEvento(evento.id, f);
-          else addEvento({ ...f, materiais: [] });
+          const nome = sanitize(f.nome, 120);
+          const local = sanitize(f.local, 200);
+          const observacoes = sanitize(f.observacoes || "", 500);
+          if (!nome || !local) return;
+          if (f.dataFim && f.dataInicio && f.dataFim < f.dataInicio) {
+            alert("A data de fim não pode ser anterior à data de início.");
+            return;
+          }
+          const dados = { ...f, nome, local, observacoes };
+          if (evento) updateEvento(evento.id, dados);
+          else addEvento({ ...dados, materiais: [] });
           onClose();
         };
         return (
@@ -363,11 +377,11 @@ Chart.register(...registerables);
               <form onSubmit={submit} className="modal-form">
                 <div className="field-group">
                   <label>Nome do Evento *</label>
-                  <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Festa do Pescador" />
+                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Festa do Pescador" />
                 </div>
                 <div className="field-group">
                   <label>Local *</label>
-                  <input required value={f.local} onChange={(e) => set("local", e.target.value)} placeholder="Endereço / Praça / Espaço" />
+                  <input required maxLength={200} value={f.local} onChange={(e) => set("local", e.target.value)} placeholder="Endereço / Praça / Espaço" />
                 </div>
                 <div className="field-row">
                   <div className="field-group">
@@ -399,7 +413,7 @@ Chart.register(...registerables);
                 </div>
                 <div className="field-group">
                   <label>Observações</label>
-                  <textarea rows="3" value={f.observacoes} onChange={(e) => set("observacoes", e.target.value)} placeholder="Detalhes adicionais..." />
+                  <textarea rows="3" maxLength={500} value={f.observacoes} onChange={(e) => set("observacoes", e.target.value)} placeholder="Detalhes adicionais..." />
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
@@ -420,7 +434,11 @@ Chart.register(...registerables);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const submit = (e) => {
           e.preventDefault();
-          addMaterial({ ...f, quantidade: Number(f.quantidade) });
+          const nome = sanitize(f.nome, 120);
+          const qtd = parseInt(f.quantidade, 10);
+          if (!nome) return;
+          if (!qtd || qtd < 1 || qtd > 9999) { alert("Quantidade inválida. Informe um número entre 1 e 9999."); return; }
+          addMaterial({ ...f, nome, descricao: sanitize(f.descricao || "", 300), quantidade: qtd });
           onClose();
         };
         return (
@@ -433,7 +451,7 @@ Chart.register(...registerables);
               <form onSubmit={submit} className="modal-form">
                 <div className="field-group">
                   <label>Nome *</label>
-                  <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Wind Banner 2m" autoFocus />
+                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Wind Banner 2m" autoFocus />
                 </div>
                 <div className="field-group">
                   <label>Quantidade *</label>
@@ -1016,7 +1034,7 @@ Chart.register(...registerables);
         const submit = (e) => {
           e.preventDefault();
           if (novoNome.trim()) {
-            addVendedor(novoNome.trim());
+            addVendedor(sanitize(novoNome, 80));
             setNovoNome(""); setShowForm(false);
           }
         };
@@ -1038,7 +1056,7 @@ Chart.register(...registerables);
                 <div className="field-row">
                   <div className="field-group">
                     <label>Nome completo *</label>
-                    <input required value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
+                    <input required maxLength={80} value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
                   </div>
                 </div>
                 <div className="modal-actions">
@@ -1323,6 +1341,30 @@ Chart.register(...registerables);
       /* ============================================================
          HELPERS — máscara de telefone
          ============================================================ */
+      function sanitize(str, max = 200) {
+        if (typeof str !== "string") return "";
+        return str.replace(/<[^>]*>/g, "").trim().slice(0, max);
+      }
+
+      function validarCpf(cpf) {
+        const d = cpf.replace(/\D/g, "");
+        if (d.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(d)) return false;
+        let s = 0;
+        for (let i = 0; i < 9; i++) s += +d[i] * (10 - i);
+        let r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
+        if (r !== +d[9]) return false;
+        s = 0;
+        for (let i = 0; i < 10; i++) s += +d[i] * (11 - i);
+        r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
+        return r === +d[10];
+      }
+
+      function validarTelefone(tel) {
+        const d = tel.replace(/\D/g, "");
+        return d.length >= 10 && d.length <= 11;
+      }
+
       function maskCpf(v) {
         const d = v.replace(/\D/g, "").slice(0, 11);
         if (d.length <= 3) return d;
@@ -1453,13 +1495,31 @@ Chart.register(...registerables);
           setToast(null);
         };
 
+        const [formErro, setFormErro] = useState("");
+
         const submit = (e) => {
           e.preventDefault();
-          if (!eventoId) return;
-          const id = "l" + Date.now();
-          addLead({ ...f, id, eventoId, vendedorNome: session.vendedorNome });
+          setFormErro("");
+          if (!eventoId) { setFormErro("Selecione um evento antes de registrar."); return; }
+          const eventoSel = eventos.find((ev) => ev.id === eventoId);
+          if (!eventoSel || eventoSel.status === "encerrado") { setFormErro("Este evento está encerrado e não aceita novos leads."); return; }
+          const nome = sanitize(f.nome, 120);
+          if (!nome) { setFormErro("Nome é obrigatório."); return; }
+          if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
+          if (f.cpf && f.cpf.replace(/\D/g, "").length === 11 && !validarCpf(f.cpf)) { setFormErro("CPF inválido. Verifique os dígitos informados."); return; }
+          const novoId = "l" + Date.now() + Math.random().toString(36).slice(2,7);
+          addLead({
+            id: novoId,
+            ...f,
+            nome,
+            cpf: sanitize(f.cpf, 14),
+            endereco: sanitize(f.endereco, 200),
+            observacao: sanitize(f.observacao, 500),
+            eventoId,
+            vendedorNome: session.vendedorNome,
+          });
           if (typeof navigator.vibrate === "function") navigator.vibrate(80);
-          showToast(id, f.nome);
+          showToast(novoId, nome);
           setF(FORM_VAZIO);
         };
 
@@ -1528,20 +1588,20 @@ Chart.register(...registerables);
                     <form onSubmit={submit}>
                       <div className="big-field">
                         <label>Nome completo *</label>
-                        <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" />
+                        <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" />
                       </div>
                       <div className="big-field">
                         <label>Telefone *</label>
-                        <input required value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
+                        <input required maxLength={15} value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
                       </div>
                       <div className="big-field">
                         <label>CPF do cliente</label>
-                        <input value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
+                        <input maxLength={14} value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
                       </div>
                       {!modoRapido && (
                         <div className="big-field">
                           <label>Endereço</label>
-                          <input value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+                          <input maxLength={200} value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
                         </div>
                       )}
                       <div className="big-field">
@@ -1577,9 +1637,10 @@ Chart.register(...registerables);
                               <button type="button" key={a} className="obs-chip" onClick={() => addObs(a)}>{a}</button>
                             ))}
                           </div>
-                          <textarea rows="2" value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais..." />
+                          <textarea rows="2" maxLength={500} value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais..." />
                         </div>
                       )}
+                      {formErro && <div style={{ color:"var(--red)", fontSize:13, padding:"8px 12px", background:"var(--red-bg)", borderRadius:8, marginBottom:4 }}>{formErro}</div>}
                       <button type="submit" className="btn-primary btn-full lead-submit">Registrar Lead</button>
                     </form>
                   )}
