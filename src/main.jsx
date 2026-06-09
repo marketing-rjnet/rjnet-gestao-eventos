@@ -1087,11 +1087,11 @@ Chart.register(...registerables);
                   <div key={v.id} className="vendor-card">
                     <div className="v-av">{initials(v.nome)}</div>
                     <div className="v-name">{v.nome}</div>
-                    <div className="v-big">{vl.length}</div>
-                    <div className="v-cap">leads captados</div>
-                    <div style={{ marginTop: 8 }}>
+                    <div className="v-badge">
                       <span className={"badge " + (v.ativo ? "badge-ativo" : "badge-encerrado")}>{v.ativo ? "Ativo" : "Inativo"}</span>
                     </div>
+                    <div className="v-cap">leads captados</div>
+                    <div className="v-big">{vl.length}</div>
                     {hasData && (
                       <div className="v-chart">
                         <ChartView type="bar" data={barData} options={{
@@ -1100,9 +1100,11 @@ Chart.register(...registerables);
                         }} />
                       </div>
                     )}
-                    <button className="btn-ghost vendor-toggle" onClick={() => toggleVendedor(v.id)}>
-                      {v.ativo ? "Desativar" : "Ativar"}
-                    </button>
+                    <div className="v-actions">
+                      <button className="btn-ghost vendor-toggle" onClick={() => toggleVendedor(v.id)}>
+                        {v.ativo ? "Desativar" : "Ativar"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
