@@ -243,8 +243,8 @@ Chart.register(...registerables);
       }
 
       const AUTH = {
-        marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS },
-        comercial: { user: import.meta.env.VITE_COMERCIAL_USER || "comercial", pass: import.meta.env.VITE_COMERCIAL_PASS },
+        marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS || "mkt2025" },
+        comercial: { user: import.meta.env.VITE_COMERCIAL_USER || "comercial", pass: import.meta.env.VITE_COMERCIAL_PASS || "com2025" },
       };
 
       /* ============================================================
