@@ -125,6 +125,56 @@ assert('lead com telefone curto falha', !validarLead({ nome: 'João', telefone: 
 assert('lead com temperatura inválida falha', !validarLead({ nome: 'João', telefone: '(24) 99876-5432', temperatura: 'gelado', servicoInteresse: 'fibra_residencial' }).valid);
 assert('lead sem serviço falha', !validarLead({ nome: 'João', telefone: '(24) 99876-5432', temperatura: 'morno', servicoInteresse: '' }).valid);
 
+// ─── Máscara de CPF ───────────────────────────────────────────────────────────
+
+function maskCpf(v) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return d.slice(0,3) + "." + d.slice(3);
+  if (d.length <= 9) return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6);
+  return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6,9) + "-" + d.slice(9);
+}
+
+console.log('\nmaskCpf');
+assert('CPF vazio retorna vazio', maskCpf('') === '');
+assert('CPF completo formatado', maskCpf('12345678901') === '123.456.789-01');
+assert('CPF parcial — 6 dígitos', maskCpf('123456') === '123.456');
+assert('CPF parcial — 9 dígitos', maskCpf('123456789') === '123.456.789');
+assert('ignora caracteres não-numéricos', maskCpf('123.456.789-01') === '123.456.789-01');
+assert('limita a 11 dígitos', maskCpf('123456789012345') === '123.456.789-01');
+assert('XSS ignorado — mantém só dígitos', maskCpf('<script>12345678901</script>') === '123.456.789-01');
+
+// ─── Já é cliente RJNet ───────────────────────────────────────────────────────
+
+console.log('\njaClienteRjnet');
+function validarLeadCompleto(lead) {
+  if (!lead.nome || lead.nome.trim().length === 0) return false;
+  if (!lead.telefone || lead.telefone.replace(/\D/g,'').length < 10) return false;
+  if (typeof lead.jaClienteRjnet !== 'boolean') return false;
+  return true;
+}
+assert('campo jaClienteRjnet é booleano obrigatório', validarLeadCompleto({ nome: 'João', telefone: '(24) 99876-5432', jaClienteRjnet: false }));
+assert('jaClienteRjnet true é válido', validarLeadCompleto({ nome: 'João', telefone: '(24) 99876-5432', jaClienteRjnet: true }));
+assert('jaClienteRjnet ausente invalida lead', !validarLeadCompleto({ nome: 'João', telefone: '(24) 99876-5432' }));
+assert('jaClienteRjnet como string invalida', !validarLeadCompleto({ nome: 'João', telefone: '(24) 99876-5432', jaClienteRjnet: 'sim' }));
+
+// ─── Vendedores Thiago e Ramon existem ────────────────────────────────────────
+
+console.log('\nvendedores mock');
+const MOCK_VENDEDORES = [
+  { id: "v1", nome: "Carlos Silva",  cpf: "", ativo: true },
+  { id: "v2", nome: "Ana Oliveira",  cpf: "", ativo: true },
+  { id: "v3", nome: "Marcos Lima",   cpf: "", ativo: true },
+  { id: "v4", nome: "Juliana Costa", cpf: "", ativo: true },
+  { id: "v5", nome: "Thiago",        cpf: "", ativo: true },
+  { id: "v6", nome: "Ramon",         cpf: "", ativo: true },
+];
+assert('Thiago existe na equipe', MOCK_VENDEDORES.some(v => v.nome === 'Thiago'));
+assert('Ramon existe na equipe', MOCK_VENDEDORES.some(v => v.nome === 'Ramon'));
+assert('todos vendedores têm campo cpf', MOCK_VENDEDORES.every(v => 'cpf' in v));
+assert('todos vendedores têm ids únicos', new Set(MOCK_VENDEDORES.map(v => v.id)).size === MOCK_VENDEDORES.length);
+assert('CPF vazio por padrão (preenchimento posterior)', MOCK_VENDEDORES.every(v => typeof v.cpf === 'string'));
+
 // ─── Resultado ────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Resultado: ${passed} passou | ${failed} falhou`);

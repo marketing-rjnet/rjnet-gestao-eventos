@@ -64,10 +64,12 @@ Chart.register(...registerables);
       ];
 
       const MOCK_VENDEDORES = [
-        { id: "v1", nome: "Carlos Silva", ativo: true },
-        { id: "v2", nome: "Ana Oliveira", ativo: true },
-        { id: "v3", nome: "Marcos Lima", ativo: true },
-        { id: "v4", nome: "Juliana Costa", ativo: true },
+        { id: "v1", nome: "Carlos Silva",   cpf: "",  ativo: true },
+        { id: "v2", nome: "Ana Oliveira",   cpf: "",  ativo: true },
+        { id: "v3", nome: "Marcos Lima",    cpf: "",  ativo: true },
+        { id: "v4", nome: "Juliana Costa",  cpf: "",  ativo: true },
+        { id: "v5", nome: "Thiago",         cpf: "",  ativo: true },
+        { id: "v6", nome: "Ramon",          cpf: "",  ativo: true },
       ];
 
       const MOCK_EVENTOS = [
@@ -192,7 +194,8 @@ Chart.register(...registerables);
             setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
               ...e, materiais: e.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m)
             })),
-          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, ativo: true }]),
+          addVendedor: (nome, cpf = "") => setVendedores((p) => [...p, { id: "v" + Date.now(), nome, cpf, ativo: true }]),
+          updateVendedor: (id, patch) => setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v)),
           toggleVendedor: (id) => setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v))),
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
           getEventosAtivos: () => eventos.filter((e) => e.status === "ativo"),
@@ -929,13 +932,17 @@ Chart.register(...registerables);
          EQUIPE TAB
          ============================================================ */
       function EquipeTab() {
-        const { vendedores, leads, eventos, addVendedor, toggleVendedor } = useApp();
+        const { vendedores, leads, eventos, addVendedor, updateVendedor, toggleVendedor } = useApp();
         const [showForm, setShowForm] = useState(false);
-        const [nome, setNome] = useState("");
+        const [novoNome, setNovoNome] = useState("");
+        const [novoCpf, setNovoCpf] = useState("");
 
         const submit = (e) => {
           e.preventDefault();
-          if (nome.trim()) { addVendedor(nome.trim()); setNome(""); setShowForm(false); }
+          if (novoNome.trim()) {
+            addVendedor(novoNome.trim(), novoCpf);
+            setNovoNome(""); setNovoCpf(""); setShowForm(false);
+          }
         };
 
         const leadsDoVendedor = (n) => leads.filter((l) => l.vendedorNome === n);
@@ -952,9 +959,15 @@ Chart.register(...registerables);
 
             {showForm && (
               <form onSubmit={submit} className="inline-form-card">
-                <div className="field-group">
-                  <label>Nome completo *</label>
-                  <input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
+                <div className="field-row">
+                  <div className="field-group">
+                    <label>Nome completo *</label>
+                    <input required value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
+                  </div>
+                  <div className="field-group">
+                    <label>CPF</label>
+                    <input value={novoCpf} onChange={(e) => setNovoCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
+                  </div>
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
@@ -979,6 +992,17 @@ Chart.register(...registerables);
                   <div key={v.id} className="vendor-card">
                     <div className="v-av">{initials(v.nome)}</div>
                     <div className="v-name">{v.nome}</div>
+                    {v.cpf ? (
+                      <div className="v-cpf mono">{v.cpf}</div>
+                    ) : (
+                      <input
+                        className="v-cpf-input mono"
+                        placeholder="Adicionar CPF"
+                        inputMode="numeric"
+                        onBlur={(e) => { if (e.target.value) updateVendedor(v.id, { cpf: maskCpf(e.target.value) }); }}
+                        onChange={(e) => { e.target.value = maskCpf(e.target.value); }}
+                      />
+                    )}
                     <div className="v-big">{vl.length}</div>
                     <div className="v-cap">leads captados</div>
                     <div style={{ marginTop: 8 }}>
@@ -1062,6 +1086,14 @@ Chart.register(...registerables);
       /* ============================================================
          HELPERS — máscara de telefone
          ============================================================ */
+      function maskCpf(v) {
+        const d = v.replace(/\D/g, "").slice(0, 11);
+        if (d.length <= 3) return d;
+        if (d.length <= 6) return d.slice(0,3) + "." + d.slice(3);
+        if (d.length <= 9) return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6);
+        return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6,9) + "-" + d.slice(9);
+      }
+
       function maskTel(v) {
         const d = v.replace(/\D/g, "").slice(0, 11);
         if (d.length <= 2) return d.length ? "(" + d : "";
@@ -1077,7 +1109,7 @@ Chart.register(...registerables);
         const { getEventosAtivos, addLead, removeLead, updateLead, leads } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
-        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", servicoInteresse: "fibra_residencial", temperatura: "morno", observacao: "" };
+        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", servicoInteresse: "fibra_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
         const [f, setF] = useState(FORM_VAZIO);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const [modoRapido, setModoRapido] = useState(false);
@@ -1200,6 +1232,16 @@ Chart.register(...registerables);
                     </div>
                   </div>
 
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={f.jaClienteRjnet}
+                      onChange={(e) => set("jaClienteRjnet", e.target.checked)}
+                    />
+                    <span>Já é cliente RJNet?</span>
+                    {f.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 8, fontSize: 11 }}>Sim</span>}
+                  </label>
+
                   <div className="big-field">
                     <label>Temperatura do lead</label>
                     <div className="temp-grid">
@@ -1266,7 +1308,10 @@ Chart.register(...registerables);
                           </button>
                         </div>
                         <div className="lm-row" style={{ marginTop: 4 }}>
-                          <div className="lm-sub">{servicoLabel(l.servicoInteresse)}</div>
+                          <div className="lm-sub">
+                            {servicoLabel(l.servicoInteresse)}
+                            {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
+                          </div>
                           <a href={"tel:" + l.telefone.replace(/\D/g, "")} className="lm-tel-btn">
                             <Icon name="person" size={12} stroke="var(--rj-blue)" />
                             {l.telefone}
