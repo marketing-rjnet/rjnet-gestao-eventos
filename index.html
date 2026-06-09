@@ -132,7 +132,8 @@
       }
       .nav-tab:hover { color: var(--text); }
       .nav-tab.active { color: var(--rj-blue); border-bottom-color: var(--rj-blue); }
-      .nav-tab .ico { font-size: 15px; }
+      .nav-tab svg { opacity: .8; }
+      .nav-tab.active svg { opacity: 1; }
       .header-right { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
       .user-badge {
         display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2);
@@ -418,6 +419,47 @@
       const { useState, useContext, createContext, useEffect, useRef, useMemo } = React;
 
       /* ============================================================
+         SVG ICON SYSTEM — stroke-based, geometric, clean
+         ============================================================ */
+      const Icon = ({ name, size = 16, stroke = "currentColor", strokeWidth = 1.6 }) => {
+        const s = { width: size, height: size, display: "inline-block", verticalAlign: "middle", flexShrink: 0 };
+        const p = { fill: "none", stroke, strokeWidth, strokeLinecap: "round", strokeLinejoin: "round" };
+        const paths = {
+          // Calendar
+          calendar: <svg style={s} viewBox="0 0 24 24" {...p}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>,
+          // Box / Package
+          box: <svg style={s} viewBox="0 0 24 24" {...p}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
+          // People / Users
+          users: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>,
+          // Briefcase / Team
+          briefcase: <svg style={s} viewBox="0 0 24 24" {...p}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="2" y1="12" x2="22" y2="12"/></svg>,
+          // Pin / Location
+          pin: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+          // Sun
+          sun: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+          // Moon
+          moon: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+          // X / Close
+          x: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+          // Arrow left / Back
+          back: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+          // Plus
+          plus: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+          // Circle dot — status
+          dot_green: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#22c55e"/></svg>,
+          dot_yellow: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#f5c000"/></svg>,
+          dot_red: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#ef4444"/></svg>,
+          // Chart bar
+          chart: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
+          // Lead / person
+          person: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>,
+          // Arrow right
+          arrow_right: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+        };
+        return paths[name] || null;
+      };
+
+      /* ============================================================
          MOCK DATA (Supabase-ready structures)
          ============================================================ */
       const MOCK_MATERIAIS = [
@@ -603,7 +645,7 @@
                     </button>
                   ))}
                 </div>
-                <button className="back-btn" onClick={() => setStage("login")}>← Voltar</button>
+                <button className="back-btn" onClick={() => setStage("login")} style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="back" size={15} /> Voltar</button>
               </div>
             </div>
           );
@@ -638,7 +680,7 @@
               <p className="login-hint">Angra dos Reis · RJ</p>
               <div style={{ textAlign: "center", marginTop: 14 }}>
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
-                  {darkMode ? "☀️" : "🌙"}
+                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
                 </button>
               </div>
             </div>
@@ -672,7 +714,7 @@
             <div className="modal-box" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>{evento ? "Editar Evento" : "Novo Evento"}</h2>
-                <button className="modal-close" onClick={onClose}>✕</button>
+                <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
               </div>
               <form onSubmit={submit} className="modal-form">
                 <div className="field-group">
@@ -742,7 +784,7 @@
             <div className="modal-box" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Adicionar Material</h2>
-                <button className="modal-close" onClick={onClose}>✕</button>
+                <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
               </div>
               <form onSubmit={submit} className="modal-form">
                 <div className="field-group">
@@ -778,7 +820,7 @@
       function Kpi({ label, value, icon, alert }) {
         return (
           <div className={"kpi" + (alert ? " alert" : "")}>
-            <div className="kpi-label">{icon && <span>{icon}</span>}{label}</div>
+            <div className="kpi-label">{icon && <Icon name={icon} size={14} stroke="var(--text-3)" />}{label}</div>
             <div className="kpi-value">{value}</div>
           </div>
         );
@@ -814,10 +856,10 @@
         return (
           <div className="section" style={{ marginTop: 0 }}>
             <div className="grid-kpi">
-              <Kpi label="Eventos Ativos" value={ativos} icon="📅" />
-              <Kpi label="Total Leads" value={leads.length} icon="👥" />
-              <Kpi label="Materiais Críticos" value={criticos} icon="📦" alert={criticos > 0} />
-              <Kpi label="Vendedores Ativos" value={vendAtivos} icon="🧑‍💼" />
+              <Kpi label="Eventos Ativos" value={ativos} icon="calendar" />
+              <Kpi label="Total Leads" value={leads.length} icon="users" />
+              <Kpi label="Materiais Críticos" value={criticos} icon="box" alert={criticos > 0} />
+              <Kpi label="Vendedores Ativos" value={vendAtivos} icon="briefcase" />
             </div>
             <div className="grid-2 dashboard-row" style={{ marginTop: 16 }}>
               <div className="card">
@@ -839,7 +881,7 @@
                   <div key={e.id} className="ev-meta" style={{ justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
                     <div>
                       <div style={{ color: "var(--text)", fontWeight: 600, fontSize: 14 }}>{e.nome}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-3)" }}>📅 {fmtDate(e.dataInicio)} – {fmtDate(e.dataFim)}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-3)", display:"flex", alignItems:"center", gap:4 }}><Icon name="calendar" size={12} stroke="var(--text-3)" />{fmtDate(e.dataInicio)} – {fmtDate(e.dataFim)}</div>
                     </div>
                     <StatusBadge s={e.status} />
                   </div>
@@ -884,11 +926,11 @@
                       <div key={e.id} className="event-card" onClick={() => onOpen(e.id)}>
                         <span className="ev-status"><StatusBadge s={e.status} /></span>
                         <div className="ev-name">{e.nome}</div>
-                        <div className="ev-meta">📍 {e.local}</div>
-                        <div className="ev-meta">📅 {fmtDate(e.dataInicio)} – {fmtDate(e.dataFim)}</div>
+                        <div className="ev-meta"><Icon name="pin" size={13} stroke="var(--text-3)" /> {e.local}</div>
+                        <div className="ev-meta"><Icon name="calendar" size={13} stroke="var(--text-3)" /> {fmtDate(e.dataInicio)} – {fmtDate(e.dataFim)}</div>
                         <div style={{ marginTop: 10 }}><TipoBadge t={e.tipo} /></div>
                         <div className="ev-foot">
-                          <span className="ev-leads">👥 <b>{getLeadsEvento(e.id).length}</b> leads</span>
+                          <span className="ev-leads"><Icon name="users" size={13} stroke="var(--text-3)" /> <b>{getLeadsEvento(e.id).length}</b> leads</span>
                           <div className="avatars">
                             {vs.slice(0, 4).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
                             {vs.length === 0 && <span style={{ fontSize: 12, color: "var(--text-3)" }}>—</span>}
@@ -930,7 +972,7 @@
 
         return (
           <div className="page">
-            <button className="back-btn" onClick={onBack} style={{ marginBottom: 14 }}>← Voltar para Eventos</button>
+            <button className="back-btn" onClick={onBack} style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}><Icon name="back" size={15} /> Voltar para Eventos</button>
             <div className="detail-hero">
               <h1>{ev.nome}</h1>
               <StatusBadge s={ev.status} />
@@ -940,8 +982,8 @@
             <div className="grid-2" style={{ marginTop: 18 }}>
               <div className="card">
                 <div className="section-title">Informações</div>
-                <div className="info-line"><span className="k">Local</span><span className="v">📍 {ev.local}</span></div>
-                <div className="info-line"><span className="k">Datas</span><span className="v">📅 {fmtDateLong(ev.dataInicio)} → {fmtDateLong(ev.dataFim)}</span></div>
+                <div className="info-line"><span className="k">Local</span><span className="v" style={{ display:"flex", alignItems:"center", gap:5 }}><Icon name="pin" size={13} stroke="var(--text-3)" />{ev.local}</span></div>
+                <div className="info-line"><span className="k">Datas</span><span className="v" style={{ display:"flex", alignItems:"center", gap:5 }}><Icon name="calendar" size={13} stroke="var(--text-3)" />{fmtDateLong(ev.dataInicio)} → {fmtDateLong(ev.dataFim)}</span></div>
                 <div className="info-line"><span className="k">Observações</span><span className="v">{ev.observacoes || "—"}</span></div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1027,7 +1069,7 @@
 
         const Group = ({ title, dot, cls, rows }) => rows.length === 0 ? null : (
           <div className="stock-group">
-            <h3>{dot} {title} <span style={{ color: "var(--text-3)", fontWeight: 400 }}>({rows.length})</span></h3>
+            <h3><Icon name={dot} size={10} /> {title} <span style={{ color: "var(--text-3)", fontWeight: 400 }}>({rows.length})</span></h3>
             {rows.map((m) => (
               <div key={m.material.id} className={"stock-row " + cls}>
                 <div className="sr-main">
@@ -1055,14 +1097,14 @@
             </div>
 
             <div className="grid-kpi-3">
-              <Kpi label="Total Tipos" value={list.length} icon="📦" />
+              <Kpi label="Total Tipos" value={list.length} icon="box" />
               <Kpi label="Total Itens" value={totalItens} icon="🔢" />
               <Kpi label="Em Campo" value={emCampo} icon="🚚" />
             </div>
 
-            <Group title="CRÍTICO" dot="🔴" cls="crit" rows={crit} />
-            <Group title="ATENÇÃO" dot="🟡" cls="warn" rows={warn} />
-            <Group title="OK" dot="🟢" cls="ok" rows={ok} />
+            <Group title="CRÍTICO" dot="dot_red" cls="crit" rows={crit} />
+            <Group title="ATENÇÃO" dot="dot_yellow" cls="warn" rows={warn} />
+            <Group title="OK" dot="dot_green" cls="ok" rows={ok} />
 
             {showModal && <MaterialModal onClose={() => setShowModal(false)} />}
           </div>
@@ -1108,7 +1150,7 @@
             </div>
 
             <div className="grid-kpi">
-              <Kpi label="Total" value={leads.length} icon="👥" />
+              <Kpi label="Total" value={leads.length} icon="users" />
               <Kpi label="Fibra Res" value={byService("fibra_residencial")} icon="🏠" />
               <Kpi label="Fibra Emp" value={byService("fibra_empresarial")} icon="🏢" />
               <Kpi label="Hotspot" value={byService("hotspot")} icon="📶" />
@@ -1253,10 +1295,10 @@
         const [detailId, setDetailId] = useState(null);
 
         const tabs = [
-          { id: "eventos", label: "Eventos", ico: "📅" },
-          { id: "estoque", label: "Estoque", ico: "📦" },
-          { id: "leads", label: "Leads", ico: "👥" },
-          { id: "equipe", label: "Equipe", ico: "🧑‍💼" },
+          { id: "eventos", label: "Eventos", ico: "calendar" },
+          { id: "estoque", label: "Estoque", ico: "box" },
+          { id: "leads", label: "Leads", ico: "users" },
+          { id: "equipe", label: "Equipe", ico: "briefcase" },
         ];
 
         const switchTab = (id) => { setTab(id); setDetailId(null); };
@@ -1268,12 +1310,12 @@
               <nav className="header-nav">
                 {tabs.map((t) => (
                   <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
-                    <span className="ico">{t.ico}</span>{t.label}
+                    <Icon name={t.ico} size={17} />{t.label}
                   </button>
                 ))}
               </nav>
               <div className="header-right">
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema">{darkMode ? "☀️" : "🌙"}</button>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="dot"></span><span className="ub-name">Marketing</span></span>
                 <button className="btn-ghost" onClick={onLogout}>Sair</button>
               </div>
@@ -1291,7 +1333,7 @@
               <div className="bottom-nav-inner">
                 {tabs.map((t) => (
                   <button key={t.id} className={"bn-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
-                    <span className="bn-ico">{t.ico}</span>
+                    <span className="bn-ico"><Icon name={t.ico} size={22} /></span>
                     {t.label}
                   </button>
                 ))}
@@ -1328,7 +1370,7 @@
             <header className="app-header">
               <div className="header-logo"><span className="logo-rj">RJ</span><span className="logo-net">NET</span></div>
               <div className="header-right" style={{ marginLeft: "auto" }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema">{darkMode ? "☀️" : "🌙"}</button>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span><span className="ub-name">{session.vendedorNome}</span></span>
                 <button className="btn-ghost" onClick={onLogout}>Sair</button>
               </div>
