@@ -70,12 +70,12 @@ Chart.register(...registerables);
       ];
 
       const MOCK_VENDEDORES = [
-        { id: "v1", nome: "Carlos Silva",   cpf: "",  ativo: true },
-        { id: "v2", nome: "Ana Oliveira",   cpf: "",  ativo: true },
-        { id: "v3", nome: "Marcos Lima",    cpf: "",  ativo: true },
-        { id: "v4", nome: "Juliana Costa",  cpf: "",  ativo: true },
-        { id: "v5", nome: "Thiago",         cpf: "",  ativo: true },
-        { id: "v6", nome: "Ramon",          cpf: "",  ativo: true },
+        { id: "v1", nome: "Carlos Silva",   ativo: true },
+        { id: "v2", nome: "Ana Oliveira",   ativo: true },
+        { id: "v3", nome: "Marcos Lima",    ativo: true },
+        { id: "v4", nome: "Juliana Costa",  ativo: true },
+        { id: "v5", nome: "Thiago",         ativo: true },
+        { id: "v6", nome: "Ramon",          ativo: true },
       ];
 
       const MOCK_EVENTOS = [
@@ -139,13 +139,6 @@ Chart.register(...registerables);
         internet_residencial: "Internet Residencial",
         internet_empresarial: "Internet Empresarial",
         rjnet_movel: "RJNET Móvel",
-        streamings: "Streamings",
-        outro: "Outro",
-      };
-      const SERVICO_SHORT = {
-        internet_residencial: "Int. Res.",
-        internet_empresarial: "Int. Emp.",
-        rjnet_movel: "RJ Móvel",
         streamings: "Streamings",
         outro: "Outro",
       };
@@ -1094,11 +1087,8 @@ Chart.register(...registerables);
         const { leads, eventos } = useApp();
         const [eventoId, setEventoId] = useState("");
         const [cpfInput, setCpfInput] = useState("");
-        const [resultado, setResultado] = useState(null); // null | { found: bool, lead?: obj }
+        const [resultado, setResultado] = useState(null);
         const [buscado, setBuscado] = useState(false);
-
-        const TEMP_LABEL = { frio: "Frio", morno: "Morno", quente: "Quente", convertido: "Convertido" };
-        const TEMP_COLOR = { frio: "#60a5fa", morno: "#fb923c", quente: "#ef4444", convertido: "#22c55e" };
 
         const handleCpf = (v) => {
           setCpfInput(maskCpf(v));
@@ -1108,12 +1098,16 @@ Chart.register(...registerables);
 
         const buscar = (e) => {
           e.preventDefault();
-          if (!eventoId || cpfInput.replace(/\D/g, "").length < 11) return;
-          const cpfNorm = cpfInput.replace(/\D/g, "");
-          const lead = leads.find(
-            (l) => l.eventoId === eventoId && l.cpf && l.cpf.replace(/\D/g, "") === cpfNorm
-          );
-          setResultado(lead ? { found: true, lead } : { found: false });
+          const digits = cpfInput.replace(/\D/g, "");
+          if (!eventoId || digits.length < 3) return;
+          const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.cpf);
+          if (digits.length === 11) {
+            const lead = leadsDoEvento.find((l) => l.cpf.replace(/\D/g, "") === digits);
+            setResultado(lead ? { found: true, lead } : { found: false, parcial: false });
+          } else {
+            const matches = leadsDoEvento.filter((l) => l.cpf.replace(/\D/g, "").startsWith(digits));
+            setResultado(matches.length > 0 ? { found: true, parcial: true, matches } : { found: false, parcial: true });
+          }
           setBuscado(true);
         };
 
@@ -1173,7 +1167,7 @@ Chart.register(...registerables);
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={!eventoId || cpfInput.replace(/\D/g, "").length < 11}
+                  disabled={!eventoId || cpfInput.replace(/\D/g, "").length < 3}
                   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                 >
                   <Icon name="search" size={16} stroke="#000" /> Consultar
@@ -1183,7 +1177,25 @@ Chart.register(...registerables);
 
             {buscado && resultado && (
               <div style={{ maxWidth: 520, margin: "20px auto 0" }}>
-                {resultado.found ? (
+                {resultado.found && resultado.parcial ? (
+                  <div className="card">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <Icon name="search" size={22} stroke="var(--rj-blue)" />
+                      <div style={{ fontWeight: 700, fontSize: 15, color: "var(--rj-blue)" }}>
+                        {resultado.matches.length} lead{resultado.matches.length > 1 ? "s" : ""} encontrado{resultado.matches.length > 1 ? "s" : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {resultado.matches.map((lead) => (
+                        <div key={lead.id} style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: 8, border: "1px solid var(--border)" }}>
+                          <div style={{ fontWeight: 600, marginBottom: 2 }}>{lead.nome}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "monospace" }}>{lead.cpf}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>{lead.telefone}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : resultado.found && !resultado.parcial ? (
                   <div className="card" style={{ borderLeft: "4px solid #22c55e" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                       <Icon name="check_circle" size={26} stroke="#22c55e" />
@@ -1206,8 +1218,8 @@ Chart.register(...registerables);
                       <div className="info-line">
                         <span className="k">Temperatura</span>
                         <span className="v">
-                          <span style={{ color: TEMP_COLOR[resultado.lead.temperatura], fontWeight: 600 }}>
-                            {TEMP_LABEL[resultado.lead.temperatura] || resultado.lead.temperatura}
+                          <span style={{ color: TEMPERATURA_CONFIG[resultado.lead.temperatura]?.cor, fontWeight: 600 }}>
+                            {TEMPERATURA_CONFIG[resultado.lead.temperatura]?.label || resultado.lead.temperatura}
                           </span>
                         </span>
                       </div>
@@ -1228,7 +1240,7 @@ Chart.register(...registerables);
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <Icon name="x_circle" size={26} stroke="#ef4444" />
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 16, color: "#ef4444" }}>CPF não encontrado</div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#ef4444" }}>Nenhum lead encontrado</div>
                         <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
                           Nenhum lead com este CPF foi cadastrado em <b>{eventoSelecionado?.nome}</b>.
                         </div>
