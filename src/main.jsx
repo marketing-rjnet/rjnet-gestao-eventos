@@ -43,6 +43,12 @@ Chart.register(...registerables);
           person: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>,
           // Arrow right
           arrow_right: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+          // Search / magnifier
+          search: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+          // Check circle
+          check_circle: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+          // X circle
+          x_circle: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
         };
         return paths[name] || null;
       };
@@ -1032,6 +1038,161 @@ Chart.register(...registerables);
       /* ============================================================
          MARKETING APP SHELL
          ============================================================ */
+      /* ============================================================
+         CHECK-IN TAB — consulta de lead por CPF em um evento
+         ============================================================ */
+      function CheckinTab() {
+        const { leads, eventos } = useApp();
+        const [eventoId, setEventoId] = useState("");
+        const [cpfInput, setCpfInput] = useState("");
+        const [resultado, setResultado] = useState(null); // null | { found: bool, lead?: obj }
+        const [buscado, setBuscado] = useState(false);
+
+        const TEMP_LABEL = { frio: "Frio", morno: "Morno", quente: "Quente", convertido: "Convertido" };
+        const TEMP_COLOR = { frio: "#60a5fa", morno: "#fb923c", quente: "#ef4444", convertido: "#22c55e" };
+
+        const handleCpf = (v) => {
+          setCpfInput(maskCpf(v));
+          setResultado(null);
+          setBuscado(false);
+        };
+
+        const buscar = (e) => {
+          e.preventDefault();
+          if (!eventoId || cpfInput.replace(/\D/g, "").length < 11) return;
+          const cpfNorm = cpfInput.replace(/\D/g, "");
+          const lead = leads.find(
+            (l) => l.eventoId === eventoId && l.cpf && l.cpf.replace(/\D/g, "") === cpfNorm
+          );
+          setResultado(lead ? { found: true, lead } : { found: false });
+          setBuscado(true);
+        };
+
+        const limpar = () => {
+          setCpfInput("");
+          setResultado(null);
+          setBuscado(false);
+        };
+
+        const eventoSelecionado = eventos.find((e) => e.id === eventoId);
+
+        return (
+          <div className="page">
+            <div className="page-head">
+              <div>
+                <div className="page-title">Check-in por CPF</div>
+                <p className="tab-desc">Verifique se um lead já foi cadastrado no evento selecionado.</p>
+              </div>
+            </div>
+
+            <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
+              <form onSubmit={buscar} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="form-group">
+                  <label className="form-label">Evento</label>
+                  <select
+                    value={eventoId}
+                    onChange={(e) => { setEventoId(e.target.value); setResultado(null); setBuscado(false); }}
+                    required
+                  >
+                    <option value="">Selecione o evento…</option>
+                    {eventos.map((ev) => (
+                      <option key={ev.id} value={ev.id}>{ev.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">CPF do Lead</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      className="form-input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000.000.000-00"
+                      value={cpfInput}
+                      onChange={(e) => handleCpf(e.target.value)}
+                      style={{ flex: 1, fontFamily: "monospace", letterSpacing: 1 }}
+                    />
+                    {cpfInput && (
+                      <button type="button" className="btn-ghost" onClick={limpar} title="Limpar">
+                        <Icon name="x" size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={!eventoId || cpfInput.replace(/\D/g, "").length < 11}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  <Icon name="search" size={16} stroke="#000" /> Consultar
+                </button>
+              </form>
+            </div>
+
+            {buscado && resultado && (
+              <div style={{ maxWidth: 520, margin: "20px auto 0" }}>
+                {resultado.found ? (
+                  <div className="card" style={{ borderLeft: "4px solid #22c55e" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                      <Icon name="check_circle" size={26} stroke="#22c55e" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#22c55e" }}>Lead cadastrado</div>
+                        <div style={{ fontSize: 12, color: "var(--text-3)" }}>{eventoSelecionado?.nome}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="info-line"><span className="k">Nome</span><span className="v strong">{resultado.lead.nome}</span></div>
+                      <div className="info-line"><span className="k">CPF</span><span className="v mono">{resultado.lead.cpf}</span></div>
+                      <div className="info-line"><span className="k">Telefone</span><span className="v mono">{resultado.lead.telefone}</span></div>
+                      {resultado.lead.endereco && (
+                        <div className="info-line"><span className="k">Endereço</span><span className="v">{resultado.lead.endereco}</span></div>
+                      )}
+                      <div className="info-line">
+                        <span className="k">Serviço</span>
+                        <span className="v"><span className="badge badge-tipo">{servicoLabel(resultado.lead.servicoInteresse)}</span></span>
+                      </div>
+                      <div className="info-line">
+                        <span className="k">Temperatura</span>
+                        <span className="v">
+                          <span style={{ color: TEMP_COLOR[resultado.lead.temperatura], fontWeight: 600 }}>
+                            {TEMP_LABEL[resultado.lead.temperatura] || resultado.lead.temperatura}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="info-line"><span className="k">Vendedor</span><span className="v">{resultado.lead.vendedorNome}</span></div>
+                      <div className="info-line">
+                        <span className="k">Cadastrado em</span>
+                        <span className="v" style={{ fontSize: 12, color: "var(--text-3)" }}>
+                          {new Date(resultado.lead.criadoEm).toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                      {resultado.lead.observacao && (
+                        <div className="info-line"><span className="k">Obs.</span><span className="v" style={{ fontStyle: "italic", color: "var(--text-3)" }}>{resultado.lead.observacao}</span></div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card" style={{ borderLeft: "4px solid #ef4444" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Icon name="x_circle" size={26} stroke="#ef4444" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#ef4444" }}>CPF não encontrado</div>
+                        <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
+                          Nenhum lead com este CPF foi cadastrado em <b>{eventoSelecionado?.nome}</b>.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+
       function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
         const [tab, setTab] = useState("eventos");
         const [detailId, setDetailId] = useState(null);
@@ -1041,6 +1202,7 @@ Chart.register(...registerables);
           { id: "estoque", label: "Estoque", ico: "box" },
           { id: "leads", label: "Leads", ico: "users" },
           { id: "equipe", label: "Equipe", ico: "briefcase" },
+          { id: "checkin", label: "Check-in", ico: "search" },
         ];
 
         const switchTab = (id) => { setTab(id); setDetailId(null); };
@@ -1069,6 +1231,7 @@ Chart.register(...registerables);
             {tab === "estoque" && <EstoqueTab />}
             {tab === "leads" && <LeadsTab />}
             {tab === "equipe" && <EquipeTab />}
+            {tab === "checkin" && <CheckinTab />}
 
             {/* Bottom nav — mobile only */}
             <nav className="bottom-nav">
