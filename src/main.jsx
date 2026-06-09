@@ -1750,7 +1750,7 @@ Chart.register(...registerables);
          ROOT
          ============================================================ */
       function Root() {
-        const [session, setSession] = useState(null);
+        const [session, setSession] = usePersisted("rjnet_session", null);
         const [darkMode, setDarkMode] = useState(() => {
           const saved = localStorage.getItem("rjnet-theme");
           return saved ? saved === "dark" : true;
