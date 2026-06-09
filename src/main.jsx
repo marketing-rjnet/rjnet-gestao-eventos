@@ -1109,7 +1109,7 @@ Chart.register(...registerables);
         const { getEventosAtivos, addLead, removeLead, updateLead, leads } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
-        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", servicoInteresse: "fibra_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
+        const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "fibra_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
         const [f, setF] = useState(FORM_VAZIO);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const [modoRapido, setModoRapido] = useState(false);
@@ -1214,6 +1214,16 @@ Chart.register(...registerables);
                     />
                   </div>
 
+                  <div className="big-field">
+                    <label>CPF do cliente</label>
+                    <input
+                      value={f.cpf}
+                      onChange={(e) => set("cpf", maskCpf(e.target.value))}
+                      placeholder="000.000.000-00"
+                      inputMode="numeric"
+                    />
+                  </div>
+
                   {!modoRapido && (
                     <div className="big-field">
                       <label>Endereço</label>
@@ -1309,6 +1319,7 @@ Chart.register(...registerables);
                         </div>
                         <div className="lm-row" style={{ marginTop: 4 }}>
                           <div className="lm-sub">
+                            {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
                             {servicoLabel(l.servicoInteresse)}
                             {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
                           </div>
