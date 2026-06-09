@@ -55,6 +55,8 @@
       .btn-primary:hover { background: var(--rj-blue-light); }
       .btn-primary:active { transform: scale(.98); }
       .btn-full { width: 100%; }
+      .btn-check-devolucao { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:600; color:var(--green); background:var(--green-bg); border:1.5px solid var(--green); cursor:pointer; transition:all .15s; white-space:nowrap; }
+      .btn-check-devolucao:hover { background:var(--green); color:#fff; }
       .btn-ghost {
         background: var(--surface2); color: var(--text-2);
         padding: 9px 16px; border-radius: 8px; font-weight: 500;

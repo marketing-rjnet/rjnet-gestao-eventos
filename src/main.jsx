@@ -644,18 +644,20 @@ Chart.register(...registerables);
                 <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
                   Editar Evento
                 </button>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize:13, color:"var(--red)", borderColor:"var(--red)" }}
-                  onClick={() => {
-                    if (confirm(`Excluir o evento "${ev.nome}"? Esta ação também removerá todos os leads vinculados a ele.`)) {
-                      removeEvento(eventoId);
-                      onBack();
-                    }
-                  }}
-                >
-                  <Icon name="x" size={14} stroke="var(--red)" /> Excluir Evento
-                </button>
+                {ev.status !== "encerrado" && (
+                  <button
+                    className="btn-ghost"
+                    style={{ fontSize:13, color:"var(--yellow)", borderColor:"var(--yellow)" }}
+                    onClick={() => {
+                      if (confirm(`Finalizar o evento "${ev.nome}"? O evento será marcado como encerrado e todos os dados serão preservados.`)) {
+                        updateEvento(eventoId, { status: "encerrado" });
+                        onBack();
+                      }
+                    }}
+                  >
+                    Finalizar Evento
+                  </button>
+                )}
               </div>
             </div>
 
@@ -733,7 +735,7 @@ Chart.register(...registerables);
                         const dv = d ? d.disponivel : 0;
                         const cls = dv <= 0 ? "crit" : dv <= 3 ? "warn" : "ok";
                         return (
-                          <tr key={i} style={{ opacity: m.retornado ? .45 : 1 }}>
+                          <tr key={i} style={{ opacity: m.retornado ? .5 : 1 }}>
                             <td className="strong" style={{ textDecoration: m.retornado ? "line-through" : "none" }}>
                               {matName(m.materialId)}
                             </td>
@@ -741,23 +743,32 @@ Chart.register(...registerables);
                             <td>{d ? d.material.quantidade : "—"}</td>
                             <td><span className={"badge badge-" + cls}>{dv}</span></td>
                             <td>
-                              <button
-                                onClick={() => toggleRetornadoEvento(eventoId, i)}
-                                className={"badge " + (m.retornado ? "badge-encerrado" : "badge-ativo")}
-                                style={{ cursor:"pointer", border:"none" }}
-                                title={m.retornado ? "Marcar como em campo" : "Marcar como retornado"}
-                              >
-                                {m.retornado ? "Retornado" : "Em campo"}
-                              </button>
+                              {m.retornado ? (
+                                <span style={{ display:"flex", alignItems:"center", gap:5, color:"var(--green)", fontWeight:600, fontSize:12 }}>
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  Devolvido
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => { if(confirm(`Confirmar devolução de "${matName(m.materialId)}"?`)) toggleRetornadoEvento(eventoId, i); }}
+                                  className="btn-check-devolucao"
+                                  title="Confirmar devolução"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  Confirmar devolução
+                                </button>
+                              )}
                             </td>
                             <td>
-                              <button
-                                onClick={() => { if(confirm("Remover este material do evento?")) removeMaterialEvento(eventoId, i); }}
-                                style={{ color:"var(--red)", fontSize:13, padding:"4px 8px" }}
-                                title="Remover material"
-                              >
-                                <Icon name="x" size={14} stroke="var(--red)" />
-                              </button>
+                              {!m.retornado && (
+                                <button
+                                  onClick={() => { if(confirm("Remover este material do evento?")) removeMaterialEvento(eventoId, i); }}
+                                  style={{ color:"var(--red)", fontSize:13, padding:"4px 8px" }}
+                                  title="Remover material"
+                                >
+                                  <Icon name="x" size={14} stroke="var(--red)" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
