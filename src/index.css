@@ -278,6 +278,21 @@
       .lead-mini .lm-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       .lm-tel-btn { font-size: 12px; color: var(--rj-blue); display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; background: rgba(245,192,0,.1); }
 
+      /* Abas do vendedor */
+      .vend-tabs { display: flex; gap: 6px; margin-bottom: 4px; }
+      .vend-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 8px; border-radius: 10px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border); transition: all .15s; position: relative; }
+      .vend-tab.active { background: var(--rj-blue); color: #fff; box-shadow: none; }
+      .vend-tab-badge { background: #fff; color: var(--rj-blue); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 6px; min-width: 18px; text-align: center; }
+      .vend-tab.active .vend-tab-badge { background: rgba(255,255,255,.25); color: #fff; }
+
+      /* Edição inline de lead */
+      .lead-mini.editing { box-shadow: 0 0 0 2px var(--rj-blue); }
+      .lead-edit-form { display: flex; flex-direction: column; }
+      .lead-edit-form .big-field label { font-size: 12px; }
+      .lead-edit-form input, .lead-edit-form textarea { padding: 10px 12px; font-size: 15px; }
+      .lm-edit-btn { margin-top: 10px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--rj-blue); background: var(--rj-blue-pale); border: none; cursor: pointer; }
+      .lm-edit-btn:hover { background: var(--rj-blue); color: #fff; }
+
       /* Meta diária */
       .meta-bar-wrap { margin-bottom: 18px; }
       .meta-bar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }

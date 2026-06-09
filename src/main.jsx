@@ -1331,24 +1331,91 @@ Chart.register(...registerables);
       /* ============================================================
          VENDEDOR (COMERCIAL) VIEW — mobile-first
          ============================================================ */
+      function LeadEditInline({ lead, onSave, onCancel }) {
+        const [e, setE] = useState({
+          nome: lead.nome,
+          telefone: lead.telefone,
+          cpf: lead.cpf || "",
+          endereco: lead.endereco || "",
+          servicoInteresse: lead.servicoInteresse,
+          temperatura: lead.temperatura,
+          observacao: lead.observacao || "",
+          jaClienteRjnet: lead.jaClienteRjnet || false,
+        });
+        const upd = (k, v) => setE((p) => ({ ...p, [k]: v }));
+        return (
+          <div className="lead-edit-form">
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>Nome completo *</label>
+              <input required value={e.nome} onChange={(ev) => upd("nome", ev.target.value)} autoComplete="off" />
+            </div>
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>Telefone *</label>
+              <input required value={e.telefone} onChange={(ev) => upd("telefone", maskTel(ev.target.value))} inputMode="tel" autoComplete="off" />
+            </div>
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>CPF</label>
+              <input value={e.cpf} onChange={(ev) => upd("cpf", maskCpf(ev.target.value))} inputMode="numeric" />
+            </div>
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>Endereço</label>
+              <input value={e.endereco} onChange={(ev) => upd("endereco", ev.target.value)} />
+            </div>
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>Serviço de interesse</label>
+              <div className="seg-control">
+                {Object.keys(SERVICO_LABEL).map((s) => (
+                  <button type="button" key={s} className={"seg-btn" + (e.servicoInteresse === s ? " active" : "")} onClick={() => upd("servicoInteresse", s)}>
+                    {SERVICO_LABEL[s]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>Temperatura</label>
+              <div className="temp-grid">
+                {Object.entries(TEMPERATURA_CONFIG).map(([k, cfg]) => (
+                  <button type="button" key={k} className={"temp-btn " + cfg.cls + (e.temperatura === k ? " active" : "")} style={{ "--tc": cfg.cor }} onClick={() => upd("temperatura", k)}>
+                    {cfg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="big-field" style={{ marginBottom: 10 }}>
+              <label>Observação</label>
+              <textarea rows="2" value={e.observacao} onChange={(ev) => upd("observacao", ev.target.value)} />
+            </div>
+            <label className="checkbox-field" style={{ marginBottom: 14 }}>
+              <input type="checkbox" checked={e.jaClienteRjnet} onChange={(ev) => upd("jaClienteRjnet", ev.target.checked)} />
+              <span>Já é cliente RJNet?</span>
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="btn-primary" style={{ flex: 1 }} onClick={() => onSave(e)}>Salvar</button>
+              <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={onCancel}>Cancelar</button>
+            </div>
+          </div>
+        );
+      }
+
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
         const { getEventosAtivos, addLead, removeLead, updateLead, leads } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
+        const [aba, setAba] = useState("registrar");
         const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "internet_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
         const [f, setF] = useState(FORM_VAZIO);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const [modoRapido, setModoRapido] = useState(false);
-        const [toast, setToast] = useState(null); // { id, nome }
+        const [toast, setToast] = useState(null);
         const toastTimer = useRef(null);
+        const [editandoId, setEditandoId] = useState(null);
 
-        const hoje = new Date().toDateString();
-        const meusLeadsHoje = leads.filter((l) =>
-          l.vendedorNome === session.vendedorNome && new Date(l.criadoEm).toDateString() === hoje
+        const leadsDoEvento = leads.filter((l) =>
+          l.eventoId === eventoId && l.vendedorNome === session.vendedorNome
         );
 
-        const pct = Math.min((meusLeadsHoje.length / META_DIARIA) * 100, 100);
-        const metaBatida = meusLeadsHoje.length >= META_DIARIA;
+        const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
+        const metaBatida = leadsDoEvento.length >= META_DIARIA;
 
         const showToast = (id, nome) => {
           if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -1375,6 +1442,11 @@ Chart.register(...registerables);
 
         const addObs = (txt) => set("observacao", f.observacao ? f.observacao + ". " + txt : txt);
 
+        const salvarEdicao = (id, dados) => {
+          updateLead(id, dados);
+          setEditandoId(null);
+        };
+
         return (
           <div>
             <header className="app-header">
@@ -1387,181 +1459,185 @@ Chart.register(...registerables);
             </header>
 
             <div className="vend-shell">
-              <div className="vend-top">
-                <h1 style={{ fontSize: 20, fontWeight: 700 }}>Registrar Lead</h1>
-                <span className={"count-badge" + (metaBatida ? "" : "")} style={metaBatida ? { background: "var(--green)", color: "#fff" } : {}}>
-                  {meusLeadsHoje.length}/{META_DIARIA} hoje
-                </span>
-              </div>
-
-              {/* Barra de meta diária */}
-              <div className="meta-bar-wrap">
-                <div className="meta-bar-header">
-                  <span className="meta-bar-label">{metaBatida ? "Meta batida!" : "Meta diária"}</span>
-                  <span className="meta-bar-count">{meusLeadsHoje.length} de {META_DIARIA} leads</span>
-                </div>
-                <div className="meta-bar-track">
-                  <div className={"meta-bar-fill" + (metaBatida ? " done" : "")} style={{ width: pct + "%" }} />
-                </div>
-              </div>
-
-              {/* Modo rápido toggle */}
-              <label className="modo-rapido-toggle">
-                <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
-                Modo rápido — só essencial
-              </label>
-
-              <div className="big-field big-select">
+              {/* Seletor de evento compartilhado */}
+              <div className="big-field big-select" style={{ marginBottom: 14 }}>
                 <label>Evento</label>
                 {ativos.length === 0 ? (
                   <div className="empty" style={{ textAlign: "left", padding: "10px 0" }}>Nenhum evento ativo no momento.</div>
                 ) : (
-                  <select value={eventoId} onChange={(e) => setEventoId(e.target.value)}>
+                  <select value={eventoId} onChange={(e) => { setEventoId(e.target.value); setEditandoId(null); }}>
                     {ativos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
                   </select>
                 )}
               </div>
 
-              {ativos.length > 0 && (
-                <form onSubmit={submit}>
-                  <div className="big-field">
-                    <label>Nome completo *</label>
-                    <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" />
-                  </div>
-                  <div className="big-field">
-                    <label>Telefone *</label>
-                    <input
-                      required
-                      value={f.telefone}
-                      onChange={(e) => set("telefone", maskTel(e.target.value))}
-                      placeholder="(24) 99999-9999"
-                      inputMode="tel"
-                      autoComplete="off"
-                    />
+              {/* Abas */}
+              <div className="vend-tabs">
+                <button className={"vend-tab" + (aba === "registrar" ? " active" : "")} onClick={() => setAba("registrar")}>
+                  <Icon name="plus" size={14} /> Registrar
+                </button>
+                <button className={"vend-tab" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); }}>
+                  <Icon name="person" size={14} /> Meus Leads
+                  {leadsDoEvento.length > 0 && <span className="vend-tab-badge">{leadsDoEvento.length}</span>}
+                </button>
+              </div>
+
+              {/* ---- ABA REGISTRAR ---- */}
+              {aba === "registrar" && (
+                <>
+                  <div className="vend-top" style={{ marginTop: 16 }}>
+                    <span style={{ fontSize: 18, fontWeight: 700 }}>Novo Lead</span>
+                    <span className="count-badge" style={metaBatida ? { background: "var(--green)", color: "#fff" } : {}}>
+                      {leadsDoEvento.length}/{META_DIARIA} leads
+                    </span>
                   </div>
 
-                  <div className="big-field">
-                    <label>CPF do cliente</label>
-                    <input
-                      value={f.cpf}
-                      onChange={(e) => set("cpf", maskCpf(e.target.value))}
-                      placeholder="000.000.000-00"
-                      inputMode="numeric"
-                    />
-                  </div>
-
-                  {!modoRapido && (
-                    <div className="big-field">
-                      <label>Endereço</label>
-                      <input value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+                  <div className="meta-bar-wrap">
+                    <div className="meta-bar-header">
+                      <span className="meta-bar-label">{metaBatida ? "Meta batida!" : "Meta diária"}</span>
+                      <span className="meta-bar-count">{leadsDoEvento.length} de {META_DIARIA} leads</span>
                     </div>
-                  )}
-
-                  <div className="big-field">
-                    <label>Serviço de interesse *</label>
-                    <div className="seg-control">
-                      {Object.keys(SERVICO_LABEL).map((s) => (
-                        <button type="button" key={s} className={"seg-btn" + (f.servicoInteresse === s ? " active" : "")} onClick={() => set("servicoInteresse", s)}>
-                          {SERVICO_LABEL[s]}
-                        </button>
-                      ))}
+                    <div className="meta-bar-track">
+                      <div className={"meta-bar-fill" + (metaBatida ? " done" : "")} style={{ width: pct + "%" }} />
                     </div>
                   </div>
 
-                  <label className="checkbox-field">
-                    <input
-                      type="checkbox"
-                      checked={f.jaClienteRjnet}
-                      onChange={(e) => set("jaClienteRjnet", e.target.checked)}
-                    />
-                    <span>Já é cliente RJNet?</span>
-                    {f.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 8, fontSize: 11 }}>Sim</span>}
+                  <label className="modo-rapido-toggle">
+                    <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
+                    Modo rápido — só essencial
                   </label>
 
-                  <div className="big-field">
-                    <label>Temperatura do lead</label>
-                    <div className="temp-grid">
-                      {Object.entries(TEMPERATURA_CONFIG).map(([k, cfg]) => (
-                        <button
-                          type="button"
-                          key={k}
-                          className={"temp-btn " + cfg.cls + (f.temperatura === k ? " active" : "")}
-                          style={{ "--tc": cfg.cor }}
-                          onClick={() => set("temperatura", k)}
-                        >
-                          {cfg.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {!modoRapido && (
-                    <div className="big-field">
-                      <label>Observação</label>
-                      <div className="obs-chips">
-                        {OBS_ATALHOS.map((a) => (
-                          <button type="button" key={a} className="obs-chip" onClick={() => addObs(a)}>{a}</button>
-                        ))}
+                  {ativos.length > 0 && (
+                    <form onSubmit={submit}>
+                      <div className="big-field">
+                        <label>Nome completo *</label>
+                        <input required value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" />
                       </div>
-                      <textarea
-                        rows="2"
-                        value={f.observacao}
-                        onChange={(e) => set("observacao", e.target.value)}
-                        placeholder="Informações adicionais..."
-                      />
-                    </div>
+                      <div className="big-field">
+                        <label>Telefone *</label>
+                        <input required value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
+                      </div>
+                      <div className="big-field">
+                        <label>CPF do cliente</label>
+                        <input value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
+                      </div>
+                      {!modoRapido && (
+                        <div className="big-field">
+                          <label>Endereço</label>
+                          <input value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+                        </div>
+                      )}
+                      <div className="big-field">
+                        <label>Serviço de interesse *</label>
+                        <div className="seg-control">
+                          {Object.keys(SERVICO_LABEL).map((s) => (
+                            <button type="button" key={s} className={"seg-btn" + (f.servicoInteresse === s ? " active" : "")} onClick={() => set("servicoInteresse", s)}>
+                              {SERVICO_LABEL[s]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <label className="checkbox-field">
+                        <input type="checkbox" checked={f.jaClienteRjnet} onChange={(e) => set("jaClienteRjnet", e.target.checked)} />
+                        <span>Já é cliente RJNet?</span>
+                        {f.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 8, fontSize: 11 }}>Sim</span>}
+                      </label>
+                      <div className="big-field">
+                        <label>Temperatura do lead</label>
+                        <div className="temp-grid">
+                          {Object.entries(TEMPERATURA_CONFIG).map(([k, cfg]) => (
+                            <button type="button" key={k} className={"temp-btn " + cfg.cls + (f.temperatura === k ? " active" : "")} style={{ "--tc": cfg.cor }} onClick={() => set("temperatura", k)}>
+                              {cfg.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {!modoRapido && (
+                        <div className="big-field">
+                          <label>Observação</label>
+                          <div className="obs-chips">
+                            {OBS_ATALHOS.map((a) => (
+                              <button type="button" key={a} className="obs-chip" onClick={() => addObs(a)}>{a}</button>
+                            ))}
+                          </div>
+                          <textarea rows="2" value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais..." />
+                        </div>
+                      )}
+                      <button type="submit" className="btn-primary btn-full lead-submit">Registrar Lead</button>
+                    </form>
                   )}
-
-                  <button type="submit" className="btn-primary btn-full lead-submit">Registrar Lead</button>
-                </form>
+                </>
               )}
 
-              {meusLeadsHoje.length > 0 && (
-                <div className="meus-leads">
-                  <h3>Meus Leads Hoje</h3>
-                  {meusLeadsHoje.map((l) => {
-                    const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
-                    return (
-                      <div key={l.id} className="lead-mini">
-                        <div className="lm-row">
-                          <div className="lm-name">{l.nome}</div>
-                          <button
-                            type="button"
-                            className="temp-btn"
-                            style={{
-                              "--tc": tc.cor, fontSize: 11, padding: "3px 10px", borderRadius: 999,
-                              color: tc.cor, background: "color-mix(in srgb," + tc.cor + " 12%, transparent)",
-                              boxShadow: "0 0 0 1px " + tc.cor,
-                            }}
-                            onClick={() => {
-                              const ordem = Object.keys(TEMPERATURA_CONFIG);
-                              const idx = ordem.indexOf(l.temperatura || "morno");
-                              updateLead(l.id, { temperatura: ordem[(idx + 1) % ordem.length] });
-                            }}
-                            title="Toque para alterar temperatura"
-                          >
-                            {tc.label}
-                          </button>
-                        </div>
-                        <div className="lm-row" style={{ marginTop: 4 }}>
-                          <div className="lm-sub">
-                            {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
-                            {servicoLabel(l.servicoInteresse)}
-                            {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
+              {/* ---- ABA MEUS LEADS ---- */}
+              {aba === "meus-leads" && (
+                <div style={{ marginTop: 16 }}>
+                  {leadsDoEvento.length === 0 ? (
+                    <div className="empty" style={{ padding: "40px 0", textAlign: "center" }}>
+                      <Icon name="person" size={32} stroke="var(--text-3)" />
+                      <div style={{ marginTop: 10, color: "var(--text-3)", fontSize: 14 }}>Nenhum lead registrado neste evento ainda.</div>
+                    </div>
+                  ) : (
+                    <div className="meus-leads" style={{ marginTop: 0 }}>
+                      <h3>{leadsDoEvento.length} lead{leadsDoEvento.length > 1 ? "s" : ""} neste evento</h3>
+                      {leadsDoEvento.map((l) => {
+                        const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
+                        const editando = editandoId === l.id;
+                        return (
+                          <div key={l.id} className={"lead-mini" + (editando ? " editing" : "")}>
+                            {editando ? (
+                              <LeadEditInline
+                                lead={l}
+                                onSave={(dados) => salvarEdicao(l.id, dados)}
+                                onCancel={() => setEditandoId(null)}
+                              />
+                            ) : (
+                              <>
+                                <div className="lm-row">
+                                  <div className="lm-name">{l.nome}</div>
+                                  <button
+                                    type="button"
+                                    className="temp-btn"
+                                    style={{ "--tc": tc.cor, fontSize: 11, padding: "3px 10px", borderRadius: 999, color: tc.cor, background: "color-mix(in srgb," + tc.cor + " 12%, transparent)", boxShadow: "0 0 0 1px " + tc.cor }}
+                                    onClick={() => {
+                                      const ordem = Object.keys(TEMPERATURA_CONFIG);
+                                      const idx = ordem.indexOf(l.temperatura || "morno");
+                                      updateLead(l.id, { temperatura: ordem[(idx + 1) % ordem.length] });
+                                    }}
+                                    title="Toque para alterar temperatura"
+                                  >
+                                    {tc.label}
+                                  </button>
+                                </div>
+                                <div className="lm-row" style={{ marginTop: 4 }}>
+                                  <div className="lm-sub">
+                                    {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
+                                    {servicoLabel(l.servicoInteresse)}
+                                    {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
+                                  </div>
+                                  <a href={"tel:" + l.telefone.replace(/\D/g, "")} className="lm-tel-btn">
+                                    <Icon name="person" size={12} stroke="var(--rj-blue)" />
+                                    {l.telefone}
+                                  </a>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="lm-edit-btn"
+                                  onClick={() => setEditandoId(l.id)}
+                                >
+                                  Editar dados
+                                </button>
+                              </>
+                            )}
                           </div>
-                          <a href={"tel:" + l.telefone.replace(/\D/g, "")} className="lm-tel-btn">
-                            <Icon name="person" size={12} stroke="var(--rj-blue)" />
-                            {l.telefone}
-                          </a>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Toast desfazer */}
             {toast && (
               <div className="toast">
                 <span>Lead <b>{toast.nome}</b> registrado</span>
