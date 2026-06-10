@@ -1386,6 +1386,12 @@ Chart.register(...registerables);
           catch (ex) { alert("Falha ao atualizar: " + ex.message); }
         };
 
+        const excluir = async (p) => {
+          if (!confirm(`Excluir ${p.nome} permanentemente? Esta ação não pode ser desfeita.`)) return;
+          try { await auth.excluirUsuario(p.id); await recarregar(); }
+          catch (ex) { alert("Falha ao excluir: " + ex.message); }
+        };
+
         const leadsDoUsuario = (nome) => leads.filter((l) => l.vendedorNome === nome).length;
 
         return (
@@ -1456,6 +1462,9 @@ Chart.register(...registerables);
                     </select>
                     <button className="btn-ghost vendor-toggle" onClick={() => toggleAtivo(p)}>
                       {p.ativo ? "Desativar" : "Ativar"}
+                    </button>
+                    <button className="btn-ghost vendor-toggle" style={{ color: "#ef4444" }} onClick={() => excluir(p)} title="Excluir usuário">
+                      Excluir
                     </button>
                   </div>
                 </div>
