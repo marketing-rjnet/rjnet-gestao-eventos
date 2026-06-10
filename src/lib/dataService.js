@@ -199,12 +199,33 @@ export const auth = {
   },
 
   async atualizarPerfil(userId, patch) {
-    const { error } = await supabase.from('perfis').update({
+    // E-mail vai pela Edge Function (requer service_role para atualizar auth.users)
+    if (patch.email !== undefined) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': supabaseConfig.anonKey,
+        },
+        body: JSON.stringify({ userId, email: patch.email }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Falha ao atualizar e-mail.');
+      // Remove email do patch para não duplicar a escrita em perfis (a função já fez)
+      const { email: _email, ...restPatch } = patch;
+      patch = restPatch;
+    }
+
+    const campos = {
       ...(patch.nome  !== undefined ? { nome:  patch.nome  } : {}),
-      ...(patch.email !== undefined ? { email: patch.email } : {}),
       ...(patch.papel !== undefined ? { papel: patch.papel } : {}),
       ...(patch.ativo !== undefined ? { ativo: patch.ativo } : {}),
-    }).eq('id', userId);
+    };
+    if (Object.keys(campos).length === 0) return;
+    const { error } = await supabase.from('perfis').update(campos).eq('id', userId);
     if (error) throw new Error(error.message);
   },
 
