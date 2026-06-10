@@ -91,6 +91,10 @@ create policy "perfis_update" on public.perfis for update to authenticated
   using (public.papel_atual() = 'marketing')
   with check (public.papel_atual() = 'marketing');
 
+drop policy if exists "perfis_delete" on public.perfis;
+create policy "perfis_delete" on public.perfis for delete to authenticated
+  using (public.papel_atual() = 'marketing');
+
 -- eventos: todos os papéis leem; só marketing altera
 drop policy if exists "eventos_select" on public.eventos;
 create policy "eventos_select" on public.eventos for select to authenticated
