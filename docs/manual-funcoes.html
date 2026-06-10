@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RJNet Gestão de Eventos — Manual de Funções</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a2e;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: white;
+      margin: 20px auto;
+      padding: 0;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+      page-break-after: always;
+      overflow: hidden;
+    }
+
+    /* ======= CAPA ======= */
+    .cover {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      height: 297mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      padding: 40px;
+    }
+
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at 30% 40%, rgba(99,102,241,0.3) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 60%, rgba(139,92,246,0.2) 0%, transparent 60%);
+    }
+
+    .cover-content { position: relative; z-index: 1; }
+
+    .cover-logo {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: rgba(99,102,241,0.3);
+      border: 1px solid rgba(99,102,241,0.6);
+      color: #a5b4fc;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 6px 20px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+    }
+
+    .cover h1 {
+      font-size: 42px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+
+    .cover h1 span { color: #818cf8; }
+
+    .cover-subtitle {
+      font-size: 18px;
+      color: rgba(255,255,255,0.6);
+      font-weight: 300;
+      margin-bottom: 50px;
+    }
+
+    .cover-divider {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 2px;
+      margin: 0 auto 50px;
+    }
+
+    .cover-desc {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      max-width: 380px;
+      line-height: 1.8;
+    }
+
+    .cover-footer {
+      position: absolute;
+      bottom: 40px;
+      left: 0; right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 50px;
+      color: rgba(255,255,255,0.3);
+      font-size: 11px;
+      z-index: 1;
+    }
+
+    .cover-roles {
+      display: flex;
+      gap: 16px;
+      margin-top: 40px;
+      justify-content: center;
+    }
+
+    .role-pill {
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .role-pill.marketing {
+      background: rgba(99,102,241,0.25);
+      border: 1px solid rgba(99,102,241,0.5);
+      color: #a5b4fc;
+    }
+
+    .role-pill.comercial {
+      background: rgba(16,185,129,0.2);
+      border: 1px solid rgba(16,185,129,0.4);
+      color: #6ee7b7;
+    }
+
+    .role-pill.vendedor {
+      background: rgba(245,158,11,0.2);
+      border: 1px solid rgba(245,158,11,0.4);
+      color: #fcd34d;
+    }
+
+    /* ======= HEADER INTERNO ======= */
+    .page-header {
+      background: linear-gradient(135deg, #0f0c29, #302b63);
+      padding: 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .page-header .brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .page-header .section-tag {
+      font-size: 10px;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .page-body { padding: 36px 40px; }
+
+    /* ======= SECTION TITLES ======= */
+    .section-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+    }
+
+    .section-title span { color: #6366f1; }
+
+    .section-intro {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+
+    /* ======= ROLE CARDS ======= */
+    .role-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 20px 24px;
+      border-radius: 12px;
+    }
+
+    .role-header.marketing-header {
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border-left: 4px solid #6366f1;
+    }
+
+    .role-header.comercial-header {
+      background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+      border-left: 4px solid #10b981;
+    }
+
+    .role-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .role-icon.mkt { background: #6366f1; }
+    .role-icon.com { background: #10b981; }
+    .role-icon.vnd { background: #f59e0b; }
+
+    .role-header-text h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .role-header-text h3.mkt { color: #4338ca; }
+    .role-header-text h3.com { color: #059669; }
+
+    .role-header-text p {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    /* ======= FEATURES GRID ======= */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .feature-card {
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      background: #fafafa;
+      transition: all 0.2s;
+    }
+
+    .feature-card.mkt-card { border-left: 3px solid #6366f1; }
+    .feature-card.com-card { border-left: 3px solid #10b981; }
+
+    .feature-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feature-card-title.mkt-title { color: #4338ca; }
+    .feature-card-title.com-title { color: #059669; }
+
+    .feature-card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .feature-card ul li {
+      font-size: 12px;
+      color: #475569;
+      padding: 2px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .feature-card ul li::before {
+      content: '→';
+      color: #94a3b8;
+      font-size: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ======= TABS ======= */
+    .tabs-section {
+      margin-bottom: 24px;
+    }
+
+    .tabs-section h4 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+
+    .tabs-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tab-item {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tab-item.mkt-tab {
+      background: #eef2ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+    }
+
+    .tab-item.com-tab {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+    }
+
+    /* ======= PERMISSIONS TABLE ======= */
+    .perm-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      font-size: 12px;
+    }
+
+    .perm-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: #f8fafc;
+      color: #64748b;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .perm-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #475569;
+      vertical-align: middle;
+    }
+
+    .perm-table tr:last-child td { border-bottom: none; }
+
+    .perm-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .perm-full { background: #dcfce7; color: #166534; }
+    .perm-read { background: #fef3c7; color: #92400e; }
+    .perm-none { background: #fee2e2; color: #991b1b; }
+
+    /* ======= COMPARISON ======= */
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .comp-col {
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    .comp-col.mkt-col {
+      background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+      border: 1px solid #ddd6fe;
+    }
+
+    .comp-col.com-col {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1px solid #bbf7d0;
+    }
+
+    .comp-col h4 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comp-col.mkt-col h4 { color: #4338ca; }
+    .comp-col.com-col h4 { color: #059669; }
+
+    .comp-col ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .comp-col ul li {
+      font-size: 12px;
+      color: #374151;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .comp-col ul li:last-child { border-bottom: none; }
+
+    .check { color: #10b981; font-weight: bold; }
+    .cross { color: #ef4444; font-weight: bold; }
+
+    /* ======= FLOW SECTION ======= */
+    .flow-container {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .flow-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+
+    .flow-steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
+    .flow-step {
+      flex: 1;
+      min-width: 100px;
+      text-align: center;
+      position: relative;
+    }
+
+    .flow-step-inner {
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 8px;
+      margin: 0 4px;
+    }
+
+    .flow-step-inner.mkt-step { border-color: #6366f1; }
+    .flow-step-inner.com-step { border-color: #10b981; }
+
+    .flow-step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      margin: 0 auto 6px;
+    }
+
+    .flow-step-num.mkt-num { background: #6366f1; }
+    .flow-step-num.com-num { background: #10b981; }
+
+    .flow-step-label {
+      font-size: 11px;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    .flow-arrow {
+      font-size: 16px;
+      color: #94a3b8;
+      padding: 0 2px;
+      flex-shrink: 0;
+    }
+
+    /* ======= INFO BOX ======= */
+    .info-box {
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .info-box.blue { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .info-box.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .info-box.purple { background: #faf5ff; border: 1px solid #e9d5ff; }
+
+    .info-icon { font-size: 20px; flex-shrink: 0; }
+
+    .info-content h5 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #1e293b;
+    }
+
+    .info-content p {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.6;
+    }
+
+    /* ======= DIVIDER ======= */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+      margin: 24px 0;
+    }
+
+    /* ======= SUMMARY ======= */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .summary-card {
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .summary-card.mkt { background: linear-gradient(135deg, #4338ca, #6366f1); }
+    .summary-card.com { background: linear-gradient(135deg, #059669, #10b981); }
+    .summary-card.vnd { background: linear-gradient(135deg, #d97706, #f59e0b); }
+
+    .summary-card .icon { font-size: 28px; margin-bottom: 10px; }
+    .summary-card h4 { font-size: 14px; font-weight: 700; color: white; margin-bottom: 6px; }
+    .summary-card p { font-size: 11px; color: rgba(255,255,255,0.8); line-height: 1.5; }
+
+    @media print {
+      body { background: white; }
+      .page { margin: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== PÁGINA 1: CAPA ==================== -->
+<div class="page">
+  <div class="cover">
+    <div class="cover-content">
+      <div class="cover-logo">RJNet Telecomunicações</div>
+      <div class="cover-badge">Documentação Oficial</div>
+      <h1>Gestão de<br><span>Eventos</span></h1>
+      <div class="cover-subtitle">Guia de Funções e Responsabilidades</div>
+      <div class="cover-divider"></div>
+      <p class="cover-desc">
+        Este documento descreve as funcionalidades do sistema e define claramente o que cada perfil de usuário pode acessar e realizar dentro da plataforma.
+      </p>
+      <div class="cover-roles">
+        <span class="role-pill marketing">📣 Marketing</span>
+        <span class="role-pill comercial">📊 Comercial</span>
+        <span class="role-pill vendedor">🤝 Vendedor</span>
+      </div>
+    </div>
+    <div class="cover-footer">
+      <span>RJNet Gestão de Eventos</span>
+      <span>Versão 1.0 — 2025</span>
+      <span>Uso Interno</span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PÁGINA 2: VISÃO GERAL ==================== -->
+<div class="page">
+  <div class="page-header">
+    <span class="brand">RJNet — Gestão de Eventos</span>
+    <span class="section-tag">Visão Geral do Sistema</span>
+  </div>
+  <div class="page-body">
+
+    <p class="section-title">O que é o <span>Sistema?</span></p>
+    <p class="section-intro">
+      O RJNet Gestão de Eventos é uma plataforma digital para gerenciar a presença comercial da RJNet em eventos externos. Através do sistema, a equipe organiza eventos, controla materiais, registra leads (clientes em potencial) e acompanha o desempenho da equipe de vendas em campo.
+    </p>
+
+    <div class="info-box blue">
+      <span class="info-icon">📱</span>
+      <div class="info-content">
+        <h5>Aplicativo Mobile-First</h5>
+        <p>O sistema foi projetado para ser usado em celulares durante os eventos. A equipe de vendas registra leads diretamente pelo app, enquanto a gestão acompanha tudo em tempo real.</p>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card mkt">
+        <div class="icon">📣</div>
+        <h4>Marketing</h4>
+        <p>Administra todo o sistema: eventos, estoque, leads, equipe e relatórios.</p>
+      </div>
+      <div class="summary-card com">
+        <div class="icon">📊</div>
+        <h4>Comercial</h4>
+        <p>Visualiza métricas, acompanha leads e monitora performance sem editar dados.</p>
+      </div>
+      <div class="summary-card vnd">
+        <div class="icon">🤝</div>
+        <h4>Vendedor</h4>
+        <p>Registra leads em campo e gerencia apenas seus próprios contatos.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p class="section-title" style="font-size:17px;">Fluxo do <span>Evento</span></p>
+
+    <div class="flow-container">
+      <p class="flow-title">📣 Como o Marketing gerencia um evento</p>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-step-inner mkt-step">
+            <div class="flow-step-num mkt-num">1</div>
+            <div class="flow-step-label">Cria o evento no sistema</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner mkt-step">
+            <div class="flow-step-num mkt-num">2</div>
+            <div class="flow-step-label">Aloca materiais e equipe</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner mkt-step">
+            <div class="flow-step-num mkt-num">3</div>
+            <div class="flow-step-label">Ativa o evento (status: ativo)</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner mkt-step">
+            <div class="flow-step-num mkt-num">4</div>
+            <div class="flow-step-label">Monitora leads em tempo real</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner mkt-step">
+            <div class="flow-step-num mkt-num">5</div>
+            <div class="flow-step-label">Encerra e confirma devoluções</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-container">
+      <p class="flow-title">📊 Como o Comercial acompanha</p>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-step-inner com-step">
+            <div class="flow-step-num com-num">1</div>
+            <div class="flow-step-label">Acessa o painel de leads</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner com-step">
+            <div class="flow-step-num com-num">2</div>
+            <div class="flow-step-label">Filtra por evento, vendedor ou serviço</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner com-step">
+            <div class="flow-step-num com-num">3</div>
+            <div class="flow-step-label">Analisa KPIs e gráficos</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-step-inner com-step">
+            <div class="flow-step-num com-num">4</div>
+            <div class="flow-step-label">Acompanha performance da equipe</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== PÁGINA 3: MARKETING ==================== -->
+<div class="page">
+  <div class="page-header">
+    <span class="brand">RJNet — Gestão de Eventos</span>
+    <span class="section-tag">Perfil: Marketing</span>
+  </div>
+  <div class="page-body">
+
+    <div class="role-header marketing-header">
+      <div class="role-icon mkt">📣</div>
+      <div class="role-header-text">
+        <h3 class="mkt">Perfil: Marketing</h3>
+        <p>Administrador geral do sistema — controle total sobre eventos, materiais, usuários e dados</p>
+      </div>
+    </div>
+
+    <div class="tabs-section">
+      <h4>Abas disponíveis no aplicativo</h4>
+      <div class="tabs-list">
+        <span class="tab-item mkt-tab">📅 Eventos</span>
+        <span class="tab-item mkt-tab">📦 Estoque</span>
+        <span class="tab-item mkt-tab">👥 Leads</span>
+        <span class="tab-item mkt-tab">🧑‍🤝‍🧑 Equipe</span>
+        <span class="tab-item mkt-tab">✅ Check-in</span>
+      </div>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feature-card mkt-card">
+        <div class="feature-card-title mkt-title">📅 Gestão de Eventos</div>
+        <ul>
+          <li>Criar novos eventos</li>
+          <li>Editar nome, local e datas</li>
+          <li>Alterar status (planejado → ativo → encerrado)</li>
+          <li>Definir tipo (sinalização, presença comercial, ativação)</li>
+          <li>Ver leads capturados por evento</li>
+          <li>Excluir eventos</li>
+        </ul>
+      </div>
+
+      <div class="feature-card mkt-card">
+        <div class="feature-card-title mkt-title">📦 Controle de Estoque</div>
+        <ul>
+          <li>Cadastrar novos materiais</li>
+          <li>Editar quantidade disponível</li>
+          <li>Alocar materiais a eventos</li>
+          <li>Confirmar devolução de materiais</li>
+          <li>Ver status: disponível, em campo, crítico</li>
+          <li>Monitorar alertas de estoque baixo</li>
+        </ul>
+      </div>
+
+      <div class="feature-card mkt-card">
+        <div class="feature-card-title mkt-title">👥 Gestão de Leads</div>
+        <ul>
+          <li>Visualizar todos os leads do sistema</li>
+          <li>Filtrar por evento, vendedor ou serviço</li>
+          <li>Editar qualquer lead</li>
+          <li>Alterar temperatura do lead</li>
+          <li>Excluir leads</li>
+          <li>Acessar dados completos (nome, CPF, telefone)</li>
+        </ul>
+      </div>
+
+      <div class="feature-card mkt-card">
+        <div class="feature-card-title mkt-title">🧑‍🤝‍🧑 Gestão de Equipe</div>
+        <ul>
+          <li>Criar novos usuários (e-mail + senha)</li>
+          <li>Definir perfil: marketing, vendedor ou comercial</li>
+          <li>Ativar ou desativar acessos</li>
+          <li>Ver métricas de leads por vendedor</li>
+          <li>Gerenciar todos os perfis do sistema</li>
+        </ul>
+      </div>
+
+      <div class="feature-card mkt-card">
+        <div class="feature-card-title mkt-title">✅ Check-in por CPF</div>
+        <ul>
+          <li>Buscar lead pelo CPF (total ou parcial)</li>
+          <li>Confirmar presença em evento específico</li>
+          <li>Ver detalhes do lead encontrado</li>
+          <li>Verificar se lead já foi registrado</li>
+        </ul>
+      </div>
+
+      <div class="feature-card mkt-card">
+        <div class="feature-card-title mkt-title">📊 Relatórios e Análises</div>
+        <ul>
+          <li>Ver ranking de vendedores por evento</li>
+          <li>Gráfico de leads por vendedor (na tela do evento)</li>
+          <li>Contagem de leads por serviço de interesse</li>
+          <li>Performance geral de cada evento</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="info-box purple">
+      <span class="info-icon">🔑</span>
+      <div class="info-content">
+        <h5>Nível de Acesso: Total</h5>
+        <p>O Marketing tem acesso completo a todos os dados e funcionalidades do sistema. É o único perfil que pode criar usuários, gerenciar o estoque e encerrar eventos. Toda a administração da plataforma é responsabilidade exclusiva deste perfil.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== PÁGINA 4: COMERCIAL ==================== -->
+<div class="page">
+  <div class="page-header">
+    <span class="brand">RJNet — Gestão de Eventos</span>
+    <span class="section-tag">Perfil: Comercial</span>
+  </div>
+  <div class="page-body">
+
+    <div class="role-header comercial-header">
+      <div class="role-icon com">📊</div>
+      <div class="role-header-text">
+        <h3 class="com">Perfil: Comercial</h3>
+        <p>Painel analítico — visualização e monitoramento de leads e resultados em tempo real (somente leitura)</p>
+      </div>
+    </div>
+
+    <div class="tabs-section">
+      <h4>Abas disponíveis no aplicativo</h4>
+      <div class="tabs-list">
+        <span class="tab-item com-tab">📊 Painel de Leads</span>
+      </div>
+    </div>
+
+    <p class="section-intro" style="margin-bottom: 20px;">
+      O perfil Comercial tem acesso a um painel exclusivo de análise com todas as informações de leads capturados nos eventos. Não é possível criar, editar ou excluir nenhum dado — o foco é o acompanhamento e a análise de resultados.
+    </p>
+
+    <div class="features-grid">
+
+      <div class="feature-card com-card">
+        <div class="feature-card-title com-title">📈 KPIs Principais</div>
+        <ul>
+          <li>Total geral de leads capturados</li>
+          <li>Total de leads Fibra Residencial</li>
+          <li>Total de leads Fibra Empresarial</li>
+          <li>Total de leads Hotspot</li>
+          <li>Atualização em tempo real</li>
+        </ul>
+      </div>
+
+      <div class="feature-card com-card">
+        <div class="feature-card-title com-title">📋 Tabela de Leads</div>
+        <ul>
+          <li>Visualizar todos os leads do sistema</li>
+          <li>Filtrar por evento específico</li>
+          <li>Filtrar por vendedor</li>
+          <li>Filtrar por serviço de interesse</li>
+          <li>Ver temperatura do lead (frio/morno/quente/convertido)</li>
+          <li>Ver data e hora do registro</li>
+        </ul>
+      </div>
+
+      <div class="feature-card com-card">
+        <div class="feature-card-title com-title">📉 Gráficos e Análises</div>
+        <ul>
+          <li>Gráfico de leads por evento</li>
+          <li>Comparativo entre eventos</li>
+          <li>Distribuição por tipo de serviço</li>
+          <li>Análise de performance de captação</li>
+        </ul>
+      </div>
+
+      <div class="feature-card com-card">
+        <div class="feature-card-title com-title">👤 Dados do Lead Visíveis</div>
+        <ul>
+          <li>Nome do cliente</li>
+          <li>Telefone de contato</li>
+          <li>Serviço de interesse</li>
+          <li>Temperatura / nível de interesse</li>
+          <li>Vendedor responsável pelo registro</li>
+          <li>Evento onde foi captado</li>
+          <li>Data e observações</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="divider"></div>
+
+    <p class="section-title" style="font-size:17px; margin-bottom: 14px;">Comparativo: <span>Marketing vs Comercial</span></p>
+
+    <div class="comparison">
+      <div class="comp-col mkt-col">
+        <h4>📣 Marketing</h4>
+        <ul>
+          <li><span class="check">✓</span> Criar e editar eventos</li>
+          <li><span class="check">✓</span> Gerenciar estoque de materiais</li>
+          <li><span class="check">✓</span> Criar e ativar usuários</li>
+          <li><span class="check">✓</span> Editar e excluir leads</li>
+          <li><span class="check">✓</span> Check-in por CPF</li>
+          <li><span class="check">✓</span> Encerrar eventos</li>
+          <li><span class="check">✓</span> Ver todos os relatórios</li>
+          <li><span class="check">✓</span> Alterar perfis de usuários</li>
+        </ul>
+      </div>
+      <div class="comp-col com-col">
+        <h4>📊 Comercial</h4>
+        <ul>
+          <li><span class="cross">✗</span> Criar e editar eventos</li>
+          <li><span class="cross">✗</span> Gerenciar estoque</li>
+          <li><span class="cross">✗</span> Criar usuários</li>
+          <li><span class="cross">✗</span> Editar leads</li>
+          <li><span class="cross">✗</span> Check-in por CPF</li>
+          <li><span class="cross">✗</span> Encerrar eventos</li>
+          <li><span class="check">✓</span> Ver todos os leads (leitura)</li>
+          <li><span class="check">✓</span> Acessar painel analítico</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-box green">
+      <span class="info-icon">👁️</span>
+      <div class="info-content">
+        <h5>Nível de Acesso: Somente Leitura</h5>
+        <p>O Comercial enxerga todos os dados de leads em tempo real, mas não pode alterar nenhuma informação. Esse perfil foi criado para que a equipe comercial acompanhe os resultados dos eventos sem interferir na operação gerenciada pelo Marketing.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== PÁGINA 5: TABELA DE PERMISSÕES ==================== -->
+<div class="page">
+  <div class="page-header">
+    <span class="brand">RJNet — Gestão de Eventos</span>
+    <span class="section-tag">Tabela de Permissões</span>
+  </div>
+  <div class="page-body">
+
+    <p class="section-title">Permissões por <span>Perfil</span></p>
+    <p class="section-intro">Resumo completo do que cada perfil pode acessar e executar no sistema.</p>
+
+    <table class="perm-table">
+      <thead>
+        <tr>
+          <th>Funcionalidade</th>
+          <th>📣 Marketing</th>
+          <th>📊 Comercial</th>
+          <th>🤝 Vendedor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Criar / Editar Eventos</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Visualizar Eventos</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-read">◉ Leitura</span></td>
+          <td><span class="perm-badge perm-read">◉ Leitura</span></td>
+        </tr>
+        <tr>
+          <td><strong>Encerrar / Excluir Eventos</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Gerenciar Estoque</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-read">◉ Leitura</span></td>
+        </tr>
+        <tr>
+          <td><strong>Alocar Materiais a Eventos</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Ver Todos os Leads</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-read">◉ Leitura</span></td>
+          <td><span class="perm-badge perm-none">✗ Apenas próprios</span></td>
+        </tr>
+        <tr>
+          <td><strong>Registrar Novos Leads</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-full">✓ Próprios leads</span></td>
+        </tr>
+        <tr>
+          <td><strong>Editar / Excluir Leads</strong></td>
+          <td><span class="perm-badge perm-full">✓ Todos</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-read">◉ Apenas próprios</span></td>
+        </tr>
+        <tr>
+          <td><strong>Criar Usuários</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Ativar / Desativar Usuários</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Ver Painel Analítico / KPIs</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Check-in por CPF</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+        <tr>
+          <td><strong>Ver Ranking / Placar da Equipe</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-read">◉ Dados agregados</span></td>
+        </tr>
+        <tr>
+          <td><strong>Gráficos e Relatórios</strong></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-full">✓ Total</span></td>
+          <td><span class="perm-badge perm-none">✗ Sem acesso</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="divider"></div>
+
+    <p class="section-title" style="font-size:17px; margin-bottom: 14px;">Temperatura dos <span>Leads</span></p>
+    <p class="section-intro" style="margin-bottom: 16px;">Os leads são classificados por nível de interesse do cliente:</p>
+
+    <div style="display: flex; gap: 12px;">
+      <div style="flex:1; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px; text-align:center;">
+        <div style="font-size:20px; margin-bottom:6px;">🧊</div>
+        <div style="font-size:12px; font-weight:700; color:#1d4ed8;">Frio</div>
+        <div style="font-size:11px; color:#475569;">Pouco interesse; cliente ainda avaliando</div>
+      </div>
+      <div style="flex:1; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:14px; text-align:center;">
+        <div style="font-size:20px; margin-bottom:6px;">🌡️</div>
+        <div style="font-size:12px; font-weight:700; color:#c2410c;">Morno</div>
+        <div style="font-size:11px; color:#475569;">Interesse moderado; pediu mais informações</div>
+      </div>
+      <div style="flex:1; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:14px; text-align:center;">
+        <div style="font-size:20px; margin-bottom:6px;">🔥</div>
+        <div style="font-size:12px; font-weight:700; color:#dc2626;">Quente</div>
+        <div style="font-size:11px; color:#475569;">Alto interesse; próximo da decisão</div>
+      </div>
+      <div style="flex:1; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:14px; text-align:center;">
+        <div style="font-size:20px; margin-bottom:6px;">✅</div>
+        <div style="font-size:12px; font-weight:700; color:#16a34a;">Convertido</div>
+        <div style="font-size:11px; color:#475569;">Fechou negócio ou fez adesão</div>
+      </div>
+    </div>
+
+    <div style="height:30px;"></div>
+
+    <div class="info-box blue">
+      <span class="info-icon">🔒</span>
+      <div class="info-content">
+        <h5>Segurança: As permissões são aplicadas no banco de dados</h5>
+        <p>Cada perfil só acessa o que lhe é permitido diretamente no servidor (Row Level Security — RLS). Não é possível contornar essas restrições pelo aplicativo. Um vendedor, por exemplo, nunca consegue ver os leads dos colegas, mesmo que tente acessar diretamente.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
