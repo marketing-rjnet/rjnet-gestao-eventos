@@ -127,7 +127,7 @@ export const db = {
   saveEvento:   (e) => exec(supabase?.from('eventos').upsert(eventoToDb(e)), 'salvar evento'),
   saveLead:     (l) => exec(supabase?.from('leads').upsert(leadToDb(l)), 'salvar lead'),
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
-  removeLead:   (id) => exec(supabase?.from('leads').delete().eq('id', id), 'remover lead'),
+  removeLead:   (id) => exec(supabase?.from('leads').update({ deletado: true }).eq('id', id), 'remover lead'),
 };
 
 /* ─── Autenticação (Supabase Auth + perfis por papel) ────────────── */
