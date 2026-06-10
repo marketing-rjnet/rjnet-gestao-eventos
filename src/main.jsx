@@ -1469,17 +1469,53 @@ Chart.register(...registerables);
          COMERCIAL APP — observação e análise dos dados (somente leitura)
          ============================================================ */
       function ComercialApp({ session, onLogout, darkMode, toggleDark }) {
+        const [tab, setTab] = useState("leads");
+        const [detailId, setDetailId] = useState(null);
+
+        const tabs = [
+          { id: "leads",   label: "Leads",   ico: "users"    },
+          { id: "eventos", label: "Eventos",  ico: "calendar" },
+          { id: "estoque", label: "Estoque",  ico: "box"      },
+          { id: "checkin", label: "Check-in", ico: "search"   },
+        ];
+
+        const switchTab = (id) => { setTab(id); setDetailId(null); };
+
         return (
           <div>
             <header className="app-header">
               <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
-              <div className="header-right" style={{ marginLeft: "auto" }}>
+              <nav className="header-nav">
+                {tabs.map((t) => (
+                  <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
+                    <Icon name={t.ico} size={17} />{t.label}
+                  </button>
+                ))}
+              </nav>
+              <div className="header-right">
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
-                <span className="user-badge"><span className="dot"></span><span className="ub-name">{session.vendedorNome}</span></span>
+                <span className="user-badge"><span className="dot"></span><span className="ub-name">{session.vendedorNome || "Comercial"}</span></span>
               </div>
-              <button className="btn-ghost" onClick={onLogout}>Sair</button>
+              <button className="btn-ghost" style={{ marginLeft: "auto" }} onClick={onLogout}>Sair</button>
             </header>
-            <LeadsTab />
+
+            {tab === "leads"   && <LeadsTab />}
+            {tab === "eventos" && (detailId
+              ? <EventDetail eventoId={detailId} onBack={() => setDetailId(null)} />
+              : <EventosTab onOpen={setDetailId} />)}
+            {tab === "estoque" && <EstoqueTab />}
+            {tab === "checkin" && <CheckinTab />}
+
+            <nav className="bottom-nav">
+              <div className="bottom-nav-inner">
+                {tabs.map((t) => (
+                  <button key={t.id} className={"bn-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
+                    <span className="bn-ico"><Icon name={t.ico} size={22} /></span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </nav>
           </div>
         );
       }
