@@ -2291,6 +2291,7 @@ Chart.register(...registerables);
 
         if (!session) return <Login onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
         if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+        if (session.role === "comercial") return <ComercialApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
         return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
       }
 
