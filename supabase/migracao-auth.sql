@@ -5,13 +5,12 @@
 -- Idempotente: pode rodar mais de uma vez.
 --
 -- O que faz:
---   1. Cria a tabela `perfis` (papel de cada usuário: marketing,
---      vendedor ou comercial) ligada ao Supabase Auth
+--   1. Cria a tabela `perfis` (papel de cada usuário: marketing
+--      ou vendedor) ligada ao Supabase Auth
 --   2. Adiciona `vendedor_id` aos leads (vínculo com quem registrou)
 --   3. REMOVE o acesso anônimo e cria regras por papel:
 --        marketing → tudo
---        vendedor  → insere/vê/edita apenas os próprios leads
---        comercial → leitura de todos os leads
+--        vendedor  → insere/edita próprios leads; lê todos os leads
 --   4. Cria a função ranking_evento (placar sem expor leads alheios)
 --
 -- ⚠️ Após rodar, o app passa a EXIGIR login — veja no fim como
@@ -24,7 +23,7 @@ create table if not exists public.perfis (
   id     uuid primary key references auth.users (id) on delete cascade,
   email  text,
   nome   text not null,
-  papel  text not null default 'vendedor' check (papel in ('marketing', 'vendedor', 'comercial')),
+  papel  text not null default 'vendedor' check (papel in ('marketing', 'vendedor')),
   ativo  boolean not null default false,
   criado_em timestamptz not null default now()
 );
@@ -119,13 +118,11 @@ create policy "vendedores_marketing" on public.vendedores for all to authenticat
 
 -- leads:
 --   marketing  → tudo
---   comercial  → leitura de todos
---   vendedor   → insere/vê/edita/apaga APENAS os próprios
+--   vendedor   → lê todos; insere/edita/apaga APENAS os próprios
 drop policy if exists "leads_select" on public.leads;
 create policy "leads_select" on public.leads for select to authenticated
   using (
-    public.papel_atual() in ('marketing', 'comercial')
-    or (public.papel_atual() = 'vendedor' and vendedor_id = auth.uid())
+    public.papel_atual() in ('marketing', 'vendedor')
   );
 
 drop policy if exists "leads_insert" on public.leads;

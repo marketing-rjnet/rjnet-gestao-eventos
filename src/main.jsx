@@ -342,7 +342,6 @@ Chart.register(...registerables);
 
       const AUTH = {
         marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS || "mkt2025" },
-        comercial: { user: import.meta.env.VITE_COMERCIAL_USER || "comercial", pass: import.meta.env.VITE_COMERCIAL_PASS || "com2025" },
       };
 
       /* ============================================================
@@ -382,32 +381,10 @@ Chart.register(...registerables);
         const [p, setP] = useState("");
         const [err, setErr] = useState("");
 
-        if (stage === "select_vendedor") {
-          return (
-            <div className="login-bg">
-              <div className="login-card">
-                <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-                <p className="login-tag">Gestão de Eventos</p>
-                <p className="login-sub">Selecione seu perfil</p>
-                <div className="vendedor-list">
-                  {vendedores.filter((v) => v.ativo).map((v) => (
-                    <button key={v.id} className="vendedor-btn" onClick={() => onLogin({ role: "comercial", vendedorNome: v.nome })}>
-                      <span className="vendedor-avatar">{v.nome.charAt(0)}</span>
-                      {v.nome}
-                    </button>
-                  ))}
-                </div>
-                <button className="back-btn" onClick={() => setStage("login")} style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="back" size={15} /> Voltar</button>
-              </div>
-            </div>
-          );
-        }
-
         const submit = (e) => {
           e.preventDefault();
           setErr("");
           if (u === AUTH.marketing.user && p === AUTH.marketing.pass) onLogin({ role: "marketing" });
-          else if (u === AUTH.comercial.user && p === AUTH.comercial.pass) setStage("select_vendedor");
           else setErr("Usuário ou senha incorretos.");
         };
 
@@ -420,7 +397,7 @@ Chart.register(...registerables);
               <form onSubmit={submit} className="login-form">
                 <div className="field-group">
                   <label>Usuário</label>
-                  <input value={u} onChange={(e) => setU(e.target.value)} placeholder="marketing / comercial" autoComplete="username" />
+                  <input value={u} onChange={(e) => setU(e.target.value)} placeholder="marketing" autoComplete="username" />
                 </div>
                 <div className="field-group">
                   <label>Senha</label>
@@ -1283,7 +1260,7 @@ Chart.register(...registerables);
             <div className="page-head">
               <div>
                 <div className="page-title">Equipe</div>
-                <p className="tab-desc">Gerencie os perfis da equipe comercial. Vendedores ativos aparecem na tela de login do acesso Comercial.</p>
+                <p className="tab-desc">Gerencie os acessos da equipe. Cada pessoa entra com o próprio e-mail e senha; o papel define o que ela pode ver e fazer.</p>
               </div>
               <button className="btn-primary" onClick={() => setShowForm((s) => !s)}>+ Adicionar Vendedor</button>
             </div>
@@ -1356,7 +1333,7 @@ Chart.register(...registerables);
         const [salvando, setSalvando] = useState(false);
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
-        const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor", comercial: "Comercial" };
+        const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor" };
 
         const submit = async (e) => {
           e.preventDefault();
@@ -1424,8 +1401,7 @@ Chart.register(...registerables);
                   <div className="field-group">
                     <label>Papel *</label>
                     <select value={f.papel} onChange={(e) => set("papel", e.target.value)}>
-                      <option value="vendedor">Vendedor — registra leads em campo</option>
-                      <option value="comercial">Comercial — observa e analisa os dados</option>
+                      <option value="vendedor">Vendedor — registra e acompanha leads</option>
                       <option value="marketing">Marketing — administra tudo</option>
                     </select>
                   </div>
@@ -1457,7 +1433,6 @@ Chart.register(...registerables);
                   <div className="v-actions" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                     <select value={p.papel} onChange={(e) => mudarPapel(p, e.target.value)} title="Alterar papel">
                       <option value="vendedor">Vendedor</option>
-                      <option value="comercial">Comercial</option>
                       <option value="marketing">Marketing</option>
                     </select>
                     <button className="btn-ghost vendor-toggle" onClick={() => toggleAtivo(p)}>
@@ -1470,25 +1445,6 @@ Chart.register(...registerables);
                 </div>
               ))}
             </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         COMERCIAL APP — observação e análise dos dados (somente leitura)
-         ============================================================ */
-      function ComercialApp({ session, onLogout, darkMode, toggleDark }) {
-        return (
-          <div>
-            <header className="app-header">
-              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
-              <div className="header-right" style={{ marginLeft: "auto" }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
-                <span className="user-badge"><span className="dot"></span><span className="ub-name">{session.vendedorNome}</span></span>
-              </div>
-              <button className="btn-ghost" onClick={onLogout}>Sair</button>
-            </header>
-            <LeadsTab />
           </div>
         );
       }
@@ -2224,7 +2180,7 @@ Chart.register(...registerables);
       }
 
       // Com Supabase: login individual por e-mail/senha; o papel do perfil
-      // define a área (marketing | vendedor | comercial)
+      // define a área (marketing | vendedor)
       function RootAuth({ darkMode, toggleDark }) {
         const [session, setSession] = useState(undefined); // undefined = verificando sessão salva
         const [recuperandoSenha, setRecuperandoSenha] = useState(false);
@@ -2253,7 +2209,6 @@ Chart.register(...registerables);
         if (session === undefined) return <div className="login-bg" />;
         if (!session) return <LoginAuth onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
         if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
-        if (session.role === "comercial") return <ComercialApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
         return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
       }
 

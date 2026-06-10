@@ -4,7 +4,6 @@
  * - login individual por e-mail/senha e roteamento por papel
  * - fluxo do vendedor com dados chegando DEPOIS da tela montar (regressão
  *   do bug "Selecione um evento")
- * - área comercial somente leitura
  *
  * Roda no projeto `supabase-sim` (porta 3001, env VITE_SUPABASE_* fake).
  */
@@ -28,15 +27,6 @@ const USERS = {
       created_at: '2026-01-01T00:00:00Z',
     },
     perfil: { id: 'u-vend-1', email: 'vendedora@rjnet.com', nome: 'Vendedora Supabase', papel: 'vendedor', ativo: true, criado_em: '2026-01-01T00:00:00Z' },
-  },
-  comercial: {
-    user: {
-      id: 'u-com-1', aud: 'authenticated', role: 'authenticated',
-      email: 'comercial@rjnet.com', email_confirmed_at: '2026-01-01T00:00:00Z',
-      app_metadata: { provider: 'email' }, user_metadata: { nome: 'Análise Comercial' },
-      created_at: '2026-01-01T00:00:00Z',
-    },
-    perfil: { id: 'u-com-1', email: 'comercial@rjnet.com', nome: 'Análise Comercial', papel: 'comercial', ativo: true, criado_em: '2026-01-01T00:00:00Z' },
   },
 };
 
@@ -184,25 +174,6 @@ test.describe('Supabase Auth — papéis e dados assíncronos', () => {
 
     await expect(page.locator('.big-select option', { hasText: 'Festa do Pescador' })).toHaveCount(0);
     await expect(page.locator('.big-select option', { hasText: 'Evento Vindo do Banco' })).toHaveCount(1);
-  });
-
-  test('perfil comercial cai na área de observação, somente leitura', async ({ page }) => {
-    await mockSupabase(page, {
-      papel: 'comercial',
-      leads: [{
-        id: 'l-1', evento_id: 'ev-sup-1', vendedor_nome: 'Vendedora Supabase', vendedor_id: 'u-vend-1',
-        nome: 'Lead Observado', telefone: '(24) 98888-7777', cpf: null, endereco: 'Rua A, 1',
-        servico_interesse: 'internet_residencial', temperatura: 'quente', observacao: null,
-        ja_cliente_rjnet: false, criado_em: '2026-06-09T15:00:00Z',
-      }],
-    });
-    await loginPorEmail(page, 'comercial');
-
-    // Dashboard de leads com filtros, sem abas administrativas
-    await expect(page.locator('.page-title')).toHaveText('Leads');
-    await expect(page.locator('.tbl-wrap table')).toContainText('Lead Observado');
-    await expect(page.locator('.header-nav')).not.toBeVisible();
-    await expect(page.locator('.lead-submit')).not.toBeVisible();
   });
 
   test('marketing encerra o evento em outro dispositivo — seletor reage sem travar', async ({ page }) => {
