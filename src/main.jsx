@@ -1,6 +1,8 @@
 import React, { useState, useContext, createContext, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
+import { supabaseEnabled } from './lib/supabase';
+import { fetchAll, db, subscribeChanges } from './lib/dataService';
 import './index.css';
 
 Chart.register(...registerables);
@@ -202,31 +204,98 @@ Chart.register(...registerables);
         const [leads, setLeads] = usePersisted("rjnet_leads", MOCK_LEADS);
         const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", MOCK_VENDEDORES);
 
+        // Carga inicial do Supabase + realtime: mudanças feitas em outro
+        // dispositivo disparam um refetch. O localStorage vira cache offline.
+        useEffect(() => {
+          if (!supabaseEnabled) return;
+          const carregar = async () => {
+            const dados = await fetchAll();
+            if (!dados) return;
+            setMateriais(dados.materiais);
+            setVendedores(dados.vendedores);
+            setEventos(dados.eventos);
+            setLeads(dados.leads);
+          };
+          carregar();
+          return subscribeChanges(carregar);
+        }, []);
+
+        const genId = (prefix) => prefix + Date.now() + Math.random().toString(36).slice(2, 7);
+
+        const patchEvento = (id, patch) => {
+          const atual = eventos.find((e) => e.id === id);
+          setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+          if (atual) db.saveEvento({ ...atual, ...patch });
+        };
+
         const value = {
           materiais, eventos, leads, vendedores,
-          addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now() + Math.random().toString(36).slice(2,7), criadoEm: new Date().toISOString() }]),
-          updateEvento: (id, patch) => setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e))),
-          removeEvento: (id) => setEventos((p) => p.filter((e) => e.id !== id)),
-          addLead: (l) => setLeads((p) => [...p, { id: "l" + Date.now() + Math.random().toString(36).slice(2,7), criadoEm: new Date().toISOString(), ...l }]),
-          updateLead: (id, patch) => setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l)),
-          removeLead: (id) => setLeads((p) => p.filter((l) => l.id !== id)),
-          addMaterial: (m) => setMateriais((p) => [...p, { ...m, id: "m" + Date.now() + Math.random().toString(36).slice(2,7) }]),
-          updateMaterial: (id, patch) => setMateriais((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m))),
-          addMaterialEvento: (eventoId, materialId, quantidade) =>
-            setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
-              ...e, materiais: [...e.materiais, { materialId, quantidade: Number(quantidade), estadoSaida: "ok", retornado: false }]
-            })),
-          removeMaterialEvento: (eventoId, idx) =>
-            setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
-              ...e, materiais: e.materiais.filter((_, i) => i !== idx)
-            })),
-          toggleRetornadoEvento: (eventoId, idx) =>
-            setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
-              ...e, materiais: e.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m)
-            })),
-          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now() + Math.random().toString(36).slice(2,7), nome, ativo: true }]),
-          updateVendedor: (id, patch) => setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v)),
-          toggleVendedor: (id) => setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v))),
+          addEvento: (e) => {
+            const novo = { ...e, id: genId("e"), criadoEm: new Date().toISOString() };
+            setEventos((p) => [...p, novo]);
+            db.saveEvento(novo);
+          },
+          updateEvento: patchEvento,
+          removeEvento: (id) => {
+            setEventos((p) => p.filter((e) => e.id !== id));
+            db.removeEvento(id);
+          },
+          addLead: (l) => {
+            const novo = { id: genId("l"), criadoEm: new Date().toISOString(), ...l };
+            setLeads((p) => [...p, novo]);
+            db.saveLead(novo);
+          },
+          updateLead: (id, patch) => {
+            const atual = leads.find((l) => l.id === id);
+            setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l));
+            if (atual) db.saveLead({ ...atual, ...patch });
+          },
+          removeLead: (id) => {
+            setLeads((p) => p.filter((l) => l.id !== id));
+            db.removeLead(id);
+          },
+          addMaterial: (m) => {
+            const novo = { ...m, id: genId("m") };
+            setMateriais((p) => [...p, novo]);
+            db.saveMaterial(novo);
+          },
+          updateMaterial: (id, patch) => {
+            const atual = materiais.find((m) => m.id === id);
+            setMateriais((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+            if (atual) db.saveMaterial({ ...atual, ...patch });
+          },
+          addMaterialEvento: (eventoId, materialId, quantidade) => {
+            const ev = eventos.find((e) => e.id === eventoId);
+            if (!ev) return;
+            patchEvento(eventoId, {
+              materiais: [...ev.materiais, { materialId, quantidade: Number(quantidade), estadoSaida: "ok", retornado: false }]
+            });
+          },
+          removeMaterialEvento: (eventoId, idx) => {
+            const ev = eventos.find((e) => e.id === eventoId);
+            if (!ev) return;
+            patchEvento(eventoId, { materiais: ev.materiais.filter((_, i) => i !== idx) });
+          },
+          toggleRetornadoEvento: (eventoId, idx) => {
+            const ev = eventos.find((e) => e.id === eventoId);
+            if (!ev) return;
+            patchEvento(eventoId, { materiais: ev.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m) });
+          },
+          addVendedor: (nome) => {
+            const novo = { id: genId("v"), nome, ativo: true };
+            setVendedores((p) => [...p, novo]);
+            db.saveVendedor(novo);
+          },
+          updateVendedor: (id, patch) => {
+            const atual = vendedores.find((v) => v.id === id);
+            setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v));
+            if (atual) db.saveVendedor({ ...atual, ...patch });
+          },
+          toggleVendedor: (id) => {
+            const atual = vendedores.find((v) => v.id === id);
+            setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v)));
+            if (atual) db.saveVendedor({ ...atual, ativo: !atual.ativo });
+          },
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
           getEventosAtivos: () => eventos.filter((e) => e.status === "ativo"),
           getMateriaisDisponiveis: () =>

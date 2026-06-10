@@ -67,7 +67,7 @@ test.describe('SQL Injection — Login', () => {
 test.describe('XSS — Login', () => {
 
   test('payloads XSS no campo usuário não executam script', async ({ page }) => {
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
@@ -86,7 +86,7 @@ test.describe('XSS — Login', () => {
   });
 
   test('payloads XSS na senha não executam script', async ({ page }) => {
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
@@ -111,7 +111,7 @@ test.describe('XSS — Formulário de Lead', () => {
 
   test('payload XSS no nome do lead é exibido como texto, não executado', async ({ page }) => {
     test.slow();
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
@@ -144,7 +144,7 @@ test.describe('XSS — Formulário de Lead', () => {
 
   test('payload XSS no campo nome de evento é sanitizado', async ({ page }) => {
     test.slow();
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
