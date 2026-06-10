@@ -46,13 +46,50 @@ Arquivos relevantes:
 | `src/lib/dataService.js` | Queries, mapeamento camelCase ↔ snake_case e realtime |
 | `supabase/schema.sql` | Schema completo + seed |
 
+## Login individual e papéis (Supabase Auth)
+
+Cada pessoa entra com o próprio e-mail e senha. O papel define a área:
+
+| Papel | Área | Permissões no banco |
+|---|---|---|
+| `marketing` | Painel completo + gestão de usuários | Tudo |
+| `vendedor` | Tela de registro de leads | Insere/vê/edita **apenas os próprios leads**; placar da equipe vem agregado do servidor |
+| `comercial` | Dashboard de observação dos leads | Leitura de todos os leads, sem editar |
+
+### Como ativar (depois do schema.sql)
+
+1. **Rode a migração**: SQL Editor → cole [`supabase/migracao-auth.sql`](supabase/migracao-auth.sql) → Run.
+   Isso cria a tabela `perfis`, remove o acesso anônimo e instala as regras por papel.
+
+2. **Crie o primeiro administrador**:
+   - Dashboard → **Authentication → Users → Add user** → seu e-mail e senha,
+     marcando **Auto Confirm User**
+   - SQL Editor:
+     ```sql
+     update public.perfis set papel = 'marketing', ativo = true
+       where email = 'seu@email.com';
+     ```
+
+3. **Desative a confirmação de e-mail** (os usuários são criados pelo
+   marketing): Dashboard → **Authentication → Sign In / Up → Email** →
+   desmarque **Confirm email**.
+
+4. Pronto. No app, a aba **Equipe** do marketing passa a criar/ativar/desativar
+   usuários e definir papéis.
+
+Notas:
+- Usuário desativado não acessa nada — o banco nega tudo na hora.
+- "Esqueci minha senha" envia link por e-mail (o e-mail nativo do Supabase tem
+  limite baixo por hora; configure SMTP próprio se a equipe crescer).
+- Leads antigos (registrados antes da migração) continuam visíveis para
+  marketing e comercial, mas não aparecem na tela do vendedor — eles não têm
+  vínculo com o usuário novo.
+
 ## Segurança
 
-As policies de RLS liberam leitura/escrita para a `anon key`, porque o app usa
-login próprio (marketing/comercial) em vez de Supabase Auth. Isso significa que
-**quem tiver a anon key consegue acessar os dados das tabelas**. A anon key fica
-exposta no bundle do front-end — é o modelo aceito para uso interno, mas para
-endurecer a segurança o próximo passo é migrar o login para **Supabase Auth** e
-trocar as policies de `to anon` para `to authenticated`.
+Com a migração de auth aplicada, **a anon key sozinha não dá acesso a nada**:
+todas as policies exigem usuário autenticado e ativo, e o que cada um vê/edita
+é decidido pelo banco (RLS), não pelo front. Quem se auto-cadastrar pela API
+fica com perfil inativo até o marketing ativar.
 
 Nunca use a **service_role key** no front-end.

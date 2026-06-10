@@ -2,7 +2,7 @@ import React, { useState, useContext, createContext, useEffect, useRef, useMemo 
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
-import { fetchAll, db, subscribeChanges } from './lib/dataService';
+import { fetchAll, db, subscribeChanges, auth, rankingEvento } from './lib/dataService';
 import './index.css';
 
 Chart.register(...registerables);
@@ -208,19 +208,44 @@ Chart.register(...registerables);
 
         // Carga inicial do Supabase + realtime: mudanças feitas em outro
         // dispositivo disparam um refetch. O localStorage vira cache offline.
+        // Login/logout também recarregam — o RLS devolve só o que o papel
+        // do usuário pode ver.
+        const carregar = async () => {
+          const dados = await fetchAll();
+          if (!dados) return;
+          setMateriais(dados.materiais);
+          setVendedores(dados.vendedores);
+          setEventos(dados.eventos);
+          setLeads(dados.leads);
+        };
         useEffect(() => {
           if (!supabaseEnabled) return;
-          const carregar = async () => {
-            const dados = await fetchAll();
-            if (!dados) return;
-            setMateriais(dados.materiais);
-            setVendedores(dados.vendedores);
-            setEventos(dados.eventos);
-            setLeads(dados.leads);
-          };
           carregar();
-          return subscribeChanges(carregar);
+          const unsubRealtime = subscribeChanges(carregar);
+          const unsubAuth = auth.onChange((evento) => {
+            if (evento === 'SIGNED_IN') carregar();
+            if (evento === 'SIGNED_OUT') {
+              setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
+            }
+          });
+          return () => { unsubRealtime(); unsubAuth(); };
         }, []);
+
+        // Placar do evento: com auth ativa vem do servidor (o vendedor não
+        // tem acesso aos leads dos colegas); sem Supabase, calcula localmente
+        const obterRanking = async (eventoId) => {
+          if (supabaseEnabled) {
+            const r = await rankingEvento(eventoId);
+            if (r) return r;
+          }
+          const mapa = {};
+          leads.filter((l) => l.eventoId === eventoId).forEach((l) => {
+            mapa[l.vendedorNome] = (mapa[l.vendedorNome] || 0) + 1;
+          });
+          return Object.entries(mapa)
+            .map(([nome, total]) => ({ nome, total }))
+            .sort((a, b) => b.total - a.total);
+        };
 
         const genId = (prefix) => prefix + Date.now() + Math.random().toString(36).slice(2, 7);
 
@@ -298,6 +323,8 @@ Chart.register(...registerables);
             setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v)));
             if (atual) db.saveVendedor({ ...atual, ativo: !atual.ativo });
           },
+          obterRanking,
+          recarregar: carregar,
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
           getEventosAtivos: () => eventos.filter((e) => e.status === "ativo"),
           getMateriaisDisponiveis: () =>
@@ -402,6 +429,83 @@ Chart.register(...registerables);
                 {err && <p className="error-msg">{err}</p>}
                 <button type="submit" className="login-btn">Entrar</button>
               </form>
+              <p className="login-hint">Angra dos Reis · RJ</p>
+              <div style={{ textAlign: "center", marginTop: 14 }}>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
+                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================================================
+         LOGIN COM SUPABASE AUTH — e-mail e senha individuais
+         ============================================================ */
+      function LoginAuth({ onLogin, darkMode, toggleDark }) {
+        const [email, setEmail] = useState("");
+        const [senha, setSenha] = useState("");
+        const [err, setErr] = useState("");
+        const [carregando, setCarregando] = useState(false);
+        const [recuperar, setRecuperar] = useState(false);
+        const [recuperado, setRecuperado] = useState(false);
+
+        const submit = async (e) => {
+          e.preventDefault();
+          setErr("");
+          setCarregando(true);
+          try {
+            if (recuperar) {
+              await auth.resetSenha(email.trim());
+              setRecuperado(true);
+            } else {
+              const sessao = await auth.signIn(email.trim(), senha);
+              onLogin(sessao);
+            }
+          } catch (ex) {
+            setErr(ex.message || "Não foi possível entrar. Tente novamente.");
+          } finally {
+            setCarregando(false);
+          }
+        };
+
+        return (
+          <div className="login-bg">
+            <div className="login-card">
+              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
+              <p className="login-tag">Gestão de Eventos</p>
+              <p className="login-sub">{recuperar ? "Recuperar senha" : "Entre com a sua conta"}</p>
+              {recuperado ? (
+                <>
+                  <p style={{ textAlign: "center", fontSize: 14, padding: "12px 0" }}>
+                    Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.
+                  </p>
+                  <button className="back-btn" style={{ margin: "0 auto" }} onClick={() => { setRecuperar(false); setRecuperado(false); }}>
+                    Voltar ao login
+                  </button>
+                </>
+              ) : (
+                <form onSubmit={submit} className="login-form">
+                  <div className="field-group">
+                    <label>E-mail</label>
+                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@rjnet.com.br" autoComplete="username" />
+                  </div>
+                  {!recuperar && (
+                    <div className="field-group">
+                      <label>Senha</label>
+                      <input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+                    </div>
+                  )}
+                  {err && <p className="error-msg">{err}</p>}
+                  <button type="submit" className="login-btn" disabled={carregando}>
+                    {carregando ? "Aguarde…" : recuperar ? "Enviar link" : "Entrar"}
+                  </button>
+                  <button type="button" className="back-btn" style={{ margin: "8px auto 0" }} onClick={() => { setRecuperar((r) => !r); setErr(""); }}>
+                    {recuperar ? "Voltar ao login" : "Esqueci minha senha"}
+                  </button>
+                </form>
+              )}
               <p className="login-hint">Angra dos Reis · RJ</p>
               <div style={{ textAlign: "center", marginTop: 14 }}>
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
@@ -1067,7 +1171,9 @@ Chart.register(...registerables);
                 </select>
                 <select value={fVend} onChange={(e) => setFVend(e.target.value)}>
                   <option value="">Todos os vendedores</option>
-                  {vendedores.map((v) => <option key={v.id} value={v.nome}>{v.nome}</option>)}
+                  {[...new Set(leads.map((l) => l.vendedorNome).filter(Boolean))].sort().map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
                 </select>
                 <select value={fServ} onChange={(e) => setFServ(e.target.value)}>
                   <option value="">Todos os serviços</option>
@@ -1180,6 +1286,145 @@ Chart.register(...registerables);
                 );
               })}
             </div>
+          </div>
+        );
+      }
+
+      /* ============================================================
+         EQUIPE TAB (AUTH) — gestão de usuários pelo marketing
+         ============================================================ */
+      function EquipeAuthTab() {
+        const { vendedores: perfis, leads, recarregar } = useApp();
+        const [showForm, setShowForm] = useState(false);
+        const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "vendedor" });
+        const [erro, setErro] = useState("");
+        const [salvando, setSalvando] = useState(false);
+        const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+        const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor", comercial: "Comercial" };
+
+        const submit = async (e) => {
+          e.preventDefault();
+          setErro("");
+          if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
+          setSalvando(true);
+          try {
+            await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: f.email.trim(), senha: f.senha, papel: f.papel });
+            await recarregar();
+            setF({ nome: "", email: "", senha: "", papel: "vendedor" });
+            setShowForm(false);
+          } catch (ex) {
+            setErro(ex.message || "Não foi possível criar o usuário.");
+          } finally {
+            setSalvando(false);
+          }
+        };
+
+        const toggleAtivo = async (p) => {
+          if (p.ativo && !confirm(`Desativar o acesso de ${p.nome}?`)) return;
+          try { await auth.atualizarPerfil(p.id, { ativo: !p.ativo }); await recarregar(); }
+          catch (ex) { alert("Falha ao atualizar: " + ex.message); }
+        };
+
+        const mudarPapel = async (p, papel) => {
+          try { await auth.atualizarPerfil(p.id, { papel }); await recarregar(); }
+          catch (ex) { alert("Falha ao atualizar: " + ex.message); }
+        };
+
+        const leadsDoUsuario = (nome) => leads.filter((l) => l.vendedorNome === nome).length;
+
+        return (
+          <div className="page">
+            <div className="page-head">
+              <div>
+                <div className="page-title">Equipe</div>
+                <p className="tab-desc">Crie e gerencie os acessos. Cada pessoa entra com o próprio e-mail e senha; o papel define o que ela pode ver e fazer.</p>
+              </div>
+              <button className="btn-primary" onClick={() => setShowForm((s) => !s)}>+ Novo Usuário</button>
+            </div>
+
+            {showForm && (
+              <form onSubmit={submit} className="inline-form-card">
+                <div className="field-row">
+                  <div className="field-group">
+                    <label>Nome completo *</label>
+                    <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
+                  </div>
+                  <div className="field-group">
+                    <label>E-mail *</label>
+                    <input type="email" required value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
+                  </div>
+                </div>
+                <div className="field-row">
+                  <div className="field-group">
+                    <label>Senha inicial *</label>
+                    <input type="password" required minLength={8} value={f.senha} onChange={(e) => set("senha", e.target.value)} placeholder="Mínimo 8 caracteres" />
+                  </div>
+                  <div className="field-group">
+                    <label>Papel *</label>
+                    <select value={f.papel} onChange={(e) => set("papel", e.target.value)}>
+                      <option value="vendedor">Vendedor — registra leads em campo</option>
+                      <option value="comercial">Comercial — observa e analisa os dados</option>
+                      <option value="marketing">Marketing — administra tudo</option>
+                    </select>
+                  </div>
+                </div>
+                {erro && <p className="error-msg">{erro}</p>}
+                <div className="modal-actions">
+                  <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
+                  <button type="submit" className="btn-primary" disabled={salvando}>{salvando ? "Criando…" : "Criar usuário"}</button>
+                </div>
+              </form>
+            )}
+
+            <div className="vendor-grid">
+              {perfis.map((p) => (
+                <div key={p.id} className="vendor-card">
+                  <div className="v-av">{initials(p.nome)}</div>
+                  <div className="v-name">{p.nome}</div>
+                  {p.email && <div className="tab-desc" style={{ margin: "2px 0 6px", wordBreak: "break-all" }}>{p.email}</div>}
+                  <div className="v-badge" style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                    <span className="badge badge-tipo">{PAPEL_LABEL[p.papel] || p.papel}</span>
+                    <span className={"badge " + (p.ativo ? "badge-ativo" : "badge-encerrado")}>{p.ativo ? "Ativo" : "Inativo"}</span>
+                  </div>
+                  {p.papel === "vendedor" && (
+                    <>
+                      <div className="v-cap">leads captados</div>
+                      <div className="v-big">{leadsDoUsuario(p.nome)}</div>
+                    </>
+                  )}
+                  <div className="v-actions" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+                    <select value={p.papel} onChange={(e) => mudarPapel(p, e.target.value)} title="Alterar papel">
+                      <option value="vendedor">Vendedor</option>
+                      <option value="comercial">Comercial</option>
+                      <option value="marketing">Marketing</option>
+                    </select>
+                    <button className="btn-ghost vendor-toggle" onClick={() => toggleAtivo(p)}>
+                      {p.ativo ? "Desativar" : "Ativar"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================================================
+         COMERCIAL APP — observação e análise dos dados (somente leitura)
+         ============================================================ */
+      function ComercialApp({ session, onLogout, darkMode, toggleDark }) {
+        return (
+          <div>
+            <header className="app-header">
+              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
+              <div className="header-right" style={{ marginLeft: "auto" }}>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
+                <span className="user-badge"><span className="dot"></span><span className="ub-name">{session.vendedorNome}</span></span>
+              </div>
+              <button className="btn-ghost" onClick={onLogout}>Sair</button>
+            </header>
+            <LeadsTab />
           </div>
         );
       }
@@ -1398,7 +1643,7 @@ Chart.register(...registerables);
               : <EventosTab onOpen={setDetailId} />)}
             {tab === "estoque" && <EstoqueTab />}
             {tab === "leads" && <LeadsTab />}
-            {tab === "equipe" && <EquipeTab />}
+            {tab === "equipe" && (supabaseEnabled ? <EquipeAuthTab /> : <EquipeTab />)}
             {tab === "checkin" && <CheckinTab />}
 
             {/* Bottom nav — mobile only */}
@@ -1529,7 +1774,7 @@ Chart.register(...registerables);
       }
 
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-        const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos } = useApp();
+        const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, obterRanking } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
 
@@ -1551,20 +1796,20 @@ Chart.register(...registerables);
 
         const eventoAtual = eventos.find((e) => e.id === eventoId);
         const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
-        const todosLeadsEvento = leads.filter((l) => l.eventoId === eventoId);
 
         const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
         const metaBatida = leadsDoEvento.length >= META_DIARIA;
 
-        const ranking = useMemo(() => {
-          const mapa = {};
-          todosLeadsEvento.forEach((l) => {
-            mapa[l.vendedorNome] = (mapa[l.vendedorNome] || 0) + 1;
-          });
-          return Object.entries(mapa)
-            .map(([nome, total]) => ({ nome, total }))
-            .sort((a, b) => b.total - a.total);
-        }, [todosLeadsEvento]);
+        // Placar da equipe: com auth ativa vem do servidor (o vendedor vê a
+        // pontuação de todos sem acesso aos leads dos colegas)
+        const [ranking, setRanking] = useState([]);
+        useEffect(() => {
+          if (!eventoId) { setRanking([]); return; }
+          let ativo = true;
+          obterRanking(eventoId).then((r) => { if (ativo) setRanking(r || []); });
+          return () => { ativo = false; };
+        }, [eventoId, leads]);
+        const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
 
         const maxRanking = ranking[0]?.total || 1;
 
@@ -1602,6 +1847,7 @@ Chart.register(...registerables);
             observacao: sanitize(f.observacao, 500),
             eventoId,
             vendedorNome: session.vendedorNome,
+            vendedorId: session.userId || null,
           });
           if (typeof navigator.vibrate === "function") navigator.vibrate(80);
           showToast(novoId, nome);
@@ -1819,7 +2065,7 @@ Chart.register(...registerables);
                         </div>
                         <div className="ev-info-row">
                           <span className="ev-info-label">Total leads</span>
-                          <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{todosLeadsEvento.length}</span>
+                          <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{totalLeadsEvento}</span>
                         </div>
                         {eventoAtual.observacoes && (
                           <div className="ev-info-row">
@@ -1896,7 +2142,6 @@ Chart.register(...registerables);
          ROOT
          ============================================================ */
       function Root() {
-        const [session, setSession] = usePersisted("rjnet_session", null, { session: true });
         const [darkMode, setDarkMode] = useState(() => {
           const saved = localStorage.getItem("rjnet-theme");
           return saved ? saved === "dark" : true;
@@ -1908,6 +2153,41 @@ Chart.register(...registerables);
         }, [darkMode]);
 
         const toggleDark = () => setDarkMode((d) => !d);
+
+        return supabaseEnabled
+          ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} />
+          : <RootLegacy darkMode={darkMode} toggleDark={toggleDark} />;
+      }
+
+      // Com Supabase: login individual por e-mail/senha; o papel do perfil
+      // define a área (marketing | vendedor | comercial)
+      function RootAuth({ darkMode, toggleDark }) {
+        const [session, setSession] = useState(undefined); // undefined = verificando sessão salva
+
+        useEffect(() => {
+          let on = true;
+          auth.getSessao().then((s) => { if (on) setSession(s); });
+          const unsub = auth.onChange((evento) => {
+            if (evento === "SIGNED_OUT" && on) setSession(null);
+          });
+          return () => { on = false; unsub(); };
+        }, []);
+
+        const logout = async () => {
+          try { await auth.signOut(); } catch { /* sessão já expirada */ }
+          setSession(null);
+        };
+
+        if (session === undefined) return <div className="login-bg" />;
+        if (!session) return <LoginAuth onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
+        if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+        if (session.role === "comercial") return <ComercialApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+        return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+      }
+
+      // Sem Supabase (dev/local): login compartilhado como antes
+      function RootLegacy({ darkMode, toggleDark }) {
+        const [session, setSession] = usePersisted("rjnet_session", null, { session: true });
         const logout = () => setSession(null);
 
         if (!session) return <Login onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
