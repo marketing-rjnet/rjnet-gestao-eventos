@@ -1405,12 +1405,6 @@ Chart.register(...registerables);
                     <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
                   </div>
                   <div className="field-group">
-                    <label>E-mail <span style={{ fontWeight: 400, opacity: 0.6 }}>(opcional — gerado automaticamente se vazio)</span></label>
-                    <input type="email" autoComplete="off" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
-                  </div>
-                </div>
-                <div className="field-row">
-                  <div className="field-group">
                     <label>Senha inicial *</label>
                     <input type="password" required minLength={8} value={f.senha} onChange={(e) => set("senha", e.target.value)} placeholder="Mínimo 8 caracteres" />
                   </div>
