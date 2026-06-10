@@ -199,10 +199,12 @@ Chart.register(...registerables);
       }
 
       function AppProvider({ children }) {
-        const [materiais, setMateriais] = usePersisted("rjnet_materiais", MOCK_MATERIAIS);
-        const [eventos, setEventos] = usePersisted("rjnet_eventos", MOCK_EVENTOS);
-        const [leads, setLeads] = usePersisted("rjnet_leads", MOCK_LEADS);
-        const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", MOCK_VENDEDORES);
+        // Com Supabase ativo o banco é a fonte de verdade — não inicializa com
+        // dados fictícios (eles só existem no modo 100% local)
+        const [materiais, setMateriais] = usePersisted("rjnet_materiais", supabaseEnabled ? [] : MOCK_MATERIAIS);
+        const [eventos, setEventos] = usePersisted("rjnet_eventos", supabaseEnabled ? [] : MOCK_EVENTOS);
+        const [leads, setLeads] = usePersisted("rjnet_leads", supabaseEnabled ? [] : MOCK_LEADS);
+        const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", supabaseEnabled ? [] : MOCK_VENDEDORES);
 
         // Carga inicial do Supabase + realtime: mudanças feitas em outro
         // dispositivo disparam um refetch. O localStorage vira cache offline.
@@ -1530,6 +1532,14 @@ Chart.register(...registerables);
         const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
+
+        // Os eventos podem chegar do Supabase depois do mount (ou mudar em outro
+        // dispositivo); garante que a seleção sempre aponte para um evento ativo
+        useEffect(() => {
+          if (!ativos.some((e) => e.id === eventoId)) {
+            setEventoId(ativos[0]?.id || "");
+          }
+        }, [ativos, eventoId]);
         const [aba, setAba] = useState("registrar");
         const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "internet_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
         const [f, setF] = useState(FORM_VAZIO);
