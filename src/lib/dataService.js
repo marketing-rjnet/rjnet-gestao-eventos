@@ -200,7 +200,8 @@ export const auth = {
 
   async atualizarPerfil(userId, patch) {
     const { error } = await supabase.from('perfis').update({
-      ...(patch.nome !== undefined ? { nome: patch.nome } : {}),
+      ...(patch.nome  !== undefined ? { nome:  patch.nome  } : {}),
+      ...(patch.email !== undefined ? { email: patch.email } : {}),
       ...(patch.papel !== undefined ? { papel: patch.papel } : {}),
       ...(patch.ativo !== undefined ? { ativo: patch.ativo } : {}),
     }).eq('id', userId);

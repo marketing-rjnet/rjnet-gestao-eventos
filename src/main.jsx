@@ -1331,17 +1331,23 @@ Chart.register(...registerables);
         const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "vendedor" });
         const [erro, setErro] = useState("");
         const [salvando, setSalvando] = useState(false);
+        const [editando, setEditando] = useState(null); // { id, nome, email }
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
         const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor" };
+
+        const toSlug = (nome) =>
+          nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+            .replace(/\s+/g, ".").replace(/[^a-z0-9.]/g, "");
 
         const submit = async (e) => {
           e.preventDefault();
           setErro("");
           if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
+          const emailFinal = f.email.trim() || `${toSlug(f.nome)}@vendedor.rjnet`;
           setSalvando(true);
           try {
-            await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: f.email.trim(), senha: f.senha, papel: f.papel });
+            await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: emailFinal, senha: f.senha, papel: f.papel });
             await recarregar();
             setF({ nome: "", email: "", senha: "", papel: "vendedor" });
             setShowForm(false);
@@ -1349,6 +1355,17 @@ Chart.register(...registerables);
             setErro(ex.message || "Não foi possível criar o usuário.");
           } finally {
             setSalvando(false);
+          }
+        };
+
+        const salvarEdicao = async (e) => {
+          e.preventDefault();
+          try {
+            await auth.atualizarPerfil(editando.id, { nome: sanitize(editando.nome, 80), email: editando.email.trim() });
+            await recarregar();
+            setEditando(null);
+          } catch (ex) {
+            alert("Falha ao salvar: " + ex.message);
           }
         };
 
@@ -1389,8 +1406,8 @@ Chart.register(...registerables);
                     <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
                   </div>
                   <div className="field-group">
-                    <label>E-mail *</label>
-                    <input type="email" required value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
+                    <label>E-mail <span style={{ fontWeight: 400, opacity: 0.6 }}>(opcional — gerado automaticamente se vazio)</span></label>
+                    <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
                   </div>
                 </div>
                 <div className="field-row">
@@ -1414,6 +1431,28 @@ Chart.register(...registerables);
               </form>
             )}
 
+            {editando && (
+              <div className="modal-overlay" onClick={() => setEditando(null)}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-title">Editar usuário</div>
+                  <form onSubmit={salvarEdicao}>
+                    <div className="field-group" style={{ marginBottom: 12 }}>
+                      <label>Nome completo</label>
+                      <input required maxLength={80} value={editando.nome} onChange={(e) => setEditando((ed) => ({ ...ed, nome: e.target.value }))} />
+                    </div>
+                    <div className="field-group" style={{ marginBottom: 16 }}>
+                      <label>E-mail de login</label>
+                      <input type="email" required value={editando.email} onChange={(e) => setEditando((ed) => ({ ...ed, email: e.target.value }))} />
+                    </div>
+                    <div className="modal-actions">
+                      <button type="button" className="btn-ghost" onClick={() => setEditando(null)}>Cancelar</button>
+                      <button type="submit" className="btn-primary">Salvar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             <div className="vendor-grid">
               {perfis.map((p) => (
                 <div key={p.id} className="vendor-card">
@@ -1435,6 +1474,9 @@ Chart.register(...registerables);
                       <option value="vendedor">Vendedor</option>
                       <option value="marketing">Marketing</option>
                     </select>
+                    <button className="btn-ghost vendor-toggle" onClick={() => setEditando({ id: p.id, nome: p.nome, email: p.email || "" })}>
+                      Editar
+                    </button>
                     <button className="btn-ghost vendor-toggle" onClick={() => toggleAtivo(p)}>
                       {p.ativo ? "Desativar" : "Ativar"}
                     </button>
