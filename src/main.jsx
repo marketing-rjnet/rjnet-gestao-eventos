@@ -1344,7 +1344,7 @@ Chart.register(...registerables);
           e.preventDefault();
           setErro("");
           if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
-          const emailFinal = f.email.trim() || `${toSlug(f.nome)}@vendedor.rjnet`;
+          const emailFinal = f.email.trim() || `${toSlug(f.nome)}@vendedor.rjnet.com.br`;
           setSalvando(true);
           try {
             await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: emailFinal, senha: f.senha, papel: f.papel });
@@ -1407,7 +1407,7 @@ Chart.register(...registerables);
                   </div>
                   <div className="field-group">
                     <label>E-mail <span style={{ fontWeight: 400, opacity: 0.6 }}>(opcional — gerado automaticamente se vazio)</span></label>
-                    <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
+                    <input type="email" autoComplete="off" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
                   </div>
                 </div>
                 <div className="field-row">
