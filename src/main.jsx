@@ -1124,9 +1124,9 @@ Chart.register(...registerables);
         const byService = (s) => leads.filter((l) => l.servicoInteresse === s).length;
 
         const exportarCSV = () => {
-          const dados = fEvento ? leads.filter((l) => l.eventoId === fEvento) : leads;
+          const dados = filtrados.length > 0 ? filtrados : leads;
           if (dados.length === 0) return;
-          const nomeEvento = fEvento ? evName(fEvento) : "todos_eventos";
+          const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
           const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
           const linhas = dados.map((l) => [
             l.nome, l.cpf || "", l.telefone, l.endereco || "",
@@ -1141,7 +1141,7 @@ Chart.register(...registerables);
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `leads_${nomeEvento.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.csv`;
+          a.download = `leads_${sufixo}_${new Date().toISOString().slice(0,10)}.csv`;
           a.click();
           URL.revokeObjectURL(url);
         };
@@ -1169,9 +1169,8 @@ Chart.register(...registerables);
                 style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}
                 onClick={exportarCSV}
                 disabled={leads.length === 0}
-                title={fEvento ? "Exportar leads do evento selecionado" : "Selecione um evento no filtro para exportar"}
               >
-                ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(selecione evento)"}
+                ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(todos)"}
               </button>
             </div>
 
