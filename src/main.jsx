@@ -1124,7 +1124,7 @@ Chart.register(...registerables);
         const byService = (s) => leads.filter((l) => l.servicoInteresse === s).length;
 
         const exportarCSV = () => {
-          const dados = filtrados.length > 0 ? filtrados : leads;
+          const dados = filtered.length > 0 ? filtered : leads;
           if (dados.length === 0) return;
           const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
           const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
