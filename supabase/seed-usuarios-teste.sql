@@ -28,11 +28,6 @@ update public.perfis
   set papel = 'vendedor', ativo = true, nome = 'Teste Vendedor'
   where email = 'teste.vendedor@rjnet.com.br';
 
--- Usuário de teste — área Comercial (dashboard somente leitura)
-update public.perfis
-  set papel = 'comercial', ativo = true, nome = 'Teste Comercial'
-  where email = 'teste.comercial@rjnet.com.br';
-
 -- =============================================================
 -- Verificação: confirme os registros criados
 -- =============================================================
@@ -40,7 +35,6 @@ select id, email, nome, papel, ativo, criado_em
   from public.perfis
   where email in (
     'teste.marketing@rjnet.com.br',
-    'teste.vendedor@rjnet.com.br',
-    'teste.comercial@rjnet.com.br'
+    'teste.vendedor@rjnet.com.br'
   )
   order by papel;

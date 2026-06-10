@@ -342,7 +342,6 @@ Chart.register(...registerables);
 
       const AUTH = {
         marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS || "mkt2025" },
-        comercial: { user: import.meta.env.VITE_COMERCIAL_USER || "comercial", pass: import.meta.env.VITE_COMERCIAL_PASS || "com2025" },
       };
 
       /* ============================================================
@@ -382,32 +381,10 @@ Chart.register(...registerables);
         const [p, setP] = useState("");
         const [err, setErr] = useState("");
 
-        if (stage === "select_vendedor") {
-          return (
-            <div className="login-bg">
-              <div className="login-card">
-                <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-                <p className="login-tag">Gestão de Eventos</p>
-                <p className="login-sub">Selecione seu perfil</p>
-                <div className="vendedor-list">
-                  {vendedores.filter((v) => v.ativo).map((v) => (
-                    <button key={v.id} className="vendedor-btn" onClick={() => onLogin({ role: "comercial", vendedorNome: v.nome })}>
-                      <span className="vendedor-avatar">{v.nome.charAt(0)}</span>
-                      {v.nome}
-                    </button>
-                  ))}
-                </div>
-                <button className="back-btn" onClick={() => setStage("login")} style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="back" size={15} /> Voltar</button>
-              </div>
-            </div>
-          );
-        }
-
         const submit = (e) => {
           e.preventDefault();
           setErr("");
           if (u === AUTH.marketing.user && p === AUTH.marketing.pass) onLogin({ role: "marketing" });
-          else if (u === AUTH.comercial.user && p === AUTH.comercial.pass) setStage("select_vendedor");
           else setErr("Usuário ou senha incorretos.");
         };
 
@@ -420,7 +397,7 @@ Chart.register(...registerables);
               <form onSubmit={submit} className="login-form">
                 <div className="field-group">
                   <label>Usuário</label>
-                  <input value={u} onChange={(e) => setU(e.target.value)} placeholder="marketing / comercial" autoComplete="username" />
+                  <input value={u} onChange={(e) => setU(e.target.value)} placeholder="marketing" autoComplete="username" />
                 </div>
                 <div className="field-group">
                   <label>Senha</label>
@@ -1283,7 +1260,7 @@ Chart.register(...registerables);
             <div className="page-head">
               <div>
                 <div className="page-title">Equipe</div>
-                <p className="tab-desc">Gerencie os perfis da equipe comercial. Vendedores ativos aparecem na tela de login do acesso Comercial.</p>
+                <p className="tab-desc">Gerencie os acessos da equipe. Cada pessoa entra com o próprio e-mail e senha; o papel define o que ela pode ver e fazer.</p>
               </div>
               <button className="btn-primary" onClick={() => setShowForm((s) => !s)}>+ Adicionar Vendedor</button>
             </div>
@@ -1354,17 +1331,23 @@ Chart.register(...registerables);
         const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "vendedor" });
         const [erro, setErro] = useState("");
         const [salvando, setSalvando] = useState(false);
+        const [editando, setEditando] = useState(null); // { id, nome, email }
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
-        const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor", comercial: "Comercial" };
+        const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor" };
+
+        const toSlug = (nome) =>
+          nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+            .replace(/\s+/g, ".").replace(/[^a-z0-9.]/g, "");
 
         const submit = async (e) => {
           e.preventDefault();
           setErro("");
           if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
+          const emailFinal = f.email.trim() || `${toSlug(f.nome)}@vendedor.rjnet`;
           setSalvando(true);
           try {
-            await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: f.email.trim(), senha: f.senha, papel: f.papel });
+            await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: emailFinal, senha: f.senha, papel: f.papel });
             await recarregar();
             setF({ nome: "", email: "", senha: "", papel: "vendedor" });
             setShowForm(false);
@@ -1372,6 +1355,17 @@ Chart.register(...registerables);
             setErro(ex.message || "Não foi possível criar o usuário.");
           } finally {
             setSalvando(false);
+          }
+        };
+
+        const salvarEdicao = async (e) => {
+          e.preventDefault();
+          try {
+            await auth.atualizarPerfil(editando.id, { nome: sanitize(editando.nome, 80), email: editando.email.trim() });
+            await recarregar();
+            setEditando(null);
+          } catch (ex) {
+            alert("Falha ao salvar: " + ex.message);
           }
         };
 
@@ -1412,8 +1406,8 @@ Chart.register(...registerables);
                     <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
                   </div>
                   <div className="field-group">
-                    <label>E-mail *</label>
-                    <input type="email" required value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
+                    <label>E-mail <span style={{ fontWeight: 400, opacity: 0.6 }}>(opcional — gerado automaticamente se vazio)</span></label>
+                    <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="pedro@rjnet.com.br" />
                   </div>
                 </div>
                 <div className="field-row">
@@ -1424,8 +1418,7 @@ Chart.register(...registerables);
                   <div className="field-group">
                     <label>Papel *</label>
                     <select value={f.papel} onChange={(e) => set("papel", e.target.value)}>
-                      <option value="vendedor">Vendedor — registra leads em campo</option>
-                      <option value="comercial">Comercial — observa e analisa os dados</option>
+                      <option value="vendedor">Vendedor — registra e acompanha leads</option>
                       <option value="marketing">Marketing — administra tudo</option>
                     </select>
                   </div>
@@ -1436,6 +1429,28 @@ Chart.register(...registerables);
                   <button type="submit" className="btn-primary" disabled={salvando}>{salvando ? "Criando…" : "Criar usuário"}</button>
                 </div>
               </form>
+            )}
+
+            {editando && (
+              <div className="modal-overlay" onClick={() => setEditando(null)}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-title">Editar usuário</div>
+                  <form onSubmit={salvarEdicao}>
+                    <div className="field-group" style={{ marginBottom: 12 }}>
+                      <label>Nome completo</label>
+                      <input required maxLength={80} value={editando.nome} onChange={(e) => setEditando((ed) => ({ ...ed, nome: e.target.value }))} />
+                    </div>
+                    <div className="field-group" style={{ marginBottom: 16 }}>
+                      <label>E-mail de login</label>
+                      <input type="email" required value={editando.email} onChange={(e) => setEditando((ed) => ({ ...ed, email: e.target.value }))} />
+                    </div>
+                    <div className="modal-actions">
+                      <button type="button" className="btn-ghost" onClick={() => setEditando(null)}>Cancelar</button>
+                      <button type="submit" className="btn-primary">Salvar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
             )}
 
             <div className="vendor-grid">
@@ -1457,9 +1472,11 @@ Chart.register(...registerables);
                   <div className="v-actions" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                     <select value={p.papel} onChange={(e) => mudarPapel(p, e.target.value)} title="Alterar papel">
                       <option value="vendedor">Vendedor</option>
-                      <option value="comercial">Comercial</option>
                       <option value="marketing">Marketing</option>
                     </select>
+                    <button className="btn-ghost vendor-toggle" onClick={() => setEditando({ id: p.id, nome: p.nome, email: p.email || "" })}>
+                      Editar
+                    </button>
                     <button className="btn-ghost vendor-toggle" onClick={() => toggleAtivo(p)}>
                       {p.ativo ? "Desativar" : "Ativar"}
                     </button>
@@ -1470,25 +1487,6 @@ Chart.register(...registerables);
                 </div>
               ))}
             </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         COMERCIAL APP — observação e análise dos dados (somente leitura)
-         ============================================================ */
-      function ComercialApp({ session, onLogout, darkMode, toggleDark }) {
-        return (
-          <div>
-            <header className="app-header">
-              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
-              <div className="header-right" style={{ marginLeft: "auto" }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
-                <span className="user-badge"><span className="dot"></span><span className="ub-name">{session.vendedorNome}</span></span>
-              </div>
-              <button className="btn-ghost" onClick={onLogout}>Sair</button>
-            </header>
-            <LeadsTab />
           </div>
         );
       }
@@ -2224,7 +2222,7 @@ Chart.register(...registerables);
       }
 
       // Com Supabase: login individual por e-mail/senha; o papel do perfil
-      // define a área (marketing | vendedor | comercial)
+      // define a área (marketing | vendedor)
       function RootAuth({ darkMode, toggleDark }) {
         const [session, setSession] = useState(undefined); // undefined = verificando sessão salva
         const [recuperandoSenha, setRecuperandoSenha] = useState(false);
@@ -2253,7 +2251,6 @@ Chart.register(...registerables);
         if (session === undefined) return <div className="login-bg" />;
         if (!session) return <LoginAuth onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
         if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
-        if (session.role === "comercial") return <ComercialApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
         return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
       }
 

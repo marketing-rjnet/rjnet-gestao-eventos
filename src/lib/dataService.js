@@ -192,18 +192,41 @@ export const auth = {
     }
     const userId = data.user?.id;
     if (!userId) throw new Error('Não foi possível criar o usuário.');
+    // Upsert garante que o perfil existe mesmo se o trigger ainda não rodou
     const { error: e2 } = await supabase.from('perfis')
-      .update({ nome, papel, ativo: true }).eq('id', userId);
+      .upsert({ id: userId, email, nome, papel, ativo: true });
     if (e2) throw new Error('Usuário criado, mas falhou ao ativar: ' + e2.message);
     return userId;
   },
 
   async atualizarPerfil(userId, patch) {
-    const { error } = await supabase.from('perfis').update({
-      ...(patch.nome !== undefined ? { nome: patch.nome } : {}),
+    // E-mail vai pela Edge Function (requer service_role para atualizar auth.users)
+    if (patch.email !== undefined) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': supabaseConfig.anonKey,
+        },
+        body: JSON.stringify({ userId, email: patch.email }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Falha ao atualizar e-mail.');
+      // Remove email do patch para não duplicar a escrita em perfis (a função já fez)
+      const { email: _email, ...restPatch } = patch;
+      patch = restPatch;
+    }
+
+    const campos = {
+      ...(patch.nome  !== undefined ? { nome:  patch.nome  } : {}),
       ...(patch.papel !== undefined ? { papel: patch.papel } : {}),
       ...(patch.ativo !== undefined ? { ativo: patch.ativo } : {}),
-    }).eq('id', userId);
+    };
+    if (Object.keys(campos).length === 0) return;
+    const { error } = await supabase.from('perfis').update(campos).eq('id', userId);
     if (error) throw new Error(error.message);
   },
 
