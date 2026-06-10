@@ -74,6 +74,18 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ── Excluir usuário ────────────────────────────────────────────
+    if (body.action === 'excluir') {
+      const { userId } = body;
+      if (!userId) return json({ error: 'userId é obrigatório.' }, 400);
+
+      // Apaga do Auth (cascata remove perfis via FK on delete cascade)
+      const { error: authError } = await admin.auth.admin.deleteUser(userId);
+      if (authError) return json({ error: authError.message }, 400);
+
+      return json({ ok: true });
+    }
+
     return json({ error: 'Ação inválida.' }, 400);
 
   } catch (err) {

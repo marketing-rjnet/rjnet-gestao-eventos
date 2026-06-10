@@ -229,8 +229,19 @@ export const auth = {
   },
 
   async excluirUsuario(userId) {
-    const { error } = await supabase.from('perfis').delete().eq('id', userId);
-    if (error) throw new Error('Falha ao excluir usuário: ' + error.message);
+    const { data: { session } } = await supabase.auth.getSession();
+    const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+        'apikey': supabaseConfig.anonKey,
+      },
+      body: JSON.stringify({ action: 'excluir', userId }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Falha ao excluir usuário.');
   },
 
   // E-mail de redefinição de senha (usa o e-mail transacional do Supabase)
