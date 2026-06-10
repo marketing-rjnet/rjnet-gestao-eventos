@@ -209,6 +209,12 @@ export const auth = {
 
   // E-mail de redefinição de senha (usa o e-mail transacional do Supabase)
   resetSenha: (email) => supabase.auth.resetPasswordForEmail(email),
+
+  // Define a nova senha do usuário logado (fluxo de recuperação)
+  async atualizarSenha(senha) {
+    const { error } = await supabase.auth.updateUser({ password: senha });
+    if (error) throw new Error(error.message);
+  },
 };
 
 /* ─── Realtime — sincronização entre dispositivos ────────────────── */

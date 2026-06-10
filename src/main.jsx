@@ -518,6 +518,61 @@ Chart.register(...registerables);
       }
 
       /* ============================================================
+         NOVA SENHA — usuário chegou pelo link de recuperação do e-mail
+         ============================================================ */
+      function NovaSenha({ darkMode, toggleDark, onConcluido }) {
+        const [senha, setSenha] = useState("");
+        const [confirma, setConfirma] = useState("");
+        const [err, setErr] = useState("");
+        const [salvando, setSalvando] = useState(false);
+
+        const submit = async (e) => {
+          e.preventDefault();
+          setErr("");
+          if (senha.length < 8) { setErr("A senha precisa ter pelo menos 8 caracteres."); return; }
+          if (senha !== confirma) { setErr("As senhas não conferem."); return; }
+          setSalvando(true);
+          try {
+            await auth.atualizarSenha(senha);
+            alert("Senha alterada com sucesso!");
+            onConcluido();
+          } catch (ex) {
+            setErr(ex.message || "Não foi possível alterar a senha.");
+          } finally {
+            setSalvando(false);
+          }
+        };
+
+        return (
+          <div className="login-bg">
+            <div className="login-card">
+              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
+              <p className="login-tag">Gestão de Eventos</p>
+              <p className="login-sub">Defina a sua nova senha</p>
+              <form onSubmit={submit} className="login-form">
+                <div className="field-group">
+                  <label>Nova senha</label>
+                  <input type="password" required minLength={8} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" autoFocus />
+                </div>
+                <div className="field-group">
+                  <label>Confirmar nova senha</label>
+                  <input type="password" required value={confirma} onChange={(e) => setConfirma(e.target.value)} placeholder="Repita a senha" autoComplete="new-password" />
+                </div>
+                {err && <p className="error-msg">{err}</p>}
+                <button type="submit" className="login-btn" disabled={salvando}>{salvando ? "Salvando…" : "Salvar nova senha"}</button>
+              </form>
+              <p className="login-hint">Angra dos Reis · RJ</p>
+              <div style={{ textAlign: "center", marginTop: 14 }}>
+                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
+                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================================================
          EVENT FORM MODAL
          ============================================================ */
       function EventModal({ onClose, evento }) {
@@ -2163,12 +2218,17 @@ Chart.register(...registerables);
       // define a área (marketing | vendedor | comercial)
       function RootAuth({ darkMode, toggleDark }) {
         const [session, setSession] = useState(undefined); // undefined = verificando sessão salva
+        const [recuperandoSenha, setRecuperandoSenha] = useState(false);
 
         useEffect(() => {
           let on = true;
           auth.getSessao().then((s) => { if (on) setSession(s); });
           const unsub = auth.onChange((evento) => {
-            if (evento === "SIGNED_OUT" && on) setSession(null);
+            if (!on) return;
+            if (evento === "SIGNED_OUT") setSession(null);
+            // Usuário chegou pelo link "esqueci minha senha" do e-mail
+            if (evento === "PASSWORD_RECOVERY") setRecuperandoSenha(true);
+            if (evento === "SIGNED_IN") auth.getSessao().then((s) => { if (on && s) setSession(s); });
           });
           return () => { on = false; unsub(); };
         }, []);
@@ -2178,6 +2238,9 @@ Chart.register(...registerables);
           setSession(null);
         };
 
+        if (recuperandoSenha) {
+          return <NovaSenha darkMode={darkMode} toggleDark={toggleDark} onConcluido={() => setRecuperandoSenha(false)} />;
+        }
         if (session === undefined) return <div className="login-bg" />;
         if (!session) return <LoginAuth onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
         if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
