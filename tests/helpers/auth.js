@@ -40,7 +40,7 @@ async function loginComercial(page) {
  * @param {import('@playwright/test').Page} page
  */
 async function logout(page) {
-  await page.locator('.logout-btn').click();
+  await page.locator('.app-header button', { hasText: 'Sair' }).click();
   await page.locator('.login-bg').waitFor({ state: 'visible' });
 }
 
