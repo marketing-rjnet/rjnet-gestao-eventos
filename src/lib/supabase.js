@@ -11,7 +11,9 @@ const url = (import.meta.env.VITE_SUPABASE_URL || '')
   .replace(/\/+$/, '');
 const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
-export const supabase = url && anonKey ? createClient(url, anonKey) : null;
+export const supabase = url && anonKey
+  ? createClient(url, anonKey, { auth: { storage: sessionStorage } })
+  : null;
 export const supabaseEnabled = Boolean(supabase);
 export const supabaseConfig = { url, anonKey };
 

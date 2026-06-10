@@ -85,6 +85,23 @@ Notas:
   marketing e comercial, mas não aparecem na tela do vendedor — eles não têm
   vínculo com o usuário novo.
 
+## Usuários de teste por área
+
+Para validar as permissões em ambiente de desenvolvimento/homologação, crie os
+três usuários abaixo no painel **Authentication → Users** (marque **Auto Confirm
+User** em cada um) e depois rode o script
+[`supabase/seed-usuarios-teste.sql`](supabase/seed-usuarios-teste.sql) no SQL
+Editor para ativar os perfis:
+
+| E-mail | Senha sugerida | Papel | Área |
+|---|---|---|---|
+| `teste.marketing@rjnet.com.br` | `Teste@Marketing1` | `marketing` | Painel completo + gestão de usuários |
+| `teste.vendedor@rjnet.com.br` | `Teste@Vendedor1` | `vendedor` | Registro e gestão dos próprios leads |
+| `teste.comercial@rjnet.com.br` | `Teste@Comercial1` | `comercial` | Dashboard somente leitura |
+
+> **Atenção**: use estas credenciais apenas em projetos de teste. Nunca reutilize
+> senhas de exemplo em produção.
+
 ## Segurança
 
 Com a migração de auth aplicada, **a anon key sozinha não dá acesso a nada**:

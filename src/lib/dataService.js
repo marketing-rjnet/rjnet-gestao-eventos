@@ -207,6 +207,11 @@ export const auth = {
     if (error) throw new Error(error.message);
   },
 
+  async excluirUsuario(userId) {
+    const { error } = await supabase.from('perfis').delete().eq('id', userId);
+    if (error) throw new Error('Falha ao excluir usuário: ' + error.message);
+  },
+
   // E-mail de redefinição de senha (usa o e-mail transacional do Supabase)
   resetSenha: (email) => supabase.auth.resetPasswordForEmail(email),
 
