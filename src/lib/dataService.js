@@ -174,29 +174,27 @@ export const auth = {
     return () => data.subscription.unsubscribe();
   },
 
-  // Criação de usuário pelo painel do marketing. Usa um client separado
-  // para o signUp não derrubar a sessão de quem está logado. O trigger do
-  // banco cria o perfil inativo; aqui o marketing já ativa e define o papel.
+  // Criação de usuário via Edge Function (Admin API — sem rate limit de e-mail).
   async criarUsuario({ nome, email, senha, papel }) {
-    const tmp = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
+    const { data: { session } } = await supabase.auth.getSession();
+    const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+        'apikey': supabaseConfig.anonKey,
+      },
+      body: JSON.stringify({ action: 'criar', nome, email, senha, papel }),
     });
-    const { data, error } = await tmp.auth.signUp({
-      email, password: senha, options: { data: { nome } },
-    });
-    if (error) {
-      const msg = /already registered/i.test(error.message)
+    const body = await res.json();
+    if (!res.ok) {
+      const msg = /already registered/i.test(body.error || '')
         ? 'Já existe um usuário com esse e-mail.'
-        : error.message;
+        : body.error || 'Não foi possível criar o usuário.';
       throw new Error(msg);
     }
-    const userId = data.user?.id;
-    if (!userId) throw new Error('Não foi possível criar o usuário.');
-    // Upsert garante que o perfil existe mesmo se o trigger ainda não rodou
-    const { error: e2 } = await supabase.from('perfis')
-      .upsert({ id: userId, email, nome, papel, ativo: true });
-    if (e2) throw new Error('Usuário criado, mas falhou ao ativar: ' + e2.message);
-    return userId;
+    return body.userId;
   },
 
   async atualizarPerfil(userId, patch) {
@@ -211,7 +209,7 @@ export const auth = {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey': supabaseConfig.anonKey,
         },
-        body: JSON.stringify({ userId, email: patch.email }),
+        body: JSON.stringify({ action: 'atualizar-email', userId, email: patch.email }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Falha ao atualizar e-mail.');
