@@ -192,8 +192,9 @@ export const auth = {
     }
     const userId = data.user?.id;
     if (!userId) throw new Error('Não foi possível criar o usuário.');
+    // Upsert garante que o perfil existe mesmo se o trigger ainda não rodou
     const { error: e2 } = await supabase.from('perfis')
-      .update({ nome, papel, ativo: true }).eq('id', userId);
+      .upsert({ id: userId, email, nome, papel, ativo: true });
     if (e2) throw new Error('Usuário criado, mas falhou ao ativar: ' + e2.message);
     return userId;
   },
