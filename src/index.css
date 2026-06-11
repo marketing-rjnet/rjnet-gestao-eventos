@@ -360,6 +360,12 @@
       @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
       .toast-undo { color: var(--rj-blue); font-weight: 700; font-size: 13px; }
 
+      /* Notification (substitui alert nativo) */
+      .notif { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; max-width: 420px; text-align: center; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,.35); animation: toast-in .2s ease; }
+      .notif-error   { background: #3b1a1a; color: #fca5a5; border: 1px solid #7f1d1d; }
+      .notif-warning { background: #3b2e0a; color: #fde68a; border: 1px solid #78350f; }
+      .notif-success { background: #0f2e1a; color: #86efac; border: 1px solid #14532d; }
+
       /* ---------- Modal ---------- */
       .modal-overlay {
         position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.65);

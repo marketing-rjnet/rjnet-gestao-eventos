@@ -187,6 +187,32 @@ Chart.register(...registerables);
         }
       }
 
+      /* ============================================================
+         NOTIFICATION CONTEXT — substitui alert() nativo
+         ============================================================ */
+      const NotificationContext = createContext(null);
+      const useNotification = () => useContext(NotificationContext);
+
+      function NotificationProvider({ children }) {
+        const [notif, setNotif] = useState(null);
+        const timer = useRef(null);
+        const show = (message, type = "error") => {
+          clearTimeout(timer.current);
+          setNotif({ message, type });
+          timer.current = setTimeout(() => setNotif(null), TOAST_DURATION_MS);
+        };
+        return (
+          <NotificationContext.Provider value={show}>
+            {children}
+            {notif && (
+              <div className={`notif notif-${notif.type}`} onClick={() => setNotif(null)}>
+                {notif.message}
+              </div>
+            )}
+          </NotificationContext.Provider>
+        );
+      }
+
       const AppContext = createContext(null);
       const useApp = () => {
         const ctx = useContext(AppContext);
@@ -197,6 +223,7 @@ Chart.register(...registerables);
       // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
       function usePersisted(key, fallback, { session = false } = {}) {
         const storage = session ? sessionStorage : localStorage;
+        const showNotification = useNotification();
         const [state, setState] = useState(() => {
           try {
             const raw = storage.getItem(key);
@@ -214,7 +241,7 @@ Chart.register(...registerables);
               }
             } catch (err) {
               console.error("[rjnet] Falha ao salvar dados localmente:", err);
-              alert("⚠️ Não foi possível salvar os dados. O armazenamento local pode estar cheio. Contate o suporte.");
+              showNotification("⚠️ Não foi possível salvar os dados. O armazenamento local pode estar cheio. Contate o suporte.", "warning");
             }
             return next;
           });
@@ -542,6 +569,7 @@ Chart.register(...registerables);
         const [confirma, setConfirma] = useState("");
         const [err, setErr] = useState("");
         const [salvando, setSalvando] = useState(false);
+        const showNotification = useNotification();
 
         const submit = async (e) => {
           e.preventDefault();
@@ -551,7 +579,7 @@ Chart.register(...registerables);
           setSalvando(true);
           try {
             await auth.atualizarSenha(senha);
-            alert("Senha alterada com sucesso!");
+            showNotification("Senha alterada com sucesso!", "success");
             onConcluido();
           } catch (ex) {
             setErr(ex.message || "Não foi possível alterar a senha.");
@@ -594,6 +622,7 @@ Chart.register(...registerables);
          ============================================================ */
       function EventModal({ onClose, evento }) {
         const { addEvento, updateEvento } = useApp();
+        const showNotification = useNotification();
         const [f, setF] = useState({
           nome: evento?.nome || "",
           local: evento?.local || "",
@@ -611,7 +640,7 @@ Chart.register(...registerables);
           const observacoes = sanitize(f.observacoes || "", 500);
           if (!nome || !local) return;
           if (f.dataFim && f.dataInicio && f.dataFim < f.dataInicio) {
-            alert("A data de fim não pode ser anterior à data de início.");
+            showNotification("A data de fim não pode ser anterior à data de início.", "warning");
             return;
           }
           const dados = { ...f, nome, local, observacoes };
@@ -682,6 +711,7 @@ Chart.register(...registerables);
          ============================================================ */
       function MaterialModal({ onClose }) {
         const { addMaterial } = useApp();
+        const showNotification = useNotification();
         const [f, setF] = useState({ nome: "", quantidade: 1, descricao: "" });
         const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
         const submit = (e) => {
@@ -689,7 +719,7 @@ Chart.register(...registerables);
           const nome = sanitize(f.nome, 120);
           const qtd = parseInt(f.quantidade, 10);
           if (!nome) return;
-          if (!qtd || qtd < 1 || qtd > 9999) { alert("Quantidade inválida. Informe um número entre 1 e 9999."); return; }
+          if (!qtd || qtd < 1 || qtd > 9999) { showNotification("Quantidade inválida. Informe um número entre 1 e 9999.", "warning"); return; }
           addMaterial({ ...f, nome, descricao: sanitize(f.descricao || "", 300), quantidade: qtd });
           onClose();
         };
@@ -1366,6 +1396,7 @@ Chart.register(...registerables);
          ============================================================ */
       function EquipeAuthTab() {
         const { vendedores: perfis, leads, recarregar } = useApp();
+        const showNotification = useNotification();
         const [showForm, setShowForm] = useState(false);
         const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "vendedor" });
         const [erro, setErro] = useState("");
@@ -1404,25 +1435,25 @@ Chart.register(...registerables);
             await recarregar();
             setEditando(null);
           } catch (ex) {
-            alert("Falha ao salvar: " + ex.message);
+            showNotification("Falha ao salvar: " + ex.message, "error");
           }
         };
 
         const toggleAtivo = async (p) => {
           if (p.ativo && !confirm(`Desativar o acesso de ${p.nome}?`)) return;
           try { await auth.atualizarPerfil(p.id, { ativo: !p.ativo }); await recarregar(); }
-          catch (ex) { alert("Falha ao atualizar: " + ex.message); }
+          catch (ex) { showNotification("Falha ao atualizar: " + ex.message, "error"); }
         };
 
         const mudarPapel = async (p, papel) => {
           try { await auth.atualizarPerfil(p.id, { papel }); await recarregar(); }
-          catch (ex) { alert("Falha ao atualizar: " + ex.message); }
+          catch (ex) { showNotification("Falha ao atualizar: " + ex.message, "error"); }
         };
 
         const excluir = async (p) => {
           if (!confirm(`Excluir ${p.nome} permanentemente? Esta ação não pode ser desfeita.`)) return;
           try { await auth.excluirUsuario(p.id); await recarregar(); }
-          catch (ex) { alert("Falha ao excluir: " + ex.message); }
+          catch (ex) { showNotification("Falha ao excluir: " + ex.message, "error"); }
         };
 
         const leadsDoUsuario = (nome) => leads.filter((l) => l.vendedorNome === nome).length;
@@ -2422,6 +2453,8 @@ Chart.register(...registerables);
 
       ReactDOM.createRoot(document.getElementById("root")).render(
         <ErrorBoundary>
-          <AppProvider><Root /></AppProvider>
+          <NotificationProvider>
+            <AppProvider><Root /></AppProvider>
+          </NotificationProvider>
         </ErrorBoundary>
       );
