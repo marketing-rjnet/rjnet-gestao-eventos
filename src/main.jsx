@@ -1,13 +1,32 @@
 import React, { useState, useContext, createContext, useEffect, useRef, useMemo, Component } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Chart, registerables } from 'chart.js';
+import {
+  Chart,
+  BarController,
+  DoughnutController,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
 import { fetchAll, db, subscribeChanges, auth, rankingEvento } from './lib/dataService';
 import { sanitizeText } from './lib/security';
 import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
 
-Chart.register(...registerables);
+Chart.register(
+  BarController,
+  DoughnutController,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+);
 
 
       /* ============================================================

@@ -6,5 +6,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-chartjs': ['chart.js'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
   },
 });
