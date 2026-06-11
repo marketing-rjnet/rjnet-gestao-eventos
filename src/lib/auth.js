@@ -1,6 +1,23 @@
 import { supabase, supabaseConfig } from './supabase';
 import { perfilFromDb } from './mappers';
 
+// Chama a Edge Function com o token da sessão atual e lança erro legível se falhar.
+async function chamarEdgeFn(payload) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${supabaseConfig.url}/functions/v1/atualizar-email-usuario`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`,
+      'apikey': supabaseConfig.anonKey,
+    },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json();
+  if (!res.ok) throw { ok: false, error: body.error };
+  return body;
+}
+
 export const auth = {
   // Login com e-mail/senha. Retorna a sessão do app:
   // { role, vendedorNome, userId, email } — ou lança erro legível.
@@ -45,43 +62,25 @@ export const auth = {
 
   // Criação de usuário via Edge Function (Admin API — sem rate limit de e-mail).
   async criarUsuario({ nome, email, senha, papel }) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
-    const res = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-        'apikey': supabaseConfig.anonKey,
-      },
-      body: JSON.stringify({ action: 'criar', nome, email, senha, papel }),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      const msg = /already registered/i.test(body.error || '')
+    try {
+      const body = await chamarEdgeFn({ action: 'criar', nome, email, senha, papel });
+      return body.userId;
+    } catch (e) {
+      const msg = /already registered/i.test(e.error || '')
         ? 'Já existe um usuário com esse e-mail.'
-        : body.error || 'Não foi possível criar o usuário.';
+        : e.error || 'Não foi possível criar o usuário.';
       throw new Error(msg);
     }
-    return body.userId;
   },
 
   async atualizarPerfil(userId, patch) {
     // E-mail vai pela Edge Function (requer service_role para atualizar auth.users)
     if (patch.email !== undefined) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
-      const res = await fetch(fnUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-          'apikey': supabaseConfig.anonKey,
-        },
-        body: JSON.stringify({ action: 'atualizar-email', userId, email: patch.email }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Falha ao atualizar e-mail.');
+      try {
+        await chamarEdgeFn({ action: 'atualizar-email', userId, email: patch.email });
+      } catch (e) {
+        throw new Error(e.error || 'Falha ao atualizar e-mail.');
+      }
       // Remove email do patch para não duplicar a escrita em perfis (a função já fez)
       const { email: _email, ...restPatch } = patch;
       patch = restPatch;
@@ -98,19 +97,11 @@ export const auth = {
   },
 
   async excluirUsuario(userId) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
-    const res = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-        'apikey': supabaseConfig.anonKey,
-      },
-      body: JSON.stringify({ action: 'excluir', userId }),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Falha ao excluir usuário.');
+    try {
+      await chamarEdgeFn({ action: 'excluir', userId });
+    } catch (e) {
+      throw new Error(e.error || 'Falha ao excluir usuário.');
+    }
   },
 
   // E-mail de redefinição de senha (usa o e-mail transacional do Supabase)
