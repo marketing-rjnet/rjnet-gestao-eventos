@@ -2,6 +2,8 @@
 
 // Negócio
 export const META_DIARIA = 15;
+export const ESTAGIOS_META = [15, 30, 50];
+export const META_FINAL = 50;
 
 // Validação
 export const SENHA_MIN_LENGTH = 8;

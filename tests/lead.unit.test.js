@@ -48,6 +48,8 @@ const TEMPERATURA_CONFIG = {
 };
 
 const META_DIARIA = 15;
+const ESTAGIOS_META = [15, 30, 50];
+const META_FINAL = 50;
 
 console.log('\ntemperatura');
 assert('todas as temperaturas definidas', ['frio','morno','quente','convertido'].every(k => TEMPERATURA_CONFIG[k]));
@@ -66,22 +68,40 @@ assert('rotação quente→convertido', proximaTemp('quente') === 'convertido');
 assert('rotação convertido→frio (wrap)', proximaTemp('convertido') === 'frio');
 assert('temperatura inválida retorna frio (primeiro)', proximaTemp('invalido') === undefined || proximaTemp('frio') === 'morno');
 
-// ─── Meta diária ──────────────────────────────────────────────────────────────
+// ─── Meta diária / Estágios ────────────────────────────────────────────────────
 
-console.log('\nmeta diária');
-assert('meta é 15', META_DIARIA === 15);
+console.log('\nmeta diária + estágios');
+assert('meta base é 15', META_DIARIA === 15);
+assert('meta final é 50', META_FINAL === 50);
+assert('estágios são [15, 30, 50]', JSON.stringify(ESTAGIOS_META) === '[15,30,50]');
 
-function calcPct(n) { return Math.min((n / META_DIARIA) * 100, 100); }
+// Progresso calculado sobre META_FINAL (50)
+function calcPct(n) { return Math.min((n / META_FINAL) * 100, 100); }
 assert('0 leads = 0%', calcPct(0) === 0);
-assert('15 leads = 100%', calcPct(15) === 100);
-assert('7 leads = ~46.6%', Math.round(calcPct(7) * 10) === 467);
-assert('acima de 15 é limitado a 100%', calcPct(20) === 100);
+assert('50 leads = 100%', calcPct(50) === 100);
+assert('25 leads = 50%', calcPct(25) === 50);
+assert('acima de 50 é limitado a 100%', calcPct(60) === 100);
 assert('progresso não é negativo', calcPct(-1) === 0 || calcPct(-1) < 1);
 
 function metaBatida(n) { return n >= META_DIARIA; }
-assert('14 leads não bate meta', !metaBatida(14));
-assert('15 leads bate meta', metaBatida(15));
-assert('20 leads bate meta', metaBatida(20));
+assert('14 leads não bate meta base', !metaBatida(14));
+assert('15 leads bate meta base', metaBatida(15));
+assert('20 leads bate meta base', metaBatida(20));
+
+function estagioAtual(n) { return ESTAGIOS_META.filter((e) => n >= e).length; }
+assert('0 leads = estágio 0', estagioAtual(0) === 0);
+assert('15 leads = estágio 1', estagioAtual(15) === 1);
+assert('14 leads = estágio 0', estagioAtual(14) === 0);
+assert('30 leads = estágio 2', estagioAtual(30) === 2);
+assert('29 leads = estágio 1', estagioAtual(29) === 1);
+assert('50 leads = estágio 3', estagioAtual(50) === 3);
+assert('49 leads = estágio 2', estagioAtual(49) === 2);
+
+function proximaMeta(n) { return ESTAGIOS_META.find((e) => n < e) ?? null; }
+assert('0 leads → próxima meta é 15', proximaMeta(0) === 15);
+assert('15 leads → próxima meta é 30', proximaMeta(15) === 30);
+assert('30 leads → próxima meta é 50', proximaMeta(30) === 50);
+assert('50 leads → sem próxima meta', proximaMeta(50) === null);
 
 // ─── Chips de atalho — sanitização ───────────────────────────────────────────
 

@@ -4,7 +4,7 @@ import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
 import { fetchAll, db, subscribeChanges, auth, rankingEvento } from './lib/dataService';
 import { sanitizeText } from './lib/security';
-import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
+import { META_DIARIA, ESTAGIOS_META, META_FINAL, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
 
 Chart.register(...registerables);
@@ -1902,8 +1902,12 @@ Chart.register(...registerables);
         const eventoAtual = eventos.find((e) => e.id === eventoId);
         const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
 
-        const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
-        const metaBatida = leadsDoEvento.length >= META_DIARIA;
+        const totalLeads = leadsDoEvento.length;
+        const pct = Math.min((totalLeads / META_FINAL) * 100, 100);
+        const metaBatida = totalLeads >= META_DIARIA;
+        const estagioAtual = ESTAGIOS_META.filter((e) => totalLeads >= e).length; // 0, 1, 2 ou 3
+        const proximaMeta = ESTAGIOS_META.find((e) => totalLeads < e) ?? null;
+        const metaFinalBatida = totalLeads >= META_FINAL;
 
         // Placar da equipe: com auth ativa vem do servidor (o vendedor vê a
         // pontuação de todos sem acesso aos leads dos colegas)
@@ -2004,18 +2008,42 @@ Chart.register(...registerables);
                 <>
                   <div className="vend-top">
                     <span style={{ fontSize: 18, fontWeight: 700 }}>Novo Lead</span>
-                    <span className="count-badge" style={metaBatida ? { background: "var(--green)" } : {}}>
-                      {leadsDoEvento.length}/{META_DIARIA} leads
+                    <span className="count-badge" style={metaFinalBatida ? { background: "var(--green)" } : metaBatida ? { background: "var(--accent)" } : {}}>
+                      {totalLeads}/{META_FINAL} leads
                     </span>
                   </div>
                   <div className="meta-bar-wrap">
                     <div className="meta-bar-header">
-                      <span className="meta-bar-label">{metaBatida ? "Meta batida! 🎯" : "Meta diária"}</span>
-                      <span className="meta-bar-count">{leadsDoEvento.length} de {META_DIARIA}</span>
+                      <span className="meta-bar-label">
+                        {metaFinalBatida ? "Meta máxima! 🏆" : metaBatida ? `Meta ${ESTAGIOS_META[estagioAtual - 1]} batida! 🎯` : "Meta diária"}
+                      </span>
+                      <span className="meta-bar-count">{totalLeads} de {META_FINAL}</span>
                     </div>
-                    <div className="meta-bar-track">
-                      <div className={"meta-bar-fill" + (metaBatida ? " done" : "")} style={{ width: pct + "%" }} />
+                    <div className="meta-bar-track" style={{ position: "relative" }}>
+                      <div className={"meta-bar-fill" + (metaFinalBatida ? " done" : "")} style={{ width: pct + "%" }} />
+                      {ESTAGIOS_META.map((estagio) => {
+                        const pos = (estagio / META_FINAL) * 100;
+                        const batido = totalLeads >= estagio;
+                        return (
+                          <div key={estagio} className={"meta-marker" + (batido ? " batido" : "")} style={{ left: pos + "%" }}>
+                            <span className="meta-marker-label">{estagio}</span>
+                          </div>
+                        );
+                      })}
                     </div>
+                    <div className="meta-estagios">
+                      {ESTAGIOS_META.map((estagio, i) => (
+                        <span key={estagio} className={"meta-estagio-badge" + (totalLeads >= estagio ? " conquistado" : "")}>
+                          {totalLeads >= estagio ? "✓" : ""} {estagio}
+                          {i === 0 ? " (base)" : i === 1 ? " (inter)" : " (top)"}
+                        </span>
+                      ))}
+                    </div>
+                    {proximaMeta && (
+                      <div className="meta-proximo" style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                        Faltam {proximaMeta - totalLeads} para a próxima meta ({proximaMeta} leads)
+                      </div>
+                    )}
                   </div>
                   <label className="modo-rapido-toggle">
                     <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
