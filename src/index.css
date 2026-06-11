@@ -479,3 +479,65 @@
       @media (max-width: 400px) {
         .grid-kpi { grid-template-columns: 1fr 1fr; }
       }
+
+      /* ============================================================
+         ABA PACOTES — área do vendedor
+         ============================================================ */
+      .pacotes-wrap { display: flex; flex-direction: column; gap: 24px; padding-bottom: 32px; }
+
+      .pacotes-section { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 16px; }
+
+      .pacotes-section-title {
+        font-size: 15px; font-weight: 700; color: var(--rj-blue);
+        text-transform: uppercase; letter-spacing: .05em;
+        margin-bottom: 14px;
+      }
+
+      .pacotes-sub-title {
+        font-size: 12px; font-weight: 600; color: var(--text-3);
+        text-transform: uppercase; letter-spacing: .06em;
+        margin: 14px 0 8px;
+      }
+
+      .pacotes-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .pacotes-table th {
+        text-align: left; padding: 6px 10px;
+        font-size: 11px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .06em; color: var(--text-3);
+        border-bottom: 1px solid var(--border);
+      }
+      .pacotes-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+      .pacotes-table tr:last-child td { border-bottom: none; }
+      .pacotes-table td:last-child { font-weight: 700; color: var(--rj-blue); text-align: right; }
+      .pacotes-table th:last-child { text-align: right; }
+
+      .pacotes-destaque td { background: color-mix(in srgb, var(--rj-blue) 8%, transparent); }
+      .pacotes-destaque td:first-child { font-weight: 700; color: var(--rj-blue); }
+
+      .pacotes-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+      .pacotes-chip {
+        font-size: 11px; padding: 3px 10px; border-radius: 999px;
+        background: color-mix(in srgb, var(--rj-blue) 12%, transparent);
+        color: var(--rj-blue); font-weight: 600; border: 1px solid color-mix(in srgb, var(--rj-blue) 30%, transparent);
+      }
+
+      .pacotes-apps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+      .pacotes-app-card {
+        border-radius: 12px; padding: 14px 12px;
+        border: 1px solid var(--border);
+      }
+      .pacotes-app-yellow { background: color-mix(in srgb, #f5c000 8%, var(--surface)); border-color: color-mix(in srgb, #f5c000 30%, transparent); }
+      .pacotes-app-black  { background: color-mix(in srgb, #8b8b8b 8%, var(--surface)); border-color: color-mix(in srgb, #8b8b8b 30%, transparent); }
+
+      .pacotes-app-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+      .pacotes-app-name { font-size: 14px; font-weight: 700; color: var(--text); }
+      .pacotes-app-yellow .pacotes-app-name { color: #d4a800; }
+      .pacotes-app-price { font-size: 13px; font-weight: 700; color: var(--rj-blue); }
+
+      .pacotes-app-list { margin: 0; padding: 0 0 0 16px; list-style: disc; }
+      .pacotes-app-list li { font-size: 13px; color: var(--text-2); padding: 2px 0; }
+
+      @media (max-width: 360px) {
+        .pacotes-apps-grid { grid-template-columns: 1fr; }
+      }

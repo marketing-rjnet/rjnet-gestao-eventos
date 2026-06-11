@@ -2094,6 +2094,104 @@ Chart.register(...registerables);
                 </div>
               )}
 
+              {/* ---- ABA PACOTES ---- */}
+              {aba === "pacotes" && (
+                <div className="pacotes-wrap">
+                  {/* INTERNET FIBRA */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">📶 Internet Fibra</div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Plano</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>60 Mega</td><td>R$ 49,90</td></tr>
+                        <tr><td>90 Mega</td><td>R$ 74,90</td></tr>
+                        <tr><td>120 Mega</td><td>R$ 79,90</td></tr>
+                        <tr><td>240 Mega</td><td>R$ 89,90</td></tr>
+                        <tr className="pacotes-destaque"><td>420 Mega ⭐</td><td>R$ 99,90</td></tr>
+                        <tr><td>680 Mega</td><td>R$ 119,90</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* TV */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">📺 TV</div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Plano</th><th>Canais</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>Start</td><td>27</td><td>R$ 29,90</td></tr>
+                        <tr><td>Multi+</td><td>88</td><td>R$ 89,90</td></tr>
+                      </tbody>
+                    </table>
+                    <div className="pacotes-sub-title">Premium (adicionais)</div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Canal</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>Telecine</td><td>R$ 29,90</td></tr>
+                        <tr><td>Premiere</td><td>R$ 59,90</td></tr>
+                        <tr><td>Combate</td><td>R$ 34,90</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* MÓVEL */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">📱 Móvel</div>
+                    <div className="pacotes-chips">
+                      <span className="pacotes-chip">WhatsApp ilimitado</span>
+                      <span className="pacotes-chip">Cobertura nacional</span>
+                      <span className="pacotes-chip">Dados acumulativos</span>
+                    </div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Plano</th><th>Franquia</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>Pré</td><td>2 GB</td><td>R$ 29,90</td></tr>
+                        <tr><td>Controle</td><td>10 GB</td><td>R$ 39,90</td></tr>
+                        <tr><td>Controle</td><td>24 GB</td><td>R$ 54,90</td></tr>
+                        <tr><td>Controle</td><td>35 GB</td><td>R$ 69,90</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* APPS */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">🎁 Apps</div>
+                    <div className="pacotes-apps-grid">
+                      <div className="pacotes-app-card pacotes-app-yellow">
+                        <div className="pacotes-app-header">
+                          <span className="pacotes-app-name">Yellow</span>
+                          <span className="pacotes-app-price">R$ 15,00/mês</span>
+                        </div>
+                        <ul className="pacotes-app-list">
+                          <li>Deezer</li>
+                          <li>Ubook</li>
+                          <li>Kaspersky</li>
+                          <li>PlayKids</li>
+                          <li>Estuda+</li>
+                          <li>HUB Vantagens</li>
+                          <li>e outros</li>
+                        </ul>
+                      </div>
+                      <div className="pacotes-app-card pacotes-app-black">
+                        <div className="pacotes-app-header">
+                          <span className="pacotes-app-name">Black</span>
+                          <span className="pacotes-app-price">R$ 30,00/mês</span>
+                        </div>
+                        <ul className="pacotes-app-list">
+                          <li>Max</li>
+                          <li>Disney+</li>
+                          <li>NBA</li>
+                          <li>Smart Fit</li>
+                          <li>Zen</li>
+                          <li>Queima Diária</li>
+                          <li>Kaspersky</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ---- ABA EVENTO ---- */}
               {aba === "evento" && (
                 <div>
@@ -2180,6 +2278,10 @@ Chart.register(...registerables);
               <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
                 <Icon name="calendar" size={22} stroke={aba === "evento" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
                 Evento
+              </button>
+              <button className={"vend-nav-btn" + (aba === "pacotes" ? " active" : "")} onClick={() => setAba("pacotes")}>
+                <Icon name="box" size={22} stroke={aba === "pacotes" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+                Pacotes
               </button>
             </nav>
 
