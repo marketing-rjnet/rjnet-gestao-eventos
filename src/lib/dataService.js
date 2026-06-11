@@ -69,7 +69,8 @@ export async function fetchAll() {
       supabase.from('materiais').select('*').order('nome'),
       supabase.from('perfis').select('*').order('nome'),
       supabase.from('eventos').select('*').order('data_inicio'),
-      supabase.from('leads').select('*').order('criado_em'),
+      // Exclui leads marcados como deletados (soft delete via protecao-dados.sql)
+      supabase.from('leads').select('*').eq('deletado', false).order('criado_em'),
     ]);
     const erro = materiais.error || eventos.error || leads.error;
     if (erro) throw erro;
@@ -116,7 +117,8 @@ function exec(promise, acao) {
   promise.then(({ error }) => {
     if (error) {
       console.error(`[rjnet] Supabase: falha ao ${acao}:`, error.message);
-      alert(`⚠️ Não foi possível sincronizar com o banco (${acao}). Os dados foram salvos localmente — verifique a conexão.`);
+      // Dispara evento customizado para que a UI possa exibir o aviso sem alert()
+      window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: error.message } }));
     }
   });
 }

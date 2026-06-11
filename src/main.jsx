@@ -1,8 +1,10 @@
-import React, { useState, useContext, createContext, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useContext, createContext, useEffect, useRef, useMemo, Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
 import { fetchAll, db, subscribeChanges, auth, rankingEvento } from './lib/dataService';
+import { sanitizeText } from './lib/security';
+import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
 
 Chart.register(...registerables);
@@ -116,7 +118,7 @@ Chart.register(...registerables);
         },
       ];
 
-      const META_DIARIA = 15;
+      // META_DIARIA importada de src/lib/constants.js
 
       const TEMPERATURA_CONFIG = {
         frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
@@ -163,6 +165,28 @@ Chart.register(...registerables);
       /* ============================================================
          APP CONTEXT (state + Supabase-ready actions)
          ============================================================ */
+      /* ============================================================
+         ERROR BOUNDARY — captura exceções em qualquer filho
+         ============================================================ */
+      class ErrorBoundary extends Component {
+        constructor(props) { super(props); this.state = { hasError: false, message: "" }; }
+        static getDerivedStateFromError(error) { return { hasError: true, message: error?.message || "Erro desconhecido." }; }
+        componentDidCatch(error, info) { console.error("[rjnet] Erro não tratado:", error, info); }
+        render() {
+          if (this.state.hasError) {
+            return (
+              <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red, #ef4444)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="var(--red, #ef4444)"/></svg>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>Algo deu errado</div>
+                <div style={{ color: "var(--text-3, #666)", fontSize: 14, maxWidth: 320 }}>{this.state.message}</div>
+                <button className="btn-primary" onClick={() => window.location.reload()}>Recarregar</button>
+              </div>
+            );
+          }
+          return this.props.children;
+        }
+      }
+
       const AppContext = createContext(null);
       const useApp = () => {
         const ctx = useContext(AppContext);
@@ -205,18 +229,20 @@ Chart.register(...registerables);
         const [eventos, setEventos] = usePersisted("rjnet_eventos", supabaseEnabled ? [] : MOCK_EVENTOS);
         const [leads, setLeads] = usePersisted("rjnet_leads", supabaseEnabled ? [] : MOCK_LEADS);
         const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", supabaseEnabled ? [] : MOCK_VENDEDORES);
+        const [isLoading, setIsLoading] = useState(supabaseEnabled);
+        // "idle" | "syncing" | "error"
+        const [syncStatus, setSyncStatus] = useState("idle");
 
-        // Carga inicial do Supabase + realtime: mudanças feitas em outro
-        // dispositivo disparam um refetch. O localStorage vira cache offline.
-        // Login/logout também recarregam — o RLS devolve só o que o papel
-        // do usuário pode ver.
         const carregar = async () => {
+          setSyncStatus("syncing");
           const dados = await fetchAll();
-          if (!dados) return;
+          if (!dados) { setSyncStatus("error"); return; }
           setMateriais(dados.materiais);
           setVendedores(dados.vendedores);
           setEventos(dados.eventos);
           setLeads(dados.leads);
+          setSyncStatus("idle");
+          setIsLoading(false);
         };
         useEffect(() => {
           if (!supabaseEnabled) return;
@@ -226,9 +252,16 @@ Chart.register(...registerables);
             if (evento === 'SIGNED_IN') carregar();
             if (evento === 'SIGNED_OUT') {
               setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
+              setSyncStatus("idle");
             }
           });
-          return () => { unsubRealtime(); unsubAuth(); };
+          const handleSyncError = () => setSyncStatus("error");
+          window.addEventListener('rjnet:sync-error', handleSyncError);
+          return () => {
+            unsubRealtime();
+            unsubAuth();
+            window.removeEventListener('rjnet:sync-error', handleSyncError);
+          };
         }, []);
 
         // Placar do evento: com auth ativa vem do servidor (o vendedor não
@@ -255,8 +288,9 @@ Chart.register(...registerables);
           if (atual) db.saveEvento({ ...atual, ...patch });
         };
 
-        const value = {
+        const value = useMemo(() => ({
           materiais, eventos, leads, vendedores,
+          isLoading, syncStatus,
           addEvento: (e) => {
             const novo = { ...e, id: genId("e"), criadoEm: new Date().toISOString() };
             setEventos((p) => [...p, novo]);
@@ -336,12 +370,18 @@ Chart.register(...registerables);
                 .reduce((acc, mm) => acc + mm.quantidade, 0);
               return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
             }),
-        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }), [materiais, eventos, leads, vendedores, isLoading, syncStatus]);
         return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
       }
 
+      const _mktUser = import.meta.env.VITE_MARKETING_USER;
+      const _mktPass = import.meta.env.VITE_MARKETING_PASS;
+      if (!supabaseEnabled && (!_mktUser || !_mktPass)) {
+        console.error('[rjnet] VITE_MARKETING_USER e VITE_MARKETING_PASS são obrigatórios no modo sem Supabase. Defina essas variáveis de ambiente.');
+      }
       const AUTH = {
-        marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS || "mkt2025" },
+        marketing: { user: _mktUser || "", pass: _mktPass || "" },
       };
 
       /* ============================================================
@@ -506,7 +546,7 @@ Chart.register(...registerables);
         const submit = async (e) => {
           e.preventDefault();
           setErr("");
-          if (senha.length < 8) { setErr("A senha precisa ter pelo menos 8 caracteres."); return; }
+          if (senha.length < SENHA_MIN_LENGTH) { setErr(`A senha precisa ter pelo menos ${SENHA_MIN_LENGTH} caracteres.`); return; }
           if (senha !== confirma) { setErr("As senhas não conferem."); return; }
           setSalvando(true);
           try {
@@ -965,7 +1005,7 @@ Chart.register(...registerables);
                         const dv = d ? d.disponivel : 0;
                         const cls = dv <= 0 ? "crit" : dv <= 3 ? "warn" : "ok";
                         return (
-                          <tr key={i} style={{ opacity: m.retornado ? .5 : 1 }}>
+                          <tr key={`${m.materialId}_${i}`} style={{ opacity: m.retornado ? .5 : 1 }}>
                             <td className="strong" style={{ textDecoration: m.retornado ? "line-through" : "none" }}>
                               {matName(m.materialId)}
                             </td>
@@ -1687,6 +1727,7 @@ Chart.register(...registerables);
                 ))}
               </nav>
               <div className="header-right">
+                <SyncBadge />
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="dot"></span><span className="ub-name">Marketing</span></span>
               </div>
@@ -1719,10 +1760,8 @@ Chart.register(...registerables);
       /* ============================================================
          HELPERS — máscara de telefone
          ============================================================ */
-      function sanitize(str, max = 200) {
-        if (typeof str !== "string") return "";
-        return str.replace(/<[^>]*>/g, "").trim().slice(0, max);
-      }
+      // Alias local — delega para o módulo de segurança centralizado
+      const sanitize = sanitizeText;
 
       function validarCpf(cpf) {
         const d = cpf.replace(/\D/g, "");
@@ -1828,6 +1867,17 @@ Chart.register(...registerables);
         );
       }
 
+      function SyncBadge() {
+        const { syncStatus } = useApp();
+        if (!supabaseEnabled || syncStatus === "idle") return null;
+        const styles = {
+          syncing: { color: "var(--text-3)", fontSize: 11 },
+          error:   { color: "var(--red, #ef4444)", fontSize: 11, fontWeight: 600 },
+        };
+        const labels = { syncing: "sincronizando…", error: "⚠ erro ao sincronizar" };
+        return <span style={styles[syncStatus]}>{labels[syncStatus]}</span>;
+      }
+
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
         const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, obterRanking } = useApp();
         const ativos = getEventosAtivos();
@@ -1871,7 +1921,7 @@ Chart.register(...registerables);
         const showToast = (id, nome) => {
           if (toastTimer.current) clearTimeout(toastTimer.current);
           setToast({ id, nome });
-          toastTimer.current = setTimeout(() => setToast(null), 5000);
+          toastTimer.current = setTimeout(() => setToast(null), TOAST_DURATION_MS);
         };
 
         const handleUndo = () => {
@@ -1928,7 +1978,8 @@ Chart.register(...registerables);
           <div>
             <header className="app-header">
               <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
-              <div className="header-right" style={{ marginLeft: "auto" }}>
+              <div className="header-right" style={{ marginLeft: "auto", gap: 8 }}>
+                <SyncBadge />
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span><span className="ub-name">{session.vendedorNome}</span></span>
               </div>
@@ -2349,10 +2400,20 @@ Chart.register(...registerables);
         return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
       }
 
-      // Sem Supabase (dev/local): login compartilhado como antes
+      // Sem Supabase (dev/local): login compartilhado como antes.
+      // Nota: sem servidor, a proteção de role é limitada. Para produção
+      // com múltiplos usuários, use o modo Supabase Auth.
+      const ROLES_VALIDOS = ["marketing", "vendedor"];
       function RootLegacy({ darkMode, toggleDark }) {
         const [session, setSession] = usePersisted("rjnet_session", null, { session: true });
         const logout = () => setSession(null);
+
+        // Detecta sessão adulterada — role inválido força novo login
+        const roleValido = session && ROLES_VALIDOS.includes(session.role);
+        if (session && !roleValido) {
+          setSession(null);
+          return null;
+        }
 
         if (!session) return <Login onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
         if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
@@ -2360,5 +2421,7 @@ Chart.register(...registerables);
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(
-        <AppProvider><Root /></AppProvider>
+        <ErrorBoundary>
+          <AppProvider><Root /></AppProvider>
+        </ErrorBoundary>
       );

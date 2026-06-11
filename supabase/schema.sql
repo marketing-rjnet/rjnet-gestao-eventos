@@ -53,17 +53,23 @@ create index if not exists idx_leads_evento on public.leads (evento_id);
 create index if not exists idx_leads_criado_em on public.leads (criado_em);
 
 -- ─── Row Level Security ──────────────────────────────────────
--- O app usa login próprio (marketing/comercial) com a anon key,
--- então as policies liberam leitura/escrita para o role anon.
--- ATENÇÃO: quem tiver a anon key consegue ler/escrever nessas
--- tabelas. Para restringir de verdade, migre para Supabase Auth
--- e troque `to anon` por `to authenticated`.
+-- ATENÇÃO: este schema é o ponto de partida (setup inicial).
+-- Para produção com controle de acesso real, execute também
+-- supabase/migracao-auth.sql, que:
+--   • Remove as policies `to anon` abaixo
+--   • Cria a tabela `perfis` ligada ao Supabase Auth
+--   • Define policies por papel (marketing / vendedor)
+--
+-- Enquanto migracao-auth.sql NÃO tiver sido aplicado, qualquer
+-- pessoa com a anon key pode ler/escrever nas tabelas.
+-- A anon key é pública por design — o RLS é a única proteção.
 
 alter table public.materiais  enable row level security;
 alter table public.vendedores enable row level security;
 alter table public.eventos    enable row level security;
 alter table public.leads      enable row level security;
 
+-- Policies de bootstrap (sem auth): substituídas por migracao-auth.sql
 drop policy if exists "app_acesso_total" on public.materiais;
 create policy "app_acesso_total" on public.materiais  for all to anon using (true) with check (true);
 
