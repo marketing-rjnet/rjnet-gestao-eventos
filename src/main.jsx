@@ -2,7 +2,7 @@ import React, { useState, useContext, createContext, useEffect, useRef, useMemo,
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
-import { fetchAll, db, subscribeChanges, auth, rankingEvento } from './lib/dataService';
+import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking } from './lib/dataService';
 import { sanitizeText } from './lib/security';
 import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
@@ -233,9 +233,16 @@ Chart.register(...registerables);
         // "idle" | "syncing" | "error"
         const [syncStatus, setSyncStatus] = useState("idle");
 
+        const abortRef = useRef(null);
         const carregar = async () => {
+          // Cancela requisição anterior que ainda esteja em voo
+          abortRef.current?.abort();
+          const controller = new AbortController();
+          abortRef.current = controller;
+
           setSyncStatus("syncing");
-          const dados = await fetchAll();
+          const dados = await fetchAll(controller.signal);
+          if (controller.signal.aborted) return;
           if (!dados) { setSyncStatus("error"); return; }
           setMateriais(dados.materiais);
           setVendedores(dados.vendedores);
@@ -251,6 +258,7 @@ Chart.register(...registerables);
           const unsubAuth = auth.onChange((evento) => {
             if (evento === 'SIGNED_IN') carregar();
             if (evento === 'SIGNED_OUT') {
+              abortRef.current?.abort();
               setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
               setSyncStatus("idle");
             }
@@ -258,6 +266,7 @@ Chart.register(...registerables);
           const handleSyncError = () => setSyncStatus("error");
           window.addEventListener('rjnet:sync-error', handleSyncError);
           return () => {
+            abortRef.current?.abort();
             unsubRealtime();
             unsubAuth();
             window.removeEventListener('rjnet:sync-error', handleSyncError);
@@ -305,15 +314,18 @@ Chart.register(...registerables);
             const novo = { id: genId("l"), criadoEm: new Date().toISOString(), ...l };
             setLeads((p) => [...p, novo]);
             db.saveLead(novo);
+            if (novo.eventoId) invalidarRanking(novo.eventoId);
           },
           updateLead: (id, patch) => {
             const atual = leads.find((l) => l.id === id);
             setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l));
-            if (atual) db.saveLead({ ...atual, ...patch });
+            if (atual) { db.saveLead({ ...atual, ...patch }); invalidarRanking(atual.eventoId); }
           },
           removeLead: (id) => {
+            const atual = leads.find((l) => l.id === id);
             setLeads((p) => p.filter((l) => l.id !== id));
             db.removeLead(id);
+            if (atual?.eventoId) invalidarRanking(atual.eventoId);
           },
           addMaterial: (m) => {
             const novo = { ...m, id: genId("m") };
@@ -1906,14 +1918,42 @@ Chart.register(...registerables);
         const metaBatida = leadsDoEvento.length >= META_DIARIA;
 
         // Placar da equipe: com auth ativa vem do servidor (o vendedor vê a
-        // pontuação de todos sem acesso aos leads dos colegas)
+        // pontuação de todos sem acesso aos leads dos colegas).
+        // Atualiza ao trocar de evento, após 3 s do último lead adicionado
+        // (debounce) e via polling de 60 s para manter sincronia entre devices.
         const [ranking, setRanking] = useState([]);
-        useEffect(() => {
+        const [rankingLoading, setRankingLoading] = useState(false);
+        const rankingDebounce = useRef(null);
+
+        const atualizarRanking = useRef(null);
+        atualizarRanking.current = async (eventoId) => {
           if (!eventoId) { setRanking([]); return; }
-          let ativo = true;
-          obterRanking(eventoId).then((r) => { if (ativo) setRanking(r || []); });
-          return () => { ativo = false; };
-        }, [eventoId, leads]);
+          setRankingLoading(true);
+          const r = await obterRanking(eventoId);
+          setRanking(r || []);
+          setRankingLoading(false);
+        };
+
+        // Troca de evento: busca imediata
+        useEffect(() => {
+          atualizarRanking.current(eventoId);
+        }, [eventoId]);
+
+        // Novo lead: debounce de 3 s para aguardar escrita no banco
+        useEffect(() => {
+          if (!eventoId) return;
+          clearTimeout(rankingDebounce.current);
+          rankingDebounce.current = setTimeout(() => atualizarRanking.current(eventoId), 3000);
+          return () => clearTimeout(rankingDebounce.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [leads.length]);
+
+        // Polling passivo de 60 s para sincronizar com outros devices
+        useEffect(() => {
+          if (!eventoId) return;
+          const interval = setInterval(() => atualizarRanking.current(eventoId), 60_000);
+          return () => clearInterval(interval);
+        }, [eventoId]);
         const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
 
         const maxRanking = ranking[0]?.total || 1;
@@ -2287,11 +2327,14 @@ Chart.register(...registerables);
                       )}
 
                       <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                           Placar da equipe
+                          {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#f5c000)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
                         </div>
-                        {ranking.length === 0 ? (
+                        {ranking.length === 0 && !rankingLoading ? (
                           <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
+                        ) : ranking.length === 0 ? (
+                          <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Carregando placar…</div>
                         ) : (
                           <div className="ranking-list">
                             {ranking.map((item, i) => (
