@@ -541,3 +541,5 @@
       @media (max-width: 360px) {
         .pacotes-apps-grid { grid-template-columns: 1fr; }
       }
+
+@keyframes spin { to { transform: rotate(360deg); } }

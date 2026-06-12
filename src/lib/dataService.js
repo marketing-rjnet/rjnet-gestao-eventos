@@ -1,8 +1,41 @@
 // Camada de dados Supabase — converte entre o formato do app (camelCase)
 // e as colunas do banco (snake_case). Schema em supabase/schema.sql e
 // autenticação/papéis em supabase/migracao-auth.sql.
-import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseEnabled, supabaseConfig } from './supabase';
+import { cache } from './cache';
+
+/* ─── Utilitários de resiliência ─────────────────────────────────── */
+
+// Tenta `fn` até `maxAttempts` vezes com backoff exponencial.
+async function withRetry(fn, { maxAttempts = 3, baseDelayMs = 800 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** attempt));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+// Loga requisições lentas (> 1 s) e erros com o tempo decorrido.
+async function trackPerf(label, fn) {
+  const t0 = performance.now();
+  try {
+    const result = await fn();
+    const ms = Math.round(performance.now() - t0);
+    if (ms > 1000) console.warn(`[rjnet:perf] ${label} demorou ${ms}ms`);
+    return result;
+  } catch (err) {
+    const ms = Math.round(performance.now() - t0);
+    console.error(`[rjnet:perf] ${label} falhou em ${ms}ms`, err.message || err);
+    throw err;
+  }
+}
 
 /* ─── Mapeadores app ↔ banco ─────────────────────────────────────── */
 
@@ -59,68 +92,95 @@ const perfilFromDb = (r) => ({
 
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
-// Busca as tabelas de uma vez. Retorna null se o Supabase estiver
-// desativado ou indisponível (o app segue com o cache local).
-// O RLS filtra no servidor: vendedor recebe apenas os próprios leads.
-export async function fetchAll() {
+// Busca as tabelas em paralelo. Cancela via AbortController quando o
+// componente desmonta. Retorna null se o Supabase estiver indisponível.
+export async function fetchAll(signal) {
   if (!supabaseEnabled) return null;
-  try {
-    const [materiais, perfis, eventos, leads] = await Promise.all([
-      supabase.from('materiais').select('*').order('nome'),
-      supabase.from('perfis').select('*').order('nome'),
-      supabase.from('eventos').select('*').order('data_inicio'),
-      // Exclui leads marcados como deletados (soft delete via protecao-dados.sql)
-      supabase.from('leads').select('*').eq('deletado', false).order('criado_em'),
-    ]);
-    const erro = materiais.error || eventos.error || leads.error;
-    if (erro) throw erro;
+  return trackPerf('fetchAll', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-    // Antes da migração de auth a tabela perfis não existe — cai para a
-    // tabela legada de vendedores
-    let vendedores;
-    if (perfis.error) {
-      const legado = await supabase.from('vendedores').select('*').order('nome');
-      if (legado.error) throw legado.error;
-      vendedores = legado.data.map(vendedorFromDb);
-    } else {
-      vendedores = perfis.data.map(perfilFromDb);
-    }
+      const [materiais, perfis, eventos, leads] = await Promise.all([
+        supabase.from('materiais').select('*').order('nome').abortSignal(signal),
+        supabase.from('perfis').select('*').order('nome').abortSignal(signal),
+        supabase.from('eventos').select('*').order('data_inicio').abortSignal(signal),
+        // Exclui leads marcados como deletados (soft delete via protecao-dados.sql)
+        supabase.from('leads').select('*').eq('deletado', false).order('criado_em').abortSignal(signal),
+      ]);
 
-    return {
-      materiais: materiais.data.map(materialFromDb),
-      vendedores,
-      eventos: eventos.data.map(eventoFromDb),
-      leads: leads.data.map(leadFromDb),
-    };
-  } catch (err) {
+      const erro = materiais.error || eventos.error || leads.error;
+      if (erro) throw erro;
+
+      // Antes da migração de auth a tabela perfis não existe — cai para a
+      // tabela legada de vendedores
+      let vendedores;
+      if (perfis.error) {
+        const legado = await supabase.from('vendedores').select('*').order('nome').abortSignal(signal);
+        if (legado.error) throw legado.error;
+        vendedores = legado.data.map(vendedorFromDb);
+      } else {
+        vendedores = perfis.data.map(perfilFromDb);
+      }
+
+      return {
+        materiais: materiais.data.map(materialFromDb),
+        vendedores,
+        eventos: eventos.data.map(eventoFromDb),
+        leads: leads.data.map(leadFromDb),
+      };
+    }, { maxAttempts: 3, baseDelayMs: 800 })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao carregar dados do Supabase:', err.message || err);
     return null;
-  }
+  });
 }
 
-// Placar do evento (totais por vendedor) calculado no servidor — o vendedor
-// vê a pontuação da equipe sem ter acesso aos leads dos colegas.
+// Placar do evento com cache de 30 s — evita RPC redundante quando o
+// vendedor adiciona vários leads em sequência rápida.
 export async function rankingEvento(eventoId) {
   if (!supabaseEnabled || !eventoId) return null;
-  const { data, error } = await supabase.rpc('ranking_evento', { eid: eventoId });
-  if (error) {
-    console.error('[rjnet] Falha ao carregar o placar:', error.message);
+
+  const cacheKey = `ranking:${eventoId}`;
+  const cached = cache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  return trackPerf(`rankingEvento(${eventoId})`, () =>
+    withRetry(async () => {
+      const { data, error } = await supabase.rpc('ranking_evento', { eid: eventoId });
+      if (error) throw error;
+      return data.map((r) => ({ nome: r.vendedor_nome, total: Number(r.total) }));
+    }, { maxAttempts: 2, baseDelayMs: 500 })
+  ).then((result) => {
+    cache.set(cacheKey, result, 30_000); // TTL 30 s
+    return result;
+  }).catch((err) => {
+    console.error('[rjnet] Falha ao carregar o placar:', err.message);
     return null;
-  }
-  return data.map((r) => ({ nome: r.vendedor_nome, total: Number(r.total) }));
+  });
 }
 
-/* ─── Escrita (fire-and-forget com log de erro) ──────────────────── */
+// Invalida o cache do placar de um evento (chamar após salvar lead)
+export function invalidarRanking(eventoId) {
+  cache.invalidate(`ranking:${eventoId}`);
+}
+
+/* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
 function exec(promise, acao) {
   if (!supabaseEnabled) return;
-  promise.then(({ error }) => {
-    if (error) {
-      console.error(`[rjnet] Supabase: falha ao ${acao}:`, error.message);
-      // Dispara evento customizado para que a UI possa exibir o aviso sem alert()
-      window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: error.message } }));
-    }
+  // Retry uma vez após 1 s em caso de falha transitória
+  const tentativa = (p) => p.then(({ error }) => {
+    if (error) throw error;
   });
+  tentativa(promise).catch(() =>
+    new Promise((r) => setTimeout(r, 1000))
+      .then(() => tentativa(promise))
+      .catch((err) => {
+        console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
+        window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
+      })
+  );
 }
 
 export const db = {
@@ -133,6 +193,38 @@ export const db = {
 };
 
 /* ─── Autenticação (Supabase Auth + perfis por papel) ────────────── */
+
+// Helper: busca sessão uma vez e reutiliza no mesmo tick via micro-cache
+let _sessionPromise = null;
+async function getSessionOnce() {
+  if (_sessionPromise) return _sessionPromise;
+  _sessionPromise = supabase.auth.getSession().then((r) => r.data?.session ?? null);
+  // Descarta após o tick para não reutilizar sessão stale
+  _sessionPromise.finally(() => { _sessionPromise = null; });
+  return _sessionPromise;
+}
+
+// Helper compartilhado para chamadas à Edge Function
+async function callEdgeFunction(action, payload) {
+  const session = await getSessionOnce();
+  const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
+  return trackPerf(`edgeFn:${action}`, () =>
+    withRetry(async () => {
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': supabaseConfig.anonKey,
+        },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `Falha na ação ${action}.`);
+      return body;
+    }, { maxAttempts: 2, baseDelayMs: 1000 })
+  );
+}
 
 export const auth = {
   // Login com e-mail/senha. Retorna a sessão do app:
@@ -178,44 +270,14 @@ export const auth = {
 
   // Criação de usuário via Edge Function (Admin API — sem rate limit de e-mail).
   async criarUsuario({ nome, email, senha, papel }) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
-    const res = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-        'apikey': supabaseConfig.anonKey,
-      },
-      body: JSON.stringify({ action: 'criar', nome, email, senha, papel }),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      const msg = /already registered/i.test(body.error || '')
-        ? 'Já existe um usuário com esse e-mail.'
-        : body.error || 'Não foi possível criar o usuário.';
-      throw new Error(msg);
-    }
+    const body = await callEdgeFunction('criar', { nome, email, senha, papel });
     return body.userId;
   },
 
   async atualizarPerfil(userId, patch) {
     // E-mail vai pela Edge Function (requer service_role para atualizar auth.users)
     if (patch.email !== undefined) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
-      const res = await fetch(fnUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-          'apikey': supabaseConfig.anonKey,
-        },
-        body: JSON.stringify({ action: 'atualizar-email', userId, email: patch.email }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Falha ao atualizar e-mail.');
-      // Remove email do patch para não duplicar a escrita em perfis (a função já fez)
+      await callEdgeFunction('atualizar-email', { userId, email: patch.email });
       const { email: _email, ...restPatch } = patch;
       patch = restPatch;
     }
@@ -231,19 +293,7 @@ export const auth = {
   },
 
   async excluirUsuario(userId) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const fnUrl = `${supabaseConfig.url}/functions/v1/atualizar-email-usuario`;
-    const res = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-        'apikey': supabaseConfig.anonKey,
-      },
-      body: JSON.stringify({ action: 'excluir', userId }),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Falha ao excluir usuário.');
+    await callEdgeFunction('excluir', { userId });
   },
 
   // E-mail de redefinição de senha (usa o e-mail transacional do Supabase)
