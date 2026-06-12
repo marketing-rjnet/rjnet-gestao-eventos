@@ -54,7 +54,6 @@ Cada pessoa entra com o próprio e-mail e senha. O papel define a área:
 |---|---|---|
 | `marketing` | Painel completo + gestão de usuários | Tudo |
 | `vendedor` | Tela de registro de leads | Insere/vê/edita **apenas os próprios leads**; placar da equipe vem agregado do servidor |
-| `comercial` | Dashboard de observação dos leads | Leitura de todos os leads, sem editar |
 
 ### Como ativar (depois do schema.sql)
 
@@ -81,8 +80,8 @@ Notas:
 - Usuário desativado não acessa nada — o banco nega tudo na hora.
 - "Esqueci minha senha" envia link por e-mail (o e-mail nativo do Supabase tem
   limite baixo por hora; configure SMTP próprio se a equipe crescer).
-- Leads antigos (registrados antes da migração) continuam visíveis para
-  marketing e comercial, mas não aparecem na tela do vendedor — eles não têm
+- Leads antigos (registrados antes da migração) continuam visíveis para o
+  marketing, mas não aparecem na tela do vendedor — eles não têm
   vínculo com o usuário novo.
 
 ## Usuários de teste por área
@@ -97,7 +96,6 @@ Editor para ativar os perfis:
 |---|---|---|---|
 | `teste.marketing@rjnet.com.br` | `Teste@Marketing1` | `marketing` | Painel completo + gestão de usuários |
 | `teste.vendedor@rjnet.com.br` | `Teste@Vendedor1` | `vendedor` | Registro e gestão dos próprios leads |
-| `teste.comercial@rjnet.com.br` | `Teste@Comercial1` | `comercial` | Dashboard somente leitura |
 
 > **Atenção**: use estas credenciais apenas em projetos de teste. Nunca reutilize
 > senhas de exemplo em produção.

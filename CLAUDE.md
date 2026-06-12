@@ -104,13 +104,12 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **status evento:** `planejado`, `ativo`, `encerrado`
 - **tipo evento:** `sinalizacao`, `presenca_comercial`, `ativacao_especial`
 - **temperatura lead:** `frio`, `morno`, `quente`, `convertido`
-- **papel perfil:** `marketing`, `vendedor`, `comercial`
+- **papel perfil:** `marketing`, `vendedor`
 
 ### RLS (Row Level Security)
 
 - `marketing`: acesso total a todas as tabelas
 - `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`)
-- `comercial`: somente leitura em leads e eventos
 
 ---
 
@@ -152,7 +151,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Dashboard | marketing | KPIs, gráfico de leads por serviço, alertas de estoque |
 | Eventos | marketing | CRUD de eventos, alocação de materiais, resumo de leads por vendedor |
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
-| Leads | marketing/comercial | Visualização e filtros, export CSV, gráfico por evento |
+| Leads | marketing | Visualização e filtros, export CSV, gráfico por evento |
 | Equipe | marketing | CRUD de vendedores, desempenho por evento |
 
 ---
