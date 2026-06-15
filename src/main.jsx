@@ -13,6 +13,7 @@ import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from './uti
 import { Icon, StatusBadge, TipoBadge, Kpi, ChartView } from './components/ui';
 import { useApp } from './hooks/useApp';
 import SyncBadge from './components/SyncBadge';
+import { RootAuth, RootLegacy } from './auth';
 
 Chart.register(...registerables);
 
@@ -71,7 +72,7 @@ Chart.register(...registerables);
       export const AppContext = createContext(null);
 
       // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
-      function usePersisted(key, fallback, { session = false } = {}) {
+      export function usePersisted(key, fallback, { session = false } = {}) {
         const storage = session ? sessionStorage : localStorage;
         const [state, setState] = useState(() => {
           try {
@@ -265,197 +266,10 @@ Chart.register(...registerables);
         return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
       }
 
-      const _mktUser = import.meta.env.VITE_MARKETING_USER;
-      const _mktPass = import.meta.env.VITE_MARKETING_PASS;
-      if (!supabaseEnabled && (!_mktUser || !_mktPass)) {
-        console.error('[rjnet] VITE_MARKETING_USER e VITE_MARKETING_PASS são obrigatórios no modo sem Supabase. Defina essas variáveis de ambiente.');
-      }
-      const AUTH = {
-        marketing: { user: _mktUser || "", pass: _mktPass || "" },
-      };
-
       const darkScale = {
         x: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" } },
         y: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" }, beginAtZero: true },
       };
-
-      /* ============================================================
-         LOGIN
-         ============================================================ */
-      function Login({ onLogin, darkMode, toggleDark }) {
-        const { vendedores } = useApp();
-        const [stage, setStage] = useState("login");
-        const [u, setU] = useState("");
-        const [p, setP] = useState("");
-        const [err, setErr] = useState("");
-
-        const submit = (e) => {
-          e.preventDefault();
-          setErr("");
-          if (u === AUTH.marketing.user && p === AUTH.marketing.pass) onLogin({ role: "marketing" });
-          else setErr("Usuário ou senha incorretos.");
-        };
-
-        return (
-          <div className="login-bg">
-            <div className="login-card">
-              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-              <p className="login-tag">Gestão de Eventos</p>
-              <p className="login-sub">Sistema de Gestão de Eventos</p>
-              <form onSubmit={submit} className="login-form">
-                <div className="field-group">
-                  <label>Usuário</label>
-                  <input value={u} onChange={(e) => setU(e.target.value)} placeholder="marketing" autoComplete="username" />
-                </div>
-                <div className="field-group">
-                  <label>Senha</label>
-                  <input type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
-                </div>
-                {err && <p className="error-msg">{err}</p>}
-                <button type="submit" className="login-btn">Entrar</button>
-              </form>
-              <p className="login-hint">Angra dos Reis · RJ</p>
-              <div style={{ textAlign: "center", marginTop: 14 }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
-                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         LOGIN COM SUPABASE AUTH — e-mail e senha individuais
-         ============================================================ */
-      function LoginAuth({ onLogin, darkMode, toggleDark }) {
-        const [email, setEmail] = useState("");
-        const [senha, setSenha] = useState("");
-        const [err, setErr] = useState("");
-        const [carregando, setCarregando] = useState(false);
-        const [recuperar, setRecuperar] = useState(false);
-        const [recuperado, setRecuperado] = useState(false);
-
-        const submit = async (e) => {
-          e.preventDefault();
-          setErr("");
-          setCarregando(true);
-          try {
-            if (recuperar) {
-              await auth.resetSenha(email.trim());
-              setRecuperado(true);
-            } else {
-              const sessao = await auth.signIn(email.trim(), senha);
-              onLogin(sessao);
-            }
-          } catch (ex) {
-            setErr(ex.message || "Não foi possível entrar. Tente novamente.");
-          } finally {
-            setCarregando(false);
-          }
-        };
-
-        return (
-          <div className="login-bg">
-            <div className="login-card">
-              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-              <p className="login-tag">Gestão de Eventos</p>
-              <p className="login-sub">{recuperar ? "Recuperar senha" : "Entre com a sua conta"}</p>
-              {recuperado ? (
-                <>
-                  <p style={{ textAlign: "center", fontSize: 14, padding: "12px 0" }}>
-                    Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.
-                  </p>
-                  <button className="back-btn" style={{ margin: "0 auto" }} onClick={() => { setRecuperar(false); setRecuperado(false); }}>
-                    Voltar ao login
-                  </button>
-                </>
-              ) : (
-                <form onSubmit={submit} className="login-form">
-                  <div className="field-group">
-                    <label>E-mail</label>
-                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@rjnet.com.br" autoComplete="username" />
-                  </div>
-                  {!recuperar && (
-                    <div className="field-group">
-                      <label>Senha</label>
-                      <input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
-                    </div>
-                  )}
-                  {err && <p className="error-msg">{err}</p>}
-                  <button type="submit" className="login-btn" disabled={carregando}>
-                    {carregando ? "Aguarde…" : recuperar ? "Enviar link" : "Entrar"}
-                  </button>
-                  <button type="button" className="back-btn" style={{ margin: "8px auto 0" }} onClick={() => { setRecuperar((r) => !r); setErr(""); }}>
-                    {recuperar ? "Voltar ao login" : "Esqueci minha senha"}
-                  </button>
-                </form>
-              )}
-              <p className="login-hint">Angra dos Reis · RJ</p>
-              <div style={{ textAlign: "center", marginTop: 14 }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
-                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         NOVA SENHA — usuário chegou pelo link de recuperação do e-mail
-         ============================================================ */
-      function NovaSenha({ darkMode, toggleDark, onConcluido }) {
-        const [senha, setSenha] = useState("");
-        const [confirma, setConfirma] = useState("");
-        const [err, setErr] = useState("");
-        const [salvando, setSalvando] = useState(false);
-
-        const submit = async (e) => {
-          e.preventDefault();
-          setErr("");
-          if (senha.length < SENHA_MIN_LENGTH) { setErr(`A senha precisa ter pelo menos ${SENHA_MIN_LENGTH} caracteres.`); return; }
-          if (senha !== confirma) { setErr("As senhas não conferem."); return; }
-          setSalvando(true);
-          try {
-            await auth.atualizarSenha(senha);
-            alert("Senha alterada com sucesso!");
-            onConcluido();
-          } catch (ex) {
-            setErr(ex.message || "Não foi possível alterar a senha.");
-          } finally {
-            setSalvando(false);
-          }
-        };
-
-        return (
-          <div className="login-bg">
-            <div className="login-card">
-              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-              <p className="login-tag">Gestão de Eventos</p>
-              <p className="login-sub">Defina a sua nova senha</p>
-              <form onSubmit={submit} className="login-form">
-                <div className="field-group">
-                  <label>Nova senha</label>
-                  <input type="password" required minLength={8} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" autoFocus />
-                </div>
-                <div className="field-group">
-                  <label>Confirmar nova senha</label>
-                  <input type="password" required value={confirma} onChange={(e) => setConfirma(e.target.value)} placeholder="Repita a senha" autoComplete="new-password" />
-                </div>
-                {err && <p className="error-msg">{err}</p>}
-                <button type="submit" className="login-btn" disabled={salvando}>{salvando ? "Salvando…" : "Salvar nova senha"}</button>
-              </form>
-              <p className="login-hint">Angra dos Reis · RJ</p>
-              <div style={{ textAlign: "center", marginTop: 14 }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
-                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      }
 
       /* ============================================================
          EVENT FORM MODAL
@@ -2192,61 +2006,8 @@ Chart.register(...registerables);
         const toggleDark = () => setDarkMode((d) => !d);
 
         return supabaseEnabled
-          ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} />
-          : <RootLegacy darkMode={darkMode} toggleDark={toggleDark} />;
-      }
-
-      // Com Supabase: login individual por e-mail/senha; o papel do perfil
-      // define a área (marketing | vendedor)
-      function RootAuth({ darkMode, toggleDark }) {
-        const [session, setSession] = useState(undefined); // undefined = verificando sessão salva
-        const [recuperandoSenha, setRecuperandoSenha] = useState(false);
-
-        useEffect(() => {
-          let on = true;
-          auth.getSessao().then((s) => { if (on) setSession(s); });
-          const unsub = auth.onChange((evento) => {
-            if (!on) return;
-            if (evento === "SIGNED_OUT") setSession(null);
-            // Usuário chegou pelo link "esqueci minha senha" do e-mail
-            if (evento === "PASSWORD_RECOVERY") setRecuperandoSenha(true);
-            if (evento === "SIGNED_IN") auth.getSessao().then((s) => { if (on && s) setSession(s); });
-          });
-          return () => { on = false; unsub(); };
-        }, []);
-
-        const logout = async () => {
-          try { await auth.signOut(); } catch { /* sessão já expirada */ }
-          setSession(null);
-        };
-
-        if (recuperandoSenha) {
-          return <NovaSenha darkMode={darkMode} toggleDark={toggleDark} onConcluido={() => setRecuperandoSenha(false)} />;
-        }
-        if (session === undefined) return <div className="login-bg" />;
-        if (!session) return <LoginAuth onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
-        if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
-        return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
-      }
-
-      // Sem Supabase (dev/local): login compartilhado como antes.
-      // Nota: sem servidor, a proteção de role é limitada. Para produção
-      // com múltiplos usuários, use o modo Supabase Auth.
-      const ROLES_VALIDOS = ["marketing", "vendedor"];
-      function RootLegacy({ darkMode, toggleDark }) {
-        const [session, setSession] = usePersisted("rjnet_session", null, { session: true });
-        const logout = () => setSession(null);
-
-        // Detecta sessão adulterada — role inválido força novo login
-        const roleValido = session && ROLES_VALIDOS.includes(session.role);
-        if (session && !roleValido) {
-          setSession(null);
-          return null;
-        }
-
-        if (!session) return <Login onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
-        if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
-        return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+          ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />
+          : <RootLegacy darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />;
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(
