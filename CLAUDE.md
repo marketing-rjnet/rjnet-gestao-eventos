@@ -12,11 +12,11 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–8 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–10 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
-├── main.jsx              # App React (~2.021 linhas) — componentes ainda não extraídos
+├── main.jsx              # App React (~1.530 linhas) — componentes ainda não extraídos
 ├── index.css             # Estilos globais (tema dark)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
@@ -27,7 +27,17 @@ src/
 │   └── index.js          # Re-exports de auth (etapa 8)
 ├── components/
 │   ├── ui.jsx            # Icon, StatusBadge, TipoBadge, Kpi, ChartView (etapa 6)
-│   └── SyncBadge.jsx     # Indicador visual de sincronização (etapa 7)
+│   ├── SyncBadge.jsx     # Indicador visual de sincronização (etapa 7)
+│   └── modals/
+│       ├── EventModal.jsx    # Modal de criação/edição de evento (etapa 9)
+│       ├── MaterialModal.jsx # Modal de criação de material (etapa 9)
+│       └── index.js          # Re-exports de modais (etapa 9)
+├── features/
+│   └── events/
+│       ├── Dashboard.jsx     # KPIs, gráfico de leads, próximos eventos (etapa 10)
+│       ├── EventosTab.jsx    # Lista de eventos com filtros de status (etapa 10)
+│       ├── EventDetail.jsx   # Detalhe do evento, materiais e leads (etapa 10)
+│       └── index.js          # Re-exports de events (etapa 10)
 ├── hooks/
 │   └── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 ├── utils/
@@ -226,7 +236,7 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~2.021 | Componentes, context, formulários, gráficos (refatoração em andamento) |
+| `src/main.jsx` | ~1.530 | Context, AppProvider, EstoqueTab, LeadsTab, EquipeTab, CheckinTab, MarketingApp, VendedorApp (refatoração em andamento) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
@@ -234,6 +244,11 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/auth/RootLegacy.jsx` | ~25 | Roteador de auth modo legado (etapa 8) |
 | `src/components/ui.jsx` | ~80 | Componentes UI atômicos extraídos (etapa 6) |
 | `src/components/SyncBadge.jsx` | ~14 | Indicador de sincronização (etapa 7) |
+| `src/components/modals/EventModal.jsx` | ~90 | Modal de criação/edição de evento (etapa 9) |
+| `src/components/modals/MaterialModal.jsx` | ~50 | Modal de criação de material (etapa 9) |
+| `src/features/events/Dashboard.jsx` | ~70 | KPIs, gráfico donut, próximos eventos (etapa 10) |
+| `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
+| `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/utils/format.js` | ~21 | Formatação de datas, labels e iniciais (etapa 1) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
