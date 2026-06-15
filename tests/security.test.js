@@ -67,7 +67,7 @@ test.describe('SQL Injection — Login', () => {
 test.describe('XSS — Login', () => {
 
   test('payloads XSS no campo usuário não executam script', async ({ page }) => {
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
@@ -86,7 +86,7 @@ test.describe('XSS — Login', () => {
   });
 
   test('payloads XSS na senha não executam script', async ({ page }) => {
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
@@ -111,40 +111,45 @@ test.describe('XSS — Formulário de Lead', () => {
 
   test('payload XSS no nome do lead é exibido como texto, não executado', async ({ page }) => {
     test.slow();
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
     });
 
+    await page.addInitScript(() => {
+      localStorage.setItem('rjnet_leads', JSON.stringify([]));
+    });
     await loginComercial(page);
-    await page.locator('.event-card').first().click();
 
-    const leadForm = page.locator('.lead-form, .inline-form');
-    const hasForm = await leadForm.isVisible().catch(() => false);
-    if (!hasForm) { test.skip(); return; }
-
-    const xssPayload = '<script>alert("xss-lead")</script>';
-    await leadForm.locator('input[type="text"]').first().fill(xssPayload);
-    await leadForm.locator('.btn-primary, button[type="submit"]').first().click();
+    const xssPayload = '<script>alert("xss-lead")</script>Fulano';
+    await page.getByPlaceholder('Nome do cliente').fill(xssPayload);
+    await page.getByPlaceholder('(24) 99999-9999').fill('24999887766');
+    await page.locator('.lead-submit').click();
     await page.waitForTimeout(500);
 
     // Script não deve ter executado
     expect(alerts).toHaveLength(0);
 
-    // O texto deve aparecer escaped (sem executar), ou a submissão ser rejeitada
-    const bodyText = await page.locator('body').textContent();
-    // O payload não deve aparecer como HTML interpretado — se aparecer como texto literal, é seguro
-    const hasInjectedScript = await page.evaluate(() => {
-      return document.querySelectorAll('script[src]').length > 0;
-    });
-    // Não deve ter criado novos elementos script dinâmicos
+    // O lead salvo deve exibir o nome como texto puro, sem tags HTML
+    await page.locator('.vend-nav-btn', { hasText: 'Meus Leads' }).click();
+    const nome = page.locator('.lm-name').first();
+    await expect(nome).toContainText('Fulano');
+    await expect(nome).not.toContainText('<script');
+    expect(await page.locator('.lm-name script').count()).toBe(0);
+    // Nenhum elemento <script> com o conteúdo do payload pode existir no DOM
+    // (os scripts legítimos do Vite/app não contam)
+    const hasInjectedScript = await page.evaluate(() =>
+      [...document.querySelectorAll('script')].some((s) =>
+        (s.textContent || '').includes('xss-lead') || (s.src || '').includes('xss-lead')
+      )
+    );
     expect(hasInjectedScript).toBeFalsy();
   });
 
   test('payload XSS no campo nome de evento é sanitizado', async ({ page }) => {
     test.slow();
-    const alerts: string[] = [];
+    const alerts = [];
     page.on('dialog', async dialog => {
       alerts.push(dialog.message());
       await dialog.dismiss();
@@ -223,11 +228,14 @@ test.describe('Controle de Acesso', () => {
   test('após logout, voltar no histórico não reabre o app', async ({ page }) => {
     await loginMarketing(page);
     await expect(page.locator('.app-header')).toBeVisible();
-    await page.locator('.logout-btn').click();
+    await page.locator('.app-header button', { hasText: 'Sair' }).click();
     await expect(page.locator('.login-bg')).toBeVisible();
+    // O app é uma SPA: voltar leva à entrada anterior do histórico.
+    // Em nenhuma hipótese a área logada pode reaparecer.
     await page.goBack();
-    // Deve continuar na tela de login (sem sessão ativa)
-    await expect(page.locator('.login-bg')).toBeVisible();
+    await expect(page.locator('.app-header')).not.toBeVisible();
+    await page.goForward();
+    await expect(page.locator('.app-header')).not.toBeVisible();
   });
 
 });
@@ -238,23 +246,19 @@ test.describe('Integridade de Dados', () => {
 
   test('campos numéricos não aceitam texto livre sem validação', async ({ page }) => {
     test.slow();
-    await loginComercial(page);
-    await page.locator('.tab-btn', { hasText: 'Estoque' }).click();
+    await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+    await page.locator('button', { hasText: 'Adicionar Material' }).click();
 
-    const editBtn = page.locator('.btn-sm').first();
-    const hasEditBtn = await editBtn.isVisible().catch(() => false);
-    if (!hasEditBtn) { test.skip(); return; }
-
-    await editBtn.click();
-    const numInput = page.locator('input[type="number"]');
-    const hasNumInput = await numInput.isVisible().catch(() => false);
-    if (!hasNumInput) { test.skip(); return; }
+    const numInput = page.locator('.modal-box input[type="number"]');
+    await expect(numInput).toBeVisible();
 
     // Tenta injetar texto em campo numérico
-    await numInput.fill('abc');
+    await numInput.click();
+    await numInput.pressSequentially('abc');
     const val = await numInput.inputValue();
-    // Deve ser vazio ou 0 — campo numérico rejeita texto
-    expect(val === '' || val === '0' || !isNaN(Number(val))).toBeTruthy();
+    // Deve ser vazio ou numérico — campo rejeita texto
+    expect(val === '' || !isNaN(Number(val))).toBeTruthy();
   });
 
   test('payload muito longo não trava o app (DoS de input)', async ({ page }) => {
