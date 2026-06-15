@@ -22,8 +22,8 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 10/18 etapas concluídas (56%)
-Arquivo principal: src/main.jsx — meta: < 100 linhas ao fim
+Progresso geral: 11/18 etapas concluídas (61%)
+Arquivo principal: src/main.jsx — atual: ~1.189 linhas — meta: < 100 linhas ao fim
 ```
 
 ### Histórico de Execução
@@ -88,6 +88,19 @@ Etapa 10 executada em 15/06/2026.
   CHART_COLORS movido para Dashboard.jsx (não mais necessário em main.jsx).
   Imports não utilizados removidos de main.jsx: fmtDateLong, tipoLabel, CHART_CUTOUT, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN.
   Build passou sem erros (85 módulos transformados).
+
+Etapa 11 executada em 15/06/2026.
+  Criado src/features/inventory/EstoqueTab.jsx: listagem de materiais por nível de estoque.
+  Criado src/features/inventory/index.js: re-export de EstoqueTab.
+  Criado src/features/leads/LeadsTab.jsx: filtros, gráfico e tabela de leads, exportação CSV.
+  Criado src/features/leads/index.js: re-export de LeadsTab.
+  Criado src/features/checkin/CheckinTab.jsx: busca de lead por CPF em evento.
+  Criado src/features/checkin/index.js: re-export de CheckinTab.
+  EstoqueTab, LeadsTab e CheckinTab removidos de main.jsx (~348 linhas).
+  darkScale movida para LeadsTab.jsx (não mais necessária em main.jsx).
+  TEMPERATURA_CONFIG duplicada localmente em CheckinTab.jsx (main.jsx ainda precisa para VendedorApp).
+  Imports removidos de main.jsx: NIVEL_ESTOQUE (constants), exportLeadsCSV (csv).
+  Build passou sem erros (91 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -112,7 +125,7 @@ Etapa 7  — SyncBadge + useApp        ✅ Concluída
 Etapa 8  — Auth Components           ✅ Concluída
 Etapa 9  — Modais                    ✅ Concluída
 Etapa 10 — Dashboard + Eventos       ✅ Concluída
-Etapa 11 — Estoque + Leads + Checkin ⬜ Não iniciada
+Etapa 11 — Estoque + Leads + Checkin ✅ Concluída
 Etapa 12 — Equipe                    ⬜ Não iniciada
 Etapa 13 — VendedorApp               ⬜ Não iniciada
 Etapa 14 — App + Layout Shells       ⬜ Não iniciada
