@@ -56,7 +56,9 @@ src/
 │       ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
 │       └── index.js          # Re-exports de team (etapa 12)
 ├── hooks/
-│   └── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
+│   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
+│   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
+│   └── useRanking.js     # Hook de polling de ranking com debounce e cleanup automático (etapa 15)
 ├── utils/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
@@ -253,8 +255,8 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~360 | Context, AppProvider, ErrorBoundary, MarketingApp, Root (refatoração em andamento) |
-| `src/apps/VendedorApp.jsx` | ~370 | Shell completo do vendedor + LeadEditInline (etapa 13) |
+| `src/main.jsx` | ~220 | AppContext, AppProvider, ErrorBoundary + ponto de entrada React (refatoração em andamento) |
+| `src/apps/VendedorApp.jsx` | ~345 | Shell completo do vendedor + LeadEditInline (etapa 13) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
@@ -268,6 +270,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
+| `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
+| `src/hooks/useRanking.js` | ~38 | Hook de polling de ranking com debounce e cleanup (etapa 15) |
 | `src/utils/format.js` | ~21 | Formatação de datas, labels e iniciais (etapa 1) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
 | `src/utils/csv.js` | ~20 | Exportação CSV de leads (etapa 3) |

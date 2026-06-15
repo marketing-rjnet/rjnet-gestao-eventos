@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePersisted } from '../main';
+import { usePersisted } from '../hooks/usePersisted';
 import { Login } from './Login';
 
 const ROLES_VALIDOS = ["marketing", "vendedor"];
