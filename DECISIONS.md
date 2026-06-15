@@ -719,6 +719,39 @@ Os dois componentes formam o domínio funcional de gestão de equipe e totalizav
 
 ---
 
+### [D-021] — MarketingApp e Root extraídos para `src/apps/` (Etapa 14)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`MarketingApp` (shell de navegação do marketing) e `Root` (roteador raiz com detecção de modo) foram extraídos de `main.jsx` para `src/apps/MarketingApp.jsx` e `src/apps/Root.jsx` respectivamente.
+
+**Motivação:**
+Os dois componentes representavam o último bloco de UI em `main.jsx`. Com a extração, o arquivo principal passa a conter apenas infraestrutura (`ErrorBoundary`, `AppContext`, `usePersisted`, `AppProvider`) e o ponto de entrada React (`ReactDOM.createRoot`). Isso prepara o arquivo para as Etapas 15–16, que irão extrair o restante.
+
+**Alternativas Avaliadas:**
+- Extrair em arquivo único `src/apps/index.jsx` (descartada — granularidade por componente facilita revisão e substituição independente)
+- Manter em `main.jsx` até Etapa 16 (avaliada — desnecessário; componentes de UI não pertencem ao arquivo de infraestrutura)
+
+**Impactos:**
+- Positivo: ~85 linhas removidas de `main.jsx`; shells de aplicação agrupados em `src/apps/` junto com `VendedorApp`; `main.jsx` reduzido para ~245 linhas
+- Positivo: `Root.jsx` encapsula toda a lógica de dark mode e detecção de modo, isolando essas responsabilidades
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `src/apps/MarketingApp.jsx` (criado)
+- `src/apps/Root.jsx` (criado)
+- `src/main.jsx` (removidas definições; imports de features/auth/ui/apps eliminados; adicionado `import Root from './apps/Root'`)
+
+**Riscos:**
+- Nenhum — extração conservadora sem alteração de lógica
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

@@ -22,8 +22,8 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 13/18 etapas concluídas (72%)
-Arquivo principal: src/main.jsx — atual: ~360 linhas — meta: < 100 linhas ao fim
+Progresso geral: 14/18 etapas concluídas (78%)
+Arquivo principal: src/main.jsx — atual: ~245 linhas — meta: < 100 linhas ao fim
 ```
 
 ### Histórico de Execução
@@ -122,6 +122,20 @@ Etapa 13 executada em 15/06/2026.
     (masks), StatusBadge, TipoBadge, Kpi, ChartView (ui), useApp (hooks), EventModal, MaterialModal (modals).
   main.jsx reduzido para ~360 linhas.
   Build passou sem erros (95 módulos transformados).
+
+Etapa 14 executada em 15/06/2026.
+  Criado src/apps/MarketingApp.jsx: shell do usuário marketing com navegação por tabs,
+    dark mode toggle, SyncBadge e roteamento condicional de EquipeTab/EquipeAuthTab.
+  Criado src/apps/Root.jsx: componente raiz com persistência de dark mode e detecção
+    de modo (Supabase vs legado) via supabaseEnabled, delegando para RootAuth ou RootLegacy.
+  MarketingApp e Root removidos de main.jsx (~85 linhas).
+  Imports não mais usados removidos de main.jsx: Icon (ui), SyncBadge (components),
+    RootAuth/RootLegacy (auth), Dashboard/EventosTab/EventDetail (features/events),
+    EstoqueTab (inventory), LeadsTab (leads), CheckinTab (checkin),
+    EquipeTab/EquipeAuthTab (team), VendedorApp (apps).
+  Import de Root adicionado de ./apps/Root.
+  main.jsx reduzido para ~245 linhas.
+  Build passou sem erros (97 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -149,7 +163,7 @@ Etapa 10 — Dashboard + Eventos       ✅ Concluída
 Etapa 11 — Estoque + Leads + Checkin ✅ Concluída
 Etapa 12 — Equipe                    ✅ Concluída
 Etapa 13 — VendedorApp               ✅ Concluída
-Etapa 14 — App + Layout Shells       ⬜ Não iniciada
+Etapa 14 — App + Layout Shells       ✅ Concluída
 Etapa 15 — Domain Hooks              ⬜ Não iniciada
 Etapa 16 — Infraestrutura            ⬜ Não iniciada
 Etapa 17 — APIs por Domínio          ⬜ Não iniciada
@@ -1463,13 +1477,14 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 14 — App + Layout Shells** (próxima etapa não concluída)
+**→ Etapa 15 — Domain Hooks** (próxima etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Ler `src/main.jsx` nas linhas de `MarketingApp` e `Root`.
-2. Criar `src/apps/MarketingApp.jsx` com o shell do marketing.
-3. Criar `src/apps/Root.jsx` com o roteador raiz.
-4. Remover as definições de `main.jsx` e adicionar os imports correspondentes.
-5. Executar build e verificar sem erros.
-6. Commit: `refactor: extract MarketingApp and Root to src/apps/`.
+1. Ler `src/main.jsx` na definição de `usePersisted` (linhas ~46–71).
+2. Criar `src/hooks/usePersisted.js` com o hook extraído.
+3. Criar `src/hooks/useRanking.js` com a lógica de polling de ranking extraída de VendedorApp.
+4. Atualizar `main.jsx` para importar `usePersisted` de `./hooks/usePersisted`.
+5. Atualizar `src/hooks/useApp.js` para importar `AppContext` de `../context/AppContext` (preparação para Etapa 16).
+6. Executar build e verificar sem erros.
+7. Commit: `refactor: extract usePersisted and useRanking to src/hooks/`.

@@ -12,13 +12,15 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–13 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–14 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
-├── main.jsx              # App React (~360 linhas) — MarketingApp e Root ainda não extraídos
+├── main.jsx              # App React (~245 linhas) — AppContext, usePersisted, AppProvider, ErrorBoundary
 ├── index.css             # Estilos globais (tema dark)
 ├── apps/
+│   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
+│   ├── MarketingApp.jsx  # Shell do usuário marketing: navegação, tabs, dark mode (etapa 14)
 │   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline (etapa 13)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
