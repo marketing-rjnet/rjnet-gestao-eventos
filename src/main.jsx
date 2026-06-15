@@ -5,6 +5,9 @@ import { supabaseEnabled } from './lib/supabase';
 import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, flushPendingQueue } from './lib/dataService';
 import { sanitizeText } from './lib/security';
 import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
+import { fmtDate, fmtDateLong, initials } from './lib/formatUtils';
+import { maskCpf, maskTel, validarCpf, validarTelefone } from './lib/masks';
+import { buildLeadsCSV, downloadCSV } from './lib/csvUtils';
 import './index.css';
 
 Chart.register(...registerables);
@@ -154,9 +157,6 @@ Chart.register(...registerables);
       const STATUS_LABEL = { ativo: "Ativo", planejado: "Planejado", encerrado: "Encerrado" };
       const servicoLabel = (s) => SERVICO_LABEL[s] || s;
       const tipoLabel = (t) => TIPO_LABEL[t] || t;
-      const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "";
-      const fmtDateLong = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "";
-      const initials = (n) => n.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
       const CHART_COLORS = ["#f5c000", "#22c55e", "#ef4444", "#666666"];
       Chart.defaults.color = "#666";
@@ -1182,23 +1182,8 @@ Chart.register(...registerables);
           const dados = filtered.length > 0 ? filtered : leads;
           if (dados.length === 0) return;
           const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
-          const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
-          const linhas = dados.map((l) => [
-            l.nome, l.cpf || "", l.telefone, l.endereco || "",
-            servicoLabel(l.servicoInteresse), l.temperatura,
-            l.jaClienteRjnet ? "Sim" : "Não",
-            l.vendedorNome, evName(l.eventoId),
-            (l.observacao || "").replace(/"/g, '""'),
-            new Date(l.criadoEm).toLocaleString("pt-BR"),
-          ]);
-          const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-          const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `leads_${sufixo}_${new Date().toISOString().slice(0,10)}.csv`;
-          a.click();
-          URL.revokeObjectURL(url);
+          const csv = buildLeadsCSV(dados, { servicoLabel, evName });
+          downloadCSV(csv, `leads_${sufixo}_${new Date().toISOString().slice(0, 10)}.csv`);
         };
 
         const porEvento = useMemo(() => {
@@ -1778,40 +1763,6 @@ Chart.register(...registerables);
       // Alias local — delega para o módulo de segurança centralizado
       const sanitize = sanitizeText;
 
-      function validarCpf(cpf) {
-        const d = cpf.replace(/\D/g, "");
-        if (d.length !== 11) return false;
-        if (/^(\d)\1{10}$/.test(d)) return false;
-        let s = 0;
-        for (let i = 0; i < 9; i++) s += +d[i] * (10 - i);
-        let r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
-        if (r !== +d[9]) return false;
-        s = 0;
-        for (let i = 0; i < 10; i++) s += +d[i] * (11 - i);
-        r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
-        return r === +d[10];
-      }
-
-      function validarTelefone(tel) {
-        const d = tel.replace(/\D/g, "");
-        return d.length >= 10 && d.length <= 11;
-      }
-
-      function maskCpf(v) {
-        const d = v.replace(/\D/g, "").slice(0, 11);
-        if (d.length <= 3) return d;
-        if (d.length <= 6) return d.slice(0,3) + "." + d.slice(3);
-        if (d.length <= 9) return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6);
-        return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6,9) + "-" + d.slice(9);
-      }
-
-      function maskTel(v) {
-        const d = v.replace(/\D/g, "").slice(0, 11);
-        if (d.length <= 2) return d.length ? "(" + d : "";
-        if (d.length <= 7) return "(" + d.slice(0,2) + ") " + d.slice(2);
-        if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
-        return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
-      }
 
       /* ============================================================
          VENDEDOR (COMERCIAL) VIEW — mobile-first
@@ -2010,8 +1961,6 @@ Chart.register(...registerables);
         };
 
         const posColors = ["gold", "silver", "bronze"];
-
-        const formatDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—";
 
         const mapUrl = eventoAtual?.local
           ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(eventoAtual.local)
@@ -2312,7 +2261,7 @@ Chart.register(...registerables);
                         </div>
                         <div className="ev-info-row">
                           <span className="ev-info-label">Período</span>
-                          <span className="ev-info-value">{formatDate(eventoAtual.dataInicio)} → {formatDate(eventoAtual.dataFim)}</span>
+                          <span className="ev-info-value">{fmtDate(eventoAtual.dataInicio)} → {fmtDate(eventoAtual.dataFim)}</span>
                         </div>
                         <div className="ev-info-row">
                           <span className="ev-info-label">Tipo</span>
