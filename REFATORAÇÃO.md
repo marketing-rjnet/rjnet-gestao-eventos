@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 9/18 etapas concluídas (50%)
+Progresso geral: 10/18 etapas concluídas (56%)
 Arquivo principal: src/main.jsx — meta: < 100 linhas ao fim
 ```
 
@@ -77,6 +77,17 @@ Etapa 9 executada em 15/06/2026.
   sanitize() nos modais convertida para sanitizeText() diretamente (sem alias local).
   main.jsx reduzido para ~1.884 linhas.
   Build passou sem erros.
+
+Etapa 10 executada em 15/06/2026.
+  Criado src/features/events/Dashboard.jsx: KPIs, gráfico donut de leads por serviço, próximos eventos.
+  Criado src/features/events/EventosTab.jsx: lista de eventos com filtros de status e cards.
+  Criado src/features/events/EventDetail.jsx: detalhe do evento, gestão de materiais e leads por vendedor.
+  Criado src/features/events/index.js: re-exports dos três componentes.
+  Dashboard, EventosTab e EventDetail removidos de main.jsx (~350 linhas).
+  darkScale mantida em main.jsx (ainda usada por LeadsTab que não foi extraído nesta etapa).
+  CHART_COLORS movido para Dashboard.jsx (não mais necessário em main.jsx).
+  Imports não utilizados removidos de main.jsx: fmtDateLong, tipoLabel, CHART_CUTOUT, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN.
+  Build passou sem erros (85 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -100,7 +111,7 @@ Etapa 6  — UI Components             ✅ Concluída
 Etapa 7  — SyncBadge + useApp        ✅ Concluída
 Etapa 8  — Auth Components           ✅ Concluída
 Etapa 9  — Modais                    ✅ Concluída
-Etapa 10 — Dashboard + Eventos       ⬜ Não iniciada
+Etapa 10 — Dashboard + Eventos       ✅ Concluída
 Etapa 11 — Estoque + Leads + Checkin ⬜ Não iniciada
 Etapa 12 — Equipe                    ⬜ Não iniciada
 Etapa 13 — VendedorApp               ⬜ Não iniciada
@@ -1418,7 +1429,7 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 10 — Dashboard + Eventos** (primeira etapa não concluída)
+**→ Etapa 11 — Estoque + Leads + Checkin** (primeira etapa não concluída)
 
 **Resumo do que fazer:**
 

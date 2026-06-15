@@ -582,6 +582,40 @@ Fluxos de autenticação são domínio independente do restante da aplicação. 
 
 ---
 
+### [D-017] — Feature tabs de eventos extraídas para `src/features/events/` (Etapa 10)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`Dashboard`, `EventosTab` e `EventDetail` foram extraídos de `main.jsx` para módulos dedicados em `src/features/events/`, com re-export via `src/features/events/index.js`.
+
+**Motivação:**
+Os três componentes formam o domínio funcional de eventos e totalizam ~350 linhas. Agrupá-los em `src/features/events/` isola esse domínio, facilita navegação e prepara estrutura para as etapas seguintes.
+
+**Alternativas Avaliadas:**
+- Um arquivo único `src/features/events/index.jsx` (descartada — granularidade por componente facilita revisão)
+- Manter em `main.jsx` (descartada — domínio bem definido, sem riscos de extração)
+
+**Impactos:**
+- Positivo: ~350 linhas removidas de `main.jsx`; CHART_COLORS movido para Dashboard.jsx; imports desnecessários limpos
+- Negativo: `darkScale` ainda permanece em `main.jsx` pois `LeadsTab` (não extraído nesta etapa) também a usa
+
+**Arquivos Afetados:**
+- `src/features/events/Dashboard.jsx` (criado)
+- `src/features/events/EventosTab.jsx` (criado)
+- `src/features/events/EventDetail.jsx` (criado)
+- `src/features/events/index.js` (criado)
+- `src/main.jsx` (removidas definições; adicionado import de `./features/events`; imports limpos)
+
+**Riscos:**
+- `darkScale` duplicado: está em `EventDetail.jsx` como constante local E em `main.jsx` para `LeadsTab`. Será consolidado quando `LeadsTab` for extraído na Etapa 11.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
