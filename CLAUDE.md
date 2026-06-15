@@ -12,16 +12,28 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
+> **Refatoração em andamento** — etapas 1–7 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+
 ```
 src/
-├── main.jsx              # App React completo (~2.500 linhas) — todos os componentes
+├── main.jsx              # App React (~2.300 linhas) — componentes ainda não extraídos
 ├── index.css             # Estilos globais (tema dark)
+├── components/
+│   ├── ui.jsx            # Icon, StatusBadge, TipoBadge, Kpi, ChartView (etapa 6)
+│   └── SyncBadge.jsx     # Indicador visual de sincronização (etapa 7)
+├── hooks/
+│   └── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
+├── utils/
+│   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
+│   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
+│   ├── csv.js            # exportLeadsCSV (etapa 3)
+│   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
-    ├── supabase.js       # Inicialização do cliente Supabase
+    ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
-    └── constants.js      # Constantes globais (validações, metadados)
+    └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, limites (etapas 5)
 
 supabase/
 ├── schema.sql            # Schema inicial (4 tabelas + seed)
@@ -40,9 +52,6 @@ tests/
 ├── estoque.test.js       # E2E: inventário
 ├── marketing.test.js     # E2E: dashboard marketing
 └── helpers/auth.js       # Helpers de autenticação para testes
-
-config/
-└── security.js           # Utilitários de segurança Node.js (espelha src/lib/security.js)
 
 data/
 ├── colaboradores.example.json
@@ -210,8 +219,16 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~2.500 | App inteiro: componentes, context, formulários, gráficos |
-| `src/lib/dataService.js` | ~330 | Queries Supabase, auth, realtime, retry |
+| `src/main.jsx` | ~2.300 | Componentes, context, formulários, gráficos (refatoração em andamento) |
+| `src/components/ui.jsx` | ~80 | Componentes UI atômicos extraídos (etapa 6) |
+| `src/components/SyncBadge.jsx` | ~14 | Indicador de sincronização (etapa 7) |
+| `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
+| `src/utils/format.js` | ~21 | Formatação de datas, labels e iniciais (etapa 1) |
+| `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
+| `src/utils/csv.js` | ~20 | Exportação CSV de leads (etapa 3) |
+| `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
+| `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
+| `src/lib/dataService.js` | ~394 | Queries Supabase, auth, realtime, retry |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
