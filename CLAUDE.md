@@ -12,7 +12,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–10 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–11 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
@@ -33,11 +33,20 @@ src/
 │       ├── MaterialModal.jsx # Modal de criação de material (etapa 9)
 │       └── index.js          # Re-exports de modais (etapa 9)
 ├── features/
-│   └── events/
-│       ├── Dashboard.jsx     # KPIs, gráfico de leads, próximos eventos (etapa 10)
-│       ├── EventosTab.jsx    # Lista de eventos com filtros de status (etapa 10)
-│       ├── EventDetail.jsx   # Detalhe do evento, materiais e leads (etapa 10)
-│       └── index.js          # Re-exports de events (etapa 10)
+│   ├── events/
+│   │   ├── Dashboard.jsx     # KPIs, gráfico de leads, próximos eventos (etapa 10)
+│   │   ├── EventosTab.jsx    # Lista de eventos com filtros de status (etapa 10)
+│   │   ├── EventDetail.jsx   # Detalhe do evento, materiais e leads (etapa 10)
+│   │   └── index.js          # Re-exports de events (etapa 10)
+│   ├── inventory/
+│   │   ├── EstoqueTab.jsx    # Gestão de materiais por nível de estoque (etapa 11)
+│   │   └── index.js          # Re-export de inventory (etapa 11)
+│   ├── leads/
+│   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
+│   │   └── index.js          # Re-export de leads (etapa 11)
+│   └── checkin/
+│       ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
+│       └── index.js          # Re-export de checkin (etapa 11)
 ├── hooks/
 │   └── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 ├── utils/

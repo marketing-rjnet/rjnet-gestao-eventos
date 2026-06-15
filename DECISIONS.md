@@ -616,6 +616,42 @@ Os três componentes formam o domínio funcional de eventos e totalizam ~350 lin
 
 ---
 
+### [D-018] — Feature tabs de estoque, leads e checkin extraídas para `src/features/` (Etapa 11)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`EstoqueTab`, `LeadsTab` e `CheckinTab` foram extraídos de `main.jsx` para módulos dedicados em `src/features/inventory/`, `src/features/leads/` e `src/features/checkin/` respectivamente, cada um com re-export via `index.js`.
+
+**Motivação:**
+Os três componentes formam domínios funcionais independentes que totalizavam ~348 linhas no monolítico. Agrupá-los por domínio em `src/features/` segue o padrão estabelecido na Etapa 10, isolando responsabilidades e facilitando navegação.
+
+**Alternativas Avaliadas:**
+- Agrupar todos em `src/features/marketing/` (descartada — domínios distintos merecem pastas próprias)
+- Manter em `main.jsx` (descartada — domínios bem definidos, sem riscos de extração)
+
+**Impactos:**
+- Positivo: ~348 linhas removidas de `main.jsx`; `darkScale` movida para `LeadsTab.jsx`; `NIVEL_ESTOQUE` e `exportLeadsCSV` removidos dos imports de `main.jsx`
+- Negativo: `TEMPERATURA_CONFIG` duplicada em `CheckinTab.jsx` e `main.jsx` (VendedorApp ainda precisa dela); será eliminada quando VendedorApp for extraído na Etapa 13
+
+**Arquivos Afetados:**
+- `src/features/inventory/EstoqueTab.jsx` (criado)
+- `src/features/inventory/index.js` (criado)
+- `src/features/leads/LeadsTab.jsx` (criado)
+- `src/features/leads/index.js` (criado)
+- `src/features/checkin/CheckinTab.jsx` (criado)
+- `src/features/checkin/index.js` (criado)
+- `src/main.jsx` (removidas definições; adicionados imports; imports limpos)
+
+**Riscos:**
+- `TEMPERATURA_CONFIG` duplicada temporariamente entre `CheckinTab.jsx` e `main.jsx` — sem impacto funcional, será consolidada na Etapa 13
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
