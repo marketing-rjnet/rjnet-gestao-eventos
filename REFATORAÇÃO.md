@@ -4,6 +4,27 @@
 
 Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comportamento, apenas reorganizando a arquitetura em módulos coesos.
 
+## Regra Obrigatória — Atualização da Documentação
+
+Nenhuma etapa pode ser considerada concluída sem que os seguintes documentos sejam atualizados:
+
+- `REFATORAÇÃO.md` — status da etapa, histórico de execução, progresso geral, próxima etapa recomendada.
+- `CLAUDE.md` — estrutura atual do projeto, arquivos criados/modificados, seção "Status Atual da Refatoração".
+
+### Checklist obrigatório de encerramento de etapa
+
+Antes de declarar uma etapa como concluída, todos os itens abaixo devem estar marcados:
+
+- [ ] Código refatorado
+- [ ] Build sem erros (`npm run build`)
+- [ ] Checklist da etapa validado (itens da seção de validação da etapa)
+- [ ] `REFATORAÇÃO.md` atualizado (status, histórico, progresso, próxima etapa)
+- [ ] `CLAUDE.md` atualizado (estrutura, arquivos, seção de status da refatoração)
+- [ ] Próxima etapa identificada
+- [ ] Commit recomendado informado
+
+---
+
 ## Regras Obrigatórias
 
 - Nenhuma funcionalidade pode mudar.
@@ -99,6 +120,10 @@ Etapa 18 — Centralização Dual Mode   ⬜ Não iniciada
 4. Mostrar possíveis riscos.
 5. Mostrar checklist de validação.
 6. Informar próximo commit recomendado.
+7. **Atualizar `REFATORAÇÃO.md`:** marcar etapa como concluída, atualizar histórico e progresso geral.
+8. **Atualizar `CLAUDE.md`:** refletir estrutura atual, arquivos novos/modificados e seção "Status Atual da Refatoração".
+
+> A etapa só está concluída após os itens 7 e 8 serem executados.
 
 ---
 
@@ -133,6 +158,47 @@ Você deve:
 - Atualizar observações.
 - Atualizar riscos encontrados.
 - Atualizar progresso geral.
+
+---
+
+### Quando eu pedir: "Atualizar documentação"
+
+Você deve:
+
+- Atualizar `REFATORAÇÃO.md`:
+  - Progresso geral (etapas concluídas / total).
+  - Histórico de execução.
+  - Tabela de progresso (status de cada etapa).
+  - Próxima etapa recomendada.
+- Atualizar `CLAUDE.md`:
+  - Seção "Status Atual da Refatoração".
+  - Estrutura atual do projeto (`src/`).
+  - Arquitetura atual (módulos existentes).
+  - Arquivos recentemente criados.
+  - Arquivos recentemente modificados.
+
+Não inventar informações. Basear-se exclusivamente nos arquivos do projeto.
+
+---
+
+### Quando eu pedir: "Finalizar etapa"
+
+Você deve:
+
+1. Validar a etapa executada (verificar se todos os itens do checklist da etapa foram cumpridos).
+2. Atualizar `REFATORAÇÃO.md`:
+   - Marcar status da etapa como `✅ Concluída`.
+   - Registrar no Histórico de Execução (data, arquivos criados, arquivos modificados, observações).
+   - Atualizar progresso geral.
+   - Atualizar a Próxima Etapa Recomendada.
+3. Atualizar `CLAUDE.md`:
+   - Refletir a estrutura atual do projeto.
+   - Atualizar arquivos criados e modificados.
+   - Atualizar a seção "Status Atual da Refatoração".
+4. Gerar o checklist final de encerramento da etapa (ver seção "Regra Obrigatória — Atualização da Documentação").
+5. Informar o commit recomendado.
+
+Não inventar informações. Basear-se exclusivamente nos arquivos do projeto.
 
 ---
 

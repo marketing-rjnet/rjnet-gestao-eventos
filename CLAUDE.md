@@ -14,14 +14,21 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ```
 src/
-├── main.jsx              # App React completo (~2.500 linhas) — todos os componentes
+├── main.jsx              # App principal (~2.100 linhas — reduzindo progressivamente)
 ├── index.css             # Estilos globais (tema dark)
+├── components/
+│   └── ui.jsx            # Icon, StatusBadge, TipoBadge, Kpi, ChartView
+├── utils/
+│   ├── format.js         # Funções de formatação e label maps
+│   ├── masks.js          # Máscaras e validadores (CPF, telefone)
+│   ├── csv.js            # Exportação de leads para CSV
+│   └── mockData.js       # Dados mock para modo local (sem Supabase)
 └── lib/
     ├── supabase.js       # Inicialização do cliente Supabase
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
-    └── constants.js      # Constantes globais (validações, metadados)
+    └── constants.js      # Constantes globais + enums de domínio
 
 supabase/
 ├── schema.sql            # Schema inicial (4 tabelas + seed)
@@ -210,10 +217,64 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~2.500 | App inteiro: componentes, context, formulários, gráficos |
+| `src/main.jsx` | ~2.100 (reduzindo) | App principal — componentes ainda não extraídos |
 | `src/lib/dataService.js` | ~330 | Queries Supabase, auth, realtime, retry |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
+| `src/lib/constants.js` | ~29 | Constantes de domínio e magic numbers |
+| `src/components/ui.jsx` | ~100 | Componentes UI atômicos (Icon, StatusBadge, TipoBadge, Kpi, ChartView) |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
 | `vercel.json` | ~35 | Headers CSP e segurança |
 | `playwright.config.js` | ~71 | Config E2E dual-server |
+
+---
+
+## Status Atual da Refatoração
+
+> Esta seção é atualizada ao final de cada etapa concluída. Reflete o estado real do código, não o plano original.
+
+| Campo | Valor |
+|-------|-------|
+| Etapas concluídas | 6 |
+| Total de etapas | 18 |
+| Progresso | 33% |
+| Última etapa executada | Etapa 6 — UI Components |
+| Próxima etapa prevista | Etapa 7 — SyncBadge + useApp |
+
+### Estrutura atual do projeto (`src/`)
+
+```
+src/
+├── main.jsx              # App principal (~2.100 linhas — em redução progressiva)
+├── index.css             # Estilos globais (tema dark)
+├── components/
+│   └── ui.jsx            # Icon, StatusBadge, TipoBadge, Kpi, ChartView
+└── lib/
+    ├── supabase.js       # Inicialização do cliente Supabase
+    ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
+    ├── security.js       # Sanitização e XSS prevention
+    ├── cache.js          # Cache em memória com TTL
+    └── constants.js      # Constantes globais + enums de domínio
+└── utils/
+    ├── format.js         # Funções de formatação e label maps
+    ├── masks.js          # Máscaras e validadores de CPF/telefone
+    ├── csv.js            # Exportação de leads para CSV
+    └── mockData.js       # Dados mock para modo local (sem Supabase)
+```
+
+### Arquivos recentemente criados
+
+| Arquivo | Etapa | Data |
+|---------|-------|------|
+| `src/utils/format.js` | Etapa 1 | 15/06/2026 |
+| `src/utils/masks.js` | Etapa 2 | 15/06/2026 |
+| `src/utils/csv.js` | Etapa 3 | 15/06/2026 |
+| `src/utils/mockData.js` | Etapa 4 | 15/06/2026 |
+| `src/components/ui.jsx` | Etapa 6 | 15/06/2026 |
+
+### Arquivos recentemente modificados
+
+| Arquivo | Mudança | Etapa |
+|---------|---------|-------|
+| `src/lib/constants.js` | Adicionadas: SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, RANKING_DEBOUNCE_MS, RANKING_POLL_MS, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN, RECENT_EVENTS_SHOWN, CHART_CUTOUT | Etapa 5 |
+| `src/main.jsx` | Removidas funções de format, masks, csv, mock data, constantes e componentes UI; imports adicionados | Etapas 1–6 |
