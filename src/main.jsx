@@ -14,6 +14,7 @@ import { Icon, StatusBadge, TipoBadge, Kpi, ChartView } from './components/ui';
 import { useApp } from './hooks/useApp';
 import SyncBadge from './components/SyncBadge';
 import { RootAuth, RootLegacy } from './auth';
+import { EventModal, MaterialModal } from './components/modals';
 
 Chart.register(...registerables);
 
@@ -270,140 +271,6 @@ Chart.register(...registerables);
         x: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" } },
         y: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" }, beginAtZero: true },
       };
-
-      /* ============================================================
-         EVENT FORM MODAL
-         ============================================================ */
-      function EventModal({ onClose, evento }) {
-        const { addEvento, updateEvento } = useApp();
-        const [f, setF] = useState({
-          nome: evento?.nome || "",
-          local: evento?.local || "",
-          dataInicio: evento?.dataInicio || "",
-          dataFim: evento?.dataFim || "",
-          tipo: evento?.tipo || "sinalizacao",
-          status: evento?.status || "planejado",
-          observacoes: evento?.observacoes || "",
-        });
-        const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-        const submit = (e) => {
-          e.preventDefault();
-          const nome = sanitize(f.nome, 120);
-          const local = sanitize(f.local, 200);
-          const observacoes = sanitize(f.observacoes || "", 500);
-          if (!nome || !local) return;
-          if (f.dataFim && f.dataInicio && f.dataFim < f.dataInicio) {
-            alert("A data de fim não pode ser anterior à data de início.");
-            return;
-          }
-          const dados = { ...f, nome, local, observacoes };
-          if (evento) updateEvento(evento.id, dados);
-          else addEvento({ ...dados, materiais: [] });
-          onClose();
-        };
-        return (
-          <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>{evento ? "Editar Evento" : "Novo Evento"}</h2>
-                <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
-              </div>
-              <form onSubmit={submit} className="modal-form">
-                <div className="field-group">
-                  <label>Nome do Evento *</label>
-                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Festa do Pescador" />
-                </div>
-                <div className="field-group">
-                  <label>Local *</label>
-                  <input required maxLength={200} value={f.local} onChange={(e) => set("local", e.target.value)} placeholder="Endereço / Praça / Espaço" />
-                </div>
-                <div className="field-row">
-                  <div className="field-group">
-                    <label>Data Início *</label>
-                    <input required type="date" value={f.dataInicio} onChange={(e) => set("dataInicio", e.target.value)} />
-                  </div>
-                  <div className="field-group">
-                    <label>Data Fim *</label>
-                    <input required type="date" value={f.dataFim} onChange={(e) => set("dataFim", e.target.value)} />
-                  </div>
-                </div>
-                <div className="field-row">
-                  <div className="field-group">
-                    <label>Tipo</label>
-                    <select value={f.tipo} onChange={(e) => set("tipo", e.target.value)}>
-                      <option value="sinalizacao">Sinalização</option>
-                      <option value="presenca_comercial">Presença Comercial</option>
-                      <option value="ativacao_especial">Ativação Especial</option>
-                    </select>
-                  </div>
-                  <div className="field-group">
-                    <label>Status</label>
-                    <select value={f.status} onChange={(e) => set("status", e.target.value)}>
-                      <option value="planejado">Planejado</option>
-                      <option value="ativo">Ativo</option>
-                      <option value="encerrado">Encerrado</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="field-group">
-                  <label>Observações</label>
-                  <textarea rows="3" maxLength={500} value={f.observacoes} onChange={(e) => set("observacoes", e.target.value)} placeholder="Detalhes adicionais..." />
-                </div>
-                <div className="modal-actions">
-                  <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-                  <button type="submit" className="btn-primary">{evento ? "Salvar" : "Criar Evento"}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         MATERIAL MODAL
-         ============================================================ */
-      function MaterialModal({ onClose }) {
-        const { addMaterial } = useApp();
-        const [f, setF] = useState({ nome: "", quantidade: 1, descricao: "" });
-        const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-        const submit = (e) => {
-          e.preventDefault();
-          const nome = sanitize(f.nome, 120);
-          const qtd = parseInt(f.quantidade, 10);
-          if (!nome) return;
-          if (!qtd || qtd < 1 || qtd > 9999) { alert("Quantidade inválida. Informe um número entre 1 e 9999."); return; }
-          addMaterial({ ...f, nome, descricao: sanitize(f.descricao || "", 300), quantidade: qtd });
-          onClose();
-        };
-        return (
-          <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Adicionar Material</h2>
-                <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
-              </div>
-              <form onSubmit={submit} className="modal-form">
-                <div className="field-group">
-                  <label>Nome *</label>
-                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Wind Banner 2m" autoFocus />
-                </div>
-                <div className="field-group">
-                  <label>Quantidade *</label>
-                  <input required type="number" min="1" value={f.quantidade} onChange={(e) => set("quantidade", e.target.value)} />
-                </div>
-                <div className="field-group">
-                  <label>Descrição</label>
-                  <input value={f.descricao} onChange={(e) => set("descricao", e.target.value)} placeholder="Opcional" />
-                </div>
-                <div className="modal-actions">
-                  <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-                  <button type="submit" className="btn-primary">Adicionar</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      }
 
       /* ============================================================
          DASHBOARD (top of Eventos tab)

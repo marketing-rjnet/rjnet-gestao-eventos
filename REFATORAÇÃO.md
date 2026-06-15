@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 8/18 etapas concluídas (44%)
+Progresso geral: 9/18 etapas concluídas (50%)
 Arquivo principal: src/main.jsx — meta: < 100 linhas ao fim
 ```
 
@@ -67,6 +67,16 @@ Etapa 8 executada em 15/06/2026.
   Login, LoginAuth, NovaSenha, RootAuth, RootLegacy removidos de main.jsx (~235 linhas).
   main.jsx reduzido para ~2.021 linhas.
   Build passou sem erros.
+  Nota: etapa documentada antes da execução; código real executado em 15/06/2026 na mesma sessão da etapa 9.
+
+Etapa 9 executada em 15/06/2026.
+  Criado src/components/modals/EventModal.jsx: modal de criação/edição de evento.
+  Criado src/components/modals/MaterialModal.jsx: modal de criação de material.
+  Criado src/components/modals/index.js: re-exports dos modais.
+  EventModal e MaterialModal removidos de main.jsx (~135 linhas).
+  sanitize() nos modais convertida para sanitizeText() diretamente (sem alias local).
+  main.jsx reduzido para ~1.884 linhas.
+  Build passou sem erros.
 ```
 
 ### Legenda de Status
@@ -89,7 +99,7 @@ Etapa 5  — Constants                 ✅ Concluída
 Etapa 6  — UI Components             ✅ Concluída
 Etapa 7  — SyncBadge + useApp        ✅ Concluída
 Etapa 8  — Auth Components           ✅ Concluída
-Etapa 9  — Modais                    ⬜ Não iniciada
+Etapa 9  — Modais                    ✅ Concluída
 Etapa 10 — Dashboard + Eventos       ⬜ Não iniciada
 Etapa 11 — Estoque + Leads + Checkin ⬜ Não iniciada
 Etapa 12 — Equipe                    ⬜ Não iniciada
@@ -1408,15 +1418,16 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 9 — Modais** (primeira etapa não concluída)
+**→ Etapa 10 — Dashboard + Eventos** (primeira etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Ler `src/main.jsx` nas linhas de `EventModal` e `MaterialModal`.
-2. Criar `src/components/modals/EventModal.jsx` com o modal de criação/edição de evento.
-3. Criar `src/components/modals/MaterialModal.jsx` com o modal de novo material.
-4. Criar `src/components/modals/index.js` re-exportando os dois.
-5. Remover as definições de `main.jsx` e adicionar os imports correspondentes.
-6. Executar `npm run build` e verificar sem erros.
-7. Testar os itens do checklist de validação da Etapa 9.
-8. Commit: `refactor: extract EventModal and MaterialModal components`.
+1. Verificar se `CHART_COLORS` está em constants.js ou ainda em main.jsx (linha ~42).
+2. Ler `src/main.jsx` nas linhas de `Dashboard`, `EventosTab` e `EventDetail`.
+3. Criar `src/features/events/Dashboard.jsx`.
+4. Criar `src/features/events/EventosTab.jsx`.
+5. Criar `src/features/events/EventDetail.jsx`.
+6. Criar `src/features/events/index.js` re-exportando os três.
+7. Remover as definições de `main.jsx` e adicionar os imports correspondentes.
+8. Executar `npm run build` e verificar sem erros.
+9. Commit: `refactor: extract Dashboard, EventosTab and EventDetail to src/features/events/`.
