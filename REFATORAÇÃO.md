@@ -30,7 +30,7 @@ O plano possui 18 etapas.
 Atualize esta seção ao iniciar cada novo chat.
 
 ```
-Progresso geral: 4/18 etapas concluídas (22%)
+Progresso geral: 5/18 etapas concluídas (28%)
 ```
 
 ```
@@ -38,6 +38,12 @@ Observações:
 Etapas 1-4 executadas em 15/06/2026. Arquivos criados: src/utils/format.js,
 src/utils/masks.js, src/utils/csv.js, src/utils/mockData.js.
 Pacotes (etapa 4b) mantidos no JSX — dados acoplados à renderização.
+
+Etapa 5 executada em 15/06/2026. Adicionados a src/lib/constants.js:
+SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, RANKING_DEBOUNCE_MS,
+RANKING_POLL_MS, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN, RECENT_EVENTS_SHOWN,
+CHART_CUTOUT. Substituídos todos os magic strings/numbers correspondentes
+em main.jsx. Nenhuma funcionalidade alterada.
 ```
 
 ```
@@ -45,7 +51,7 @@ Etapa 1  - ✅ Concluída
 Etapa 2  - ✅ Concluída
 Etapa 3  - ✅ Concluída
 Etapa 4  - ✅ Concluída
-Etapa 5  - ⬜ Não iniciada
+Etapa 5  - ✅ Concluída
 Etapa 6  - ⬜ Não iniciada
 Etapa 7  - ⬜ Não iniciada
 Etapa 8  - ⬜ Não iniciada
