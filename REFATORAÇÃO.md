@@ -30,7 +30,7 @@ O plano possui 18 etapas.
 Atualize esta seção ao iniciar cada novo chat.
 
 ```
-Progresso geral: 5/18 etapas concluídas (28%)
+Progresso geral: 6/18 etapas concluídas (33%)
 ```
 
 ```
@@ -44,6 +44,11 @@ SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, RANKING_DEBOUNCE_MS,
 RANKING_POLL_MS, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN, RECENT_EVENTS_SHOWN,
 CHART_CUTOUT. Substituídos todos os magic strings/numbers correspondentes
 em main.jsx. Nenhuma funcionalidade alterada.
+
+Etapa 6 executada em 15/06/2026. Criado src/components/ui.jsx com:
+Icon, StatusBadge, TipoBadge, Kpi, ChartView. Removidas definições
+correspondentes de main.jsx e adicionado import. SyncBadge reservado
+para Etapa 7 conforme plano. Build passou sem erros.
 ```
 
 ```
@@ -52,7 +57,7 @@ Etapa 2  - ✅ Concluída
 Etapa 3  - ✅ Concluída
 Etapa 4  - ✅ Concluída
 Etapa 5  - ✅ Concluída
-Etapa 6  - ⬜ Não iniciada
+Etapa 6  - ✅ Concluída
 Etapa 7  - ⬜ Não iniciada
 Etapa 8  - ⬜ Não iniciada
 Etapa 9  - ⬜ Não iniciada
