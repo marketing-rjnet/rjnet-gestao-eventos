@@ -4,7 +4,7 @@ import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
 import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, flushPendingQueue } from './lib/dataService';
 import { sanitizeText } from './lib/security';
-import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
+import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS, SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, RANKING_DEBOUNCE_MS, RANKING_POLL_MS, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN, RECENT_EVENTS_SHOWN, CHART_CUTOUT } from './lib/constants';
 import './index.css';
 import { SERVICO_LABEL, TIPO_LABEL, STATUS_LABEL, servicoLabel, tipoLabel, fmtDate, fmtDateLong, initials } from './utils/format';
 import { validarCpf, validarTelefone, maskCpf, maskTel } from './utils/masks';
@@ -154,8 +154,7 @@ Chart.register(...registerables);
         const [leads, setLeads] = usePersisted("rjnet_leads", supabaseEnabled ? [] : MOCK_LEADS);
         const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", supabaseEnabled ? [] : MOCK_VENDEDORES);
         const [isLoading, setIsLoading] = useState(supabaseEnabled);
-        // "idle" | "syncing" | "error"
-        const [syncStatus, setSyncStatus] = useState("idle");
+        const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
         const abortRef = useRef(null);
         const carregar = async () => {
@@ -164,16 +163,16 @@ Chart.register(...registerables);
           const controller = new AbortController();
           abortRef.current = controller;
 
-          setSyncStatus("syncing");
+          setSyncStatus(SYNC_STATUS.SYNCING);
           await flushPendingQueue();
           const dados = await fetchAll(controller.signal);
           if (controller.signal.aborted) return;
-          if (!dados) { setSyncStatus("error"); return; }
+          if (!dados) { setSyncStatus(SYNC_STATUS.ERROR); return; }
           setMateriais(dados.materiais);
           setVendedores(dados.vendedores);
           setEventos(dados.eventos);
           setLeads(dados.leads);
-          setSyncStatus("idle");
+          setSyncStatus(SYNC_STATUS.IDLE);
           setIsLoading(false);
         };
         useEffect(() => {
@@ -185,10 +184,10 @@ Chart.register(...registerables);
             if (evento === 'SIGNED_OUT') {
               abortRef.current?.abort();
               setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
-              setSyncStatus("idle");
+              setSyncStatus(SYNC_STATUS.IDLE);
             }
           });
-          const handleSyncError = () => setSyncStatus("error");
+          const handleSyncError = () => setSyncStatus(SYNC_STATUS.ERROR);
           window.addEventListener('rjnet:sync-error', handleSyncError);
           window.addEventListener('online', carregar);
           return () => {
@@ -299,11 +298,11 @@ Chart.register(...registerables);
           obterRanking,
           recarregar: carregar,
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
-          getEventosAtivos: () => eventos.filter((e) => e.status === "ativo"),
+          getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
           getMateriaisDisponiveis: () =>
             materiais.map((mat) => {
               const emCampo = eventos
-                .filter((e) => e.status === "ativo" || e.status === "planejado")
+                .filter((e) => e.status === STATUS_EVENTO.ATIVO || e.status === STATUS_EVENTO.PLANEJADO)
                 .flatMap((e) => e.materiais)
                 .filter((mm) => mm.materialId === mat.id && !mm.retornado)
                 .reduce((acc, mm) => acc + mm.quantidade, 0);
@@ -684,7 +683,7 @@ Chart.register(...registerables);
          ============================================================ */
       function Dashboard() {
         const { eventos, leads, vendedores, getMateriaisDisponiveis } = useApp();
-        const ativos = eventos.filter((e) => e.status === "ativo").length;
+        const ativos = eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO).length;
         const criticos = getMateriaisDisponiveis().filter((m) => m.disponivel <= 0).length;
         const vendAtivos = vendedores.filter((v) => v.ativo).length;
 
@@ -704,7 +703,7 @@ Chart.register(...registerables);
           }],
         };
 
-        const upcoming = [...eventos].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)).slice(0, 3);
+        const upcoming = [...eventos].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)).slice(0, UPCOMING_EVENTS_LIMIT);
 
         return (
           <div className="section">
@@ -722,7 +721,7 @@ Chart.register(...registerables);
                 ) : (
                   <div className="chart-box">
                     <ChartView type="doughnut" data={doughData} options={{
-                      cutout: "62%",
+                      cutout: CHART_CUTOUT,
                       plugins: { legend: { position: "bottom", labels: { color: "#b0b0b0", padding: 14, usePointStyle: true } } },
                     }} />
                   </div>
@@ -783,7 +782,7 @@ Chart.register(...registerables);
                       <div className="ev-foot">
                         <span className="ev-leads"><Icon name="users" size={13} stroke="var(--text-3)" /> <b>{getLeadsEvento(e.id).length}</b> leads</span>
                         <div className="avatars">
-                          {vs.slice(0, 4).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
+                          {vs.slice(0, AVATARS_SHOWN).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
                           {vs.length === 0 && <span style={{ fontSize: 12, color: "var(--text-3)" }}>—</span>}
                         </div>
                       </div>
@@ -942,7 +941,7 @@ Chart.register(...registerables);
                       {ev.materiais.map((m, i) => {
                         const d = disp.find((x) => x.material.id === m.materialId);
                         const dv = d ? d.disponivel : 0;
-                        const cls = dv <= 0 ? "crit" : dv <= 3 ? "warn" : "ok";
+                        const cls = dv <= 0 ? NIVEL_ESTOQUE.CRIT : dv <= 3 ? NIVEL_ESTOQUE.WARN : NIVEL_ESTOQUE.OK;
                         return (
                           <tr key={`${m.materialId}_${i}`} style={{ opacity: m.retornado ? .5 : 1 }}>
                             <td className="strong" style={{ textDecoration: m.retornado ? "line-through" : "none" }}>
@@ -1052,7 +1051,7 @@ Chart.register(...registerables);
                 <div className="sr-num"><b>{m.material.quantidade}</b>total</div>
                 <div className="sr-num"><b>{m.emCampo}</b>em campo</div>
                 <div className="sr-num">
-                  <span className={"badge badge-" + (cls === "crit" ? "crit" : cls === "warn" ? "warn" : "ok")}>{m.disponivel} disp.</span>
+                  <span className={"badge badge-" + (cls === NIVEL_ESTOQUE.CRIT ? NIVEL_ESTOQUE.CRIT : cls === NIVEL_ESTOQUE.WARN ? NIVEL_ESTOQUE.WARN : NIVEL_ESTOQUE.OK)}>{m.disponivel} disp.</span>
                 </div>
               </div>
             ))}
@@ -1075,9 +1074,9 @@ Chart.register(...registerables);
               <Kpi label="Em Campo" value={emCampo} icon="🚚" />
             </div>
 
-            <Group title="CRÍTICO" dot="dot_red" cls="crit" rows={crit} />
-            <Group title="ATENÇÃO" dot="dot_yellow" cls="warn" rows={warn} />
-            <Group title="OK" dot="dot_green" cls="ok" rows={ok} />
+            <Group title="CRÍTICO" dot="dot_red" cls={NIVEL_ESTOQUE.CRIT} rows={crit} />
+            <Group title="ATENÇÃO" dot="dot_yellow" cls={NIVEL_ESTOQUE.WARN} rows={warn} />
+            <Group title="OK" dot="dot_green" cls={NIVEL_ESTOQUE.OK} rows={ok} />
 
             {showModal && <MaterialModal onClose={() => setShowModal(false)} />}
           </div>
@@ -1246,7 +1245,7 @@ Chart.register(...registerables);
                 const vl = leadsDoVendedor(v.nome);
                 const recent = [...eventos]
                   .sort((a, b) => a.dataInicio.localeCompare(b.dataInicio))
-                  .slice(-5)
+                  .slice(-RECENT_EVENTS_SHOWN)
                   .map((ev) => ({ ev, n: vl.filter((l) => l.eventoId === ev.id).length }));
                 const hasData = recent.some((r) => r.n > 0);
                 const barData = {
@@ -1758,12 +1757,12 @@ Chart.register(...registerables);
 
       function SyncBadge() {
         const { syncStatus } = useApp();
-        if (!supabaseEnabled || syncStatus === "idle") return null;
+        if (!supabaseEnabled || syncStatus === SYNC_STATUS.IDLE) return null;
         const styles = {
-          syncing: { color: "var(--text-3)", fontSize: 11 },
-          error:   { color: "var(--red, #ef4444)", fontSize: 11, fontWeight: 600 },
+          [SYNC_STATUS.SYNCING]: { color: "var(--text-3)", fontSize: 11 },
+          [SYNC_STATUS.ERROR]:   { color: "var(--red, #ef4444)", fontSize: 11, fontWeight: 600 },
         };
-        const labels = { syncing: "sincronizando…", error: "⚠ erro ao sincronizar" };
+        const labels = { [SYNC_STATUS.SYNCING]: "sincronizando…", [SYNC_STATUS.ERROR]: "⚠ erro ao sincronizar" };
         return <span style={styles[syncStatus]}>{labels[syncStatus]}</span>;
       }
 
@@ -1820,7 +1819,7 @@ Chart.register(...registerables);
         useEffect(() => {
           if (!eventoId) return;
           clearTimeout(rankingDebounce.current);
-          rankingDebounce.current = setTimeout(() => atualizarRanking.current(eventoId), 3000);
+          rankingDebounce.current = setTimeout(() => atualizarRanking.current(eventoId), RANKING_DEBOUNCE_MS);
           return () => clearTimeout(rankingDebounce.current);
         // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [leads.length]);
@@ -1828,7 +1827,7 @@ Chart.register(...registerables);
         // Polling passivo de 60 s para sincronizar com outros devices
         useEffect(() => {
           if (!eventoId) return;
-          const interval = setInterval(() => atualizarRanking.current(eventoId), 60_000);
+          const interval = setInterval(() => atualizarRanking.current(eventoId), RANKING_POLL_MS);
           return () => clearInterval(interval);
         }, [eventoId]);
         const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
@@ -1855,7 +1854,7 @@ Chart.register(...registerables);
           setFormErro("");
           if (!eventoId) { setFormErro("Selecione um evento antes de registrar."); return; }
           const eventoSel = eventos.find((ev) => ev.id === eventoId);
-          if (!eventoSel || eventoSel.status === "encerrado") { setFormErro("Este evento está encerrado e não aceita novos leads."); return; }
+          if (!eventoSel || eventoSel.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Este evento está encerrado e não aceita novos leads."); return; }
           const nome = sanitize(f.nome, 120);
           if (!nome) { setFormErro("Nome é obrigatório."); return; }
           if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
