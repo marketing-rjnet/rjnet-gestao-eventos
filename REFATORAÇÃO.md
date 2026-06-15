@@ -22,8 +22,8 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 12/18 etapas concluídas (67%)
-Arquivo principal: src/main.jsx — atual: ~942 linhas — meta: < 100 linhas ao fim
+Progresso geral: 13/18 etapas concluídas (72%)
+Arquivo principal: src/main.jsx — atual: ~360 linhas — meta: < 100 linhas ao fim
 ```
 
 ### Histórico de Execução
@@ -110,6 +110,18 @@ Etapa 12 executada em 15/06/2026.
   sanitize() convertida para sanitizeText() diretamente nos novos arquivos.
   Imports não mais usados removidos de main.jsx: RECENT_EVENTS_SHOWN (constants), fmtDate e initials (format).
   Build passou sem erros (94 módulos transformados).
+
+Etapa 13 executada em 15/06/2026.
+  Criado src/apps/VendedorApp.jsx: shell completo do vendedor com LeadEditInline embutido.
+  LeadEditInline e VendedorApp removidos de main.jsx (~580 linhas).
+  TEMPERATURA_CONFIG e OBS_ATALHOS definidos localmente em VendedorApp.jsx (removidos de main.jsx).
+  sanitize() convertida para sanitizeText() diretamente em VendedorApp.jsx.
+  Imports não mais usados removidos de main.jsx: sanitizeText (security), META_DIARIA, SENHA_MIN_LENGTH,
+    MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS, RANKING_DEBOUNCE_MS, RANKING_POLL_MS (constants),
+    SERVICO_LABEL, TIPO_LABEL, STATUS_LABEL, servicoLabel (format), validarCpf, validarTelefone, maskCpf, maskTel
+    (masks), StatusBadge, TipoBadge, Kpi, ChartView (ui), useApp (hooks), EventModal, MaterialModal (modals).
+  main.jsx reduzido para ~360 linhas.
+  Build passou sem erros (95 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -136,7 +148,7 @@ Etapa 9  — Modais                    ✅ Concluída
 Etapa 10 — Dashboard + Eventos       ✅ Concluída
 Etapa 11 — Estoque + Leads + Checkin ✅ Concluída
 Etapa 12 — Equipe                    ✅ Concluída
-Etapa 13 — VendedorApp               ⬜ Não iniciada
+Etapa 13 — VendedorApp               ✅ Concluída
 Etapa 14 — App + Layout Shells       ⬜ Não iniciada
 Etapa 15 — Domain Hooks              ⬜ Não iniciada
 Etapa 16 — Infraestrutura            ⬜ Não iniciada
@@ -1451,14 +1463,13 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 13 — VendedorApp** (próxima etapa não concluída)
+**→ Etapa 14 — App + Layout Shells** (próxima etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Ler `src/main.jsx` nas linhas de `LeadEditInline` e `VendedorApp` (~588–942).
-2. Criar `src/apps/VendedorApp.jsx` com o shell completo do vendedor.
-3. Criar `src/apps/LeadEditInline.jsx` (ou incluir no mesmo arquivo, avaliar tamanho).
-4. Remover as definições de `main.jsx` e adicionar o import correspondente.
-5. Garantir cleanup do setInterval de ranking no unmount.
-6. Executar `npm run build` e verificar sem erros.
-7. Commit: `refactor: extract VendedorApp and LeadEditInline to src/apps/`.
+1. Ler `src/main.jsx` nas linhas de `MarketingApp` e `Root`.
+2. Criar `src/apps/MarketingApp.jsx` com o shell do marketing.
+3. Criar `src/apps/Root.jsx` com o roteador raiz.
+4. Remover as definições de `main.jsx` e adicionar os imports correspondentes.
+5. Executar build e verificar sem erros.
+6. Commit: `refactor: extract MarketingApp and Root to src/apps/`.

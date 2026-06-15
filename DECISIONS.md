@@ -686,6 +686,39 @@ Os dois componentes formam o domínio funcional de gestão de equipe e totalizav
 
 ---
 
+### [D-020] — VendedorApp extraído para `src/apps/` com LeadEditInline embutido (Etapa 13)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`VendedorApp` e `LeadEditInline` foram extraídos de `main.jsx` para `src/apps/VendedorApp.jsx` como arquivo único. `LeadEditInline` permanece no mesmo arquivo em vez de ser separado em `src/apps/LeadEditInline.jsx`. `TEMPERATURA_CONFIG` e `OBS_ATALHOS` foram movidos para o escopo do módulo.
+
+**Motivação:**
+`LeadEditInline` é usado exclusivamente dentro de `VendedorApp` e tem ~65 linhas — tamanho que não justifica arquivo separado. Colocá-lo no mesmo módulo evita import desnecessário e mantém coesão. A criação do diretório `src/apps/` segue o plano arquitetural (Etapas 13–14) para shells de aplicação distintos do marketing e do vendedor.
+
+**Alternativas Avaliadas:**
+- Arquivo separado `src/apps/LeadEditInline.jsx` (avaliada — descartada por adicionar overhead sem benefício, dado o uso exclusivo dentro de VendedorApp)
+- Manter em `main.jsx` (descartada — ~580 linhas de UI específica do vendedor no arquivo monolítico)
+
+**Impactos:**
+- Positivo: ~580 linhas removidas de `main.jsx`; domínio do vendedor isolado em `src/apps/`; imports desnecessários limpos de `main.jsx`
+- Positivo: `TEMPERATURA_CONFIG` agora existe em local único (`VendedorApp.jsx`); duplicata em `CheckinTab.jsx` permanece por autonomia do módulo
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `src/apps/VendedorApp.jsx` (criado — contém LeadEditInline e VendedorApp)
+- `src/main.jsx` (removidas definições; adicionado `import VendedorApp from './apps/VendedorApp'`; imports limpos)
+
+**Riscos:**
+- Polling de ranking com `setInterval` — cleanup garantido via `return () => clearInterval(interval)` no `useEffect`
+- Toast com timer — cancelado corretamente em `handleUndo` e no `showToast` antes de novo toast
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

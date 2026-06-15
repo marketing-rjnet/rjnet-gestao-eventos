@@ -12,12 +12,14 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–12 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–13 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
-├── main.jsx              # App React (~942 linhas) — VendedorApp e MarketingApp ainda não extraídos
+├── main.jsx              # App React (~360 linhas) — MarketingApp e Root ainda não extraídos
 ├── index.css             # Estilos globais (tema dark)
+├── apps/
+│   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline (etapa 13)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
 │   ├── LoginAuth.jsx     # Formulário de login Supabase + recuperação de senha (etapa 8)
@@ -249,7 +251,8 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~1.530 | Context, AppProvider, EstoqueTab, LeadsTab, EquipeTab, CheckinTab, MarketingApp, VendedorApp (refatoração em andamento) |
+| `src/main.jsx` | ~360 | Context, AppProvider, ErrorBoundary, MarketingApp, Root (refatoração em andamento) |
+| `src/apps/VendedorApp.jsx` | ~370 | Shell completo do vendedor + LeadEditInline (etapa 13) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
