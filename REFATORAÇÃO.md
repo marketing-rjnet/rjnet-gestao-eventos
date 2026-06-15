@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 7/18 etapas concluídas (39%)
+Progresso geral: 8/18 etapas concluídas (44%)
 Arquivo principal: src/main.jsx — meta: < 100 linhas ao fim
 ```
 
@@ -53,6 +53,20 @@ Etapa 7 executada em 15/06/2026.
   AppContext exportado de main.jsx (import temporário resolvido pelo Vite).
   useApp e SyncBadge removidos de main.jsx. useContext removido do import React.
   Build passou sem erros.
+
+Etapa 8 executada em 15/06/2026.
+  Criado src/auth/Login.jsx: formulário de login modo legado.
+  Criado src/auth/LoginAuth.jsx: formulário de login Supabase com recuperação de senha.
+  Criado src/auth/NovaSenha.jsx: formulário de redefinição de senha por link.
+  Criado src/auth/RootAuth.jsx: roteador de autenticação modo Supabase.
+  Criado src/auth/RootLegacy.jsx: roteador de autenticação modo legado.
+  Criado src/auth/index.js: re-exports de todos os componentes de auth.
+  usePersisted exportado de main.jsx para que RootLegacy possa importar (temporário até Etapa 15).
+  MarketingApp e VendedorApp passados como props para RootAuth e RootLegacy (ainda definidos em main.jsx).
+  _mktUser, _mktPass e AUTH removidos de main.jsx; movidos para src/auth/Login.jsx.
+  Login, LoginAuth, NovaSenha, RootAuth, RootLegacy removidos de main.jsx (~235 linhas).
+  main.jsx reduzido para ~2.021 linhas.
+  Build passou sem erros.
 ```
 
 ### Legenda de Status
@@ -74,7 +88,7 @@ Etapa 4  — Mock Data e Pacotes       ✅ Concluída
 Etapa 5  — Constants                 ✅ Concluída
 Etapa 6  — UI Components             ✅ Concluída
 Etapa 7  — SyncBadge + useApp        ✅ Concluída
-Etapa 8  — Auth Components           ⬜ Não iniciada
+Etapa 8  — Auth Components           ✅ Concluída
 Etapa 9  — Modais                    ⬜ Não iniciada
 Etapa 10 — Dashboard + Eventos       ⬜ Não iniciada
 Etapa 11 — Estoque + Leads + Checkin ⬜ Não iniciada
@@ -574,7 +588,7 @@ Extrair o hook `useApp` e o componente `SyncBadge` de `main.jsx` para módulos p
 
 ## Etapa 8 — Auth Components
 
-**Status: ⬜ Não iniciada**
+**Status: ✅ Concluída**
 
 ### Objetivo
 
@@ -1394,15 +1408,15 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 7 — SyncBadge + useApp** (primeira etapa não concluída)
+**→ Etapa 9 — Modais** (primeira etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Ler `src/main.jsx` na definição de `useApp` e `SyncBadge`.
-2. Criar `src/hooks/useApp.js` exportando `useApp` (wrapper de `useContext(AppContext)`).
-3. Criar `src/components/SyncBadge.jsx` movendo o componente de `main.jsx`.
-4. Em `useApp.js`, importar `AppContext` de `../main` temporariamente (será corrigido na Etapa 16).
+1. Ler `src/main.jsx` nas linhas de `EventModal` e `MaterialModal`.
+2. Criar `src/components/modals/EventModal.jsx` com o modal de criação/edição de evento.
+3. Criar `src/components/modals/MaterialModal.jsx` com o modal de novo material.
+4. Criar `src/components/modals/index.js` re-exportando os dois.
 5. Remover as definições de `main.jsx` e adicionar os imports correspondentes.
 6. Executar `npm run build` e verificar sem erros.
-7. Testar os 5 itens do checklist de validação da Etapa 7.
-8. Commit: `refactor: extract useApp hook and SyncBadge component`.
+7. Testar os itens do checklist de validação da Etapa 9.
+8. Commit: `refactor: extract EventModal and MaterialModal components`.
