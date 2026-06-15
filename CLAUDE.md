@@ -12,12 +12,16 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–14 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–16 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
-├── main.jsx              # App React (~245 linhas) — AppContext, usePersisted, AppProvider, ErrorBoundary
+├── main.jsx              # Ponto de entrada (~35 linhas) — ErrorBoundary + ReactDOM.createRoot
 ├── index.css             # Estilos globais (tema dark)
+├── context/
+│   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
+│   ├── AppProvider.jsx   # Provider com estado global e ações de domínio (etapa 16)
+│   └── index.js          # Re-exports de context (etapa 16)
 ├── apps/
 │   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
 │   ├── MarketingApp.jsx  # Shell do usuário marketing: navegação, tabs, dark mode (etapa 14)

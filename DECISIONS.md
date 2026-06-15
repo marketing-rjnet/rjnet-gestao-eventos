@@ -787,6 +787,41 @@ Os dois componentes representavam o último bloco de UI em `main.jsx`. Com a ext
 
 ---
 
+### [D-023] — AppContext e AppProvider extraídos para `src/context/` (Etapa 16)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração / Infraestrutura
+
+**Decisão:**
+`AppContext` (createContext) e `AppProvider` (Provider com todo o estado e ações) foram extraídos de `main.jsx` para módulos dedicados em `src/context/`, com re-export via `src/context/index.js`. O import circular `useApp.js → ../main` foi eliminado — agora importa de `../context/AppContext` diretamente.
+
+**Motivação:**
+`main.jsx` continha ainda ~185 linhas de infraestrutura de estado (AppContext + AppProvider) que precisavam ser separadas do ponto de entrada React. Com a extração, `main.jsx` fica com ~35 linhas (apenas `ErrorBoundary` e `ReactDOM.createRoot`), atingindo a meta de < 100 linhas antes do fim da refatoração.
+
+**Alternativas Avaliadas:**
+- Manter AppContext separado de AppProvider (avaliada — desnecessário; `AppContext.js` tem apenas 3 linhas e cria apenas a referência do contexto)
+- Usar arquivo único `src/context/index.js` para tudo (descartada — separação AppContext/AppProvider facilita import granular em `useApp.js`)
+
+**Impactos:**
+- Positivo: `main.jsx` reduzido para ~35 linhas; import circular `useApp.js → ../main` eliminado; `src/context/` contém toda a infraestrutura de estado
+- Positivo: 102 módulos transformados no build (era 99); nenhuma regressão
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `src/context/AppContext.js` (criado — 3 linhas)
+- `src/context/AppProvider.jsx` (criado — ~145 linhas)
+- `src/context/index.js` (criado — 2 linhas)
+- `src/main.jsx` (removidas definições; imports limpos; reduzido para ~35 linhas)
+- `src/hooks/useApp.js` (import de AppContext atualizado de `../main` para `../context/AppContext`)
+
+**Riscos:**
+- Nenhum remanescente — build validado; import circular eliminado
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

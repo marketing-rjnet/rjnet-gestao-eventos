@@ -22,8 +22,8 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 15/18 etapas concluídas (83%)
-Arquivo principal: src/main.jsx — atual: ~220 linhas — meta: < 100 linhas ao fim
+Progresso geral: 16/18 etapas concluídas (89%)
+Arquivo principal: src/main.jsx — atual: ~35 linhas — meta: < 100 linhas ao fim ✅
 ```
 
 ### Histórico de Execução
@@ -151,6 +151,19 @@ Etapa 15 executada em 15/06/2026.
     (eliminando o último import circular temporário com main.jsx).
   main.jsx reduzido para ~220 linhas.
   Build passou sem erros (99 módulos transformados).
+
+Etapa 16 executada em 15/06/2026.
+  Criado src/context/AppContext.js: definição do createContext (3 linhas).
+  Criado src/context/AppProvider.jsx: Provider completo com todo o estado da aplicação e ações
+    de domínio, extraído de main.jsx (~170 linhas).
+  Criado src/context/index.js: re-exports de AppContext e AppProvider.
+  main.jsx atualizado: AppContext e AppProvider removidos; imports não mais usados eliminados
+    (createContext, useEffect, useRef, useMemo, useState, supabaseEnabled, fetchAll/db/etc.,
+    SYNC_STATUS/STATUS_EVENTO, MOCK_*, usePersisted). Adicionado import de ./context.
+    main.jsx reduzido para ~35 linhas — apenas ErrorBoundary e ReactDOM.createRoot.
+  src/hooks/useApp.js atualizado: import de AppContext corrigido de ../main para ../context/AppContext
+    (elimina o último import circular com main.jsx).
+  Build passou sem erros (102 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -180,7 +193,7 @@ Etapa 12 — Equipe                    ✅ Concluída
 Etapa 13 — VendedorApp               ✅ Concluída
 Etapa 14 — App + Layout Shells       ✅ Concluída
 Etapa 15 — Domain Hooks              ✅ Concluída
-Etapa 16 — Infraestrutura            ⬜ Não iniciada
+Etapa 16 — Infraestrutura            ✅ Concluída
 Etapa 17 — APIs por Domínio          ⬜ Não iniciada
 Etapa 18 — Centralização Dual Mode   ⬜ Não iniciada
 ```
@@ -1492,14 +1505,14 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 16 — Infraestrutura** (próxima etapa não concluída)
+**→ Etapa 17 — APIs por Domínio** (próxima etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Criar `src/context/AppContext.js` com a criação do contexto (`createContext`).
-2. Criar `src/context/AppProvider.jsx` com todo o Provider extraído de `main.jsx`.
-3. Criar `src/context/index.js` re-exportando ambos.
-4. Atualizar `main.jsx` para importar `AppContext` e `AppProvider` de `./context`.
-5. Atualizar `src/hooks/useApp.js` para importar `AppContext` de `../context/AppContext` (não mais de `../main`).
+1. Criar `src/api/eventoApi.js` com CRUD de eventos.
+2. Criar `src/api/leadApi.js` com CRUD de leads.
+3. Criar `src/api/materialApi.js` com CRUD de materiais.
+4. Criar `src/api/vendedorApi.js` com CRUD de vendedores.
+5. Atualizar `src/context/AppProvider.jsx` para importar e usar os módulos de API.
 6. Executar build e verificar sem erros.
-7. Commit: `refactor: extract AppContext and AppProvider to src/context/`.
+7. Commit: `refactor: extract domain API modules to src/api/`.
