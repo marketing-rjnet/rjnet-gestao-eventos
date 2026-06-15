@@ -545,6 +545,43 @@ Headers de segurança devem ser aplicados na camada de transporte/servidor, não
 
 ---
 
+### [D-016] — Componentes de auth extraídos para `src/auth/` (Etapa 8)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`Login`, `LoginAuth`, `NovaSenha`, `RootAuth` e `RootLegacy` foram extraídos de `main.jsx` para módulos dedicados em `src/auth/`, com re-export via `src/auth/index.js`.
+
+**Motivação:**
+Fluxos de autenticação são domínio independente do restante da aplicação. Mantê-los em `main.jsx` misturava lógica de identidade/acesso com lógica de negócio. A extração isola esse domínio e facilita substituição futura do mecanismo de auth.
+
+**Alternativas Avaliadas:**
+- Manter em `main.jsx` até Etapa 16 (descartada — custo de contexto alto; componentes de auth são candidatos simples para extração precoce)
+- Um único arquivo `src/auth/index.jsx` (descartada — granularidade por componente facilita revisão e testes)
+
+**Impactos:**
+- Positivo: ~235 linhas removidas de `main.jsx`; domínio de auth isolado; `Auth` constants movidos para `Login.jsx`
+- Negativo: `RootLegacy` importa `usePersisted` de `../main` temporariamente (será corrigido na Etapa 15); `RootAuth`/`RootLegacy` recebem `MarketingApp` e `VendedorApp` como props (pois ainda estão em `main.jsx`)
+
+**Arquivos Afetados:**
+- `src/auth/Login.jsx` (criado)
+- `src/auth/LoginAuth.jsx` (criado)
+- `src/auth/NovaSenha.jsx` (criado)
+- `src/auth/RootAuth.jsx` (criado)
+- `src/auth/RootLegacy.jsx` (criado)
+- `src/auth/index.js` (criado)
+- `src/main.jsx` (removidas definições; adicionado import de `./auth`; `usePersisted` exportado; `Root` passa props de app)
+
+**Riscos:**
+- `RootLegacy` depende de `usePersisted` de `../main` — import circular temporário (mesmo padrão de `useApp.js` → `../main` já existente)
+- `MarketingApp` e `VendedorApp` passados como props — padrão não convencional; será eliminado quando esses componentes forem extraídos nas Etapas 13 e 14
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

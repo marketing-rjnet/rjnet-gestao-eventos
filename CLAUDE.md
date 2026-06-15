@@ -12,12 +12,19 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–7 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–8 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
-├── main.jsx              # App React (~2.300 linhas) — componentes ainda não extraídos
+├── main.jsx              # App React (~2.021 linhas) — componentes ainda não extraídos
 ├── index.css             # Estilos globais (tema dark)
+├── auth/
+│   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
+│   ├── LoginAuth.jsx     # Formulário de login Supabase + recuperação de senha (etapa 8)
+│   ├── NovaSenha.jsx     # Formulário de redefinição de senha por link (etapa 8)
+│   ├── RootAuth.jsx      # Roteador de auth modo Supabase (etapa 8)
+│   ├── RootLegacy.jsx    # Roteador de auth modo legado (etapa 8)
+│   └── index.js          # Re-exports de auth (etapa 8)
 ├── components/
 │   ├── ui.jsx            # Icon, StatusBadge, TipoBadge, Kpi, ChartView (etapa 6)
 │   └── SyncBadge.jsx     # Indicador visual de sincronização (etapa 7)
@@ -219,7 +226,12 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~2.300 | Componentes, context, formulários, gráficos (refatoração em andamento) |
+| `src/main.jsx` | ~2.021 | Componentes, context, formulários, gráficos (refatoração em andamento) |
+| `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
+| `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
+| `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
+| `src/auth/RootAuth.jsx` | ~38 | Roteador de auth modo Supabase (etapa 8) |
+| `src/auth/RootLegacy.jsx` | ~25 | Roteador de auth modo legado (etapa 8) |
 | `src/components/ui.jsx` | ~80 | Componentes UI atômicos extraídos (etapa 6) |
 | `src/components/SyncBadge.jsx` | ~14 | Indicador de sincronização (etapa 7) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
