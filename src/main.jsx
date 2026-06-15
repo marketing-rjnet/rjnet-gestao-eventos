@@ -6,6 +6,7 @@ import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, 
 import { sanitizeText } from './lib/security';
 import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
+import { SERVICO_LABEL, TIPO_LABEL, STATUS_LABEL, servicoLabel, tipoLabel, fmtDate, fmtDateLong, initials } from './utils/format';
 
 Chart.register(...registerables);
 
@@ -136,27 +137,7 @@ Chart.register(...registerables);
         "Aguardando visita técnica",
       ];
 
-      /* ============================================================
-         LABEL HELPERS
-         ============================================================ */
-      const SERVICO_LABEL = {
-        internet_residencial: "Internet Residencial",
-        internet_empresarial: "Internet Empresarial",
-        rjnet_movel: "RJNET Móvel",
-        streamings: "Streamings",
-        outro: "Outro",
-      };
-      const TIPO_LABEL = {
-        sinalizacao: "Sinalização",
-        presenca_comercial: "Presença Comercial",
-        ativacao_especial: "Ativação Especial",
-      };
-      const STATUS_LABEL = { ativo: "Ativo", planejado: "Planejado", encerrado: "Encerrado" };
-      const servicoLabel = (s) => SERVICO_LABEL[s] || s;
-      const tipoLabel = (t) => TIPO_LABEL[t] || t;
-      const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "";
-      const fmtDateLong = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "";
-      const initials = (n) => n.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+      /* LABEL HELPERS — importados de ./utils/format */
 
       const CHART_COLORS = ["#f5c000", "#22c55e", "#ef4444", "#666666"];
       Chart.defaults.color = "#666";
