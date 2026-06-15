@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 6/18 etapas concluídas (33%)
+Progresso geral: 7/18 etapas concluídas (39%)
 Arquivo principal: src/main.jsx — meta: < 100 linhas ao fim
 ```
 
@@ -46,6 +46,13 @@ Etapa 6 executada em 15/06/2026.
   ChartView. Removidas definições correspondentes de main.jsx e adicionado
   import. SyncBadge reservado para Etapa 7 conforme plano.
   Build passou sem erros.
+
+Etapa 7 executada em 15/06/2026.
+  Criado src/hooks/useApp.js: wrapper useContext(AppContext).
+  Criado src/components/SyncBadge.jsx: componente de indicador de sync.
+  AppContext exportado de main.jsx (import temporário resolvido pelo Vite).
+  useApp e SyncBadge removidos de main.jsx. useContext removido do import React.
+  Build passou sem erros.
 ```
 
 ### Legenda de Status
@@ -66,7 +73,7 @@ Etapa 3  — CSV Utils                 ✅ Concluída
 Etapa 4  — Mock Data e Pacotes       ✅ Concluída
 Etapa 5  — Constants                 ✅ Concluída
 Etapa 6  — UI Components             ✅ Concluída
-Etapa 7  — SyncBadge + useApp        ⬜ Não iniciada
+Etapa 7  — SyncBadge + useApp        ✅ Concluída
 Etapa 8  — Auth Components           ⬜ Não iniciada
 Etapa 9  — Modais                    ⬜ Não iniciada
 Etapa 10 — Dashboard + Eventos       ⬜ Não iniciada
@@ -501,7 +508,7 @@ Extrair componentes de UI genéricos (sem lógica de negócio) de `main.jsx` par
 
 ## Etapa 7 — SyncBadge + useApp
 
-**Status: ⬜ Não iniciada**
+**Status: ✅ Concluída**
 
 ### Objetivo
 
