@@ -1,4 +1,4 @@
-import React, { useState, useContext, createContext, useEffect, useRef, useMemo, Component } from 'react';
+import React, { useState, createContext, useEffect, useRef, useMemo, Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
@@ -11,6 +11,8 @@ import { validarCpf, validarTelefone, maskCpf, maskTel } from './utils/masks';
 import { exportLeadsCSV } from './utils/csv';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from './utils/mockData';
 import { Icon, StatusBadge, TipoBadge, Kpi, ChartView } from './components/ui';
+import { useApp } from './hooks/useApp';
+import SyncBadge from './components/SyncBadge';
 
 Chart.register(...registerables);
 
@@ -66,12 +68,7 @@ Chart.register(...registerables);
         }
       }
 
-      const AppContext = createContext(null);
-      const useApp = () => {
-        const ctx = useContext(AppContext);
-        if (!ctx) throw new Error("useApp must be inside AppProvider");
-        return ctx;
-      };
+      export const AppContext = createContext(null);
 
       // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
       function usePersisted(key, fallback, { session = false } = {}) {
@@ -1669,17 +1666,6 @@ Chart.register(...registerables);
             </div>
           </div>
         );
-      }
-
-      function SyncBadge() {
-        const { syncStatus } = useApp();
-        if (!supabaseEnabled || syncStatus === SYNC_STATUS.IDLE) return null;
-        const styles = {
-          [SYNC_STATUS.SYNCING]: { color: "var(--text-3)", fontSize: 11 },
-          [SYNC_STATUS.ERROR]:   { color: "var(--red, #ef4444)", fontSize: 11, fontWeight: 600 },
-        };
-        const labels = { [SYNC_STATUS.SYNCING]: "sincronizando…", [SYNC_STATUS.ERROR]: "⚠ erro ao sincronizar" };
-        return <span style={styles[syncStatus]}>{labels[syncStatus]}</span>;
       }
 
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
