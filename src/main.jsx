@@ -6,6 +6,10 @@ import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, 
 import { sanitizeText } from './lib/security';
 import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
+import { SERVICO_LABEL, TIPO_LABEL, STATUS_LABEL, servicoLabel, tipoLabel, fmtDate, fmtDateLong, initials } from './utils/format';
+import { validarCpf, validarTelefone, maskCpf, maskTel } from './utils/masks';
+import { exportLeadsCSV } from './utils/csv';
+import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from './utils/mockData';
 
 Chart.register(...registerables);
 
@@ -57,67 +61,7 @@ Chart.register(...registerables);
         return paths[name] || null;
       };
 
-      /* ============================================================
-         MOCK DATA (Supabase-ready structures)
-         ============================================================ */
-      const MOCK_MATERIAIS = [
-        { id: "m1", nome: "Wind Banner 2m", quantidade: 6, descricao: "Banner vertical 2 metros" },
-        { id: "m2", nome: "Wind Banner 5m", quantidade: 4, descricao: "Banner vertical 5 metros" },
-        { id: "m3", nome: "Tenda Inflável", quantidade: 2 },
-        { id: "m4", nome: "Balão Inflável", quantidade: 3 },
-        { id: "m5", nome: "Placa Hotspot", quantidade: 10 },
-        { id: "m6", nome: "Rádio Wi-Fi", quantidade: 8 },
-        { id: "m7", nome: "Banner Gradil", quantidade: 12 },
-        { id: "m8", nome: "Banner Poste", quantidade: 15 },
-        { id: "m9", nome: 'Banner "Como Acessar"', quantidade: 8 },
-        { id: "m10", nome: 'Banner "Evento Conectado RJNet"', quantidade: 6 },
-      ];
-
-      const MOCK_VENDEDORES = [
-        { id: "v1", nome: "Carlos Silva",   ativo: true },
-        { id: "v2", nome: "Ana Oliveira",   ativo: true },
-        { id: "v3", nome: "Marcos Lima",    ativo: true },
-        { id: "v4", nome: "Juliana Costa",  ativo: true },
-        { id: "v5", nome: "Thiago",         ativo: true },
-        { id: "v6", nome: "Ramon",          ativo: true },
-      ];
-
-      const MOCK_EVENTOS = [
-        {
-          id: "e1", nome: "Festa do Pescador - Angra",
-          local: "Praia do Anil, Angra dos Reis",
-          dataInicio: "2025-06-07", dataFim: "2025-06-08",
-          status: "ativo", tipo: "presenca_comercial",
-          observacoes: "Evento com grande público esperado. Levar estrutura completa.",
-          materiais: [
-            { materialId: "m1", quantidade: 3, estadoSaida: "ok", retornado: false },
-            { materialId: "m5", quantidade: 4, estadoSaida: "ok", retornado: false },
-            { materialId: "m7", quantidade: 6, estadoSaida: "ok", retornado: false },
-            { materialId: "m10", quantidade: 2, estadoSaida: "ok", retornado: false },
-          ],
-          criadoEm: "2025-05-28T10:00:00Z",
-        },
-        {
-          id: "e2", nome: "Feira de Tecnologia RJ",
-          local: "Centro de Convenções, Rio de Janeiro",
-          dataInicio: "2025-06-14", dataFim: "2025-06-15",
-          status: "planejado", tipo: "ativacao_especial",
-          materiais: [], criadoEm: "2025-06-01T09:00:00Z",
-        },
-      ];
-
-      const MOCK_LEADS = [
-        {
-          id: "l1", eventoId: "e1", vendedorNome: "Carlos Silva",
-          nome: "João Pereira", telefone: "(24) 99876-5432",
-          endereco: "Rua das Flores, 45 - Angra dos Reis",
-          servicoInteresse: "internet_residencial",
-          temperatura: "quente",
-          observacao: "Muito interesse, mora em área com cobertura",
-          criadoEm: "2025-06-07T14:30:00Z",
-        },
-      ];
-
+      // MOCK DATA — importado de ./utils/mockData
       // META_DIARIA importada de src/lib/constants.js
 
       const TEMPERATURA_CONFIG = {
@@ -136,27 +80,7 @@ Chart.register(...registerables);
         "Aguardando visita técnica",
       ];
 
-      /* ============================================================
-         LABEL HELPERS
-         ============================================================ */
-      const SERVICO_LABEL = {
-        internet_residencial: "Internet Residencial",
-        internet_empresarial: "Internet Empresarial",
-        rjnet_movel: "RJNET Móvel",
-        streamings: "Streamings",
-        outro: "Outro",
-      };
-      const TIPO_LABEL = {
-        sinalizacao: "Sinalização",
-        presenca_comercial: "Presença Comercial",
-        ativacao_especial: "Ativação Especial",
-      };
-      const STATUS_LABEL = { ativo: "Ativo", planejado: "Planejado", encerrado: "Encerrado" };
-      const servicoLabel = (s) => SERVICO_LABEL[s] || s;
-      const tipoLabel = (t) => TIPO_LABEL[t] || t;
-      const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "";
-      const fmtDateLong = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "";
-      const initials = (n) => n.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+      /* LABEL HELPERS — importados de ./utils/format */
 
       const CHART_COLORS = ["#f5c000", "#22c55e", "#ef4444", "#666666"];
       Chart.defaults.color = "#666";
@@ -1180,25 +1104,8 @@ Chart.register(...registerables);
 
         const exportarCSV = () => {
           const dados = filtered.length > 0 ? filtered : leads;
-          if (dados.length === 0) return;
           const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
-          const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
-          const linhas = dados.map((l) => [
-            l.nome, l.cpf || "", l.telefone, l.endereco || "",
-            servicoLabel(l.servicoInteresse), l.temperatura,
-            l.jaClienteRjnet ? "Sim" : "Não",
-            l.vendedorNome, evName(l.eventoId),
-            (l.observacao || "").replace(/"/g, '""'),
-            new Date(l.criadoEm).toLocaleString("pt-BR"),
-          ]);
-          const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-          const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `leads_${sufixo}_${new Date().toISOString().slice(0,10)}.csv`;
-          a.click();
-          URL.revokeObjectURL(url);
+          exportLeadsCSV(dados, sufixo, servicoLabel, evName);
         };
 
         const porEvento = useMemo(() => {
@@ -1778,40 +1685,7 @@ Chart.register(...registerables);
       // Alias local — delega para o módulo de segurança centralizado
       const sanitize = sanitizeText;
 
-      function validarCpf(cpf) {
-        const d = cpf.replace(/\D/g, "");
-        if (d.length !== 11) return false;
-        if (/^(\d)\1{10}$/.test(d)) return false;
-        let s = 0;
-        for (let i = 0; i < 9; i++) s += +d[i] * (10 - i);
-        let r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
-        if (r !== +d[9]) return false;
-        s = 0;
-        for (let i = 0; i < 10; i++) s += +d[i] * (11 - i);
-        r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
-        return r === +d[10];
-      }
-
-      function validarTelefone(tel) {
-        const d = tel.replace(/\D/g, "");
-        return d.length >= 10 && d.length <= 11;
-      }
-
-      function maskCpf(v) {
-        const d = v.replace(/\D/g, "").slice(0, 11);
-        if (d.length <= 3) return d;
-        if (d.length <= 6) return d.slice(0,3) + "." + d.slice(3);
-        if (d.length <= 9) return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6);
-        return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6,9) + "-" + d.slice(9);
-      }
-
-      function maskTel(v) {
-        const d = v.replace(/\D/g, "").slice(0, 11);
-        if (d.length <= 2) return d.length ? "(" + d : "";
-        if (d.length <= 7) return "(" + d.slice(0,2) + ") " + d.slice(2);
-        if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
-        return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
-      }
+      /* validarCpf, validarTelefone, maskCpf, maskTel — importados de ./utils/masks */
 
       /* ============================================================
          VENDEDOR (COMERCIAL) VIEW — mobile-first

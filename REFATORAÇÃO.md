@@ -30,20 +30,21 @@ O plano possui 18 etapas.
 Atualize esta seção ao iniciar cada novo chat.
 
 ```
-Progresso geral: 2/18 etapas concluídas (11%)
+Progresso geral: 4/18 etapas concluídas (22%)
 ```
 
 ```
 Observações:
-
-
+Etapas 1-4 executadas em 15/06/2026. Arquivos criados: src/utils/format.js,
+src/utils/masks.js, src/utils/csv.js, src/utils/mockData.js.
+Pacotes (etapa 4b) mantidos no JSX — dados acoplados à renderização.
 ```
 
 ```
 Etapa 1  - ✅ Concluída
 Etapa 2  - ✅ Concluída
-Etapa 3  - ⬜ Não iniciada
-Etapa 4  - ⬜ Não iniciada
+Etapa 3  - ✅ Concluída
+Etapa 4  - ✅ Concluída
 Etapa 5  - ⬜ Não iniciada
 Etapa 6  - ⬜ Não iniciada
 Etapa 7  - ⬜ Não iniciada
