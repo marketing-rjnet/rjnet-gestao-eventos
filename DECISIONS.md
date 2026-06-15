@@ -652,6 +652,40 @@ Os três componentes formam domínios funcionais independentes que totalizavam ~
 
 ---
 
+### [D-019] — Feature tabs de equipe extraídas para `src/features/team/` (Etapa 12)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`EquipeTab` e `EquipeAuthTab` foram extraídos de `main.jsx` para módulos dedicados em `src/features/team/`, com re-export via `src/features/team/index.js`.
+
+**Motivação:**
+Os dois componentes formam o domínio funcional de gestão de equipe e totalizavam ~247 linhas no monolítico. Agrupá-los em `src/features/team/` segue o padrão estabelecido nas etapas anteriores.
+
+**Alternativas Avaliadas:**
+- Um único arquivo `src/features/team/index.jsx` (descartada — granularidade por componente facilita revisão)
+- Manter em `main.jsx` (descartada — domínio bem definido, sem riscos de extração)
+
+**Impactos:**
+- Positivo: ~247 linhas removidas de `main.jsx`; domínio de equipe isolado; `sanitize()` convertida para `sanitizeText()` diretamente
+- Positivo: imports não mais usados em `main.jsx` foram limpos (RECENT_EVENTS_SHOWN, fmtDate, initials)
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `src/features/team/EquipeTab.jsx` (criado)
+- `src/features/team/EquipeAuthTab.jsx` (criado)
+- `src/features/team/index.js` (criado)
+- `src/main.jsx` (removidas definições; adicionado import de `./features/team`; imports desnecessários limpos)
+
+**Riscos:**
+- Nenhum remanescente
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
