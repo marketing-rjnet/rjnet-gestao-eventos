@@ -6,6 +6,7 @@ import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, 
 import { SYNC_STATUS, STATUS_EVENTO } from './lib/constants';
 import './index.css';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from './utils/mockData';
+import { usePersisted } from './hooks/usePersisted';
 import Root from './apps/Root';
 
 Chart.register(...registerables);
@@ -41,34 +42,6 @@ Chart.register(...registerables);
       }
 
       export const AppContext = createContext(null);
-
-      // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
-      export function usePersisted(key, fallback, { session = false } = {}) {
-        const storage = session ? sessionStorage : localStorage;
-        const [state, setState] = useState(() => {
-          try {
-            const raw = storage.getItem(key);
-            return raw ? JSON.parse(raw) : fallback;
-          } catch { return fallback; }
-        });
-        const set = (v) => {
-          setState((prev) => {
-            const next = typeof v === "function" ? v(prev) : v;
-            try {
-              if (next === null || next === undefined) {
-                storage.removeItem(key);
-              } else {
-                storage.setItem(key, JSON.stringify(next));
-              }
-            } catch (err) {
-              console.error("[rjnet] Falha ao salvar dados localmente:", err);
-              alert("⚠️ Não foi possível salvar os dados. O armazenamento local pode estar cheio. Contate o suporte.");
-            }
-            return next;
-          });
-        };
-        return [state, set];
-      }
 
       function AppProvider({ children }) {
         // Com Supabase ativo o banco é a fonte de verdade — não inicializa com

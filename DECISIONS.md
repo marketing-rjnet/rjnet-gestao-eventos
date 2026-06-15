@@ -752,6 +752,41 @@ Os dois componentes representavam o último bloco de UI em `main.jsx`. Com a ext
 
 ---
 
+### [D-022] — usePersisted e useRanking extraídos para `src/hooks/` (Etapa 15)
+
+**Data:** 15/06/2026
+
+**Tipo:** Refatoração
+
+**Decisão:**
+`usePersisted` foi extraído de `main.jsx` para `src/hooks/usePersisted.js`. A lógica de polling de ranking (3 `useEffect` + 2 `useState` + 2 `useRef`) foi extraída de `VendedorApp.jsx` para `src/hooks/useRanking.js`, que recebe `eventoId` e `leadsCount` como parâmetros. O import circular `RootLegacy.jsx → ../main` foi eliminado — agora importa de `../hooks/usePersisted` diretamente.
+
+**Motivação:**
+`usePersisted` é infraestrutura genérica de persistência usada em múltiplos contextos (`AppProvider`, `RootLegacy`). Mantê-lo em `main.jsx` bloqueava sua reutilização limpa e criava import circular. `useRanking` isola a lógica de polling com cleanup automático, reduzindo o tamanho e a responsabilidade de `VendedorApp.jsx`.
+
+**Alternativas Avaliadas:**
+- Manter `useRanking` inline em `VendedorApp.jsx` (descartada — 30 linhas de infra misturadas com UI; dificulta teste isolado)
+- Extrair `useRanking` como método de `dataService.js` (descartada — polling é responsabilidade de hook React, não de camada de dados)
+
+**Impactos:**
+- Positivo: import circular `RootLegacy → main` eliminado; `main.jsx` reduzido para ~220 linhas; hooks reutilizáveis separados de componentes
+- Positivo: `VendedorApp.jsx` mais legível — 30 linhas substituídas por 1 linha de destructuring
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `src/hooks/usePersisted.js` (criado)
+- `src/hooks/useRanking.js` (criado)
+- `src/main.jsx` (removida definição de `usePersisted`; adicionado import)
+- `src/apps/VendedorApp.jsx` (lógica de ranking substituída por `useRanking`; imports limpos)
+- `src/auth/RootLegacy.jsx` (import de `usePersisted` atualizado de `../main` para `../hooks/usePersisted`)
+
+**Riscos:**
+- Nenhum — extração conservadora; comportamento idêntico ao inline
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

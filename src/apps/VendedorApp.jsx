@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../hooks/useApp';
+import { useRanking } from '../hooks/useRanking';
 import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';
 import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
-import { META_DIARIA, STATUS_EVENTO, RANKING_DEBOUNCE_MS, RANKING_POLL_MS, TOAST_DURATION_MS } from '../lib/constants';
+import { META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
 
 const TEMPERATURA_CONFIG = {
   frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
@@ -90,7 +91,7 @@ function LeadEditInline({ lead, onSave, onCancel }) {
 }
 
 export default function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, obterRanking } = useApp();
+  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos } = useApp();
   const ativos = getEventosAtivos();
   const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
 
@@ -115,36 +116,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
   const metaBatida = leadsDoEvento.length >= META_DIARIA;
 
-  const [ranking, setRanking] = useState([]);
-  const [rankingLoading, setRankingLoading] = useState(false);
-  const rankingDebounce = useRef(null);
-
-  const atualizarRanking = useRef(null);
-  atualizarRanking.current = async (eventoId) => {
-    if (!eventoId) { setRanking([]); return; }
-    setRankingLoading(true);
-    const r = await obterRanking(eventoId);
-    setRanking(r || []);
-    setRankingLoading(false);
-  };
-
-  useEffect(() => {
-    atualizarRanking.current(eventoId);
-  }, [eventoId]);
-
-  useEffect(() => {
-    if (!eventoId) return;
-    clearTimeout(rankingDebounce.current);
-    rankingDebounce.current = setTimeout(() => atualizarRanking.current(eventoId), RANKING_DEBOUNCE_MS);
-    return () => clearTimeout(rankingDebounce.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leads.length]);
-
-  useEffect(() => {
-    if (!eventoId) return;
-    const interval = setInterval(() => atualizarRanking.current(eventoId), RANKING_POLL_MS);
-    return () => clearInterval(interval);
-  }, [eventoId]);
+  const { ranking, rankingLoading } = useRanking(eventoId, leads.length);
 
   const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
   const maxRanking = ranking[0]?.total || 1;

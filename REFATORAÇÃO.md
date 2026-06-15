@@ -22,8 +22,8 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 14/18 etapas concluídas (78%)
-Arquivo principal: src/main.jsx — atual: ~245 linhas — meta: < 100 linhas ao fim
+Progresso geral: 15/18 etapas concluídas (83%)
+Arquivo principal: src/main.jsx — atual: ~220 linhas — meta: < 100 linhas ao fim
 ```
 
 ### Histórico de Execução
@@ -136,6 +136,21 @@ Etapa 14 executada em 15/06/2026.
   Import de Root adicionado de ./apps/Root.
   main.jsx reduzido para ~245 linhas.
   Build passou sem erros (97 módulos transformados).
+
+Etapa 15 executada em 15/06/2026.
+  Criado src/hooks/usePersisted.js: hook de sincronização de estado com localStorage/sessionStorage,
+    extraído de main.jsx (~26 linhas). Já não mais exportado de main.jsx.
+  Criado src/hooks/useRanking.js: hook de polling de ranking com debounce e cleanup automático,
+    extraído do corpo de VendedorApp.jsx (~38 linhas).
+  main.jsx atualizado: import de usePersisted de ./hooks/usePersisted; definição local removida.
+  VendedorApp.jsx atualizado: bloco de ranking (3 useEffect + 2 useState + 2 useRef) substituído
+    por { ranking, rankingLoading } = useRanking(eventoId, leads.length).
+    Imports de RANKING_DEBOUNCE_MS e RANKING_POLL_MS removidos de VendedorApp.jsx.
+    Import de obterRanking removido do destructuring de useApp().
+  RootLegacy.jsx atualizado: import de usePersisted alterado de ../main para ../hooks/usePersisted
+    (eliminando o último import circular temporário com main.jsx).
+  main.jsx reduzido para ~220 linhas.
+  Build passou sem erros (99 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -164,7 +179,7 @@ Etapa 11 — Estoque + Leads + Checkin ✅ Concluída
 Etapa 12 — Equipe                    ✅ Concluída
 Etapa 13 — VendedorApp               ✅ Concluída
 Etapa 14 — App + Layout Shells       ✅ Concluída
-Etapa 15 — Domain Hooks              ⬜ Não iniciada
+Etapa 15 — Domain Hooks              ✅ Concluída
 Etapa 16 — Infraestrutura            ⬜ Não iniciada
 Etapa 17 — APIs por Domínio          ⬜ Não iniciada
 Etapa 18 — Centralização Dual Mode   ⬜ Não iniciada
@@ -1477,14 +1492,14 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 15 — Domain Hooks** (próxima etapa não concluída)
+**→ Etapa 16 — Infraestrutura** (próxima etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Ler `src/main.jsx` na definição de `usePersisted` (linhas ~46–71).
-2. Criar `src/hooks/usePersisted.js` com o hook extraído.
-3. Criar `src/hooks/useRanking.js` com a lógica de polling de ranking extraída de VendedorApp.
-4. Atualizar `main.jsx` para importar `usePersisted` de `./hooks/usePersisted`.
-5. Atualizar `src/hooks/useApp.js` para importar `AppContext` de `../context/AppContext` (preparação para Etapa 16).
+1. Criar `src/context/AppContext.js` com a criação do contexto (`createContext`).
+2. Criar `src/context/AppProvider.jsx` com todo o Provider extraído de `main.jsx`.
+3. Criar `src/context/index.js` re-exportando ambos.
+4. Atualizar `main.jsx` para importar `AppContext` e `AppProvider` de `./context`.
+5. Atualizar `src/hooks/useApp.js` para importar `AppContext` de `../context/AppContext` (não mais de `../main`).
 6. Executar build e verificar sem erros.
-7. Commit: `refactor: extract usePersisted and useRanking to src/hooks/`.
+7. Commit: `refactor: extract AppContext and AppProvider to src/context/`.
