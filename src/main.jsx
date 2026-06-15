@@ -1,120 +1,27 @@
-import React, { useState, useContext, createContext, useEffect, useRef, useMemo } from 'react';
+import React, { useState, createContext, useEffect, useRef, useMemo, Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
+import { supabaseEnabled } from './lib/supabase';
+import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, flushPendingQueue } from './lib/dataService';
+import { sanitizeText } from './lib/security';
+import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS, SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, RANKING_DEBOUNCE_MS, RANKING_POLL_MS, UPCOMING_EVENTS_LIMIT, AVATARS_SHOWN, RECENT_EVENTS_SHOWN, CHART_CUTOUT } from './lib/constants';
 import './index.css';
+import { SERVICO_LABEL, TIPO_LABEL, STATUS_LABEL, servicoLabel, tipoLabel, fmtDate, fmtDateLong, initials } from './utils/format';
+import { validarCpf, validarTelefone, maskCpf, maskTel } from './utils/masks';
+import { exportLeadsCSV } from './utils/csv';
+import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from './utils/mockData';
+import { Icon, StatusBadge, TipoBadge, Kpi, ChartView } from './components/ui';
+import { useApp } from './hooks/useApp';
+import SyncBadge from './components/SyncBadge';
+import { RootAuth, RootLegacy } from './auth';
+import { EventModal, MaterialModal } from './components/modals';
 
 Chart.register(...registerables);
 
 
-      /* ============================================================
-         SVG ICON SYSTEM — stroke-based, geometric, clean
-         ============================================================ */
-      const Icon = ({ name, size = 16, stroke = "currentColor", strokeWidth = 1.6 }) => {
-        const s = { width: size, height: size, display: "inline-block", verticalAlign: "middle", flexShrink: 0 };
-        const p = { fill: "none", stroke, strokeWidth, strokeLinecap: "round", strokeLinejoin: "round" };
-        const paths = {
-          // Calendar
-          calendar: <svg style={s} viewBox="0 0 24 24" {...p}><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>,
-          // Box / Package
-          box: <svg style={s} viewBox="0 0 24 24" {...p}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
-          // People / Users
-          users: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>,
-          // Briefcase / Team
-          briefcase: <svg style={s} viewBox="0 0 24 24" {...p}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="2" y1="12" x2="22" y2="12"/></svg>,
-          // Pin / Location
-          pin: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-          // Sun
-          sun: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
-          // Moon
-          moon: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
-          // X / Close
-          x: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-          // Arrow left / Back
-          back: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
-          // Plus
-          plus: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-          // Circle dot — status
-          dot_green: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#22c55e"/></svg>,
-          dot_yellow: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#f5c000"/></svg>,
-          dot_red: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#ef4444"/></svg>,
-          // Chart bar
-          chart: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
-          // Lead / person
-          person: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>,
-          // Arrow right
-          arrow_right: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
-          // Search / magnifier
-          search: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-          // Check circle
-          check_circle: <svg style={s} viewBox="0 0 24 24" {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-          // X circle
-          x_circle: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
-        };
-        return paths[name] || null;
-      };
 
-      /* ============================================================
-         MOCK DATA (Supabase-ready structures)
-         ============================================================ */
-      const MOCK_MATERIAIS = [
-        { id: "m1", nome: "Wind Banner 2m", quantidade: 6, descricao: "Banner vertical 2 metros" },
-        { id: "m2", nome: "Wind Banner 5m", quantidade: 4, descricao: "Banner vertical 5 metros" },
-        { id: "m3", nome: "Tenda Inflável", quantidade: 2 },
-        { id: "m4", nome: "Balão Inflável", quantidade: 3 },
-        { id: "m5", nome: "Placa Hotspot", quantidade: 10 },
-        { id: "m6", nome: "Rádio Wi-Fi", quantidade: 8 },
-        { id: "m7", nome: "Banner Gradil", quantidade: 12 },
-        { id: "m8", nome: "Banner Poste", quantidade: 15 },
-        { id: "m9", nome: 'Banner "Como Acessar"', quantidade: 8 },
-        { id: "m10", nome: 'Banner "Evento Conectado RJNet"', quantidade: 6 },
-      ];
-
-      const MOCK_VENDEDORES = [
-        { id: "v1", nome: "Carlos Silva",   ativo: true },
-        { id: "v2", nome: "Ana Oliveira",   ativo: true },
-        { id: "v3", nome: "Marcos Lima",    ativo: true },
-        { id: "v4", nome: "Juliana Costa",  ativo: true },
-        { id: "v5", nome: "Thiago",         ativo: true },
-        { id: "v6", nome: "Ramon",          ativo: true },
-      ];
-
-      const MOCK_EVENTOS = [
-        {
-          id: "e1", nome: "Festa do Pescador - Angra",
-          local: "Praia do Anil, Angra dos Reis",
-          dataInicio: "2025-06-07", dataFim: "2025-06-08",
-          status: "ativo", tipo: "presenca_comercial",
-          observacoes: "Evento com grande público esperado. Levar estrutura completa.",
-          materiais: [
-            { materialId: "m1", quantidade: 3, estadoSaida: "ok", retornado: false },
-            { materialId: "m5", quantidade: 4, estadoSaida: "ok", retornado: false },
-            { materialId: "m7", quantidade: 6, estadoSaida: "ok", retornado: false },
-            { materialId: "m10", quantidade: 2, estadoSaida: "ok", retornado: false },
-          ],
-          criadoEm: "2025-05-28T10:00:00Z",
-        },
-        {
-          id: "e2", nome: "Feira de Tecnologia RJ",
-          local: "Centro de Convenções, Rio de Janeiro",
-          dataInicio: "2025-06-14", dataFim: "2025-06-15",
-          status: "planejado", tipo: "ativacao_especial",
-          materiais: [], criadoEm: "2025-06-01T09:00:00Z",
-        },
-      ];
-
-      const MOCK_LEADS = [
-        {
-          id: "l1", eventoId: "e1", vendedorNome: "Carlos Silva",
-          nome: "João Pereira", telefone: "(24) 99876-5432",
-          endereco: "Rua das Flores, 45 - Angra dos Reis",
-          servicoInteresse: "internet_residencial",
-          temperatura: "quente",
-          observacao: "Muito interesse, mora em área com cobertura",
-          criadoEm: "2025-06-07T14:30:00Z",
-        },
-      ];
-
-      const META_DIARIA = 15;
+      // MOCK DATA — importado de ./utils/mockData
+      // META_DIARIA importada de src/lib/constants.js
 
       const TEMPERATURA_CONFIG = {
         frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
@@ -132,27 +39,7 @@ Chart.register(...registerables);
         "Aguardando visita técnica",
       ];
 
-      /* ============================================================
-         LABEL HELPERS
-         ============================================================ */
-      const SERVICO_LABEL = {
-        internet_residencial: "Internet Residencial",
-        internet_empresarial: "Internet Empresarial",
-        rjnet_movel: "RJNET Móvel",
-        streamings: "Streamings",
-        outro: "Outro",
-      };
-      const TIPO_LABEL = {
-        sinalizacao: "Sinalização",
-        presenca_comercial: "Presença Comercial",
-        ativacao_especial: "Ativação Especial",
-      };
-      const STATUS_LABEL = { ativo: "Ativo", planejado: "Planejado", encerrado: "Encerrado" };
-      const servicoLabel = (s) => SERVICO_LABEL[s] || s;
-      const tipoLabel = (t) => TIPO_LABEL[t] || t;
-      const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "";
-      const fmtDateLong = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "";
-      const initials = (n) => n.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+      /* LABEL HELPERS — importados de ./utils/format */
 
       const CHART_COLORS = ["#f5c000", "#22c55e", "#ef4444", "#666666"];
       Chart.defaults.color = "#666";
@@ -161,15 +48,32 @@ Chart.register(...registerables);
       /* ============================================================
          APP CONTEXT (state + Supabase-ready actions)
          ============================================================ */
-      const AppContext = createContext(null);
-      const useApp = () => {
-        const ctx = useContext(AppContext);
-        if (!ctx) throw new Error("useApp must be inside AppProvider");
-        return ctx;
-      };
+      /* ============================================================
+         ERROR BOUNDARY — captura exceções em qualquer filho
+         ============================================================ */
+      class ErrorBoundary extends Component {
+        constructor(props) { super(props); this.state = { hasError: false, message: "" }; }
+        static getDerivedStateFromError(error) { return { hasError: true, message: error?.message || "Erro desconhecido." }; }
+        componentDidCatch(error, info) { console.error("[rjnet] Erro não tratado:", error, info); }
+        render() {
+          if (this.state.hasError) {
+            return (
+              <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red, #ef4444)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="var(--red, #ef4444)"/></svg>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>Algo deu errado</div>
+                <div style={{ color: "var(--text-3, #666)", fontSize: 14, maxWidth: 320 }}>{this.state.message}</div>
+                <button className="btn-primary" onClick={() => window.location.reload()}>Recarregar</button>
+              </div>
+            );
+          }
+          return this.props.children;
+        }
+      }
+
+      export const AppContext = createContext(null);
 
       // Helpers de persistência local — substitua por chamadas Supabase para sincronização entre dispositivos
-      function usePersisted(key, fallback, { session = false } = {}) {
+      export function usePersisted(key, fallback, { session = false } = {}) {
         const storage = session ? sessionStorage : localStorage;
         const [state, setState] = useState(() => {
           try {
@@ -197,76 +101,170 @@ Chart.register(...registerables);
       }
 
       function AppProvider({ children }) {
-        const [materiais, setMateriais] = usePersisted("rjnet_materiais", MOCK_MATERIAIS);
-        const [eventos, setEventos] = usePersisted("rjnet_eventos", MOCK_EVENTOS);
-        const [leads, setLeads] = usePersisted("rjnet_leads", MOCK_LEADS);
-        const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", MOCK_VENDEDORES);
+        // Com Supabase ativo o banco é a fonte de verdade — não inicializa com
+        // dados fictícios (eles só existem no modo 100% local)
+        const [materiais, setMateriais] = usePersisted("rjnet_materiais", supabaseEnabled ? [] : MOCK_MATERIAIS);
+        const [eventos, setEventos] = usePersisted("rjnet_eventos", supabaseEnabled ? [] : MOCK_EVENTOS);
+        const [leads, setLeads] = usePersisted("rjnet_leads", supabaseEnabled ? [] : MOCK_LEADS);
+        const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", supabaseEnabled ? [] : MOCK_VENDEDORES);
+        const [isLoading, setIsLoading] = useState(supabaseEnabled);
+        const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
-        const value = {
+        const abortRef = useRef(null);
+        const carregar = async () => {
+          // Cancela requisição anterior que ainda esteja em voo
+          abortRef.current?.abort();
+          const controller = new AbortController();
+          abortRef.current = controller;
+
+          setSyncStatus(SYNC_STATUS.SYNCING);
+          await flushPendingQueue();
+          const dados = await fetchAll(controller.signal);
+          if (controller.signal.aborted) return;
+          if (!dados) { setSyncStatus(SYNC_STATUS.ERROR); return; }
+          setMateriais(dados.materiais);
+          setVendedores(dados.vendedores);
+          setEventos(dados.eventos);
+          setLeads(dados.leads);
+          setSyncStatus(SYNC_STATUS.IDLE);
+          setIsLoading(false);
+        };
+        useEffect(() => {
+          if (!supabaseEnabled) return;
+          carregar();
+          const unsubRealtime = subscribeChanges(carregar);
+          const unsubAuth = auth.onChange((evento) => {
+            if (evento === 'SIGNED_IN') carregar();
+            if (evento === 'SIGNED_OUT') {
+              abortRef.current?.abort();
+              setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
+              setSyncStatus(SYNC_STATUS.IDLE);
+            }
+          });
+          const handleSyncError = () => setSyncStatus(SYNC_STATUS.ERROR);
+          window.addEventListener('rjnet:sync-error', handleSyncError);
+          window.addEventListener('online', carregar);
+          return () => {
+            abortRef.current?.abort();
+            unsubRealtime();
+            unsubAuth();
+            window.removeEventListener('rjnet:sync-error', handleSyncError);
+            window.removeEventListener('online', carregar);
+          };
+        }, []);
+
+        // Placar do evento: com auth ativa vem do servidor (o vendedor não
+        // tem acesso aos leads dos colegas); sem Supabase, calcula localmente
+        const obterRanking = async (eventoId) => {
+          if (supabaseEnabled) {
+            const r = await rankingEvento(eventoId);
+            if (r) return r;
+          }
+          const mapa = {};
+          leads.filter((l) => l.eventoId === eventoId).forEach((l) => {
+            mapa[l.vendedorNome] = (mapa[l.vendedorNome] || 0) + 1;
+          });
+          return Object.entries(mapa)
+            .map(([nome, total]) => ({ nome, total }))
+            .sort((a, b) => b.total - a.total);
+        };
+
+        const genId = (prefix) => prefix + Date.now() + Math.random().toString(36).slice(2, 7);
+
+        const patchEvento = (id, patch) => {
+          const atual = eventos.find((e) => e.id === id);
+          setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+          if (atual) db.saveEvento({ ...atual, ...patch });
+        };
+
+        const value = useMemo(() => ({
           materiais, eventos, leads, vendedores,
-          addEvento: (e) => setEventos((p) => [...p, { ...e, id: "e" + Date.now() + Math.random().toString(36).slice(2,7), criadoEm: new Date().toISOString() }]),
-          updateEvento: (id, patch) => setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e))),
-          removeEvento: (id) => setEventos((p) => p.filter((e) => e.id !== id)),
-          addLead: (l) => setLeads((p) => [...p, { id: "l" + Date.now() + Math.random().toString(36).slice(2,7), criadoEm: new Date().toISOString(), ...l }]),
-          updateLead: (id, patch) => setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l)),
-          removeLead: (id) => setLeads((p) => p.filter((l) => l.id !== id)),
-          addMaterial: (m) => setMateriais((p) => [...p, { ...m, id: "m" + Date.now() + Math.random().toString(36).slice(2,7) }]),
-          updateMaterial: (id, patch) => setMateriais((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m))),
-          addMaterialEvento: (eventoId, materialId, quantidade) =>
-            setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
-              ...e, materiais: [...e.materiais, { materialId, quantidade: Number(quantidade), estadoSaida: "ok", retornado: false }]
-            })),
-          removeMaterialEvento: (eventoId, idx) =>
-            setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
-              ...e, materiais: e.materiais.filter((_, i) => i !== idx)
-            })),
-          toggleRetornadoEvento: (eventoId, idx) =>
-            setEventos((p) => p.map((e) => e.id !== eventoId ? e : {
-              ...e, materiais: e.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m)
-            })),
-          addVendedor: (nome) => setVendedores((p) => [...p, { id: "v" + Date.now() + Math.random().toString(36).slice(2,7), nome, ativo: true }]),
-          updateVendedor: (id, patch) => setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v)),
-          toggleVendedor: (id) => setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v))),
+          isLoading, syncStatus,
+          addEvento: (e) => {
+            const novo = { ...e, id: genId("e"), criadoEm: new Date().toISOString() };
+            setEventos((p) => [...p, novo]);
+            db.saveEvento(novo);
+          },
+          updateEvento: patchEvento,
+          removeEvento: (id) => {
+            setEventos((p) => p.filter((e) => e.id !== id));
+            db.removeEvento(id);
+          },
+          addLead: (l) => {
+            const novo = { id: genId("l"), criadoEm: new Date().toISOString(), ...l };
+            setLeads((p) => [...p, novo]);
+            db.saveLead(novo);
+            if (novo.eventoId) invalidarRanking(novo.eventoId);
+          },
+          updateLead: (id, patch) => {
+            const atual = leads.find((l) => l.id === id);
+            setLeads((p) => p.map((l) => l.id === id ? { ...l, ...patch } : l));
+            if (atual) { db.saveLead({ ...atual, ...patch }); invalidarRanking(atual.eventoId); }
+          },
+          removeLead: (id) => {
+            const atual = leads.find((l) => l.id === id);
+            setLeads((p) => p.filter((l) => l.id !== id));
+            db.removeLead(id);
+            if (atual?.eventoId) invalidarRanking(atual.eventoId);
+          },
+          addMaterial: (m) => {
+            const novo = { ...m, id: genId("m") };
+            setMateriais((p) => [...p, novo]);
+            db.saveMaterial(novo);
+          },
+          updateMaterial: (id, patch) => {
+            const atual = materiais.find((m) => m.id === id);
+            setMateriais((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+            if (atual) db.saveMaterial({ ...atual, ...patch });
+          },
+          addMaterialEvento: (eventoId, materialId, quantidade) => {
+            const ev = eventos.find((e) => e.id === eventoId);
+            if (!ev) return;
+            patchEvento(eventoId, {
+              materiais: [...ev.materiais, { materialId, quantidade: Number(quantidade), estadoSaida: "ok", retornado: false }]
+            });
+          },
+          removeMaterialEvento: (eventoId, idx) => {
+            const ev = eventos.find((e) => e.id === eventoId);
+            if (!ev) return;
+            patchEvento(eventoId, { materiais: ev.materiais.filter((_, i) => i !== idx) });
+          },
+          toggleRetornadoEvento: (eventoId, idx) => {
+            const ev = eventos.find((e) => e.id === eventoId);
+            if (!ev) return;
+            patchEvento(eventoId, { materiais: ev.materiais.map((m, i) => i === idx ? { ...m, retornado: !m.retornado } : m) });
+          },
+          addVendedor: (nome) => {
+            const novo = { id: genId("v"), nome, ativo: true };
+            setVendedores((p) => [...p, novo]);
+            db.saveVendedor(novo);
+          },
+          updateVendedor: (id, patch) => {
+            const atual = vendedores.find((v) => v.id === id);
+            setVendedores((p) => p.map((v) => v.id === id ? { ...v, ...patch } : v));
+            if (atual) db.saveVendedor({ ...atual, ...patch });
+          },
+          toggleVendedor: (id) => {
+            const atual = vendedores.find((v) => v.id === id);
+            setVendedores((p) => p.map((v) => (v.id === id ? { ...v, ativo: !v.ativo } : v)));
+            if (atual) db.saveVendedor({ ...atual, ativo: !atual.ativo });
+          },
+          obterRanking,
+          recarregar: carregar,
           getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
-          getEventosAtivos: () => eventos.filter((e) => e.status === "ativo"),
+          getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
           getMateriaisDisponiveis: () =>
             materiais.map((mat) => {
               const emCampo = eventos
-                .filter((e) => e.status === "ativo" || e.status === "planejado")
+                .filter((e) => e.status === STATUS_EVENTO.ATIVO || e.status === STATUS_EVENTO.PLANEJADO)
                 .flatMap((e) => e.materiais)
                 .filter((mm) => mm.materialId === mat.id && !mm.retornado)
                 .reduce((acc, mm) => acc + mm.quantidade, 0);
               return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
             }),
-        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }), [materiais, eventos, leads, vendedores, isLoading, syncStatus]);
         return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-      }
-
-      const AUTH = {
-        marketing: { user: import.meta.env.VITE_MARKETING_USER || "marketing", pass: import.meta.env.VITE_MARKETING_PASS || "mkt2025" },
-        comercial: { user: import.meta.env.VITE_COMERCIAL_USER || "comercial", pass: import.meta.env.VITE_COMERCIAL_PASS || "com2025" },
-      };
-
-      /* ============================================================
-         CHART COMPONENTS (useEffect + useRef + destroy cleanup)
-         ============================================================ */
-      function ChartView({ type, data, options }) {
-        const ref = useRef(null);
-        const inst = useRef(null);
-        useEffect(() => {
-          if (!ref.current) return;
-          inst.current = new Chart(ref.current, {
-            type,
-            data,
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              ...options,
-            },
-          });
-          return () => { if (inst.current) inst.current.destroy(); };
-        }, [JSON.stringify(data), type, JSON.stringify(options)]);
-        return <canvas ref={ref} />;
       }
 
       const darkScale = {
@@ -275,230 +273,11 @@ Chart.register(...registerables);
       };
 
       /* ============================================================
-         LOGIN
-         ============================================================ */
-      function Login({ onLogin, darkMode, toggleDark }) {
-        const { vendedores } = useApp();
-        const [stage, setStage] = useState("login");
-        const [u, setU] = useState("");
-        const [p, setP] = useState("");
-        const [err, setErr] = useState("");
-
-        if (stage === "select_vendedor") {
-          return (
-            <div className="login-bg">
-              <div className="login-card">
-                <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-                <p className="login-tag">Gestão de Eventos</p>
-                <p className="login-sub">Selecione seu perfil</p>
-                <div className="vendedor-list">
-                  {vendedores.filter((v) => v.ativo).map((v) => (
-                    <button key={v.id} className="vendedor-btn" onClick={() => onLogin({ role: "comercial", vendedorNome: v.nome })}>
-                      <span className="vendedor-avatar">{v.nome.charAt(0)}</span>
-                      {v.nome}
-                    </button>
-                  ))}
-                </div>
-                <button className="back-btn" onClick={() => setStage("login")} style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="back" size={15} /> Voltar</button>
-              </div>
-            </div>
-          );
-        }
-
-        const submit = (e) => {
-          e.preventDefault();
-          setErr("");
-          if (u === AUTH.marketing.user && p === AUTH.marketing.pass) onLogin({ role: "marketing" });
-          else if (u === AUTH.comercial.user && p === AUTH.comercial.pass) setStage("select_vendedor");
-          else setErr("Usuário ou senha incorretos.");
-        };
-
-        return (
-          <div className="login-bg">
-            <div className="login-card">
-              <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
-              <p className="login-tag">Gestão de Eventos</p>
-              <p className="login-sub">Sistema de Gestão de Eventos</p>
-              <form onSubmit={submit} className="login-form">
-                <div className="field-group">
-                  <label>Usuário</label>
-                  <input value={u} onChange={(e) => setU(e.target.value)} placeholder="marketing / comercial" autoComplete="username" />
-                </div>
-                <div className="field-group">
-                  <label>Senha</label>
-                  <input type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
-                </div>
-                {err && <p className="error-msg">{err}</p>}
-                <button type="submit" className="login-btn">Entrar</button>
-              </form>
-              <p className="login-hint">Angra dos Reis · RJ</p>
-              <div style={{ textAlign: "center", marginTop: 14 }}>
-                <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
-                  <Icon name={darkMode ? "sun" : "moon"} size={17} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         EVENT FORM MODAL
-         ============================================================ */
-      function EventModal({ onClose, evento }) {
-        const { addEvento, updateEvento } = useApp();
-        const [f, setF] = useState({
-          nome: evento?.nome || "",
-          local: evento?.local || "",
-          dataInicio: evento?.dataInicio || "",
-          dataFim: evento?.dataFim || "",
-          tipo: evento?.tipo || "sinalizacao",
-          status: evento?.status || "planejado",
-          observacoes: evento?.observacoes || "",
-        });
-        const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-        const submit = (e) => {
-          e.preventDefault();
-          const nome = sanitize(f.nome, 120);
-          const local = sanitize(f.local, 200);
-          const observacoes = sanitize(f.observacoes || "", 500);
-          if (!nome || !local) return;
-          if (f.dataFim && f.dataInicio && f.dataFim < f.dataInicio) {
-            alert("A data de fim não pode ser anterior à data de início.");
-            return;
-          }
-          const dados = { ...f, nome, local, observacoes };
-          if (evento) updateEvento(evento.id, dados);
-          else addEvento({ ...dados, materiais: [] });
-          onClose();
-        };
-        return (
-          <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>{evento ? "Editar Evento" : "Novo Evento"}</h2>
-                <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
-              </div>
-              <form onSubmit={submit} className="modal-form">
-                <div className="field-group">
-                  <label>Nome do Evento *</label>
-                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Festa do Pescador" />
-                </div>
-                <div className="field-group">
-                  <label>Local *</label>
-                  <input required maxLength={200} value={f.local} onChange={(e) => set("local", e.target.value)} placeholder="Endereço / Praça / Espaço" />
-                </div>
-                <div className="field-row">
-                  <div className="field-group">
-                    <label>Data Início *</label>
-                    <input required type="date" value={f.dataInicio} onChange={(e) => set("dataInicio", e.target.value)} />
-                  </div>
-                  <div className="field-group">
-                    <label>Data Fim *</label>
-                    <input required type="date" value={f.dataFim} onChange={(e) => set("dataFim", e.target.value)} />
-                  </div>
-                </div>
-                <div className="field-row">
-                  <div className="field-group">
-                    <label>Tipo</label>
-                    <select value={f.tipo} onChange={(e) => set("tipo", e.target.value)}>
-                      <option value="sinalizacao">Sinalização</option>
-                      <option value="presenca_comercial">Presença Comercial</option>
-                      <option value="ativacao_especial">Ativação Especial</option>
-                    </select>
-                  </div>
-                  <div className="field-group">
-                    <label>Status</label>
-                    <select value={f.status} onChange={(e) => set("status", e.target.value)}>
-                      <option value="planejado">Planejado</option>
-                      <option value="ativo">Ativo</option>
-                      <option value="encerrado">Encerrado</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="field-group">
-                  <label>Observações</label>
-                  <textarea rows="3" maxLength={500} value={f.observacoes} onChange={(e) => set("observacoes", e.target.value)} placeholder="Detalhes adicionais..." />
-                </div>
-                <div className="modal-actions">
-                  <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-                  <button type="submit" className="btn-primary">{evento ? "Salvar" : "Criar Evento"}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         MATERIAL MODAL
-         ============================================================ */
-      function MaterialModal({ onClose }) {
-        const { addMaterial } = useApp();
-        const [f, setF] = useState({ nome: "", quantidade: 1, descricao: "" });
-        const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-        const submit = (e) => {
-          e.preventDefault();
-          const nome = sanitize(f.nome, 120);
-          const qtd = parseInt(f.quantidade, 10);
-          if (!nome) return;
-          if (!qtd || qtd < 1 || qtd > 9999) { alert("Quantidade inválida. Informe um número entre 1 e 9999."); return; }
-          addMaterial({ ...f, nome, descricao: sanitize(f.descricao || "", 300), quantidade: qtd });
-          onClose();
-        };
-        return (
-          <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Adicionar Material</h2>
-                <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
-              </div>
-              <form onSubmit={submit} className="modal-form">
-                <div className="field-group">
-                  <label>Nome *</label>
-                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Wind Banner 2m" autoFocus />
-                </div>
-                <div className="field-group">
-                  <label>Quantidade *</label>
-                  <input required type="number" min="1" value={f.quantidade} onChange={(e) => set("quantidade", e.target.value)} />
-                </div>
-                <div className="field-group">
-                  <label>Descrição</label>
-                  <input value={f.descricao} onChange={(e) => set("descricao", e.target.value)} placeholder="Opcional" />
-                </div>
-                <div className="modal-actions">
-                  <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-                  <button type="submit" className="btn-primary">Adicionar</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      }
-
-      /* ============================================================
-         SHARED SMALL COMPONENTS
-         ============================================================ */
-      const StatusBadge = ({ s }) => (
-        <span className={"badge badge-" + s}>{STATUS_LABEL[s] || s}</span>
-      );
-      const TipoBadge = ({ t }) => <span className="badge badge-tipo">{tipoLabel(t)}</span>;
-
-      function Kpi({ label, value, icon, alert }) {
-        return (
-          <div className={"kpi" + (alert ? " alert" : "")}>
-            <div className="kpi-label">{icon && <Icon name={icon} size={14} stroke="var(--text-3)" />}{label}</div>
-            <div className="kpi-value">{value}</div>
-          </div>
-        );
-      }
-
-      /* ============================================================
          DASHBOARD (top of Eventos tab)
          ============================================================ */
       function Dashboard() {
         const { eventos, leads, vendedores, getMateriaisDisponiveis } = useApp();
-        const ativos = eventos.filter((e) => e.status === "ativo").length;
+        const ativos = eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO).length;
         const criticos = getMateriaisDisponiveis().filter((m) => m.disponivel <= 0).length;
         const vendAtivos = vendedores.filter((v) => v.ativo).length;
 
@@ -518,7 +297,7 @@ Chart.register(...registerables);
           }],
         };
 
-        const upcoming = [...eventos].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)).slice(0, 3);
+        const upcoming = [...eventos].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)).slice(0, UPCOMING_EVENTS_LIMIT);
 
         return (
           <div className="section">
@@ -536,7 +315,7 @@ Chart.register(...registerables);
                 ) : (
                   <div className="chart-box">
                     <ChartView type="doughnut" data={doughData} options={{
-                      cutout: "62%",
+                      cutout: CHART_CUTOUT,
                       plugins: { legend: { position: "bottom", labels: { color: "#b0b0b0", padding: 14, usePointStyle: true } } },
                     }} />
                   </div>
@@ -597,7 +376,7 @@ Chart.register(...registerables);
                       <div className="ev-foot">
                         <span className="ev-leads"><Icon name="users" size={13} stroke="var(--text-3)" /> <b>{getLeadsEvento(e.id).length}</b> leads</span>
                         <div className="avatars">
-                          {vs.slice(0, 4).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
+                          {vs.slice(0, AVATARS_SHOWN).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
                           {vs.length === 0 && <span style={{ fontSize: 12, color: "var(--text-3)" }}>—</span>}
                         </div>
                       </div>
@@ -756,9 +535,9 @@ Chart.register(...registerables);
                       {ev.materiais.map((m, i) => {
                         const d = disp.find((x) => x.material.id === m.materialId);
                         const dv = d ? d.disponivel : 0;
-                        const cls = dv <= 0 ? "crit" : dv <= 3 ? "warn" : "ok";
+                        const cls = dv <= 0 ? NIVEL_ESTOQUE.CRIT : dv <= 3 ? NIVEL_ESTOQUE.WARN : NIVEL_ESTOQUE.OK;
                         return (
-                          <tr key={i} style={{ opacity: m.retornado ? .5 : 1 }}>
+                          <tr key={`${m.materialId}_${i}`} style={{ opacity: m.retornado ? .5 : 1 }}>
                             <td className="strong" style={{ textDecoration: m.retornado ? "line-through" : "none" }}>
                               {matName(m.materialId)}
                             </td>
@@ -866,7 +645,7 @@ Chart.register(...registerables);
                 <div className="sr-num"><b>{m.material.quantidade}</b>total</div>
                 <div className="sr-num"><b>{m.emCampo}</b>em campo</div>
                 <div className="sr-num">
-                  <span className={"badge badge-" + (cls === "crit" ? "crit" : cls === "warn" ? "warn" : "ok")}>{m.disponivel} disp.</span>
+                  <span className={"badge badge-" + (cls === NIVEL_ESTOQUE.CRIT ? NIVEL_ESTOQUE.CRIT : cls === NIVEL_ESTOQUE.WARN ? NIVEL_ESTOQUE.WARN : NIVEL_ESTOQUE.OK)}>{m.disponivel} disp.</span>
                 </div>
               </div>
             ))}
@@ -889,9 +668,9 @@ Chart.register(...registerables);
               <Kpi label="Em Campo" value={emCampo} icon="🚚" />
             </div>
 
-            <Group title="CRÍTICO" dot="dot_red" cls="crit" rows={crit} />
-            <Group title="ATENÇÃO" dot="dot_yellow" cls="warn" rows={warn} />
-            <Group title="OK" dot="dot_green" cls="ok" rows={ok} />
+            <Group title="CRÍTICO" dot="dot_red" cls={NIVEL_ESTOQUE.CRIT} rows={crit} />
+            <Group title="ATENÇÃO" dot="dot_yellow" cls={NIVEL_ESTOQUE.WARN} rows={warn} />
+            <Group title="OK" dot="dot_green" cls={NIVEL_ESTOQUE.OK} rows={ok} />
 
             {showModal && <MaterialModal onClose={() => setShowModal(false)} />}
           </div>
@@ -917,26 +696,9 @@ Chart.register(...registerables);
         const byService = (s) => leads.filter((l) => l.servicoInteresse === s).length;
 
         const exportarCSV = () => {
-          const dados = fEvento ? leads.filter((l) => l.eventoId === fEvento) : leads;
-          if (dados.length === 0) return;
-          const nomeEvento = fEvento ? evName(fEvento) : "todos_eventos";
-          const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
-          const linhas = dados.map((l) => [
-            l.nome, l.cpf || "", l.telefone, l.endereco || "",
-            servicoLabel(l.servicoInteresse), l.temperatura,
-            l.jaClienteRjnet ? "Sim" : "Não",
-            l.vendedorNome, evName(l.eventoId),
-            (l.observacao || "").replace(/"/g, '""'),
-            new Date(l.criadoEm).toLocaleString("pt-BR"),
-          ]);
-          const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-          const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `leads_${nomeEvento.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.csv`;
-          a.click();
-          URL.revokeObjectURL(url);
+          const dados = filtered.length > 0 ? filtered : leads;
+          const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
+          exportLeadsCSV(dados, sufixo, servicoLabel, evName);
         };
 
         const porEvento = useMemo(() => {
@@ -962,9 +724,8 @@ Chart.register(...registerables);
                 style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}
                 onClick={exportarCSV}
                 disabled={leads.length === 0}
-                title={fEvento ? "Exportar leads do evento selecionado" : "Selecione um evento no filtro para exportar"}
               >
-                ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(selecione evento)"}
+                ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(todos)"}
               </button>
             </div>
 
@@ -996,7 +757,9 @@ Chart.register(...registerables);
                 </select>
                 <select value={fVend} onChange={(e) => setFVend(e.target.value)}>
                   <option value="">Todos os vendedores</option>
-                  {vendedores.map((v) => <option key={v.id} value={v.nome}>{v.nome}</option>)}
+                  {[...new Set(leads.map((l) => l.vendedorNome).filter(Boolean))].sort().map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
                 </select>
                 <select value={fServ} onChange={(e) => setFServ(e.target.value)}>
                   <option value="">Todos os serviços</option>
@@ -1051,7 +814,7 @@ Chart.register(...registerables);
             <div className="page-head">
               <div>
                 <div className="page-title">Equipe</div>
-                <p className="tab-desc">Gerencie os perfis da equipe comercial. Vendedores ativos aparecem na tela de login do acesso Comercial.</p>
+                <p className="tab-desc">Gerencie os acessos da equipe. Cada pessoa entra com o próprio e-mail e senha; o papel define o que ela pode ver e fazer.</p>
               </div>
               <button className="btn-primary" onClick={() => setShowForm((s) => !s)}>+ Adicionar Vendedor</button>
             </div>
@@ -1076,7 +839,7 @@ Chart.register(...registerables);
                 const vl = leadsDoVendedor(v.nome);
                 const recent = [...eventos]
                   .sort((a, b) => a.dataInicio.localeCompare(b.dataInicio))
-                  .slice(-5)
+                  .slice(-RECENT_EVENTS_SHOWN)
                   .map((ev) => ({ ev, n: vl.filter((l) => l.eventoId === ev.id).length }));
                 const hasData = recent.some((r) => r.n > 0);
                 const barData = {
@@ -1108,6 +871,169 @@ Chart.register(...registerables);
                   </div>
                 );
               })}
+            </div>
+          </div>
+        );
+      }
+
+      /* ============================================================
+         EQUIPE TAB (AUTH) — gestão de usuários pelo marketing
+         ============================================================ */
+      function EquipeAuthTab() {
+        const { vendedores: perfis, leads, recarregar } = useApp();
+        const [showForm, setShowForm] = useState(false);
+        const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "vendedor" });
+        const [erro, setErro] = useState("");
+        const [salvando, setSalvando] = useState(false);
+        const [editando, setEditando] = useState(null); // { id, nome, email }
+        const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+        const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor" };
+
+        const toSlug = (nome) =>
+          nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+            .replace(/\s+/g, ".").replace(/[^a-z0-9.]/g, "");
+
+        const submit = async (e) => {
+          e.preventDefault();
+          setErro("");
+          if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
+          const emailFinal = f.email.trim() || `${toSlug(f.nome)}@vendedor.rjnet.com.br`;
+          setSalvando(true);
+          try {
+            await auth.criarUsuario({ nome: sanitize(f.nome, 80), email: emailFinal, senha: f.senha, papel: f.papel });
+            await recarregar();
+            setF({ nome: "", email: "", senha: "", papel: "vendedor" });
+            setShowForm(false);
+          } catch (ex) {
+            setErro(ex.message || "Não foi possível criar o usuário.");
+          } finally {
+            setSalvando(false);
+          }
+        };
+
+        const salvarEdicao = async (e) => {
+          e.preventDefault();
+          try {
+            await auth.atualizarPerfil(editando.id, { nome: sanitize(editando.nome, 80), email: editando.email.trim() });
+            await recarregar();
+            setEditando(null);
+          } catch (ex) {
+            alert("Falha ao salvar: " + ex.message);
+          }
+        };
+
+        const toggleAtivo = async (p) => {
+          if (p.ativo && !confirm(`Desativar o acesso de ${p.nome}?`)) return;
+          try { await auth.atualizarPerfil(p.id, { ativo: !p.ativo }); await recarregar(); }
+          catch (ex) { alert("Falha ao atualizar: " + ex.message); }
+        };
+
+        const mudarPapel = async (p, papel) => {
+          try { await auth.atualizarPerfil(p.id, { papel }); await recarregar(); }
+          catch (ex) { alert("Falha ao atualizar: " + ex.message); }
+        };
+
+        const excluir = async (p) => {
+          if (!confirm(`Excluir ${p.nome} permanentemente? Esta ação não pode ser desfeita.`)) return;
+          try { await auth.excluirUsuario(p.id); await recarregar(); }
+          catch (ex) { alert("Falha ao excluir: " + ex.message); }
+        };
+
+        const leadsDoUsuario = (nome) => leads.filter((l) => l.vendedorNome === nome).length;
+
+        return (
+          <div className="page">
+            <div className="page-head">
+              <div>
+                <div className="page-title">Equipe</div>
+                <p className="tab-desc">Crie e gerencie os acessos. Cada pessoa entra com o próprio e-mail e senha; o papel define o que ela pode ver e fazer.</p>
+              </div>
+              <button className="btn-primary" onClick={() => setShowForm((s) => !s)}>+ Novo Usuário</button>
+            </div>
+
+            {showForm && (
+              <form onSubmit={submit} className="inline-form-card">
+                <div className="field-row">
+                  <div className="field-group">
+                    <label>Nome completo *</label>
+                    <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
+                  </div>
+                  <div className="field-group">
+                    <label>Senha inicial *</label>
+                    <input type="password" required minLength={8} value={f.senha} onChange={(e) => set("senha", e.target.value)} placeholder="Mínimo 8 caracteres" />
+                  </div>
+                  <div className="field-group">
+                    <label>Papel *</label>
+                    <select value={f.papel} onChange={(e) => set("papel", e.target.value)}>
+                      <option value="vendedor">Vendedor — registra e acompanha leads</option>
+                      <option value="marketing">Marketing — administra tudo</option>
+                    </select>
+                  </div>
+                </div>
+                {erro && <p className="error-msg">{erro}</p>}
+                <div className="modal-actions">
+                  <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
+                  <button type="submit" className="btn-primary" disabled={salvando}>{salvando ? "Criando…" : "Criar usuário"}</button>
+                </div>
+              </form>
+            )}
+
+            {editando && (
+              <div className="modal-overlay" onClick={() => setEditando(null)}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-title">Editar usuário</div>
+                  <form onSubmit={salvarEdicao}>
+                    <div className="field-group" style={{ marginBottom: 12 }}>
+                      <label>Nome completo</label>
+                      <input required maxLength={80} value={editando.nome} onChange={(e) => setEditando((ed) => ({ ...ed, nome: e.target.value }))} />
+                    </div>
+                    <div className="field-group" style={{ marginBottom: 16 }}>
+                      <label>E-mail de login</label>
+                      <input type="email" required value={editando.email} onChange={(e) => setEditando((ed) => ({ ...ed, email: e.target.value }))} />
+                    </div>
+                    <div className="modal-actions">
+                      <button type="button" className="btn-ghost" onClick={() => setEditando(null)}>Cancelar</button>
+                      <button type="submit" className="btn-primary">Salvar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            <div className="vendor-grid">
+              {perfis.map((p) => (
+                <div key={p.id} className="vendor-card">
+                  <div className="v-av">{initials(p.nome)}</div>
+                  <div className="v-name">{p.nome}</div>
+                  {p.email && <div className="tab-desc" style={{ margin: "2px 0 6px", wordBreak: "break-all" }}>{p.email}</div>}
+                  <div className="v-badge" style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                    <span className="badge badge-tipo">{PAPEL_LABEL[p.papel] || p.papel}</span>
+                    <span className={"badge " + (p.ativo ? "badge-ativo" : "badge-encerrado")}>{p.ativo ? "Ativo" : "Inativo"}</span>
+                  </div>
+                  {p.papel === "vendedor" && (
+                    <>
+                      <div className="v-cap">leads captados</div>
+                      <div className="v-big">{leadsDoUsuario(p.nome)}</div>
+                    </>
+                  )}
+                  <div className="v-actions" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+                    <select value={p.papel} onChange={(e) => mudarPapel(p, e.target.value)} title="Alterar papel">
+                      <option value="vendedor">Vendedor</option>
+                      <option value="marketing">Marketing</option>
+                    </select>
+                    <button className="btn-ghost vendor-toggle" onClick={() => setEditando({ id: p.id, nome: p.nome, email: p.email || "" })}>
+                      Editar
+                    </button>
+                    <button className="btn-ghost vendor-toggle" onClick={() => toggleAtivo(p)}>
+                      {p.ativo ? "Desativar" : "Ativar"}
+                    </button>
+                    <button className="btn-ghost vendor-toggle" style={{ color: "#ef4444" }} onClick={() => excluir(p)} title="Excluir usuário">
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         );
@@ -1316,6 +1242,7 @@ Chart.register(...registerables);
                 ))}
               </nav>
               <div className="header-right">
+                <SyncBadge />
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="dot"></span><span className="ub-name">Marketing</span></span>
               </div>
@@ -1327,7 +1254,7 @@ Chart.register(...registerables);
               : <EventosTab onOpen={setDetailId} />)}
             {tab === "estoque" && <EstoqueTab />}
             {tab === "leads" && <LeadsTab />}
-            {tab === "equipe" && <EquipeTab />}
+            {tab === "equipe" && (supabaseEnabled ? <EquipeAuthTab /> : <EquipeTab />)}
             {tab === "checkin" && <CheckinTab />}
 
             {/* Bottom nav — mobile only */}
@@ -1348,45 +1275,10 @@ Chart.register(...registerables);
       /* ============================================================
          HELPERS — máscara de telefone
          ============================================================ */
-      function sanitize(str, max = 200) {
-        if (typeof str !== "string") return "";
-        return str.replace(/<[^>]*>/g, "").trim().slice(0, max);
-      }
+      // Alias local — delega para o módulo de segurança centralizado
+      const sanitize = sanitizeText;
 
-      function validarCpf(cpf) {
-        const d = cpf.replace(/\D/g, "");
-        if (d.length !== 11) return false;
-        if (/^(\d)\1{10}$/.test(d)) return false;
-        let s = 0;
-        for (let i = 0; i < 9; i++) s += +d[i] * (10 - i);
-        let r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
-        if (r !== +d[9]) return false;
-        s = 0;
-        for (let i = 0; i < 10; i++) s += +d[i] * (11 - i);
-        r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
-        return r === +d[10];
-      }
-
-      function validarTelefone(tel) {
-        const d = tel.replace(/\D/g, "");
-        return d.length >= 10 && d.length <= 11;
-      }
-
-      function maskCpf(v) {
-        const d = v.replace(/\D/g, "").slice(0, 11);
-        if (d.length <= 3) return d;
-        if (d.length <= 6) return d.slice(0,3) + "." + d.slice(3);
-        if (d.length <= 9) return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6);
-        return d.slice(0,3) + "." + d.slice(3,6) + "." + d.slice(6,9) + "-" + d.slice(9);
-      }
-
-      function maskTel(v) {
-        const d = v.replace(/\D/g, "").slice(0, 11);
-        if (d.length <= 2) return d.length ? "(" + d : "";
-        if (d.length <= 7) return "(" + d.slice(0,2) + ") " + d.slice(2);
-        if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
-        return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
-      }
+      /* validarCpf, validarTelefone, maskCpf, maskTel — importados de ./utils/masks */
 
       /* ============================================================
          VENDEDOR (COMERCIAL) VIEW — mobile-first
@@ -1458,9 +1350,17 @@ Chart.register(...registerables);
       }
 
       function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-        const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos } = useApp();
+        const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, obterRanking } = useApp();
         const ativos = getEventosAtivos();
         const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
+
+        // Os eventos podem chegar do Supabase depois do mount (ou mudar em outro
+        // dispositivo); garante que a seleção sempre aponte para um evento ativo
+        useEffect(() => {
+          if (!ativos.some((e) => e.id === eventoId)) {
+            setEventoId(ativos[0]?.id || "");
+          }
+        }, [ativos, eventoId]);
         const [aba, setAba] = useState("registrar");
         const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "internet_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
         const [f, setF] = useState(FORM_VAZIO);
@@ -1472,27 +1372,55 @@ Chart.register(...registerables);
 
         const eventoAtual = eventos.find((e) => e.id === eventoId);
         const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
-        const todosLeadsEvento = leads.filter((l) => l.eventoId === eventoId);
 
         const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
         const metaBatida = leadsDoEvento.length >= META_DIARIA;
 
-        const ranking = useMemo(() => {
-          const mapa = {};
-          todosLeadsEvento.forEach((l) => {
-            mapa[l.vendedorNome] = (mapa[l.vendedorNome] || 0) + 1;
-          });
-          return Object.entries(mapa)
-            .map(([nome, total]) => ({ nome, total }))
-            .sort((a, b) => b.total - a.total);
-        }, [todosLeadsEvento]);
+        // Placar da equipe: com auth ativa vem do servidor (o vendedor vê a
+        // pontuação de todos sem acesso aos leads dos colegas).
+        // Atualiza ao trocar de evento, após 3 s do último lead adicionado
+        // (debounce) e via polling de 60 s para manter sincronia entre devices.
+        const [ranking, setRanking] = useState([]);
+        const [rankingLoading, setRankingLoading] = useState(false);
+        const rankingDebounce = useRef(null);
+
+        const atualizarRanking = useRef(null);
+        atualizarRanking.current = async (eventoId) => {
+          if (!eventoId) { setRanking([]); return; }
+          setRankingLoading(true);
+          const r = await obterRanking(eventoId);
+          setRanking(r || []);
+          setRankingLoading(false);
+        };
+
+        // Troca de evento: busca imediata
+        useEffect(() => {
+          atualizarRanking.current(eventoId);
+        }, [eventoId]);
+
+        // Novo lead: debounce de 3 s para aguardar escrita no banco
+        useEffect(() => {
+          if (!eventoId) return;
+          clearTimeout(rankingDebounce.current);
+          rankingDebounce.current = setTimeout(() => atualizarRanking.current(eventoId), RANKING_DEBOUNCE_MS);
+          return () => clearTimeout(rankingDebounce.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [leads.length]);
+
+        // Polling passivo de 60 s para sincronizar com outros devices
+        useEffect(() => {
+          if (!eventoId) return;
+          const interval = setInterval(() => atualizarRanking.current(eventoId), RANKING_POLL_MS);
+          return () => clearInterval(interval);
+        }, [eventoId]);
+        const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
 
         const maxRanking = ranking[0]?.total || 1;
 
         const showToast = (id, nome) => {
           if (toastTimer.current) clearTimeout(toastTimer.current);
           setToast({ id, nome });
-          toastTimer.current = setTimeout(() => setToast(null), 5000);
+          toastTimer.current = setTimeout(() => setToast(null), TOAST_DURATION_MS);
         };
 
         const handleUndo = () => {
@@ -1509,7 +1437,7 @@ Chart.register(...registerables);
           setFormErro("");
           if (!eventoId) { setFormErro("Selecione um evento antes de registrar."); return; }
           const eventoSel = eventos.find((ev) => ev.id === eventoId);
-          if (!eventoSel || eventoSel.status === "encerrado") { setFormErro("Este evento está encerrado e não aceita novos leads."); return; }
+          if (!eventoSel || eventoSel.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Este evento está encerrado e não aceita novos leads."); return; }
           const nome = sanitize(f.nome, 120);
           if (!nome) { setFormErro("Nome é obrigatório."); return; }
           if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
@@ -1523,6 +1451,7 @@ Chart.register(...registerables);
             observacao: sanitize(f.observacao, 500),
             eventoId,
             vendedorNome: session.vendedorNome,
+            vendedorId: session.userId || null,
           });
           if (typeof navigator.vibrate === "function") navigator.vibrate(80);
           showToast(novoId, nome);
@@ -1548,7 +1477,8 @@ Chart.register(...registerables);
           <div>
             <header className="app-header">
               <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
-              <div className="header-right" style={{ marginLeft: "auto" }}>
+              <div className="header-right" style={{ marginLeft: "auto", gap: 8 }}>
+                <SyncBadge />
                 <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
                 <span className="user-badge"><span className="vendedor-avatar" style={{ width: 22, height: 22, fontSize: 11 }}>{session.vendedorNome.charAt(0)}</span><span className="ub-name">{session.vendedorNome}</span></span>
               </div>
@@ -1590,7 +1520,15 @@ Chart.register(...registerables);
                     <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
                     Modo rápido — só essencial
                   </label>
-                  {ativos.length > 0 && (
+                  {ativos.length === 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 16px", gap: 14 }}>
+                      <Icon name="calendar" size={44} stroke="var(--text-3)" />
+                      <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-2)" }}>Sem eventos ativos</div>
+                      <div style={{ fontSize: 14, color: "var(--text-3)", maxWidth: 280, lineHeight: 1.6 }}>
+                        Aguarde o marketing ativar um evento para começar a registrar leads.
+                      </div>
+                    </div>
+                  ) : (
                     <form onSubmit={submit}>
                       <div className="big-field">
                         <label>Nome completo *</label>
@@ -1714,6 +1652,104 @@ Chart.register(...registerables);
                 </div>
               )}
 
+              {/* ---- ABA PACOTES ---- */}
+              {aba === "pacotes" && (
+                <div className="pacotes-wrap">
+                  {/* INTERNET FIBRA */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">📶 Internet Fibra</div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Plano</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>60 Mega</td><td>R$ 49,90</td></tr>
+                        <tr><td>90 Mega</td><td>R$ 74,90</td></tr>
+                        <tr><td>120 Mega</td><td>R$ 79,90</td></tr>
+                        <tr><td>240 Mega</td><td>R$ 89,90</td></tr>
+                        <tr className="pacotes-destaque"><td>420 Mega ⭐</td><td>R$ 99,90</td></tr>
+                        <tr><td>680 Mega</td><td>R$ 119,90</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* TV */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">📺 TV</div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Plano</th><th>Canais</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>Start</td><td>27</td><td>R$ 29,90</td></tr>
+                        <tr><td>Multi+</td><td>88</td><td>R$ 89,90</td></tr>
+                      </tbody>
+                    </table>
+                    <div className="pacotes-sub-title">Premium (adicionais)</div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Canal</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>Telecine</td><td>R$ 29,90</td></tr>
+                        <tr><td>Premiere</td><td>R$ 59,90</td></tr>
+                        <tr><td>Combate</td><td>R$ 34,90</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* MÓVEL */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">📱 Móvel</div>
+                    <div className="pacotes-chips">
+                      <span className="pacotes-chip">WhatsApp ilimitado</span>
+                      <span className="pacotes-chip">Cobertura nacional</span>
+                      <span className="pacotes-chip">Dados acumulativos</span>
+                    </div>
+                    <table className="pacotes-table">
+                      <thead><tr><th>Plano</th><th>Franquia</th><th>Valor</th></tr></thead>
+                      <tbody>
+                        <tr><td>Pré</td><td>2 GB</td><td>R$ 29,90</td></tr>
+                        <tr><td>Controle</td><td>10 GB</td><td>R$ 39,90</td></tr>
+                        <tr><td>Controle</td><td>24 GB</td><td>R$ 54,90</td></tr>
+                        <tr><td>Controle</td><td>35 GB</td><td>R$ 69,90</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* APPS */}
+                  <div className="pacotes-section">
+                    <div className="pacotes-section-title">🎁 Apps</div>
+                    <div className="pacotes-apps-grid">
+                      <div className="pacotes-app-card pacotes-app-yellow">
+                        <div className="pacotes-app-header">
+                          <span className="pacotes-app-name">Yellow</span>
+                          <span className="pacotes-app-price">R$ 15,00/mês</span>
+                        </div>
+                        <ul className="pacotes-app-list">
+                          <li>Deezer</li>
+                          <li>Ubook</li>
+                          <li>Kaspersky</li>
+                          <li>PlayKids</li>
+                          <li>Estuda+</li>
+                          <li>HUB Vantagens</li>
+                          <li>e outros</li>
+                        </ul>
+                      </div>
+                      <div className="pacotes-app-card pacotes-app-black">
+                        <div className="pacotes-app-header">
+                          <span className="pacotes-app-name">Black</span>
+                          <span className="pacotes-app-price">R$ 30,00/mês</span>
+                        </div>
+                        <ul className="pacotes-app-list">
+                          <li>Max</li>
+                          <li>Disney+</li>
+                          <li>NBA</li>
+                          <li>Smart Fit</li>
+                          <li>Zen</li>
+                          <li>Queima Diária</li>
+                          <li>Kaspersky</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ---- ABA EVENTO ---- */}
               {aba === "evento" && (
                 <div>
@@ -1740,7 +1776,7 @@ Chart.register(...registerables);
                         </div>
                         <div className="ev-info-row">
                           <span className="ev-info-label">Total leads</span>
-                          <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{todosLeadsEvento.length}</span>
+                          <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{totalLeadsEvento}</span>
                         </div>
                         {eventoAtual.observacoes && (
                           <div className="ev-info-row">
@@ -1758,11 +1794,14 @@ Chart.register(...registerables);
                       )}
 
                       <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                           Placar da equipe
+                          {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#f5c000)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
                         </div>
-                        {ranking.length === 0 ? (
+                        {ranking.length === 0 && !rankingLoading ? (
                           <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
+                        ) : ranking.length === 0 ? (
+                          <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Carregando placar…</div>
                         ) : (
                           <div className="ranking-list">
                             {ranking.map((item, i) => (
@@ -1801,6 +1840,10 @@ Chart.register(...registerables);
                 <Icon name="calendar" size={22} stroke={aba === "evento" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
                 Evento
               </button>
+              <button className={"vend-nav-btn" + (aba === "pacotes" ? " active" : "")} onClick={() => setAba("pacotes")}>
+                <Icon name="box" size={22} stroke={aba === "pacotes" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+                Pacotes
+              </button>
             </nav>
 
             {toast && (
@@ -1817,7 +1860,6 @@ Chart.register(...registerables);
          ROOT
          ============================================================ */
       function Root() {
-        const [session, setSession] = usePersisted("rjnet_session", null, { session: true });
         const [darkMode, setDarkMode] = useState(() => {
           const saved = localStorage.getItem("rjnet-theme");
           return saved ? saved === "dark" : true;
@@ -1829,13 +1871,14 @@ Chart.register(...registerables);
         }, [darkMode]);
 
         const toggleDark = () => setDarkMode((d) => !d);
-        const logout = () => setSession(null);
 
-        if (!session) return <Login onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
-        if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
-        return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+        return supabaseEnabled
+          ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />
+          : <RootLegacy darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />;
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(
-        <AppProvider><Root /></AppProvider>
+        <ErrorBoundary>
+          <AppProvider><Root /></AppProvider>
+        </ErrorBoundary>
       );
