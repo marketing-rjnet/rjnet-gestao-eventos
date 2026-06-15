@@ -22,8 +22,8 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 11/18 etapas concluídas (61%)
-Arquivo principal: src/main.jsx — atual: ~1.189 linhas — meta: < 100 linhas ao fim
+Progresso geral: 12/18 etapas concluídas (67%)
+Arquivo principal: src/main.jsx — atual: ~942 linhas — meta: < 100 linhas ao fim
 ```
 
 ### Histórico de Execução
@@ -101,6 +101,15 @@ Etapa 11 executada em 15/06/2026.
   TEMPERATURA_CONFIG duplicada localmente em CheckinTab.jsx (main.jsx ainda precisa para VendedorApp).
   Imports removidos de main.jsx: NIVEL_ESTOQUE (constants), exportLeadsCSV (csv).
   Build passou sem erros (91 módulos transformados).
+
+Etapa 12 executada em 15/06/2026.
+  Criado src/features/team/EquipeTab.jsx: gestão de vendedores no modo local.
+  Criado src/features/team/EquipeAuthTab.jsx: gestão de usuários com RBAC no modo Supabase Auth.
+  Criado src/features/team/index.js: re-exports dos dois componentes.
+  EquipeTab e EquipeAuthTab removidos de main.jsx (~247 linhas).
+  sanitize() convertida para sanitizeText() diretamente nos novos arquivos.
+  Imports não mais usados removidos de main.jsx: RECENT_EVENTS_SHOWN (constants), fmtDate e initials (format).
+  Build passou sem erros (94 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -126,7 +135,7 @@ Etapa 8  — Auth Components           ✅ Concluída
 Etapa 9  — Modais                    ✅ Concluída
 Etapa 10 — Dashboard + Eventos       ✅ Concluída
 Etapa 11 — Estoque + Leads + Checkin ✅ Concluída
-Etapa 12 — Equipe                    ⬜ Não iniciada
+Etapa 12 — Equipe                    ✅ Concluída
 Etapa 13 — VendedorApp               ⬜ Não iniciada
 Etapa 14 — App + Layout Shells       ⬜ Não iniciada
 Etapa 15 — Domain Hooks              ⬜ Não iniciada
@@ -1442,16 +1451,14 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 11 — Estoque + Leads + Checkin** (primeira etapa não concluída)
+**→ Etapa 13 — VendedorApp** (próxima etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Verificar se `CHART_COLORS` está em constants.js ou ainda em main.jsx (linha ~42).
-2. Ler `src/main.jsx` nas linhas de `Dashboard`, `EventosTab` e `EventDetail`.
-3. Criar `src/features/events/Dashboard.jsx`.
-4. Criar `src/features/events/EventosTab.jsx`.
-5. Criar `src/features/events/EventDetail.jsx`.
-6. Criar `src/features/events/index.js` re-exportando os três.
-7. Remover as definições de `main.jsx` e adicionar os imports correspondentes.
-8. Executar `npm run build` e verificar sem erros.
-9. Commit: `refactor: extract Dashboard, EventosTab and EventDetail to src/features/events/`.
+1. Ler `src/main.jsx` nas linhas de `LeadEditInline` e `VendedorApp` (~588–942).
+2. Criar `src/apps/VendedorApp.jsx` com o shell completo do vendedor.
+3. Criar `src/apps/LeadEditInline.jsx` (ou incluir no mesmo arquivo, avaliar tamanho).
+4. Remover as definições de `main.jsx` e adicionar o import correspondente.
+5. Garantir cleanup do setInterval de ranking no unmount.
+6. Executar `npm run build` e verificar sem erros.
+7. Commit: `refactor: extract VendedorApp and LeadEditInline to src/apps/`.

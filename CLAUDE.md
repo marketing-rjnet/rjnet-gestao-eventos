@@ -12,11 +12,11 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–11 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–12 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
-├── main.jsx              # App React (~1.530 linhas) — componentes ainda não extraídos
+├── main.jsx              # App React (~942 linhas) — VendedorApp e MarketingApp ainda não extraídos
 ├── index.css             # Estilos globais (tema dark)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
@@ -44,9 +44,13 @@ src/
 │   ├── leads/
 │   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
 │   │   └── index.js          # Re-export de leads (etapa 11)
-│   └── checkin/
-│       ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
-│       └── index.js          # Re-export de checkin (etapa 11)
+│   ├── checkin/
+│   │   ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
+│   │   └── index.js          # Re-export de checkin (etapa 11)
+│   └── team/
+│       ├── EquipeTab.jsx     # Gestão de vendedores modo local (etapa 12)
+│       ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
+│       └── index.js          # Re-exports de team (etapa 12)
 ├── hooks/
 │   └── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 ├── utils/
