@@ -4,6 +4,64 @@
 import { supabase, supabaseEnabled, supabaseConfig } from './supabase';
 import { cache } from './cache';
 
+/* ─── Fila offline ───────────────────────────────────────────────── */
+
+const QUEUE_KEY = 'rjnet_pending_queue';
+
+function getQueue() {
+  try {
+    const raw = localStorage.getItem(QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveQueue(queue) {
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  } catch (err) {
+    console.error('[rjnet] Falha ao salvar fila offline:', err.message);
+  }
+}
+
+function addToQueue(op) {
+  const queue = getQueue();
+  queue.push({ ...op, queuedAt: new Date().toISOString() });
+  saveQueue(queue);
+}
+
+// Envia todos os leads pendentes ao Supabase. Descarta itens cujo evento
+// não está mais ativo (ex: marketing encerrou o evento enquanto vendedor
+// estava offline). Itens com falha permanecem na fila para próxima tentativa.
+export async function flushPendingQueue() {
+  if (!supabaseEnabled) return;
+  const queue = getQueue();
+  if (queue.length === 0) return;
+
+  let activeEventIds = new Set();
+  try {
+    const { data } = await supabase.from('eventos').select('id').eq('status', 'ativo');
+    if (data) activeEventIds = new Set(data.map((e) => e.id));
+  } catch { /* sem validação de evento se fetch falhar */ }
+
+  const remaining = [];
+  for (const op of queue) {
+    try {
+      if (op.type === 'saveLead') {
+        if (activeEventIds.size > 0 && op.data.evento_id && !activeEventIds.has(op.data.evento_id)) {
+          console.warn('[rjnet] Lead offline descartado: evento encerrado', op.data.evento_id);
+          continue;
+        }
+        const { error } = await supabase.from('leads').upsert(op.data);
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error('[rjnet] Falha ao sincronizar da fila:', err.message);
+      remaining.push(op);
+    }
+  }
+  saveQueue(remaining);
+}
+
 /* ─── Utilitários de resiliência ─────────────────────────────────── */
 
 // Tenta `fn` até `maxAttempts` vezes com backoff exponencial.
@@ -167,7 +225,7 @@ export function invalidarRanking(eventoId) {
 
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
-function exec(promise, acao) {
+function exec(promise, acao, onFail) {
   if (!supabaseEnabled) return;
   // Retry uma vez após 1 s em caso de falha transitória
   const tentativa = (p) => p.then(({ error }) => {
@@ -179,6 +237,7 @@ function exec(promise, acao) {
       .catch((err) => {
         console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
         window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
+        if (onFail) onFail();
       })
   );
 }
@@ -187,7 +246,14 @@ export const db = {
   saveMaterial: (m) => exec(supabase?.from('materiais').upsert(materialToDb(m)), 'salvar material'),
   saveVendedor: (v) => exec(supabase?.from('vendedores').upsert(vendedorToDb(v)), 'salvar vendedor'),
   saveEvento:   (e) => exec(supabase?.from('eventos').upsert(eventoToDb(e)), 'salvar evento'),
-  saveLead:     (l) => exec(supabase?.from('leads').upsert(leadToDb(l)), 'salvar lead'),
+  saveLead: (l) => {
+    const dbData = leadToDb(l);
+    exec(
+      supabase?.from('leads').upsert(dbData),
+      'salvar lead',
+      () => addToQueue({ type: 'saveLead', data: dbData }),
+    );
+  },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
   removeLead:   (id) => exec(supabase?.from('leads').update({ deletado: true }).eq('id', id), 'remover lead'),
 };

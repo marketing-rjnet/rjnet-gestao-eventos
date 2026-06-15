@@ -2,7 +2,7 @@ import React, { useState, useContext, createContext, useEffect, useRef, useMemo,
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
 import { supabaseEnabled } from './lib/supabase';
-import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking } from './lib/dataService';
+import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking, flushPendingQueue } from './lib/dataService';
 import { sanitizeText } from './lib/security';
 import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
@@ -241,6 +241,7 @@ Chart.register(...registerables);
           abortRef.current = controller;
 
           setSyncStatus("syncing");
+          await flushPendingQueue();
           const dados = await fetchAll(controller.signal);
           if (controller.signal.aborted) return;
           if (!dados) { setSyncStatus("error"); return; }
@@ -265,11 +266,13 @@ Chart.register(...registerables);
           });
           const handleSyncError = () => setSyncStatus("error");
           window.addEventListener('rjnet:sync-error', handleSyncError);
+          window.addEventListener('online', carregar);
           return () => {
             abortRef.current?.abort();
             unsubRealtime();
             unsubAuth();
             window.removeEventListener('rjnet:sync-error', handleSyncError);
+            window.removeEventListener('online', carregar);
           };
         }, []);
 
@@ -2061,7 +2064,15 @@ Chart.register(...registerables);
                     <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
                     Modo rápido — só essencial
                   </label>
-                  {ativos.length > 0 && (
+                  {ativos.length === 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 16px", gap: 14 }}>
+                      <Icon name="calendar" size={44} stroke="var(--text-3)" />
+                      <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-2)" }}>Sem eventos ativos</div>
+                      <div style={{ fontSize: 14, color: "var(--text-3)", maxWidth: 280, lineHeight: 1.6 }}>
+                        Aguarde o marketing ativar um evento para começar a registrar leads.
+                      </div>
+                    </div>
+                  ) : (
                     <form onSubmit={submit}>
                       <div className="big-field">
                         <label>Nome completo *</label>
