@@ -147,5 +147,5 @@ WHERE schemaname = 'public'
 | 7 | `supabase/migracao-audit-log.sql` | 🔴 Planejado (PA-13) | Tabela de auditoria de operações |
 | 8 | `supabase/migracao-retencao.sql` | 🔴 Planejado (PA-10) | Política de retenção automática |
 
-> Auditorias e conformidade completa: `docs/LGPD_AUDIT_AND_COMPLIANCE.md`  
-> Plano de ação LGPD: `docs/PLANO_DE_ACAO_LGPD.md`
+> Auditorias e conformidade completa: `doc/LGPD_AUDIT_AND_COMPLIANCE.md`  
+> Plano de ação LGPD: `doc/PLANO_DE_ACAO_LGPD.md`

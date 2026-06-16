@@ -10,23 +10,23 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Documentação de Referência
 
-@docs/SYSTEM_MAP.md
+@doc/SYSTEM_MAP.md
 
 | Arquivo | Conteúdo | Quando ler |
 |---------|----------|------------|
-| `docs/SYSTEM_MAP.md` | **Arquitetura viva** — estrutura, fluxo de dados e restrições. Carregado automaticamente via `@import` acima. | Toda sessão (automático) |
-| `docs/DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas | Antes de qualquer mudança arquitetural ou de padrão |
-| `docs/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) | Antes de qualquer alteração no banco ou schema |
-| `docs/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
-| `docs/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
-| `docs/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
-| `docs/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
+| `doc/SYSTEM_MAP.md` | **Arquitetura viva** — estrutura, fluxo de dados e restrições. Carregado automaticamente via `@import` acima. | Toda sessão (automático) |
+| `doc/DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas | Antes de qualquer mudança arquitetural ou de padrão |
+| `doc/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) | Antes de qualquer alteração no banco ou schema |
+| `doc/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
+| `doc/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
+| `doc/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
+| `doc/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
 
 ---
 
 ## Estrutura do Projeto
 
-> **Refatoração concluída** — 18/18 etapas executadas. Ver `docs/REFATORAÇÃO.md`.
+> **Refatoração concluída** — 18/18 etapas executadas. Ver `doc/REFATORAÇÃO.md`.
 
 ```
 src/

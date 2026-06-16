@@ -8,10 +8,10 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Data:** 2026-06-16
 
 **O que mudou**
-- **Docs:** criado `docs/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança, governança e Supabase (1.200+ linhas, 11 seções + seção de fases de implementação)
-- **Docs:** criado `docs/PLANO_DE_ACAO_LGPD.md` — plano de ação executável com 21 ações organizadas em 4 fases, com responsáveis, prazos, queries SQL prontas e checklists de evidência
+- **Docs:** criado `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança, governança e Supabase (1.200+ linhas, 11 seções + seção de fases de implementação)
+- **Docs:** criado `doc/PLANO_DE_ACAO_LGPD.md` — plano de ação executável com 21 ações organizadas em 4 fases, com responsáveis, prazos, queries SQL prontas e checklists de evidência
 - **Docs:** `CLAUDE.md` atualizado — tabela de referência agora inclui os dois novos documentos de conformidade
-- **Docs:** `docs/DECISIONS.md` atualizado — registrada decisão D-031 sobre a auditoria
+- **Docs:** `doc/DECISIONS.md` atualizado — registrada decisão D-031 sobre a auditoria
 
 **Principais não conformidades documentadas**
 - Ausência total de consentimento LGPD para leads captados em eventos (CRÍTICO)
@@ -35,14 +35,14 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **O que mudou**
 - **C-1 (segurança):** `salvarEdicao` em `VendedorApp.jsx` agora sanitiza `nome`, `cpf`, `endereco` e `observacao` via `sanitizeText()` antes de chamar `updateLead` — eliminando vetor de XSS armazenado no fluxo de edição de lead
-- **C-6 (documentação):** `docs/SYSTEM_MAP.md` corrigido — seção "Detecção de Modo" agora descreve corretamente que `src/lib/mode.js` existe e que `isSupabaseMode()` é a abstração obrigatória
+- **C-6 (documentação):** `doc/SYSTEM_MAP.md` corrigido — seção "Detecção de Modo" agora descreve corretamente que `src/lib/mode.js` existe e que `isSupabaseMode()` é a abstração obrigatória
 - **C-5 (refatoração):** `genId` extraído do `AppProvider` para `src/utils/ids.js`; as 4 factories de API importam diretamente de `utils/ids` e deixam de receber `genId` como parâmetro
 - **C-3 (refatoração):** `obterRanking` movida do `AppProvider` para `createLeadApi` em `src/api/leadApi.js`; o Provider apenas desestrutura e expõe via contexto
 - **C-4 (refatoração):** `createLeadApi.addLead` retorna o objeto criado com o ID canônico; `VendedorApp.submit` removeu a pré-geração local de ID e usa o retorno da factory
 - **C-2 (arquitetural):** novo `src/api/equipeApi.js` com `createEquipeApi` expondo `criarUsuario`, `atualizarPerfil` e `excluirUsuario`; `EquipeAuthTab` removeu import direto de `dataService` e consome via `useApp()`
 
 **Por que mudou**
-- Auditoria pós-refatoração identificou 6 desvios remanescentes, documentados em `docs/ARCHITECTURE_FIX_PLAN.md`
+- Auditoria pós-refatoração identificou 6 desvios remanescentes, documentados em `doc/ARCHITECTURE_FIX_PLAN.md`
 
 **Impacto**
 - Nenhum componente de feature (`src/features/`) ou app (`src/apps/`) acessa `src/lib/dataService` diretamente
@@ -69,15 +69,15 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
-## [v1.3] — Organização da documentação em `docs/`
+## [v1.3] — Organização da documentação em `doc/`
 **Data:** 2026-06-16
 
 **O que mudou**
-- Diretório `docs/` criado; `CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md` e `SYSTEM_MAP.md` movidos para ele
+- Diretório `doc/` criado; `CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md` e `SYSTEM_MAP.md` movidos para ele
 - `CLAUDE.md` permanece na raiz (convenção Claude Code)
-- `@docs/SYSTEM_MAP.md` adicionado ao `CLAUDE.md` — garante carregamento automático da arquitetura viva a cada sessão
+- `@doc/SYSTEM_MAP.md` adicionado ao `CLAUDE.md` — garante carregamento automático da arquitetura viva a cada sessão
 - Tabela de Documentação de Referência no `CLAUDE.md` atualizada com novos caminhos e coluna "Quando ler"
-- Decisão [D-028] registrada em `docs/DECISIONS.md`
+- Decisão [D-028] registrada em `doc/DECISIONS.md`
 
 **Por que mudou**
 - Raiz com 6 `.md` soltos dificultava distinguir código de documentação
@@ -85,7 +85,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **Impacto**
 - Sem impacto funcional no app
-- Novas docs especializadas entram em `docs/` sem poluir a raiz
+- Novas docs especializadas entram em `doc/` sem poluir a raiz
 - Arquitetura viva carregada automaticamente a cada sessão Claude
 
 ---

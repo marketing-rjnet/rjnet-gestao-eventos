@@ -1,7 +1,7 @@
 # SYSTEM_MAP.md — RJNet Gestão de Eventos
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
-> Localização: `docs/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
+> Localização: `doc/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
 > Atualizado em: 2026-06-16
 
 ---

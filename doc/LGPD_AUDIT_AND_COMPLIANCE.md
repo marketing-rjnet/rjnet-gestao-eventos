@@ -1065,7 +1065,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ## 12. FASES DE IMPLEMENTAÇÃO DO PLANO DE CONFORMIDADE
 
-> O plano de ação executável completo está em `docs/PLANO_DE_ACAO_LGPD.md`.  
+> O plano de ação executável completo está em `doc/PLANO_DE_ACAO_LGPD.md`.  
 > Esta seção registra o progresso das correções e o que foi efetivamente implementado.
 
 ---
@@ -1097,8 +1097,8 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 |---------|------|----|--------|
 | `src/auth/RootLegacy.jsx` | Código | PA-01 | 🔴 |
 | `supabase/functions/atualizar-email-usuario/index.ts` | Código | PA-03 | 🔴 |
-| `docs/DECISIONS.md` | Decisão técnica | PA-01 | 🔴 |
-| `docs/CHANGELOG.md` | Histórico | PA-01, PA-03 | 🔴 |
+| `doc/DECISIONS.md` | Decisão técnica | PA-01 | 🔴 |
+| `doc/CHANGELOG.md` | Histórico | PA-01, PA-03 | 🔴 |
 
 ---
 
@@ -1126,8 +1126,8 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `src/lib/dataService.js` | Código | PA-05, PA-06, PA-07 | 🔴 |
 | `src/lib/crypto.js` | Código (novo) | PA-05 | 🔴 |
 | `src/utils/csv.js` | Código | PA-06 | 🔴 |
-| `docs/SUPABASE.md` | Documentação | PA-06, PA-07 | 🔴 |
-| `docs/CHANGELOG.md` | Histórico | Todas | 🔴 |
+| `doc/SUPABASE.md` | Documentação | PA-06, PA-07 | 🔴 |
+| `doc/CHANGELOG.md` | Histórico | Todas | 🔴 |
 
 ---
 
@@ -1151,11 +1151,11 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `supabase/migracao-audit-log.sql` | SQL | PA-13 | 🔴 |
 | `supabase/migracao-retencao.sql` | SQL | PA-10 | 🔴 |
 | `supabase/functions/limpar-dados-expirados/index.ts` | Edge Function (nova) | PA-10 | 🔴 |
-| `docs/POLITICA_RETENCAO.md` | Documento (novo) | PA-10 | 🔴 |
-| `docs/ROTEIRO_DSAR.md` | Documento (novo) | PA-15 | 🔴 |
-| `docs/DPA_FORNECEDORES.md` | Documento (novo) | PA-14 | 🔴 |
-| `docs/SUPABASE.md` | Atualização | PA-10, PA-11, PA-13 | 🔴 |
-| `docs/CHANGELOG.md` | Histórico | Todas | 🔴 |
+| `doc/POLITICA_RETENCAO.md` | Documento (novo) | PA-10 | 🔴 |
+| `doc/ROTEIRO_DSAR.md` | Documento (novo) | PA-15 | 🔴 |
+| `doc/DPA_FORNECEDORES.md` | Documento (novo) | PA-14 | 🔴 |
+| `doc/SUPABASE.md` | Atualização | PA-10, PA-11, PA-13 | 🔴 |
+| `doc/CHANGELOG.md` | Histórico | Todas | 🔴 |
 
 ---
 
@@ -1176,10 +1176,10 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 | Artefato | Tipo | PA | Status |
 |---------|------|----|--------|
-| `docs/POLITICA_DE_PRIVACIDADE.md` | Documento (novo) | PA-16 | 🔴 |
-| `docs/RIPD.md` | Documento (novo) | PA-17 | 🔴 |
-| `docs/ROPA.md` | Documento (novo) | PA-18 | 🔴 |
-| `docs/PLANO_INCIDENTES.md` | Documento (novo) | PA-20 | 🔴 |
+| `doc/POLITICA_DE_PRIVACIDADE.md` | Documento (novo) | PA-16 | 🔴 |
+| `doc/RIPD.md` | Documento (novo) | PA-17 | 🔴 |
+| `doc/ROPA.md` | Documento (novo) | PA-18 | 🔴 |
+| `doc/PLANO_INCIDENTES.md` | Documento (novo) | PA-20 | 🔴 |
 
 ---
 
@@ -1214,4 +1214,4 @@ _Nenhuma ação concluída até o momento._
 >
 > **Responsável pela revisão:** DPO ou responsável técnico designado
 >
-> **Plano de ação executável:** `docs/PLANO_DE_ACAO_LGPD.md`
+> **Plano de ação executável:** `doc/PLANO_DE_ACAO_LGPD.md`

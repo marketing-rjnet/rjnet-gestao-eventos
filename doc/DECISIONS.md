@@ -75,7 +75,7 @@ Riscos conhecidos.
 **Tipo:** Segurança / Governança / Compliance
 
 **Decisão:**
-Realização de auditoria completa de LGPD, segurança da informação, governança de dados e arquitetura Supabase do sistema. Os resultados foram documentados em `docs/LGPD_AUDIT_AND_COMPLIANCE.md` como fonte oficial de conformidade. Um plano de ação executável com 21 itens foi criado em `docs/PLANO_DE_ACAO_LGPD.md`.
+Realização de auditoria completa de LGPD, segurança da informação, governança de dados e arquitetura Supabase do sistema. Os resultados foram documentados em `doc/LGPD_AUDIT_AND_COMPLIANCE.md` como fonte oficial de conformidade. Um plano de ação executável com 21 itens foi criado em `doc/PLANO_DE_ACAO_LGPD.md`.
 
 **Motivação:**
 O sistema trata dados pessoais de cidadãos (titulares externos) capturados durante eventos comerciais, sem mecanismo de consentimento implementado. A auditoria foi necessária para identificar e priorizar as não conformidades com a LGPD (Lei 13.709/2018) e com as boas práticas de segurança da informação.
@@ -91,7 +91,7 @@ O sistema trata dados pessoais de cidadãos (titulares externos) capturados dura
 
 **Nota geral de conformidade obtida:** 4,2 / 10
 
-**Plano de ação:** 21 ações organizadas em 4 fases (imediata, curto, médio e longo prazo). Ver `docs/PLANO_DE_ACAO_LGPD.md` para o plano completo com responsáveis, prazos e evidências.
+**Plano de ação:** 21 ações organizadas em 4 fases (imediata, curto, médio e longo prazo). Ver `doc/PLANO_DE_ACAO_LGPD.md` para o plano completo com responsáveis, prazos e evidências.
 
 **Alternativas Avaliadas:**
 Correção pontual de itens críticos sem auditoria formal — descartada pois não garante visão completa dos riscos nem conformidade sistêmica.
@@ -99,11 +99,11 @@ Correção pontual de itens críticos sem auditoria formal — descartada pois n
 **Impactos:**
 - Cria a base documental obrigatória para eventual fiscalização pela ANPD
 - Define roteiro técnico claro para elevar a nota de conformidade de 4,2 para 8,7 (após Fase 4)
-- Incorpora `docs/LGPD_AUDIT_AND_COMPLIANCE.md` e `docs/PLANO_DE_ACAO_LGPD.md` como documentos obrigatórios de referência no `CLAUDE.md`
+- Incorpora `doc/LGPD_AUDIT_AND_COMPLIANCE.md` e `doc/PLANO_DE_ACAO_LGPD.md` como documentos obrigatórios de referência no `CLAUDE.md`
 
 **Arquivos afetados:**
-- `docs/LGPD_AUDIT_AND_COMPLIANCE.md` (criado)
-- `docs/PLANO_DE_ACAO_LGPD.md` (criado)
+- `doc/LGPD_AUDIT_AND_COMPLIANCE.md` (criado)
+- `doc/PLANO_DE_ACAO_LGPD.md` (criado)
 - `CLAUDE.md` (atualizado — tabela de referência de documentação)
 
 **Riscos:**
@@ -1054,17 +1054,17 @@ Uma única meta não expressava progressão. Com 3 níveis, vendedores têm moti
 
 ---
 
-### [D-028] — Organização dos docs em `docs/` com @import seletivo no CLAUDE.md
+### [D-028] — Organização dos docs em `doc/` com @import seletivo no CLAUDE.md
 
 **Data:** 16/06/2026
 
 **Tipo:** Infraestrutura / Documentação
 
 **Decisão:**
-Os arquivos de documentação (`CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md`, `SYSTEM_MAP.md`) foram movidos da raiz do projeto para o diretório `docs/`. O `CLAUDE.md` permanece na raiz (convenção Claude Code). O `SYSTEM_MAP.md` é carregado automaticamente via `@docs/SYSTEM_MAP.md` no topo do `CLAUDE.md`. Os demais docs são consultados sob demanda com regras explícitas de quando ler cada um.
+Os arquivos de documentação (`CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md`, `SYSTEM_MAP.md`) foram movidos da raiz do projeto para o diretório `doc/`. O `CLAUDE.md` permanece na raiz (convenção Claude Code). O `SYSTEM_MAP.md` é carregado automaticamente via `@doc/SYSTEM_MAP.md` no topo do `CLAUDE.md`. Os demais docs são consultados sob demanda com regras explícitas de quando ler cada um.
 
 **Motivação:**
-Raiz com 6 arquivos `.md` soltos dificultava a identificação de arquivos de código vs. documentação. Com o crescimento do projeto, novas docs especializadas (ex: `docs/WHATSAPP.md`, `docs/API.md`) entrariam no lugar natural sem poluir a raiz. Além disso, a convenção `@import` garante que a arquitetura viva seja sempre carregada, independente de o Claude decidir ou não ler `SYSTEM_MAP.md`.
+Raiz com 6 arquivos `.md` soltos dificultava a identificação de arquivos de código vs. documentação. Com o crescimento do projeto, novas docs especializadas (ex: `doc/WHATSAPP.md`, `doc/API.md`) entrariam no lugar natural sem poluir a raiz. Além disso, a convenção `@import` garante que a arquitetura viva seja sempre carregada, independente de o Claude decidir ou não ler `SYSTEM_MAP.md`.
 
 **Alternativas Avaliadas:**
 - Manter todos na raiz (descartada — escala mal; raiz fica ruidosa com novas docs)
@@ -1072,16 +1072,16 @@ Raiz com 6 arquivos `.md` soltos dificultava a identificação de arquivos de c�
 - `@import` de `SYSTEM_MAP.md` + `DECISIONS.md` (avaliada — `DECISIONS.md` tem ~1000 linhas; custo de contexto alto; preferível regra explícita de quando ler)
 
 **Impactos:**
-- Positivo: raiz mais limpa; novos docs entram em `docs/` sem fricção; `SYSTEM_MAP.md` garantido em toda sessão
+- Positivo: raiz mais limpa; novos docs entram em `doc/` sem fricção; `SYSTEM_MAP.md` garantido em toda sessão
 - Positivo: regras explícitas na tabela do `CLAUDE.md` guiam Claude sobre quando consultar cada doc
 - Negativo: caminhos de referência nos docs precisam ser atualizados manualmente se houver mais movimentações
 
 **Arquivos Afetados:**
-- `docs/` (criado)
-- `docs/CHANGELOG.md`, `docs/DECISIONS.md`, `docs/REFATORAÇÃO.md`, `docs/SUPABASE.md`, `docs/SYSTEM_MAP.md` (movidos da raiz)
-- `CLAUDE.md` (adicionado `@docs/SYSTEM_MAP.md`; tabela de referência atualizada com caminhos e coluna "Quando ler")
-- `docs/SYSTEM_MAP.md` (nota de localização adicionada no cabeçalho)
-- `docs/CHANGELOG.md` (entrada adicionada)
+- `doc/` (criado)
+- `doc/CHANGELOG.md`, `doc/DECISIONS.md`, `doc/REFATORAÇÃO.md`, `doc/SUPABASE.md`, `doc/SYSTEM_MAP.md` (movidos da raiz)
+- `CLAUDE.md` (adicionado `@doc/SYSTEM_MAP.md`; tabela de referência atualizada com caminhos e coluna "Quando ler")
+- `doc/SYSTEM_MAP.md` (nota de localização adicionada no cabeçalho)
+- `doc/CHANGELOG.md` (entrada adicionada)
 
 **Riscos:**
 - Arquivos antigos na raiz removidos — links externos ou scripts que apontem para `CHANGELOG.md` na raiz precisarão ser atualizados
@@ -1131,7 +1131,7 @@ O campo "Já é cliente RJNet?" foi migrado de checkbox para controle segmentado
 **Tipo:** Refatoração / Segurança
 
 **Decisão:**
-Execução integral do `docs/ARCHITECTURE_FIX_PLAN.md` — 6 correções aplicadas para eliminar desvios identificados na auditoria pós-refatoração de 18 etapas.
+Execução integral do `doc/ARCHITECTURE_FIX_PLAN.md` — 6 correções aplicadas para eliminar desvios identificados na auditoria pós-refatoração de 18 etapas.
 
 **C-1 — Sanitização no fluxo de edição de lead (`src/apps/VendedorApp.jsx`)**
 A função `salvarEdicao` passou a chamar `sanitizeText()` nos campos de texto livres (`nome`, `cpf`, `endereco`, `observacao`) antes de repassar para `updateLead`, espelhando o padrão do `submit` de criação. Eliminado vetor de XSS armazenado (D-005).
@@ -1165,7 +1165,7 @@ Eliminar os 6 desvios arquiteturais identificados na auditoria, garantindo que n
 
 **Arquivos Afetados:**
 - `src/apps/VendedorApp.jsx` (C-1, C-4)
-- `docs/SYSTEM_MAP.md` (C-6)
+- `doc/SYSTEM_MAP.md` (C-6)
 - `src/utils/ids.js` (novo — C-5)
 - `src/api/eventoApi.js`, `leadApi.js`, `materialApi.js`, `vendedorApi.js` (C-5)
 - `src/api/leadApi.js` (C-3, C-4)
