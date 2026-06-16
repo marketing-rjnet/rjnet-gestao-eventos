@@ -13,7 +13,8 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from reportlab.platypus.flowables import Flowable
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
-import datetime, math
+from reportlab.lib.utils import ImageReader
+import datetime, math, os
 
 # ── Fontes ─────────────────────────────────────────────────────────────────
 pdfmetrics.registerFont(TTFont("LS",  "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"))
@@ -681,6 +682,145 @@ def draw_app_pacotes(c,sw,sh):
         if act:
             c.setFillColor(AM); c.roundRect(i*ntw+ntw/2-12,22,24,2,1,fill=1,stroke=0)
 
+SHOTS = "/home/user/rjnet-gestao-eventos/screenshots"
+
+def shot_path(name):
+    return os.path.join(SHOTS, name)
+
+class DesktopShot(Flowable):
+    """Embeds a real desktop screenshot inside a macOS browser chrome."""
+    def __init__(self, img_path, w, add_chrome=True):
+        super().__init__()
+        self._img_path = img_path
+        self._w = w
+        self._add_chrome = add_chrome
+        self._ch = 22  # chrome bar height
+        # Compute height preserving aspect ratio
+        ir = ImageReader(img_path)
+        iw, ih = ir.getSize()
+        ratio = ih / iw
+        self._img_h = w * ratio
+        self._total_h = self._img_h + (self._ch if add_chrome else 0) + 6  # +6 shadow
+
+    def wrap(self, *_): return self._w, self._total_h
+
+    def draw(self):
+        c = self.canv; w = self._w; ch = self._ch
+        total_h = self._total_h; img_h = self._img_h
+        # Shadow
+        c.setFillColor(colors.HexColor("#00000030"))
+        c.roundRect(3, -3, w, total_h - 3, 8, fill=1, stroke=0)
+        # Browser chrome
+        if self._add_chrome:
+            c.setFillColor(colors.HexColor("#252525"))
+            c.roundRect(0, img_h, w, ch + 3, 8, fill=1, stroke=0)
+            c.rect(0, img_h, w, ch // 2, fill=1, stroke=0)
+            # Traffic lights
+            for i, col in enumerate(["#FF5F56", "#FFBD2E", "#27C93F"]):
+                c.setFillColor(colors.HexColor(col))
+                c.circle(9 + i * 13, img_h + ch / 2, 3.5, fill=1, stroke=0)
+            # URL bar
+            uw = w * 0.38; ux = (w - uw) / 2
+            c.setFillColor(colors.HexColor("#1A1A1A"))
+            c.roundRect(ux, img_h + 4, uw, 14, 6, fill=1, stroke=0)
+            ctext(c, w / 2, img_h + 8, "app.rjnet.com.br", "LS", 6, T3)
+        # Image
+        c.drawImage(self._img_path, 0, 0, width=w, height=img_h,
+                    preserveAspectRatio=True, mask="auto")
+        # Top border
+        c.setStrokeColor(colors.HexColor("#444444")); c.setLineWidth(0.5)
+        if self._add_chrome:
+            c.roundRect(0, 0, w, total_h - 3, 8, fill=0, stroke=1)
+
+class MobileShot(Flowable):
+    """Embeds a real mobile screenshot inside an iPhone-style phone frame."""
+    def __init__(self, img_path, ph, label=""):
+        super().__init__()
+        self._img_path = img_path
+        self._ph = ph
+        self._label = label
+        self._bw = 10  # bezel
+        ir = ImageReader(img_path)
+        iw, ih = ir.getSize()
+        ratio = iw / ih
+        self._pw = ph * ratio + 2 * self._bw
+        self._label_h = 18 if label else 0
+
+    def wrap(self, *_): return self._pw, self._ph + self._label_h
+
+    def draw(self):
+        c = self.canv; pw = self._pw; ph = self._ph; bw = self._bw
+        # Shadow
+        c.setFillColor(colors.HexColor("#00000030"))
+        c.roundRect(3, self._label_h - 3, pw, ph, 16, fill=1, stroke=0)
+        # Body
+        c.setFillColor(colors.HexColor("#1A1A1A"))
+        c.roundRect(0, self._label_h, pw, ph, 16, fill=1, stroke=0)
+        c.setStrokeColor(colors.HexColor("#444444")); c.setLineWidth(0.8)
+        c.roundRect(0, self._label_h, pw, ph, 16, fill=0, stroke=1)
+        # Screen image
+        sw = pw - 2 * bw; sh = ph - 2 * bw - 14
+        c.drawImage(self._img_path, bw, self._label_h + bw + 7,
+                    width=sw, height=sh, preserveAspectRatio=True, mask="auto")
+        # Notch
+        c.setFillColor(colors.HexColor("#1A1A1A"))
+        c.roundRect(pw / 2 - 14, self._label_h + ph - bw - 6, 28, 7, 3, fill=1, stroke=0)
+        # Home indicator
+        c.setFillColor(colors.HexColor("#555555"))
+        c.roundRect(pw / 2 - 16, self._label_h + 5, 32, 3, 1, fill=1, stroke=0)
+        # Label
+        if self._label:
+            ctext(c, pw / 2, 4, self._label, "LSB", 7, T3)
+
+class PhoneRow4(Flowable):
+    """Four mobile screenshots side by side."""
+    def __init__(self, paths, labels, aW, ph=250):
+        super().__init__(); self._paths=paths; self._labels=labels
+        self._aW=aW; self._ph=ph
+        # calculate widths
+        self._frames = []
+        for p_, lbl in zip(paths, labels):
+            ir = ImageReader(p_); iw, ih = ir.getSize()
+            pw = ph * (iw / ih) + 20
+            self._frames.append((p_, lbl, pw))
+        total = sum(f[2] for f in self._frames)
+        scale = aW / total if total > aW else 1.0
+        self._frames = [(p_, lbl, pw * scale) for p_, lbl, pw in self._frames]
+        self._total_h = ph + 20
+
+    def wrap(self, *_): return self._aW, self._total_h
+
+    def draw(self):
+        c = self.canv; x = 0
+        for p_, lbl, pw in self._frames:
+            mf = MobileShot(p_, self._ph, lbl)
+            mf.canv = c; mf.drawOn(c, x, 0)
+            x += pw
+
+class PhoneRow3(Flowable):
+    """Three mobile screenshots side by side."""
+    def __init__(self, paths, labels, aW, ph=260):
+        super().__init__(); self._paths=paths; self._labels=labels
+        self._aW=aW; self._ph=ph
+        self._frames = []
+        for p_, lbl in zip(paths, labels):
+            ir = ImageReader(p_); iw, ih = ir.getSize()
+            pw = ph * (iw / ih) + 20
+            self._frames.append((p_, lbl, pw))
+        total = sum(f[2] for f in self._frames)
+        scale = aW / total if total > aW else 1.0
+        self._frames = [(p_, lbl, pw * scale) for p_, lbl, pw in self._frames]
+        self._total_h = ph + 20
+
+    def wrap(self, *_): return self._aW, self._total_h
+
+    def draw(self):
+        c = self.canv; x = 0
+        for p_, lbl, pw in self._frames:
+            mf = MobileShot(p_, self._ph, lbl)
+            mf.canv = c; mf.drawOn(c, x, 0)
+            x += pw
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SLIDES
 # ═══════════════════════════════════════════════════════════════════════════
@@ -856,173 +996,118 @@ def build_pdf():
     # ─── SLIDE 03: DASHBOARD PRINCIPAL ──────────────────────────────────
     story += page_header("03","Dashboard Principal","Visão executiva em tempo real")
 
-    story.append(BrowserFrame(MW, 320, draw_dashboard))
+    story.append(DesktopShot(shot_path("01_dashboard.png"), MW))
     story.append(sp(10))
     story += bullets([
-        "<b>4 KPIs</b> em tempo real: eventos ativos, leads captados, materiais críticos e vendedores",
-        "<b>Gráfico de rosca</b> mostra distribuição de leads por tipo de serviço instantaneamente",
-        "<b>Agenda</b> dos próximos eventos visível sem navegar",
+        "<b>KPIs</b> em tempo real: eventos ativos, leads captados, materiais e vendedores",
+        "<b>Gráfico de rosca</b> mostra distribuição de leads por tipo de servico instantaneamente",
+        "<b>Agenda</b> dos proximos eventos visivel sem navegar",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 04: GESTÃO DE EVENTOS ─────────────────────────────────────
-    story += page_header("04","Gestão de Eventos","Ciclo completo do evento em uma tela")
+    story += page_header("04","Gestao de Eventos","Ciclo completo do evento em uma tela")
 
     story.append(StateFlow([
-        ("PLANEJADO","Evento criado",AM,"Aguardando início"),
+        ("PLANEJADO","Evento criado",AM,"Aguardando inicio"),
         ("ATIVO",    "Em andamento",VE,"Recebe leads"),
         ("ENCERRADO","Finalizado",  T3,"Dados preservados"),
     ], MW, active=-1))
-    story.append(sp(10))
-    story.append(BrowserFrame(MW, 270, draw_event_list))
+    story.append(sp(8))
+    story.append(DesktopShot(shot_path("02_eventos_lista.png"), MW))
     story.append(sp(8))
     story += bullets([
-        "Visualização em cards com status colorido — Ativo (verde), Planejado (amarelo), Encerrado (cinza)",
+        "Cards com status colorido: Ativo (verde), Planejado (amarelo), Encerrado (cinza)",
         "Cada evento exibe leads captados, vendedores envolvidos e materiais alocados",
-        "Evento encerrado trava novos registros e libera materiais ao estoque automaticamente",
+        "Evento encerrado trava novos registros e libera materiais ao estoque",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 05: CAPTAÇÃO DE LEADS ────────────────────────────────────
-    story += page_header("05","Captação de Leads","Registro rápido e qualificação instantânea")
+    story += page_header("05","Captacao de Leads","Registro rapido e qualificacao instantanea")
 
-    # Temperatura flow
     story.append(StateFlow([
-        ("FRIO",       "Pouco\ninteresse",     AZ,  "Contato inicial"),
-        ("MORNO",      "Interesse\nmoderdo",   LA,  "Quer info"),
-        ("QUENTE",     "Alto\ninteresse",      VM,  "Pronto p/ venda"),
-        ("CONVERTIDO", "Fechou\nnegócio",      VE,  "Contrato ativo"),
+        ("FRIO",       "Pouco interesse",      AZ,  "Contato inicial"),
+        ("MORNO",      "Interesse moderado",   LA,  "Quer informacoes"),
+        ("QUENTE",     "Alto interesse",       VM,  "Pronto p/ venda"),
+        ("CONVERTIDO", "Fechou negocio",       VE,  "Contrato ativo"),
     ], MW, active=-1))
-    story.append(sp(10))
-
-    # Phone mockup centered
-    class PhoneRow(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 300
-        def draw(self):
-            c=self.canv; fw=self.fw
-            pw=110; ph=270
-            # Center the phone
-            px=(fw-pw)/2; py=15
-            pf=PhoneFrame(pw,ph,draw_lead_form,"App do Vendedor")
-            pf.canv=c; pf.drawOn(c,px,py)
-            # Left callout
-            lx=px-130; ly=py+200
-            card(c,lx,ly,118,42,bg=CE,r=6)
-            ctext(c,lx+8,ly+30,"Modo Rápido","LSB",8,AM,"left")
-            ctext(c,lx+8,ly+18,"Apenas campos","LS",6.5,T2,"left")
-            ctext(c,lx+8,ly+8,"essenciais visíveis","LS",6.5,T2,"left")
-            # Arrow
-            fill_poly(c,[(lx+118,ly+21),(px-4,py+190),(lx+118,ly+14)],AM)
-            # Right callout
-            rx=px+pw+12; ry=py+150
-            card(c,rx,ry,118,42,bg=CE,r=6)
-            ctext(c,rx+8,ry+30,"Meta do Dia","LSB",8,VE,"left")
-            ctext(c,rx+8,ry+18,"Barra de progresso","LS",6.5,T2,"left")
-            ctext(c,rx+8,ry+8,"15 leads por evento","LS",6.5,T2,"left")
-            fill_poly(c,[(rx,ry+21),(px+pw+4,py+200),(rx,ry+14)],VE)
-            # Right bottom callout
-            ry2=py+60
-            card(c,rx,ry2,118,52,bg=CE,r=6)
-            ctext(c,rx+8,ry2+40,"Temperatura","LSB",8,AM,"left")
-            for j,(t,col) in enumerate([("Frio",AZ),("Quente",VM),("Convertido",VE)]):
-                c.setFillColor(col); c.roundRect(rx+8+j*36,ry2+22,32,12,3,fill=1,stroke=0)
-                ctext(c,rx+8+j*36+16,ry2+27,t,"LSB",5.5,BR)
-            ctext(c,rx+8,ry2+8,"Classificação com 1 toque","LS",6,T2,"left")
-
-    story.append(PhoneRow())
+    story.append(sp(8))
+    story.append(DesktopShot(shot_path("05_leads.png"), MW))
+    story.append(sp(8))
+    story += bullets([
+        "Visualizacao completa de todos os leads com filtros por evento, vendedor e temperatura",
+        "Exportacao CSV com 1 clique para importacao em CRM ou planilha",
+        "Cada lead registrado pelo vendedor no campo aparece aqui em tempo real",
+    ])
     story.append(PageBreak())
 
     # ─── SLIDE 06: CHECK-IN ──────────────────────────────────────────────
-    story += page_header("06","Check-in por CPF","Verificação instantânea em 3 estados")
+    story += page_header("06","Check-in por CPF","Verificacao instantanea em 3 estados")
 
-    class CheckinStates(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 310
-        def draw(self):
-            c=self.canv; fw=self.fw
-            pw=130; ph=280; gap=(fw-3*pw)/2
-            configs=[("typing","Digitando CPF...",AM),
-                     ("notfound","Não Encontrado",VM),
-                     ("found","Lead Confirmado",VE)]
-            for i,(state,lbl,col) in enumerate(configs):
-                px=i*(pw+gap); py=22
-                pf=PhoneFrame(pw,ph,lambda c2,sw,sh,s=state: draw_checkin_state(c2,sw,sh,s),"")
-                pf.canv=c; pf.drawOn(c,px,py)
-                # State label below
-                c.setFillColor(col); c.roundRect(px+pw/2-36,4,72,16,8,fill=1,stroke=0)
-                ctext(c,px+pw/2,10,lbl,"LSB",7,BR)
-                # Number
-                c.setFillColor(col); c.circle(px+pw/2,ph+26,10,fill=1,stroke=0)
-                ctext(c,px+pw/2,ph+23,str(i+1),"LSB",8,PR)
-            # Connector arrows
-            for i in range(2):
-                ax=(i+1)*(pw+gap)-gap/2; ay=ph/2+22
-                c.setFillColor(AM)
-                fill_poly(c,[(ax-6,ay+6),(ax+6,ay),(ax-6,ay-6)],AM)
-
-    story.append(CheckinStates())
+    story.append(sp(8))
+    # Show three check-in states side by side
+    story.append(PhoneRow3(
+        [shot_path("06_checkin_vazio.png"),
+         shot_path("06_checkin_encontrado.png"),
+         shot_path("06_checkin_nao_encontrado.png")],
+        ["Aguardando busca", "Lead encontrado", "Nao cadastrado"],
+        MW, ph=220
+    ))
     story.append(sp(8))
     story += bullets([
-        "Busca por CPF <b>completo</b> retorna dados exatos do lead com todos os detalhes",
-        "Busca por CPF <b>parcial</b> lista todos os matches — ideal para localizar contatos rapidamente",
-        "Evita duplicidades e confirma participação sem impressão de listas",
+        "Busca por CPF retorna dados exatos do lead: nome, servico, temperatura",
+        "Resultado 'nao encontrado' em vermelho evita confusao com leads nao cadastrados",
+        "Elimina listas impressas e duplicidades de registro no evento",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 07: ESTOQUE ───────────────────────────────────────────────
-    story += page_header("07","Controle de Estoque","Disponibilidade em tempo real com alertas automáticos")
+    story += page_header("07","Controle de Estoque","Disponibilidade em tempo real com alertas automaticos")
 
     story.append(StateFlow([
-        ("OK",      "Estoque\nadequado",     VE, "4+ unid. disponíveis"),
-        ("ATENÇÃO", "Estoque\nbaixo",        LA, "1 a 3 disponíveis"),
-        ("CRÍTICO", "Sem\ndisponibilidade",  VM, "0 unidades livres"),
+        ("OK",      "Estoque adequado",    VE, "4+ unidades disponiveis"),
+        ("ATENCAO", "Estoque baixo",       LA, "1 a 3 disponiveis"),
+        ("CRITICO", "Sem disponibilidade", VM, "0 unidades livres"),
     ], MW, active=-1))
-    story.append(sp(10))
-    story.append(BrowserFrame(MW, 280, draw_stock_panel))
+    story.append(sp(8))
+    story.append(DesktopShot(shot_path("04_estoque.png"), MW))
     story.append(sp(8))
     story += bullets([
-        "Classificação automática em 3 níveis — sistema calcula disponibilidade descontando itens em campo",
-        "Devolução confirmada pelo marketing libera o material ao estoque imediatamente",
-        "Alertas de estoque crítico aparecem no Dashboard sem necessidade de navegar",
+        "Classificacao automatica em 3 niveis: sistema calcula disponibilidade descontando itens em campo",
+        "Devolucao confirmada pelo marketing libera o material ao estoque imediatamente",
+        "Alertas de estoque critico aparecem no Dashboard sem necessidade de navegar",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 08: APLICATIVO MOBILE ────────────────────────────────────
     story += page_header("08","Aplicativo do Vendedor","4 abas — tudo que o time precisa no campo")
 
-    class FourPhones(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 290
-        def draw(self):
-            c=self.canv; fw=self.fw
-            pw=98; ph=260; gap=(fw-4*pw)/3
-            configs=[
-                (draw_app_registrar,"Registrar"),
-                (draw_app_meus_leads,"Meus Leads"),
-                (draw_app_evento,"Evento"),
-                (draw_app_pacotes,"Pacotes"),
-            ]
-            for i,(fn,lbl) in enumerate(configs):
-                px=i*(pw+gap); py=20
-                pf=PhoneFrame(pw,ph,fn,lbl)
-                pf.canv=c; pf.drawOn(c,px,py)
-
-    story.append(FourPhones())
+    story.append(PhoneRow4(
+        [shot_path("08_app_registrar.png"),
+         shot_path("09_app_meus_leads.png"),
+         shot_path("10_app_evento.png"),
+         shot_path("11_app_pacotes.png")],
+        ["Registrar", "Meus Leads", "Evento", "Pacotes"],
+        MW, ph=260
+    ))
     story.append(sp(8))
     story += bullets([
-        "<b>Registrar:</b> formulário otimizado com modo rápido e meta diária de 15 leads por vendedor",
+        "<b>Registrar:</b> formulario otimizado para captura rapida de leads no campo",
         "<b>Meus Leads:</b> lista pessoal com acesso direto a ligar ou abrir WhatsApp do cliente",
-        "<b>Evento + Pacotes:</b> informações do local, ranking da equipe e tabela de preços para consulta",
+        "<b>Evento + Pacotes:</b> informacoes do local, ranking da equipe e tabela de precos para consulta",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 09: ANALYTICS ─────────────────────────────────────────────
-    story += page_header("09","Analytics e Relatórios","Dados para decisão em todos os níveis")
+    story += page_header("09","Analytics e Equipe","Dados para decisao em todos os niveis")
 
-    story.append(BrowserFrame(MW, 310, draw_analytics))
+    story.append(DesktopShot(shot_path("07_equipe.png"), MW))
     story.append(sp(8))
     story += bullets([
-        "Gráfico de barras compara performance entre eventos — identifica ações de maior conversão",
-        "Ranking da equipe atualizado em tempo real — visível tanto no Dashboard quanto no app do vendedor",
-        "Exportação CSV com 1 clique — contém todos os dados para importação em CRM ou planilha",
+        "Gestao da equipe com desempenho individual e controle de acesso por perfil",
+        "Ranking da equipe atualizado em tempo real — visivel no Dashboard e no app do vendedor",
+        "Exportacao CSV com 1 clique — dados prontos para CRM ou planilha",
     ])
     story.append(PageBreak())
 
