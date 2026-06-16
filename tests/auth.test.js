@@ -13,8 +13,7 @@ test.describe('Autenticação', () => {
     await page.goto('/');
     await expect(page.locator('.login-bg')).toBeVisible();
     await expect(page.locator('.login-card')).toBeVisible();
-    await expect(page.locator('.logo-rj')).toHaveText('RJ');
-    await expect(page.locator('.logo-net')).toHaveText('NET');
+    await expect(page.locator('.login-card img[alt="RJNet"]')).toBeVisible();
     await expect(page.locator('.login-form input[autocomplete="username"]')).toBeVisible();
     await expect(page.locator('.login-form input[type="password"]')).toBeVisible();
   });
@@ -32,7 +31,7 @@ test.describe('Autenticação', () => {
     await loginMarketing(page);
     await expect(page.locator('.login-bg')).not.toBeVisible();
     await expect(page.locator('.app-header')).toBeVisible();
-    await expect(page.locator('.header-role')).toHaveText('Marketing');
+    await expect(page.locator('.user-badge .ub-name')).toHaveText('Marketing');
   });
 
   test('login Comercial exibe tela de seleção de vendedor', async ({ page }) => {
