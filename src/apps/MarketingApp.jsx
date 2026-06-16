@@ -45,7 +45,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         ? <EventDetail eventoId={detailId} onBack={() => setDetailId(null)} />
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "estoque" && <EstoqueTab />}
-      {tab === "leads" && <LeadsTab />}
+      {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}
 

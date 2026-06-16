@@ -303,6 +303,23 @@ export const db = {
   },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
   removeLead:   (id) => exec(supabase?.from('leads').update({ deletado: true }).eq('id', id), 'remover lead'),
+
+  // PA-06/LGPD: registra exportação CSV na tabela de auditoria (fire-and-forget; nunca bloqueia o download)
+  registrarExportacao: async ({ usuarioId, usuarioNome, usuarioEmail, filtros, totalRegistros }) => {
+    if (!supabase) return;
+    try {
+      await supabase.from('audit_exportacoes').insert({
+        usuario_id:      usuarioId  || null,
+        usuario_nome:    usuarioNome  || null,
+        usuario_email:   usuarioEmail || null,
+        acao:            'export_csv_leads',
+        filtros:         filtros || null,
+        total_registros: totalRegistros ?? null,
+      });
+    } catch (err) {
+      console.warn('[rjnet/PA-06] Falha ao registrar exportação:', err);
+    }
+  },
 };
 
 /* ─── Autenticação (Supabase Auth + perfis por papel) ────────────── */

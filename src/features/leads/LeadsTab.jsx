@@ -3,13 +3,14 @@ import { useApp } from '../../hooks/useApp';
 import { Kpi, ChartView } from '../../components/ui';
 import { SERVICO_LABEL, servicoLabel } from '../../utils/format';
 import { exportLeadsCSV } from '../../utils/csv';
+import { db } from '../../lib/dataService';
 
 const darkScale = {
   x: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" } },
   y: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" }, beginAtZero: true },
 };
 
-export function LeadsTab() {
+export function LeadsTab({ session }) {
   const { leads, eventos } = useApp();
   const [fEvento, setFEvento] = useState("");
   const [fVend, setFVend] = useState("");
@@ -29,7 +30,20 @@ export function LeadsTab() {
   const exportarCSV = () => {
     const dados = filtered.length > 0 ? filtered : leads;
     const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
-    exportLeadsCSV(dados, sufixo, servicoLabel, evName);
+    const filtros = {
+      evento: fEvento || null,
+      vendedor: fVend || null,
+      servico: fServ || null,
+    };
+    exportLeadsCSV(dados, sufixo, servicoLabel, evName, ({ totalRegistros }) => {
+      db.registrarExportacao({
+        usuarioId:    session?.userId   || null,
+        usuarioNome:  session?.nome     || null,
+        usuarioEmail: session?.email    || null,
+        filtros,
+        totalRegistros,
+      });
+    });
   };
 
   const porEvento = useMemo(() => {
