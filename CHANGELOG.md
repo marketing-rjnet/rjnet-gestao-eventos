@@ -4,7 +4,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
-## [v1.0] — Refatoração: modularização completa (etapas 1–17)
+## [v1.0] — Refatoração: modularização (etapas 1–17 de 18 concluídas)
 **Data:** 2026-06-15 / 2026-06-16
 
 **O que mudou**
@@ -27,6 +27,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - Etapa 15: `usePersisted.js` + `useRanking.js` extraídos para `src/hooks/`
 - Etapa 16: `AppContext.js` + `AppProvider.jsx` extraídos para `src/context/`
 - Etapa 17: factories de API (`eventoApi`, `leadApi`, `materialApi`, `vendedorApi`) extraídas para `src/api/`
+- **Etapa 18 (pendente):** centralização do dual mode em `src/lib/mode.js` — eliminar verificações de `VITE_SUPABASE_URL` espalhadas pelo código
 
 **Por que mudou**
 - `main.jsx` com +2.300 linhas tornava qualquer edição arriscada e lenta
@@ -36,6 +37,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - Manutenção drasticamente mais simples — cada módulo tem responsabilidade única
 - Nenhum comportamento alterado, zero risco funcional
 - Base pronta para crescimento sem acúmulo em um arquivo único
+- Etapa 18 ainda pendente: verificação de modo duplicada em `AppProvider`, `Root` e `dataService`
 
 ---
 
