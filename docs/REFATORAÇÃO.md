@@ -1432,13 +1432,20 @@ Centralizar toda a lógica de detecção e roteamento do modo dual (Supabase vs 
 
 ### Checklist de validação
 
-- [ ] `npm run dev` (sem `.env.local`) usa modo legado
-- [ ] `npm run dev` (com `.env.local` preenchido) usa modo Supabase
-- [ ] Login legado funciona no modo legado
-- [ ] Login Supabase funciona no modo Supabase
-- [ ] Testes E2E passam nos dois modos (`npm test`)
-- [ ] Build de produção (`npm run build`) sem erros
-- [ ] Nenhum `console.error` no browser após o build
+- [x] `npm run dev` (sem `.env.local`) usa modo legado
+- [x] `npm run dev` (com `.env.local` preenchido) usa modo Supabase
+- [x] Login legado funciona no modo legado
+- [x] Login Supabase funciona no modo Supabase
+- [x] Testes E2E passam nos dois modos (`npm test`)
+- [x] Build de produção (`npm run build`) sem erros
+- [x] Nenhum `console.error` no browser após o build
+
+### Resultado da execução
+
+- `src/lib/mode.js` criado com `isSupabaseMode()`, `getMode()` e `MODE` (~10 linhas)
+- `AppProvider.jsx`, `Root.jsx`, `MarketingApp.jsx`, `SyncBadge.jsx` e `dataService.js` migrados para importar de `mode.js`
+- Nenhum arquivo fora de `supabase.js` e `mode.js` acessa `supabaseEnabled` ou `VITE_SUPABASE_URL` diretamente
+- Decisão registrada em `DECISIONS.md` como D-003a
 
 ### Riscos conhecidos
 

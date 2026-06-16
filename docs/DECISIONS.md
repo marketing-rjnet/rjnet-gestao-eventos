@@ -154,17 +154,55 @@ Permitir desenvolvimento e demonstração sem dependência de credenciais Supaba
 **Impactos:**
 - Positivo: onboarding sem fricção; desenvolvimento offline possível; fallback automático
 - Negativo: lógica condicional duplicada em múltiplos arquivos (`AppProvider`, `Root`, `dataService`); testes E2E precisam de dois servidores (porta 3000 e 3001)
+- **Atualização (Etapa 18, D-003a):** a duplicação foi eliminada — `src/lib/mode.js` centraliza a detecção de modo; todos os módulos importam `isSupabaseMode()` de `./mode` em vez de verificar `VITE_SUPABASE_URL` diretamente.
 
 **Arquivos Afetados:**
 - `src/lib/supabase.js`
 - `src/lib/dataService.js`
 - `src/main.jsx` (Root, AppProvider)
 - `playwright.config.js`
+- **`src/lib/mode.js`** (criado na Etapa 18 — centraliza a detecção)
 
 **Riscos:**
 - Divergência de comportamento entre os dois modos pode passar despercebida se testes não cobrirem ambos
 
-**Status:** Ativa (a ser consolidada na Etapa 18 — `src/lib/mode.js`)
+**Status:** Ativa — consolidada na Etapa 18 via `src/lib/mode.js` (ver D-003a)
+
+---
+
+### [D-003a] — Centralização da detecção de modo em `src/lib/mode.js` (Etapa 18)
+
+**Data:** 16/06/2026
+
+**Tipo:** Refatoração / Arquitetura
+
+**Decisão:**
+Criado `src/lib/mode.js` exportando `isSupabaseMode()`, `getMode()` e a constante `MODE`. Todos os módulos que precisam detectar o modo ativo passam a importar `isSupabaseMode` de `./mode`, nunca acessando `supabaseEnabled` de `./supabase` ou `import.meta.env.VITE_SUPABASE_URL` diretamente.
+
+**Motivação:**
+A detecção de modo estava duplicada em `AppProvider`, `Root`, `dataService` e outros arquivos como verificação direta de `supabaseEnabled` ou `import.meta.env.VITE_SUPABASE_URL`. Qualquer mudança na lógica de detecção (ex.: novo critério, fallback, feature flag) obrigava alterar múltiplos arquivos. `mode.js` é o único ponto de mudança.
+
+**Alternativas Avaliadas:**
+- Manter verificações inline de `supabaseEnabled` em cada módulo (descartada — D-003 identificou isso como negativo explícito)
+- Adicionar helpers em `supabase.js` (descartada — `supabase.js` inicializa o cliente; misturar helpers de modo acoplaria dois conceitos distintos)
+
+**Impactos:**
+- Positivo: ponto único de mudança para qualquer evolução na lógica de detecção de modo
+- Positivo: módulos downstream não precisam importar de `supabase.js` — dependência mais estreita
+- Positivo: elimina o negativo identificado em D-003 (duplicação em múltiplos arquivos)
+
+**Arquivos Afetados:**
+- `src/lib/mode.js` (criado)
+- `src/context/AppProvider.jsx` (migrado para `isSupabaseMode()`)
+- `src/apps/Root.jsx` (migrado)
+- `src/apps/MarketingApp.jsx` (migrado)
+- `src/components/SyncBadge.jsx` (migrado)
+- `src/lib/dataService.js` (migrado)
+
+**Riscos:**
+- Nenhum — mudança puramente de indireção; comportamento idêntico
+
+**Status:** Ativa
 
 ---
 
