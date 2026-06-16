@@ -1083,11 +1083,11 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.2 Fase 1 — Bloqueadores críticos (0–7 dias)
 
-**Status:** 🔴 Em aberto
+**Status:** 🟡 Em progresso (1/3 concluído)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
-| PA-01 | Remover senha de marketing do bundle JS | S-01 | 🔴 | — | — |
+| PA-01 | Remover senha de marketing do bundle JS | S-01 | 🟢 | 2026-06-16 | Guard de build (`vite.config.js`) + guard de runtime (`Login.jsx`) + remoção do objeto `AUTH` exportado |
 | PA-02 | Confirmar `migracao-auth.sql` em produção | BD-01, SB-01 | 🔴 | — | — |
 | PA-03 | Restringir CORS da Edge Function | S-04, S-05 | 🔴 | — | — |
 
@@ -1095,10 +1095,13 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 | Artefato | Tipo | PA | Status |
 |---------|------|----|--------|
-| `src/auth/RootLegacy.jsx` | Código | PA-01 | 🔴 |
+| `vite.config.js` | Código | PA-01 | 🟢 |
+| `src/auth/Login.jsx` | Código | PA-01 | 🟢 |
+| `src/auth/index.js` | Código | PA-01 | 🟢 |
+| `.env.example` | Documentação | PA-01 | 🟢 |
 | `supabase/functions/atualizar-email-usuario/index.ts` | Código | PA-03 | 🔴 |
-| `doc/DECISIONS.md` | Decisão técnica | PA-01 | 🔴 |
-| `doc/CHANGELOG.md` | Histórico | PA-01, PA-03 | 🔴 |
+| `doc/DECISIONS.md` | Decisão técnica | PA-01 | 🟢 |
+| `doc/CHANGELOG.md` | Histórico | PA-01, PA-03 | 🟡 |
 
 ---
 
@@ -1188,7 +1191,12 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 > Esta seção é atualizada à medida que as ações do plano são concluídas.  
 > Formato: `[DATA] PA-XX — Descrição — Evidência`
 
-_Nenhuma ação concluída até o momento._
+- **[2026-06-16] PA-01 — Remoção de credenciais legadas do bundle JS (S-01)**
+  - Guard de build em `vite.config.js`: aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida — impede deploys acidentais com senha no bundle
+  - Guard de runtime em `src/auth/Login.jsx`: `console.error` crítico se `import.meta.env.PROD && VITE_MARKETING_PASS` (camada secundária de detecção)
+  - Remoção do objeto `AUTH` exportado de `Login.jsx` e `src/auth/index.js` — elimina superfície de exposição desnecessária
+  - `.env.example` atualizado com aviso explícito de que `VITE_MARKETING_PASS` é variável de desenvolvimento exclusivamente
+  - Decisão técnica registrada em `doc/DECISIONS.md` (D-032)
 
 ---
 

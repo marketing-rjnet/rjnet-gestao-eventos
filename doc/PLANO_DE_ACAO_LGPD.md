@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🔴 EM ABERTO — 0 de 21 ações concluídas
+> **Status geral:** 🟡 EM PROGRESSO — 1 de 21 ações concluídas
 
 ---
 
@@ -42,14 +42,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | CRÍTICA |
 | **ID Auditoria** | S-01 |
 | **Não conformidade** | `VITE_MARKETING_PASS` incorporada no bundle JS público — qualquer visitante pode obter a senha |
 | **Impacto** | Comprometimento total do modo legado de autenticação |
 | **Responsável** | — |
 | **Prazo** | 2026-06-23 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -70,11 +70,16 @@
 - `src/lib/mode.js`
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/DECISIONS.md` — registrar decisão sobre modo legado
-- [ ] `doc/CHANGELOG.md` — registrar a mudança
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar S-01 como resolvido
+- [x] `doc/DECISIONS.md` — registrar decisão sobre modo legado (D-032)
+- [x] `doc/CHANGELOG.md` — registrar a mudança (v1.7)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — S-01 marcado como resolvido (seção 12.2 e 12.6)
 
-**Evidência de conclusão:** _Preencher aqui após concluir_
+**Evidência de conclusão:**
+- `vite.config.js`: plugin `lgpdCredentialGuard` — aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida; emite `console.warn` em dev
+- `src/auth/Login.jsx`: guard de runtime com `import.meta.env.PROD`; objeto `AUTH` removido; credenciais lidas dentro do handler `submit()` (não exportadas)
+- `src/auth/index.js`: re-export de `AUTH` removido
+- `.env.example`: aviso explícito adicionado — `VITE_MARKETING_PASS` é variável de desenvolvimento exclusivamente
+- Decisão D-032 registrada em `doc/DECISIONS.md`
 
 ---
 
@@ -936,7 +941,7 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 
 | ID | Ação | Fase | Prioridade | Status | Prazo |
 |----|------|------|-----------|--------|-------|
-| PA-01 | Remover senha de marketing do bundle JS | 1 | CRÍTICA | 🔴 | 2026-06-23 |
+| PA-01 | Remover senha de marketing do bundle JS | 1 | CRÍTICA | 🟢 | 2026-06-23 |
 | PA-02 | Confirmar aplicação de `migracao-auth.sql` em produção | 1 | CRÍTICA | 🔴 | 2026-06-17 |
 | PA-03 | Restringir CORS da Edge Function | 1 | ALTA | 🔴 | 2026-06-23 |
 | PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🔴 | 2026-07-16 |

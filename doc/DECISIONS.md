@@ -68,6 +68,34 @@ Riscos conhecidos.
 
 ---
 
+### [D-032] — PA-01: Estratégia de proteção de credenciais legadas do bundle JavaScript
+
+**Data:** 2026-06-16  
+**Contexto:** PA-01 do Plano de Ação LGPD (NC S-01) — `VITE_MARKETING_PASS` era lida em escopo de módulo em `src/auth/Login.jsx` e incorporada literalmente no bundle JavaScript público pelo Vite (substituição estática em build time).
+
+**Decisão:** Proteção em duas camadas:
+1. **Guard de build** (`vite.config.js`): plugin `lgpdCredentialGuard` que aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida — impede deploys acidentais com credenciais no bundle
+2. **Guard de runtime** (`src/auth/Login.jsx`): `console.error` crítico quando `import.meta.env.PROD && import.meta.env.VITE_MARKETING_PASS` — camada secundária para detectar casos onde a variável passou pelo build
+
+**Alternativas consideradas:**
+- **Hash da senha no bundle** (SHA-256 de `VITE_MARKETING_PASS`): mitigaria exposição direta, mas continuaria vulnerável a rainbow tables para senhas fracas. Descartada — complexidade sem garantia de segurança adequada.
+- **Edge Function de autenticação legada**: exige Supabase ativo — incompatível com o modo legado que existe justamente quando Supabase não está configurado. Descartada — contradição arquitetural.
+- **Remoção total do modo legado**: eliminaria S-01 completamente, mas quebraria o fluxo de demo/desenvolvimento local. Descartada — impacto operacional sem benefício proporcional em ambientes onde a variável não é definida.
+
+**Motivação da escolha:** A raiz do problema é operacional (alguém definir `VITE_MARKETING_PASS` nas variáveis de produção da Vercel), não apenas técnica. A solução mais eficaz é impedir que o build complete nessa condição — o código não chega ao deployment. O guard de runtime é defesa em profundidade.
+
+**Restrição documentada:** O modo legado (`RootLegacy` → `Login`) é **estritamente para desenvolvimento local** e nunca deve ter `VITE_MARKETING_PASS` definida em ambientes com `NODE_ENV=production`.
+
+**Arquivos Afetados:**
+- `vite.config.js` — plugin `lgpdCredentialGuard` adicionado
+- `src/auth/Login.jsx` — objeto `AUTH` removido; guard de runtime adicionado; credenciais lidas em handler `submit()`
+- `src/auth/index.js` — re-export de `AUTH` removido
+- `.env.example` — aviso de segurança adicionado
+
+**Status:** Ativa
+
+---
+
 ### [D-031] — Auditoria de LGPD, segurança e governança de dados
 
 **Data:** 2026-06-16

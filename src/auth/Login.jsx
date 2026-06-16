@@ -2,20 +2,19 @@ import React, { useState } from 'react';
 import { Icon } from '../components/ui';
 import { useApp } from '../hooks/useApp';
 
-const _mktUser = import.meta.env.VITE_MARKETING_USER;
-const _mktPass = import.meta.env.VITE_MARKETING_PASS;
-
-if (!_mktUser || !_mktPass) {
-  console.error('[rjnet] VITE_MARKETING_USER e VITE_MARKETING_PASS são obrigatórios no modo sem Supabase. Defina essas variáveis de ambiente.');
+// PA-01/LGPD: Guard de runtime — detecta credenciais legadas expostas em produção.
+// VITE_MARKETING_PASS é substituída literalmente no bundle pelo Vite em tempo de build.
+// Se chegar até aqui em produção, o dano já ocorreu — emite erro crítico visível.
+if (import.meta.env.PROD && import.meta.env.VITE_MARKETING_PASS) {
+  console.error(
+    '[rjnet/PA-01] CRÍTICO: VITE_MARKETING_PASS está definida em produção. ' +
+    'A senha está exposta no bundle JavaScript público. ' +
+    'Remova esta variável da configuração de produção e use Supabase Auth.'
+  );
 }
-
-export const AUTH = {
-  marketing: { user: _mktUser || "", pass: _mktPass || "" },
-};
 
 export function Login({ onLogin, darkMode, toggleDark }) {
   const { vendedores } = useApp();
-  const [stage, setStage] = useState("login");
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
@@ -23,7 +22,13 @@ export function Login({ onLogin, darkMode, toggleDark }) {
   const submit = (e) => {
     e.preventDefault();
     setErr("");
-    if (u === AUTH.marketing.user && p === AUTH.marketing.pass) onLogin({ role: "marketing" });
+    const expectedUser = import.meta.env.VITE_MARKETING_USER || "";
+    const expectedPass = import.meta.env.VITE_MARKETING_PASS || "";
+    if (!expectedUser || !expectedPass) {
+      setErr("Modo legado não configurado. Defina VITE_MARKETING_USER e VITE_MARKETING_PASS no .env.local (apenas para desenvolvimento).");
+      return;
+    }
+    if (u === expectedUser && p === expectedPass) onLogin({ role: "marketing" });
     else setErr("Usuário ou senha incorretos.");
   };
 

@@ -4,6 +4,29 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.7] — PA-01: Remoção de credenciais legadas do bundle JS (D-032)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Segurança (`vite.config.js`):** adicionado plugin `lgpdCredentialGuard` — aborta o build com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida; emite `console.warn` em desenvolvimento
+- **Segurança (`src/auth/Login.jsx`):** removido objeto `AUTH` exportado com credenciais em escopo de módulo; adicionado guard de runtime com `import.meta.env.PROD`; comparação de credenciais movida para dentro do handler `submit()` sem criar variáveis de módulo exportadas
+- **Segurança (`src/auth/index.js`):** removido re-export de `AUTH` — elimina superfície de exposição desnecessária
+- **Documentação (`.env.example`):** adicionado aviso explícito de que `VITE_MARKETING_PASS` é exclusivamente para desenvolvimento local; nunca deve ser definida em Vercel ou CI
+
+**Por que mudou**
+- PA-01 do Plano de Ação LGPD (NC S-01): `VITE_MARKETING_PASS` era lida em escopo de módulo em `Login.jsx`, sendo incorporada literalmente no bundle JavaScript público pelo Vite em tempo de build — exposição de credencial crítica
+
+**Impacto**
+- Builds de produção com `VITE_MARKETING_PASS` definida são bloqueados automaticamente
+- Modo legado (local/demo) continua funcional em desenvolvimento — sem regressão
+- `AUTH` não é mais exportado; nenhum código interno o usava fora do próprio `Login.jsx`
+
+**Conformidade**
+- NC S-01 sanada — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+- Decisão D-032 registrada em `doc/DECISIONS.md`
+
+---
+
 ## [v1.6] — Auditoria e plano de conformidade LGPD (D-031)
 **Data:** 2026-06-16
 
