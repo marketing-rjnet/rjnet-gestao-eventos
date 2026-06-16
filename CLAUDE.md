@@ -8,18 +8,11 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 **Deploy:** Vercel  
 **Testes:** Playwright (E2E) + Node.js (unitários)
 
-**Documentos de referência:**
-- `CHANGELOG.md` — histórico de mudanças por versão (leitura rápida)
-- `DECISIONS.md` — decisões arquiteturais registradas
-- `REFATORAÇÃO.md` — plano e progresso da refatoração modular
-- `SUPABASE.md` — guia de configuração e uso do Supabase
-
----
-
 ## Documentação de Referência
 
 | Arquivo | Conteúdo |
 |---------|----------|
+| `CHANGELOG.md` | Histórico de mudanças por versão — leitura rápida do que mudou |
 | `SYSTEM_MAP.md` | **Arquitetura viva** — fonte única de verdade sobre estrutura, fluxo de dados e restrições. Ler primeiro em qualquer nova sessão. |
 | `DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas |
 | `REFATORAÇÃO.md` | Estado atual da refatoração progressiva (etapas concluídas e pendentes) |
