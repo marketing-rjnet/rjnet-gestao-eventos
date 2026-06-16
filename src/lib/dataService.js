@@ -1,7 +1,8 @@
 // Camada de dados Supabase — converte entre o formato do app (camelCase)
 // e as colunas do banco (snake_case). Schema em supabase/schema.sql e
 // autenticação/papéis em supabase/migracao-auth.sql.
-import { supabase, supabaseEnabled, supabaseConfig } from './supabase';
+import { supabase, supabaseConfig } from './supabase';
+import { isSupabaseMode } from './mode';
 import { cache } from './cache';
 
 /* ─── Fila offline ───────────────────────────────────────────────── */
@@ -33,7 +34,7 @@ function addToQueue(op) {
 // não está mais ativo (ex: marketing encerrou o evento enquanto vendedor
 // estava offline). Itens com falha permanecem na fila para próxima tentativa.
 export async function flushPendingQueue() {
-  if (!supabaseEnabled) return;
+  if (!isSupabaseMode()) return;
   const queue = getQueue();
   if (queue.length === 0) return;
 
@@ -153,7 +154,7 @@ const perfilFromDb = (r) => ({
 // Busca as tabelas em paralelo. Cancela via AbortController quando o
 // componente desmonta. Retorna null se o Supabase estiver indisponível.
 export async function fetchAll(signal) {
-  if (!supabaseEnabled) return null;
+  if (!isSupabaseMode()) return null;
   return trackPerf('fetchAll', () =>
     withRetry(async () => {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -197,7 +198,7 @@ export async function fetchAll(signal) {
 // Placar do evento com cache de 30 s — evita RPC redundante quando o
 // vendedor adiciona vários leads em sequência rápida.
 export async function rankingEvento(eventoId) {
-  if (!supabaseEnabled || !eventoId) return null;
+  if (!isSupabaseMode() || !eventoId) return null;
 
   const cacheKey = `ranking:${eventoId}`;
   const cached = cache.get(cacheKey);
@@ -226,7 +227,7 @@ export function invalidarRanking(eventoId) {
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
 function exec(promise, acao, onFail) {
-  if (!supabaseEnabled) return;
+  if (!isSupabaseMode()) return;
   // Retry uma vez após 1 s em caso de falha transitória
   const tentativa = (p) => p.then(({ error }) => {
     if (error) throw error;
@@ -377,7 +378,7 @@ export const auth = {
 // Chama onChange sempre que qualquer tabela mudar em outro dispositivo.
 // Retorna função de cleanup para usar em useEffect.
 export function subscribeChanges(onChange) {
-  if (!supabaseEnabled) return () => {};
+  if (!isSupabaseMode()) return () => {};
   let timer = null;
   const channel = supabase
     .channel('rjnet-sync')

@@ -22,7 +22,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–17 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração concluída** — 18/18 etapas executadas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
@@ -85,6 +85,7 @@ src/
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
+    ├── mode.js           # isSupabaseMode(), getMode(), MODE — detecção centralizada de modo (etapa 18)
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
@@ -301,6 +302,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/csv.js` | ~20 | Exportação CSV de leads (etapa 3) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
+| `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
 | `src/lib/dataService.js` | ~394 | Queries Supabase, auth, realtime, retry |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |

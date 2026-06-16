@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabaseEnabled } from '../lib/supabase';
+import { isSupabaseMode } from '../lib/mode';
 import { RootAuth, RootLegacy } from '../auth';
 import MarketingApp from './MarketingApp';
 import VendedorApp from './VendedorApp';
@@ -17,7 +17,7 @@ export default function Root() {
 
   const toggleDark = () => setDarkMode((d) => !d);
 
-  return supabaseEnabled
+  return isSupabaseMode()
     ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />
     : <RootLegacy darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />;
 }
