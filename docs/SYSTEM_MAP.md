@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `docs/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-16
+> Atualizado em: 2026-06-16 (pós Etapa 18)
 
 ---
 
@@ -56,19 +56,23 @@ As factories são instanciadas dentro do `AppProvider` e expostas via contexto. 
 - **Cache em memória** (`src/lib/cache.js`) com TTL de 30 s para resultados de `rankingEvento`
 - Subscriptions realtime via canais Supabase com debounce de 400 ms
 
-### Detecção de Modo (`src/lib/supabase.js`)
+### Detecção de Modo (`src/lib/mode.js`)
 
-> **`src/lib/mode.js` não existe.** A detecção de modo é feita por `supabaseEnabled` exportado de `src/lib/supabase.js`.
+`src/lib/supabase.js` cria o cliente e exporta `supabaseEnabled`. `src/lib/mode.js` encapsula esse valor e é o **único ponto de importação** para o resto da aplicação:
 
 ```js
-export const supabase = url && anonKey ? createClient(...) : null;
-export const supabaseEnabled = Boolean(supabase);
+// src/lib/mode.js
+export const MODE = { SUPABASE: 'supabase', LOCAL: 'local' };
+export const isSupabaseMode = () => supabaseEnabled;
+export const getMode = () => (supabaseEnabled ? MODE.SUPABASE : MODE.LOCAL);
 ```
 
-- `supabaseEnabled === true` → modo Supabase (auth, realtime, RLS)
-- `supabaseEnabled === false` → modo local (localStorage, mock data)
+- `isSupabaseMode() === true` → modo Supabase (auth, realtime, RLS)
+- `isSupabaseMode() === false` → modo local (localStorage, mock data)
 
-O tema dark/light é gerenciado em `Root.jsx` via `localStorage("rjnet-theme")`, não via `mode.js`.
+Consumidores: `AppProvider`, `Root`, `MarketingApp`, `dataService`, `SyncBadge` — todos importam de `mode.js`, nunca diretamente de `supabase.js`.
+
+O tema dark/light é gerenciado em `Root.jsx` via `localStorage("rjnet-theme")`.
 
 ---
 
@@ -134,7 +138,8 @@ src/
 │   ├── csv.js                  # exportLeadsCSV
 │   └── mockData.js             # MOCK_* para modo local
 └── lib/
-    ├── supabase.js             # Cliente Supabase + supabaseEnabled (feature flag de modo)
+    ├── supabase.js             # Cliente Supabase + supabaseEnabled
+    ├── mode.js                 # isSupabaseMode(), getMode(), MODE — detecção centralizada (etapa 18)
     ├── dataService.js          # Queries, auth, realtime, retry, fila offline
     ├── security.js             # sanitizeText() — sanitização de inputs
     ├── cache.js                # Cache em memória com TTL
@@ -147,10 +152,10 @@ src/
 
 ### `Root.jsx`
 
-Ponto de entrada após `main.jsx`. Detecta modo (`supabaseEnabled`) e gerencia tema via `localStorage`.
+Ponto de entrada após `main.jsx`. Detecta modo (`isSupabaseMode()`) e gerencia tema via `localStorage`.
 
-- `supabaseEnabled` → `RootAuth` → Supabase session → papel do usuário → `MarketingApp` ou `VendedorApp`
-- `!supabaseEnabled` → `RootLegacy` → credenciais de env → `MarketingApp` ou `VendedorApp`
+- `isSupabaseMode()` → `RootAuth` → Supabase session → papel do usuário → `MarketingApp` ou `VendedorApp`
+- `!isSupabaseMode()` → `RootLegacy` → credenciais de env → `MarketingApp` ou `VendedorApp`
 
 ### `MarketingApp.jsx`
 
@@ -226,7 +231,7 @@ AppProvider re-sincroniza estado com dados do banco
 
 ## 7. Regras Técnicas Atuais
 
-- **`supabaseEnabled` de `src/lib/supabase.js`** é a única fonte de verdade sobre o modo ativo
+- **`isSupabaseMode()` de `src/lib/mode.js`** é a única fonte de verdade sobre o modo ativo
 - **API factory pattern é obrigatório**: todo CRUD passa por `src/api/`, nunca direto ao `dataService`
 - **RLS ativo no Supabase**: `marketing` tem acesso total; `vendedor` só escreve/edita próprios leads (`vendedor_id = auth.uid()`)
 - **Updates otimistas**: estado local muda antes da resposta do banco
@@ -257,7 +262,7 @@ AppProvider re-sincroniza estado com dados do banco
 ## 9. Restrições Arquiteturais
 
 - **Sem lógica de negócio em componentes UI** — componentes só chamam operações via `useApp()`
-- **Sem acesso a `import.meta.env` fora de `src/lib/supabase.js`** — demais módulos consomem `supabaseEnabled` ou `supabaseConfig`
+- **Sem acesso a `import.meta.env` fora de `src/lib/supabase.js`** — demais módulos consomem `isSupabaseMode()` de `mode.js` ou `supabaseConfig`
 - **Sem CRUD direto fora de `src/api/`** — nem contexto, nem componente acessa `dataService` diretamente
 - **Sem "god services"** — cada factory de API tem escopo de um único domínio
 - **Sem biblioteca de roteamento** — navegação por `useState` de tab ativa
