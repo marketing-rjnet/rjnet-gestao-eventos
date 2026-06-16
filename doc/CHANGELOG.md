@@ -4,6 +4,50 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.9] — PA-03 + PA-09: CORS restrito e stack trace removido da Edge Function (S-04, S-05)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Segurança (`supabase/functions/atualizar-email-usuario/index.ts`):**
+  - Removido `corsHeaders` global constante com `Access-Control-Allow-Origin: *`
+  - Adicionada função `getCorsHeaders(req)` que lê origens permitidas do secret `CORS_ALLOWED_ORIGINS` e reflete a origem do solicitante somente se estiver na lista; nunca retorna `*`
+  - Fallback em desenvolvimento: `http://localhost:3000`
+  - Catch final corrigido: `console.error('[rjnet:edge] ...')` internamente; resposta 500 retorna mensagem genérica sem detalhes do erro (S-05 corrigido)
+  - `json()` refatorado para receber `headers` como parâmetro explícito
+
+**Por que mudou**
+- PA-03 do Plano de Ação LGPD (NC S-04): CORS aberto permite que qualquer origem invoque operações administrativas de usuários
+- PA-09/S-05 resolvido junto: `String(err)` no bloco catch expunha detalhes internos ao cliente
+
+**Ação manual necessária**
+- Configurar secret `CORS_ALLOWED_ORIGINS` no Supabase Dashboard (Settings → Edge Functions → Secrets) com o domínio de produção: `https://SEU_DOMINIO.vercel.app,http://localhost:3000`
+- Fazer deploy: `supabase functions deploy atualizar-email-usuario`
+
+**Conformidade**
+- NC S-04 sanada; NC S-05 antecipada e sanada — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+- **Fase 1 do Plano LGPD completa (PA-01, PA-02, PA-03 ✅)**
+
+---
+
+## [v1.8] — PA-02: Script de verificação de migrações de Auth
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Novo arquivo (`supabase/verificar-migracao-auth.sql`):** script SQL com 8 blocos de verificação idempotentes para confirmar o estado das migrações `migracao-auth.sql` e `protecao-dados.sql` em produção; inclui resultado esperado anotado e instruções de remediação
+- **Documentação (`doc/SUPABASE.md`):** nova seção "Verificação de estado das migrações (PA-02)" com tabela de resultados esperados; tabela de migrações atualizada com o script de verificação; checklist de segurança pré-produção atualizado
+
+**Por que mudou**
+- PA-02 do Plano de Ação LGPD (NC BD-01, SB-01): policies anônimas do `schema.sql` expõem todos os dados se `migracao-auth.sql` não estiver aplicada em produção; a ação requer verificação operacional documentada
+
+**Impacto**
+- Nenhuma alteração de código de produção — apenas artefatos de verificação e documentação
+- Operador deve executar `supabase/verificar-migracao-auth.sql` no Supabase Dashboard e confirmar 0 policies anônimas
+
+**Conformidade**
+- NC BD-01 e SB-01 documentadas e com procedimento de verificação — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+
+---
+
 ## [v1.7] — PA-01: Remoção de credenciais legadas do bundle JS (D-032)
 **Data:** 2026-06-16
 

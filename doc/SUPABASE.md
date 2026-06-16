@@ -111,6 +111,28 @@ Nunca use a **service_role key** no front-end.
 
 ---
 
+## Verificação de estado das migrações (PA-02)
+
+Use o script `supabase/verificar-migracao-auth.sql` para confirmar que todas as migrações obrigatórias foram aplicadas.
+
+**Como executar:** Supabase Dashboard → SQL Editor → cole o conteúdo do script → Run.
+
+**Resultado esperado (produção correta):**
+
+| Bloco | Verificação | Resultado esperado |
+|-------|------------|-------------------|
+| 1 | Políticas anônimas | **0 linhas** (se retornar linhas, migração não aplicada) |
+| 2 | Tabela `perfis` existe | **true** |
+| 3 | Coluna `deletado` em `leads` | **1 linha** |
+| 4 | Coluna `vendedor_id` em `leads` | **1 linha** |
+| 5 | Função `papel_atual()` | **1 linha** |
+| 6 | Função `ranking_evento()` | **1 linha** |
+| 7 | Policies por papel | **≥ 8 linhas** com `authenticated` |
+
+**Se falhar:** execute as migrações em falta na ordem definida abaixo e reexecute o script.
+
+---
+
 ## Checklist de segurança pré-produção
 
 Execute este checklist antes de qualquer go-live ou atualização relevante:
@@ -118,12 +140,12 @@ Execute este checklist antes de qualquer go-live ou atualização relevante:
 - [ ] `supabase/schema.sql` aplicado
 - [ ] `supabase/migracao-auth.sql` aplicado (remove acesso anônimo)
 - [ ] `supabase/protecao-dados.sql` aplicado (soft delete)
-- [ ] Nenhuma policy `to anon` ativa (verificar com a query abaixo)
+- [ ] Script `supabase/verificar-migracao-auth.sql` executado e todos os blocos validados
 - [ ] Primeiro usuário marketing criado e ativado
-- [ ] Variáveis `VITE_MARKETING_USER` e `VITE_MARKETING_PASS` **não definidas** em produção
+- [x] Variáveis `VITE_MARKETING_USER` e `VITE_MARKETING_PASS` **não definidas** em produção (PA-01 — guard implementado em `vite.config.js`)
 - [ ] MFA habilitado no Dashboard para usuários marketing (PA-12 — planejado)
 
-**Query de verificação de policies anônimas:**
+**Query rápida de verificação de policies anônimas:**
 ```sql
 SELECT tablename, policyname, roles
 FROM pg_policies
@@ -141,6 +163,7 @@ WHERE schemaname = 'public'
 | 1 | `supabase/schema.sql` | ✅ Obrigatório | Schema base, tabelas, seed |
 | 2 | `supabase/migracao-auth.sql` | ✅ Obrigatório | Auth, perfis, RLS por papel |
 | 3 | `supabase/protecao-dados.sql` | ✅ Obrigatório | Soft delete em leads |
+| — | `supabase/verificar-migracao-auth.sql` | ✅ Disponível (PA-02) | Script de verificação — confirma que as 3 migrações acima foram aplicadas |
 | 4 | `supabase/migracao-consentimento.sql` | 🔴 Planejado (PA-04) | Campo de consentimento LGPD |
 | 5 | `supabase/migracao-soft-delete-audit.sql` | 🔴 Planejado (PA-07) | Rastreabilidade de soft delete |
 | 6 | `supabase/migracao-audit-exportacoes.sql` | 🔴 Planejado (PA-06) | Log de exportações CSV |

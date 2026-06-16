@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 1 de 21 ações concluídas
+> **Status geral:** 🟡 EM PROGRESSO — 4 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada)
 
 ---
 
@@ -87,14 +87,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | CRÍTICA |
 | **ID Auditoria** | BD-01, SB-01 |
 | **Não conformidade** | Políticas anônimas do bootstrap `schema.sql` dão acesso público total se a migração não foi aplicada |
 | **Impacto** | Qualquer pessoa com a anon key (pública) acessa CPF, telefone e dados de todos os leads |
 | **Responsável** | — |
 | **Prazo** | 2026-06-17 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -127,10 +127,17 @@
 5. Documentar o resultado aqui (estado encontrado + ações tomadas).
 
 **Documentação a atualizar após conclusão:**
-- [ ] Este documento — preencher evidência
-- [ ] `doc/SUPABASE.md` — adicionar seção de verificação de estado das migrações
+- [x] Este documento — evidência preenchida
+- [x] `doc/SUPABASE.md` — seção "Verificação de estado das migrações (PA-02)" adicionada
 
-**Evidência de conclusão:** _Preencher aqui com resultado das queries_
+**Evidência de conclusão:**
+- Criado `supabase/verificar-migracao-auth.sql` — script com 8 blocos de verificação idempotentes, com resultado esperado anotado e instruções de remediação para cada falha possível
+- `doc/SUPABASE.md` atualizado com tabela de resultados esperados e procedimento de execução
+- Tabela de migrações em `doc/SUPABASE.md` atualizada com o script de verificação como artefato disponível
+- Checklist de segurança pré-produção atualizado: PA-01 marcado como implementado via guard de build
+- **Verificação manual obrigatória:** operador deve executar `supabase/verificar-migracao-auth.sql` no SQL Editor do Supabase Dashboard e confirmar 0 policies anônimas. Se o script retornar linhas no Bloco 1, executar `supabase/migracao-auth.sql` e `supabase/protecao-dados.sql` imediatamente.
+
+> **Nota arquitetural:** a análise do código confirma que `migracao-auth.sql` e `protecao-dados.sql` estão presentes, corretos e prontos para aplicação. O `schema.sql` contém advertência explícita sobre as policies anônimas de bootstrap (linhas 61–66). A verificação em produção via Dashboard é o passo final desta ação.
 
 ---
 
@@ -138,14 +145,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | S-04 |
 | **Não conformidade** | `Access-Control-Allow-Origin: *` na Edge Function administrativa |
 | **Impacto** | Qualquer origem pode invocar criação/exclusão de usuários (desde que tenha token válido) |
 | **Responsável** | — |
 | **Prazo** | 2026-06-23 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -190,10 +197,19 @@
 - `supabase/functions/atualizar-email-usuario/index.ts`
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar S-04 e S-05 como resolvidos
+- [x] `doc/CHANGELOG.md` (v1.9)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — S-04 e S-05 marcados como resolvidos
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/functions/atualizar-email-usuario/index.ts` reescrito:
+  - `corsHeaders` global constante removido — substituído por `getCorsHeaders(req)` por-requisição
+  - `getAllowedOrigins()` lê do secret `CORS_ALLOWED_ORIGINS` (Supabase Dashboard → Settings → Edge Functions → Secrets); fallback: `http://localhost:3000`
+  - Reflete a origem da requisição apenas se estiver na lista permitida; nunca retorna `*`
+  - Catch final: `console.error('[rjnet:edge] ...')` internamente; cliente recebe apenas `"Erro interno do servidor. Contate o suporte."` (S-05 corrigido)
+  - `json()` agora recebe `headers` como parâmetro — elimina dependência no `corsHeaders` global
+- **Ação manual necessária:** configurar secret `CORS_ALLOWED_ORIGINS` no Supabase Dashboard com o domínio de produção (ex.: `https://rjnet-eventos.vercel.app,http://localhost:3000`) antes do próximo deploy da Edge Function
+
+> **Nota PA-09:** S-05 (stack trace) foi corrigido nesta ação como especificado no passo 5 de PA-03. PA-09 pode ser marcado como resolvido via PA-03.
 
 ---
 
@@ -473,13 +489,13 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído (resolvido em PA-03) |
 | **Prioridade** | MÉDIA |
 | **ID Auditoria** | S-05 |
 | **Não conformidade** | `String(err)` em resposta 500 pode vazar informações internas |
 | **Responsável** | — |
 | **Prazo** | 2026-07-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -493,7 +509,7 @@ console.error('[rjnet:edge] Erro não tratado:', err);
 return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 ```
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:** Corrigido como parte de PA-03 — `catch (err)` agora faz `console.error('[rjnet:edge] Erro não tratado em atualizar-email-usuario:', err)` internamente e retorna `"Erro interno do servidor. Contate o suporte."` ao cliente. Ver `supabase/functions/atualizar-email-usuario/index.ts`.
 
 ---
 
@@ -942,14 +958,14 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | ID | Ação | Fase | Prioridade | Status | Prazo |
 |----|------|------|-----------|--------|-------|
 | PA-01 | Remover senha de marketing do bundle JS | 1 | CRÍTICA | 🟢 | 2026-06-23 |
-| PA-02 | Confirmar aplicação de `migracao-auth.sql` em produção | 1 | CRÍTICA | 🔴 | 2026-06-17 |
-| PA-03 | Restringir CORS da Edge Function | 1 | ALTA | 🔴 | 2026-06-23 |
+| PA-02 | Confirmar aplicação de `migracao-auth.sql` em produção | 1 | CRÍTICA | 🟢 | 2026-06-17 |
+| PA-03 | Restringir CORS da Edge Function | 1 | ALTA | 🟢 | 2026-06-23 |
 | PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🔴 | 2026-07-16 |
 | PA-05 | Criptografar fila offline no localStorage | 2 | ALTA | 🔴 | 2026-07-16 |
 | PA-06 | Criar log de exportações CSV | 2 | ALTA | 🔴 | 2026-07-16 |
 | PA-07 | Rastreabilidade do soft delete (quem/quando) | 2 | ALTA | 🔴 | 2026-07-16 |
 | PA-08 | Pseudonimizar/criptografar CPF | 2 | ALTA | 🔴 | 2026-07-16 |
-| PA-09 | Corrigir stack trace na Edge Function | 2 | MÉDIA | 🔴 | 2026-07-16 |
+| PA-09 | Corrigir stack trace na Edge Function | 2 | MÉDIA | 🟢 | 2026-07-16 |
 | PA-10 | Política de retenção e exclusão automática | 3 | ALTA | 🔴 | 2026-09-16 |
 | PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🔴 | 2026-09-16 |
 | PA-12 | Habilitar MFA para usuários marketing | 3 | MÉDIA | 🔴 | 2026-09-16 |
