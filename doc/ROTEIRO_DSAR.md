@@ -1,7 +1,7 @@
 # Roteiro DSAR — Atendimento a Direitos de Titulares
 
 > **PA-15/LGPD** — Procedimentos para exercício dos direitos do art. 18 da LGPD.  
-> Canal de contato: **privacidade@rjnet.com.br** (a criar)  
+> Canal de contato: **privacidade@rjnet.com.br** — ⚠️ pendente criação pela equipe de TI  
 > Prazo de resposta: **15 dias corridos** (boa prática ANPD)
 
 ---

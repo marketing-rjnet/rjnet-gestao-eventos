@@ -4,6 +4,17 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.1] — Fase 4 LGPD: PA-16 (Política de Privacidade)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **PA-16 — Política de Privacidade (`doc/POLITICA_DE_PRIVACIDADE.md`):** documento v1.0 cobrindo controlador, dados coletados, finalidades, bases legais (consentimento e legítimo interesse), compartilhamento com Supabase/Vercel, retenção, direitos dos titulares (art. 18 LGPD), medidas de segurança, transferência internacional e canal de contato
+- **PA-15 — DSAR:** canal privacidade@rjnet.com.br marcado como pendente criação pela TI
+
+**Conformidade:** G-01, L-02 sanados
+
+---
+
 ## [v3.0] — Fase 3 LGPD: PA-10 a PA-15 (retenção, RLS, MFA, auditoria, DPA, DSAR)
 **Data:** 2026-06-16
 
