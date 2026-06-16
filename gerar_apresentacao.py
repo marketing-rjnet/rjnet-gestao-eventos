@@ -22,19 +22,19 @@ pdfmetrics.registerFont(TTFont("LSB", "/usr/share/fonts/truetype/liberation/Libe
 pdfmetrics.registerFont(TTFont("LSI", "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"))
 
 # ── Paleta ──────────────────────────────────────────────────────────────────
-AM  = colors.HexColor("#F5C000")   # amarelo / accent
-PR  = colors.HexColor("#0D0D0D")   # preto
-CE  = colors.HexColor("#1A1A1A")   # cinza escuro (card bg)
-CM  = colors.HexColor("#2E2E2E")   # cinza médio (borda)
-CL  = colors.HexColor("#F4F4F4")   # cinza claro (bg slide)
-BR  = colors.white
-VE  = colors.HexColor("#22C55E")   # verde
-VM  = colors.HexColor("#EF4444")   # vermelho
-AZ  = colors.HexColor("#60A5FA")   # azul
-LA  = colors.HexColor("#FB923C")   # laranja
-T1  = colors.HexColor("#FFFFFF")   # texto primário (em dark)
-T2  = colors.HexColor("#B0B0B0")   # texto secundário
-T3  = colors.HexColor("#666666")   # texto terciário
+AM  = colors.HexColor("#F5C000")   # amarelo (primary accent)
+PR  = colors.HexColor("#0D0D0D")   # preto (primary text)
+CE  = colors.HexColor("#F8F8F8")   # cinza claro (card bg — was #1A1A1A dark)
+CM  = colors.HexColor("#E0E0E0")   # borda clara (was #2E2E2E dark)
+CL  = colors.HexColor("#FFFFFF")   # branco (page bg)
+BR  = colors.white                  # unchanged
+VE  = colors.HexColor("#16A34A")   # verde escuro (more readable)
+VM  = colors.HexColor("#DC2626")   # vermelho escuro (more readable)
+AZ  = colors.HexColor("#2563EB")   # azul escuro (more readable)
+LA  = colors.HexColor("#EA580C")   # laranja escuro (more readable)
+T1  = colors.HexColor("#0D0D0D")   # texto primário (was white — now black for light theme)
+T2  = colors.HexColor("#555555")   # texto secundário
+T3  = colors.HexColor("#888888")   # texto terciário
 
 W, H = A4
 MW = W - 3.6*cm   # usable width
@@ -46,12 +46,12 @@ def S(name, **kw):
     return ParagraphStyle(name, **base)
 
 ST = {
-    "num":   S("num",  fontName="LS",  fontSize=8,  textColor=colors.HexColor("#999999"), alignment=TA_RIGHT),
+    "num":   S("num",  fontName="LS",  fontSize=8,  textColor=T3, alignment=TA_RIGHT),
     "h2":    S("h2",   fontName="LSB", fontSize=17, leading=22, textColor=PR, spaceBefore=4, spaceAfter=2),
     "h3":    S("h3",   fontName="LSB", fontSize=11, leading=15, textColor=PR),
     "h3am":  S("h3am", fontName="LSB", fontSize=11, leading=15, textColor=AM),
-    "body":  S("body", fontName="LS",  fontSize=9.5, leading=14, textColor=colors.HexColor("#333333")),
-    "bull":  S("bull", fontName="LS",  fontSize=9.5, leading=14, textColor=colors.HexColor("#333333"), leftIndent=10),
+    "body":  S("body", fontName="LS",  fontSize=9.5, leading=14, textColor=PR),
+    "bull":  S("bull", fontName="LS",  fontSize=9.5, leading=14, textColor=PR, leftIndent=10),
     "white": S("wh",   fontName="LS",  fontSize=9,  textColor=BR),
     "wbold": S("wb",   fontName="LSB", fontSize=10, textColor=BR),
     "cap":   S("cap",  fontName="LS",  fontSize=7.5, textColor=T2, alignment=TA_CENTER),
@@ -249,7 +249,7 @@ class StateFlow(Flowable):
         x=0
         for i,(lbl,col,sub) in enumerate(self.states):
             is_act = (i==self.active) or self.active==-1
-            alpha_bg = col if is_act else colors.HexColor("#2A2A2A")
+            alpha_bg = col if is_act else colors.HexColor("#F0F0F0")
             alpha_tx = BR if is_act else T3
             # Arrow
             if i>0:
@@ -689,7 +689,7 @@ def shot_path(name):
 
 class DesktopShot(Flowable):
     """Embeds a real desktop screenshot inside a macOS browser chrome."""
-    def __init__(self, img_path, w, add_chrome=True):
+    def __init__(self, img_path, w, add_chrome=True, max_h=None):
         super().__init__()
         self._img_path = img_path
         self._w = w
@@ -700,6 +700,8 @@ class DesktopShot(Flowable):
         iw, ih = ir.getSize()
         ratio = ih / iw
         self._img_h = w * ratio
+        if max_h is not None:
+            self._img_h = min(self._img_h, max_h)
         self._total_h = self._img_h + (self._ch if add_chrome else 0) + 6  # +6 shadow
 
     def wrap(self, *_): return self._w, self._total_h
@@ -839,49 +841,48 @@ def build_pdf():
         def wrap(self,aW,aH): return aW,aH
         def draw(self):
             c=self.canv
-            # Fundo gradiente visual (dois retangulos)
+            # Black background
             c.setFillColor(colors.HexColor("#0A0A0A")); c.rect(0,0,W,H,fill=1,stroke=0)
-            c.setFillColor(colors.HexColor("#F5C00008")); c.circle(W*0.8,H*0.7,220,fill=1,stroke=0)
-            c.setFillColor(colors.HexColor("#F5C00005")); c.circle(W*0.2,H*0.3,150,fill=1,stroke=0)
-            # Barra lateral amarela
+            # Yellow left bar
             c.setFillColor(AM); c.rect(0,0,8,H,fill=1,stroke=0)
-            # Linha topo
+            # Yellow top bar
             c.setFillColor(AM); c.rect(0,H-5,W,5,fill=1,stroke=0)
-            # Nome da empresa
+            # RJNET title in yellow
             c.setFillColor(AM); c.setFont("LSB",52)
             c.drawString(2.2*cm, H-4.8*cm, "RJNET")
-            # Linha decorativa
+            # Divider line yellow
             c.setStrokeColor(AM); c.setLineWidth(1.5)
             c.line(2.2*cm,H-5.6*cm,W-2*cm,H-5.6*cm)
-            # Subtítulo
+            # Subtitle in white
             c.setFillColor(BR); c.setFont("LSB",20)
             c.drawString(2.2*cm,H-6.8*cm,"GESTÃO DE EVENTOS")
-            c.setFillColor(T2); c.setFont("LS",12)
+            # Sub-subtitle in white (not gray)
+            c.setFillColor(BR); c.setFont("LS",11)
             c.drawString(2.2*cm,H-7.8*cm,"Plataforma de Operações Comerciais em Campo")
             # Versão
             c.setFillColor(AM); c.setFont("LSB",9)
             hoje=datetime.date.today().strftime("%B de %Y").capitalize()
             c.drawString(2.2*cm,H-8.8*cm,f"Versão {hoje}  •  Documento Confidencial")
-            # Stats hero
+            # Stats hero boxes: dark bg, yellow border, value in yellow, label in white
             for i,(v,l) in enumerate([("247+","Leads Captados"),("12","Eventos"),("8","Vendedores")]):
                 bx=2.2*cm+i*5.5*cm; by=H-12*cm
-                c.setFillColor(CE); c.roundRect(bx,by,4.5*cm,3.2*cm,8,fill=1,stroke=0)
+                c.setFillColor(colors.HexColor("#1A1A1A")); c.roundRect(bx,by,4.5*cm,3.2*cm,8,fill=1,stroke=0)
                 c.setStrokeColor(AM); c.setLineWidth(1)
                 c.roundRect(bx,by,4.5*cm,3.2*cm,8,fill=0,stroke=1)
                 c.setFillColor(AM); c.setFont("LSB",28)
                 c.drawCentredString(bx+2.25*cm,by+1.8*cm,v)
-                c.setFillColor(T2); c.setFont("LS",9)
+                c.setFillColor(BR); c.setFont("LS",9)
                 c.drawCentredString(bx+2.25*cm,by+0.8*cm,l)
-            # Módulos
-            c.setFillColor(T3); c.setFont("LS",9)
+            # Módulos line: white text
+            c.setFillColor(BR); c.setFont("LS",9)
             c.drawString(2.2*cm,H-15.5*cm,"Módulos incluídos nesta apresentação:")
             mods=["Dashboard  •  Eventos  •  Leads  •  Check-in  •  Estoque  •  App Mobile  •  Analytics  •  Sincronização"]
-            c.setFillColor(T2); c.setFont("LS",9)
+            c.setFillColor(BR); c.setFont("LS",9)
             c.drawString(2.2*cm,H-16.4*cm,mods[0])
             # Rodapé capa
             c.setFillColor(AM); c.setFont("LSB",14)
             c.drawString(2.2*cm,2.8*cm,"RJNET")
-            c.setFillColor(T3); c.setFont("LS",8)
+            c.setFillColor(colors.HexColor("#AAAAAA")); c.setFont("LS",8)
             c.drawString(2.2*cm,2*cm,"Material exclusivo para diretoria e sócios  •  Não distribuir")
 
     story.append(Cover())
@@ -908,14 +909,14 @@ def build_pdf():
         [[cell[0] for cell in tdata[0]]],
         colWidths=[MW/4]*4,
         style=TableStyle([
-            ("BACKGROUND",  (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
-            ("ROWBACKGROUNDS",(0,0),(-1,-1),[colors.HexColor("#1A1A1A")]),
+            ("BACKGROUND",  (0,0),(-1,-1), colors.white),
+            ("ROWBACKGROUNDS",(0,0),(-1,-1),[colors.white]),
             ("TOPPADDING",  (0,0),(-1,-1), 14),
             ("BOTTOMPADDING",(0,0),(-1,-1), 14),
             ("LEFTPADDING", (0,0),(-1,-1), 10),
             ("RIGHTPADDING",(0,0),(-1,-1), 10),
             ("ROUNDEDCORNERS",(0,0),(-1,-1),6),
-            ("GRID",        (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",        (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",      (0,0),(-1,-1), "MIDDLE"),
         ])
     )
@@ -942,10 +943,11 @@ def build_pdf():
     ]
     tbl = Table(rows_pillars, colWidths=[MW/4]*4,
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("BACKGROUND", (0,0),(-1,-1), colors.white),
+            ("BACKGROUND", (0,0),(-1,0), AM),
             ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
             ("LEFTPADDING",(0,0),(-1,-1), 10), ("RIGHTPADDING", (0,0),(-1,-1),10),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
@@ -961,10 +963,12 @@ def build_pdf():
     ]
     tbl_roles = Table(roles, colWidths=[MW/2, MW/2],
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("BACKGROUND", (0,0),(-1,-1), colors.white),
+            ("BACKGROUND", (0,0),(0,0), AM),
+            ("BACKGROUND", (1,0),(1,0), PR),
             ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
             ("LEFTPADDING",(0,0),(-1,-1), 16), ("RIGHTPADDING", (0,0),(-1,-1),16),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
         ])
     )
@@ -987,18 +991,20 @@ def build_pdf():
         [Paragraph(d, ST["body"]) for _,_,d,_ in steps_data],
     ]
     cw6 = MW / 6
-    tbl_flow = Table(flow_rows, colWidths=[cw6]*6,
-        style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
-            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),14),
-            ("LEFTPADDING",(0,0),(-1,-1), 8),  ("RIGHTPADDING", (0,0),(-1,-1),8),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
-            ("VALIGN",     (0,0),(-1,-1), "TOP"),
-        ])
-    )
+    _flow_style = [
+        ("BACKGROUND", (0,0),(-1,-1), colors.white),
+        ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+        ("LEFTPADDING",(0,0),(-1,-1), 8),  ("RIGHTPADDING", (0,0),(-1,-1),8),
+        ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+        ("VALIGN",     (0,0),(-1,-1), "TOP"),
+    ]
+    for _si, (_,_t,_d,_c) in enumerate(steps_data):
+        _flow_style.append(("BACKGROUND", (_si,0), (_si,0), colors.HexColor(_c)))
+        _flow_style.append(("TEXTCOLOR", (_si,0), (_si,0), PR))
+    tbl_flow = Table(flow_rows, colWidths=[cw6]*6, style=TableStyle(_flow_style))
     story.append(tbl_flow)
     story.append(sp(14))
-    story.append(DesktopShot(shot_path("01_dashboard.png"), MW))
+    story.append(DesktopShot(shot_path("01_dashboard.png"), MW, max_h=220))
     story.append(sp(8))
     story += bullets([
         "Cada etapa e registrada e rastreada pelo sistema em tempo real",
@@ -1028,7 +1034,7 @@ def build_pdf():
         ("ENCERRADO","Finalizado",  T3,"Dados preservados"),
     ], MW, active=-1))
     story.append(sp(8))
-    story.append(DesktopShot(shot_path("02_eventos_lista.png"), MW))
+    story.append(DesktopShot(shot_path("02_eventos_lista.png"), MW, max_h=230))
     story.append(sp(8))
     story += bullets([
         "Cards com status colorido: Ativo (verde), Planejado (amarelo), Encerrado (cinza)",
@@ -1047,7 +1053,7 @@ def build_pdf():
         ("CONVERTIDO", "Fechou negocio",       VE,  "Contrato ativo"),
     ], MW, active=-1))
     story.append(sp(8))
-    story.append(DesktopShot(shot_path("05_leads.png"), MW))
+    story.append(DesktopShot(shot_path("05_leads.png"), MW, max_h=230))
     story.append(sp(8))
     story += bullets([
         "Visualizacao completa de todos os leads com filtros por evento, vendedor e temperatura",
@@ -1085,7 +1091,7 @@ def build_pdf():
         ("CRITICO", "Sem disponibilidade", VM, "0 unidades livres"),
     ], MW, active=-1))
     story.append(sp(8))
-    story.append(DesktopShot(shot_path("04_estoque.png"), MW))
+    story.append(DesktopShot(shot_path("04_estoque.png"), MW, max_h=220))
     story.append(sp(8))
     story += bullets([
         "Classificacao automatica em 3 niveis: sistema calcula disponibilidade descontando itens em campo",
@@ -1116,7 +1122,7 @@ def build_pdf():
     # ─── SLIDE 09: ANALYTICS ─────────────────────────────────────────────
     story += page_header("09","Analytics e Equipe","Dados para decisao em todos os niveis")
 
-    story.append(DesktopShot(shot_path("07_equipe.png"), MW))
+    story.append(DesktopShot(shot_path("07_equipe.png"), MW, max_h=250))
     story.append(sp(8))
     story += bullets([
         "Gestao da equipe com desempenho individual e controle de acesso por perfil",
@@ -1146,10 +1152,10 @@ def build_pdf():
     ]
     tbl_sync = Table(sync_rows, colWidths=[MW/3]*3,
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("BACKGROUND", (0,0),(-1,-1), colors.white),
             ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
@@ -1185,17 +1191,17 @@ def build_pdf():
     ]
     tbl_benefit = Table(benefit_rows, colWidths=[MW/4]*4,
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("BACKGROUND", (0,0),(-1,-1), colors.white),
             ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
     story.append(tbl_benefit)
     story.append(sp(14))
     # Show a composite: login + dashboard side by side as reference
-    story.append(DesktopShot(shot_path("03_evento_detalhe.png"), MW))
+    story.append(DesktopShot(shot_path("03_evento_detalhe.png"), MW, max_h=200))
     story.append(sp(8))
     story += bullets([
         "Um unico sistema substitui planilhas, relatorios manuais e apps descoordenados",
@@ -1225,11 +1231,11 @@ def build_pdf():
     ]
     tbl_ba = Table(before_after, colWidths=[MW/2, MW/2],
         style=TableStyle([
-            ("BACKGROUND", (0,0),(0,-1), colors.HexColor("#1A0A0A")),
-            ("BACKGROUND", (1,0),(1,-1), colors.HexColor("#0A1A0A")),
+            ("BACKGROUND", (0,0),(0,-1), colors.HexColor("#FFF5F5")),
+            ("BACKGROUND", (1,0),(1,-1), colors.HexColor("#F5FFF5")),
             ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 14), ("RIGHTPADDING", (0,0),(-1,-1),14),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
@@ -1247,9 +1253,9 @@ def build_pdf():
     ]
     tbl_metrics = Table(metrics_rows, colWidths=[MW/4]*4,
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("BACKGROUND", (0,0),(-1,-1), colors.white),
             ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
             ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
         ])
     )
@@ -1289,7 +1295,7 @@ class StateFlow(Flowable):
             else:
                 lbl, col, sub = item; sub2=""
             is_act=(i==self.active) or self.active==-1
-            bg2=col if is_act else colors.HexColor("#2A2A2A")
+            bg2=col if is_act else colors.HexColor("#F0F0F0")
             fg2=BR if is_act else T3
             if i>0:
                 ax=x-gap+2; ay=self.h/2
