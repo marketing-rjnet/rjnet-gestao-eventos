@@ -970,6 +970,42 @@ Uma única meta não expressava progressão. Com 3 níveis, vendedores têm moti
 
 ---
 
+### [D-028] — Organização dos docs em `docs/` com @import seletivo no CLAUDE.md
+
+**Data:** 16/06/2026
+
+**Tipo:** Infraestrutura / Documentação
+
+**Decisão:**
+Os arquivos de documentação (`CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md`, `SYSTEM_MAP.md`) foram movidos da raiz do projeto para o diretório `docs/`. O `CLAUDE.md` permanece na raiz (convenção Claude Code). O `SYSTEM_MAP.md` é carregado automaticamente via `@docs/SYSTEM_MAP.md` no topo do `CLAUDE.md`. Os demais docs são consultados sob demanda com regras explícitas de quando ler cada um.
+
+**Motivação:**
+Raiz com 6 arquivos `.md` soltos dificultava a identificação de arquivos de código vs. documentação. Com o crescimento do projeto, novas docs especializadas (ex: `docs/WHATSAPP.md`, `docs/API.md`) entrariam no lugar natural sem poluir a raiz. Além disso, a convenção `@import` garante que a arquitetura viva seja sempre carregada, independente de o Claude decidir ou não ler `SYSTEM_MAP.md`.
+
+**Alternativas Avaliadas:**
+- Manter todos na raiz (descartada — escala mal; raiz fica ruidosa com novas docs)
+- `@import` de todos os docs (descartada — consome contexto desnecessariamente; `REFATORAÇÃO.md` está concluída, `CHANGELOG.md` é histórico passivo)
+- `@import` de `SYSTEM_MAP.md` + `DECISIONS.md` (avaliada — `DECISIONS.md` tem ~1000 linhas; custo de contexto alto; preferível regra explícita de quando ler)
+
+**Impactos:**
+- Positivo: raiz mais limpa; novos docs entram em `docs/` sem fricção; `SYSTEM_MAP.md` garantido em toda sessão
+- Positivo: regras explícitas na tabela do `CLAUDE.md` guiam Claude sobre quando consultar cada doc
+- Negativo: caminhos de referência nos docs precisam ser atualizados manualmente se houver mais movimentações
+
+**Arquivos Afetados:**
+- `docs/` (criado)
+- `docs/CHANGELOG.md`, `docs/DECISIONS.md`, `docs/REFATORAÇÃO.md`, `docs/SUPABASE.md`, `docs/SYSTEM_MAP.md` (movidos da raiz)
+- `CLAUDE.md` (adicionado `@docs/SYSTEM_MAP.md`; tabela de referência atualizada com caminhos e coluna "Quando ler")
+- `docs/SYSTEM_MAP.md` (nota de localização adicionada no cabeçalho)
+- `docs/CHANGELOG.md` (entrada adicionada)
+
+**Riscos:**
+- Arquivos antigos na raiz removidos — links externos ou scripts que apontem para `CHANGELOG.md` na raiz precisarão ser atualizados
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

@@ -10,19 +10,21 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Documentação de Referência
 
-| Arquivo | Conteúdo |
-|---------|----------|
-| `CHANGELOG.md` | Histórico de mudanças por versão — leitura rápida do que mudou |
-| `SYSTEM_MAP.md` | **Arquitetura viva** — fonte única de verdade sobre estrutura, fluxo de dados e restrições. Ler primeiro em qualquer nova sessão. |
-| `DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas |
-| `REFATORAÇÃO.md` | Estado atual da refatoração progressiva (etapas concluídas e pendentes) |
-| `SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) |
+@docs/SYSTEM_MAP.md
+
+| Arquivo | Conteúdo | Quando ler |
+|---------|----------|------------|
+| `docs/SYSTEM_MAP.md` | **Arquitetura viva** — estrutura, fluxo de dados e restrições. Carregado automaticamente via `@import` acima. | Toda sessão (automático) |
+| `docs/DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas | Antes de qualquer mudança arquitetural ou de padrão |
+| `docs/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) | Antes de qualquer alteração no banco ou schema |
+| `docs/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
+| `docs/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
 
 ---
 
 ## Estrutura do Projeto
 
-> **Refatoração concluída** — 18/18 etapas executadas. Ver `REFATORAÇÃO.md`.
+> **Refatoração concluída** — 18/18 etapas executadas. Ver `docs/REFATORAÇÃO.md`.
 
 ```
 src/
