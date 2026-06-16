@@ -822,6 +822,43 @@ Os dois componentes representavam o último bloco de UI em `main.jsx`. Com a ext
 
 ---
 
+### [D-024] — Módulos de API por domínio via factory functions (Etapa 17)
+
+**Data:** 16/06/2026
+
+**Tipo:** Refatoração / Arquitetura
+
+**Decisão:**
+As implementações de CRUD do `AppProvider` foram extraídas para 4 módulos de API em `src/api/`, cada um expondo uma factory function (`createEventoApi`, `createLeadApi`, `createMaterialApi`, `createVendedorApi`). As factories recebem os setters e estado necessários como parâmetros e retornam objetos com as funções de domínio. O `AppProvider` chama as factories no corpo do componente e passa as funções resultantes para o `useMemo`.
+
+**Motivação:**
+O `AppProvider` acumulava ~100 linhas de lógica CRUD junto com a orquestração de estado e efeitos de infraestrutura (realtime, carregar, subscriptions). Separar os CRUDs por domínio mantém o Provider como orquestrador puro de estado e isola cada domínio em módulo rastreável.
+
+**Alternativas Avaliadas:**
+- Hooks por domínio (`useEventoActions`, etc.) — descartada: hooks precisam ser chamados no topo do componente e criariam ordem de execução implícita; factories são chamadas simples no corpo
+- Funções exportadas com parâmetros diretos (sem factory) — descartada: obrigaria passar 4-5 args em cada chamada no `useMemo`, reduzindo legibilidade
+- Manter CRUD inline no `AppProvider` — descartada: Provider com 170 linhas mistura responsabilidades de estado + persistência + domínio
+
+**Impactos:**
+- Positivo: `AppProvider.jsx` reduzido de ~170 para ~100 linhas; CRUD por domínio isolado e testável individualmente; import de `db` e `invalidarRanking` saiu do Provider
+- Positivo: `patchEvento` (compartilhado entre eventoApi e materialApi) é retornado por `createEventoApi` e injetado em `createMaterialApi` via parâmetro — sem acoplamento direto entre módulos
+- Negativo: factories recriadas a cada render (custo mínimo; idêntico ao comportamento anterior com funções inline)
+
+**Arquivos Afetados:**
+- `src/api/eventoApi.js` (criado)
+- `src/api/leadApi.js` (criado)
+- `src/api/materialApi.js` (criado)
+- `src/api/vendedorApi.js` (criado)
+- `src/context/AppProvider.jsx` (atualizado — CRUDs removidos; factories importadas)
+
+**Riscos:**
+- `useMemo` captura as funções das factories corretamente porque suas deps (`eventos`, `leads`, etc.) fazem parte do array de dependências — comportamento preservado
+- Nenhum import circular: `api/` importa apenas de `lib/dataService`; não importa de `context/`
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
