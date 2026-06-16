@@ -141,6 +141,7 @@ src/
 └── lib/
     ├── supabase.js             # Cliente Supabase + supabaseEnabled (feature flag de modo)
     ├── dataService.js          # Queries, auth, realtime, retry, fila offline
+    ├── crypto.js               # PA-05/LGPD: AES-GCM 256 + PBKDF2 para fila offline no localStorage
     ├── security.js             # sanitizeText() — sanitização de inputs
     ├── cache.js                # Cache em memória com TTL
     └── constants.js            # Constantes globais e enums de domínio

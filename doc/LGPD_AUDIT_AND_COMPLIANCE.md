@@ -851,7 +851,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | ID | Não Conformidade | Classificação |
 |----|-----------------|--------------|
 | S-01 | Senha de marketing (`VITE_MARKETING_PASS`) exposta no bundle JavaScript público via variável de ambiente `VITE_` | **CRÍTICA** |
-| S-02 | Dados pessoais de leads armazenados em `localStorage` sem criptografia (fila offline) | **ALTA** |
+| S-02 | ~~Dados pessoais de leads armazenados em `localStorage` sem criptografia (fila offline)~~ **✅ RESOLVIDO — PA-05 (2026-06-16):** fila offline criptografada com AES-GCM 256 via Web Crypto API | **ALTA** |
 | S-03 | Sem MFA (autenticação multifator) para usuários do sistema | **MÉDIA** |
 | S-04 | CORS aberto (`Access-Control-Allow-Origin: *`) na Edge Function administrativa | **ALTA** |
 | S-05 | Stack trace interno exposto em erro 500 na Edge Function (`String(err)`) | **MÉDIA** |
@@ -1109,12 +1109,12 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.3 Fase 2 — Privacidade e rastreabilidade (7–30 dias)
 
-**Status:** 🟡 Em progresso (1/6 concluído)
+**Status:** 🟡 Em progresso (2/6 concluído)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
 | PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🟢 | 2026-06-16 | Migração SQL + checkbox obrigatório no VendedorApp + mapeamento dataService |
-| PA-05 | Criptografar fila offline localStorage | S-02 | 🔴 | — | — |
+| PA-05 | Criptografar fila offline localStorage | S-02 | 🟢 | 2026-06-16 | `src/lib/crypto.js` (AES-GCM 256 + PBKDF2) + dataService async queue + RootAuth lifecycle |
 | PA-06 | Log de exportações CSV | A-01, L-08 | 🔴 | — | — |
 | PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🔴 | — | — |
 | PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🔴 | — | — |
@@ -1124,15 +1124,15 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 | Artefato | Tipo | PA | Status |
 |---------|------|----|--------|
-| `supabase/migracao-consentimento.sql` | SQL | PA-04 | 🔴 |
+| `supabase/migracao-consentimento.sql` | SQL | PA-04 | 🟢 |
 | `supabase/migracao-audit-exportacoes.sql` | SQL | PA-06 | 🔴 |
 | `supabase/migracao-soft-delete-audit.sql` | SQL | PA-07 | 🔴 |
-| `src/apps/VendedorApp.jsx` | Código | PA-04 | 🔴 |
-| `src/lib/dataService.js` | Código | PA-05, PA-06, PA-07 | 🔴 |
-| `src/lib/crypto.js` | Código (novo) | PA-05 | 🔴 |
+| `src/apps/VendedorApp.jsx` | Código | PA-04 | 🟢 |
+| `src/lib/dataService.js` | Código | PA-05, PA-06, PA-07 | 🟡 (PA-05 ✅) |
+| `src/lib/crypto.js` | Código (novo) | PA-05 | 🟢 |
 | `src/utils/csv.js` | Código | PA-06 | 🔴 |
 | `doc/SUPABASE.md` | Documentação | PA-06, PA-07 | 🔴 |
-| `doc/CHANGELOG.md` | Histórico | Todas | 🔴 |
+| `doc/CHANGELOG.md` | Histórico | Todas | 🟡 |
 
 ---
 

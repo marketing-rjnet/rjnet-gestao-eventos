@@ -4,30 +4,63 @@
 import { supabase, supabaseConfig } from './supabase';
 import { isSupabaseMode } from './mode';
 import { cache } from './cache';
+import { encryptQueue, decryptQueue, clearCryptoKey, cryptoSupported } from './crypto';
 
-/* ─── Fila offline ───────────────────────────────────────────────── */
+/* ─── Fila offline — PA-05/LGPD: dados criptografados em repouso ─── */
 
 const QUEUE_KEY = 'rjnet_pending_queue';
 
-function getQueue() {
+// userId da sessão ativa — necessário para derivar a chave de criptografia.
+// Atualizado por setQueueUserId() chamado no login/logout.
+let _queueUserId = null;
+
+export function setQueueUserId(userId) {
+  _queueUserId = userId || null;
+}
+
+export function clearQueueSession(userId) {
+  clearCryptoKey(userId);
+  _queueUserId = null;
+}
+
+async function getQueue() {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+
+    // PA-05: se cripto disponível e usuário logado, tenta descriptografar
+    if (cryptoSupported && _queueUserId && raw.includes('.')) {
+      const decrypted = await decryptQueue(raw, _queueUserId);
+      if (decrypted !== null) return decrypted;
+      // Falha na descriptografia: dados de outro usuário ou legados — descarta
+      console.warn('[rjnet/PA-05] Fila offline inacessível (chave diferente ou formato legado). Descartando.');
+      localStorage.removeItem(QUEUE_KEY);
+      return [];
+    }
+
+    // Fallback: formato legado sem criptografia (migração transparente)
+    return JSON.parse(raw);
   } catch { return []; }
 }
 
-function saveQueue(queue) {
+async function saveQueue(queue) {
   try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    if (cryptoSupported && _queueUserId) {
+      const encrypted = await encryptQueue(queue, _queueUserId);
+      localStorage.setItem(QUEUE_KEY, encrypted);
+    } else {
+      // Fallback: sem cripto (modo local sem userId ou browser sem Web Crypto)
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    }
   } catch (err) {
     console.error('[rjnet] Falha ao salvar fila offline:', err.message);
   }
 }
 
-function addToQueue(op) {
-  const queue = getQueue();
+async function addToQueue(op) {
+  const queue = await getQueue();
   queue.push({ ...op, queuedAt: new Date().toISOString() });
-  saveQueue(queue);
+  await saveQueue(queue);
 }
 
 // Envia todos os leads pendentes ao Supabase. Descarta itens cujo evento
@@ -35,7 +68,7 @@ function addToQueue(op) {
 // estava offline). Itens com falha permanecem na fila para próxima tentativa.
 export async function flushPendingQueue() {
   if (!isSupabaseMode()) return;
-  const queue = getQueue();
+  const queue = await getQueue();
   if (queue.length === 0) return;
 
   let activeEventIds = new Set();
@@ -60,7 +93,7 @@ export async function flushPendingQueue() {
       remaining.push(op);
     }
   }
-  saveQueue(remaining);
+  await saveQueue(remaining);
 }
 
 /* ─── Utilitários de resiliência ─────────────────────────────────── */

@@ -91,6 +91,7 @@ src/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
     ├── mode.js           # isSupabaseMode(), getMode(), MODE — detecção centralizada de modo (etapa 18)
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
+    ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
     └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, limites (etapas 5)

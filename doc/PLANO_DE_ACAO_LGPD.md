@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 5 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04 iniciada Fase 2)
+> **Status geral:** 🟡 EM PROGRESSO — 6 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04 e PA-05 concluídas na Fase 2)
 
 ---
 
@@ -299,14 +299,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | S-02 |
 | **Não conformidade** | Leads capturados offline (incluindo CPF e telefone) armazenados em texto plano no localStorage |
 | **Impacto** | Dados pessoais expostos no dispositivo do vendedor se não houver bloqueio de tela |
 | **Responsável** | — |
 | **Prazo** | 2026-07-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -327,11 +327,20 @@
 - Novo: `src/lib/crypto.js`
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/SYSTEM_MAP.md` — adicionar `src/lib/crypto.js` na estrutura
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar S-02 como resolvido
+- [x] `doc/SYSTEM_MAP.md` — `src/lib/crypto.js` adicionado na estrutura
+- [x] `doc/CHANGELOG.md` (v2.1)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — S-02 marcado como resolvido
+- [x] `doc/DECISIONS.md` — D-034 (estratégia de derivação de chave PBKDF2)
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `src/lib/crypto.js` (novo): utilitário de criptografia AES-GCM 256 bits usando Web Crypto API nativa
+  - `deriveKey(userId)`: PBKDF2-SHA256, 100.000 iterações, chave AES-GCM 256 bits — cacheada em memória (nunca persistida)
+  - `encryptQueue(data, userId)`: serializa, gera IV aleatório, cifra com AES-GCM, retorna `base64(iv).base64(ciphertext)`
+  - `decryptQueue(encrypted, userId)`: retorna `null` em caso de chave errada, dados corrompidos ou formato legado
+  - `clearCryptoKey(userId)`: descarta chave do cache em memória no logout
+  - `cryptoSupported`: flag de compatibilidade (todos os browsers modernos suportam)
+- `src/lib/dataService.js`: `getQueue()` e `saveQueue()` tornadas assíncronas; criptografia ativa quando `cryptoSupported && _queueUserId` — fallback silencioso para texto plano em ambientes sem Web Crypto API; `flushPendingQueue()` atualizado para `await getQueue()` e `await saveQueue()`; exports `setQueueUserId()` e `clearQueueSession()` adicionados
+- `src/auth/RootAuth.jsx`: chama `setQueueUserId(s.userId)` ao iniciar sessão (login + restore); chama `clearQueueSession(userId)` ao fazer logout e ao receber evento `SIGNED_OUT` — garante que a chave seja descartada da memória e os dados da fila fiquem inacessíveis
 
 ---
 

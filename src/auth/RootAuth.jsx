@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from '../lib/dataService';
+import { auth, setQueueUserId, clearQueueSession } from '../lib/dataService';
 import { LoginAuth } from './LoginAuth';
 import { NovaSenha } from './NovaSenha';
 
@@ -9,19 +9,32 @@ export function RootAuth({ darkMode, toggleDark, MarketingApp, VendedorApp }) {
 
   useEffect(() => {
     let on = true;
-    auth.getSessao().then((s) => { if (on) setSession(s); });
+    auth.getSessao().then((s) => {
+      if (on) {
+        setSession(s);
+        // PA-05/LGPD: registra userId para criptografia da fila offline
+        if (s?.userId) setQueueUserId(s.userId);
+      }
+    });
     const unsub = auth.onChange((evento) => {
       if (!on) return;
-      if (evento === "SIGNED_OUT") setSession(null);
+      if (evento === "SIGNED_OUT") {
+        setSession((prev) => { if (prev?.userId) clearQueueSession(prev.userId); return null; });
+      }
       if (evento === "PASSWORD_RECOVERY") setRecuperandoSenha(true);
-      if (evento === "SIGNED_IN") auth.getSessao().then((s) => { if (on && s) setSession(s); });
+      if (evento === "SIGNED_IN") auth.getSessao().then((s) => {
+        if (on && s) {
+          setSession(s);
+          if (s.userId) setQueueUserId(s.userId);
+        }
+      });
     });
     return () => { on = false; unsub(); };
   }, []);
 
   const logout = async () => {
     try { await auth.signOut(); } catch { /* sessão já expirada */ }
-    setSession(null);
+    setSession((prev) => { if (prev?.userId) clearQueueSession(prev.userId); return null; });
   };
 
   if (recuperandoSenha) {

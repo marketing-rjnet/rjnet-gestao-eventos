@@ -68,6 +68,21 @@ Riscos conhecidos.
 
 ---
 
+### [D-034] — PA-05: Derivação de chave PBKDF2 a partir do userId para criptografia da fila offline
+
+**Data:** 2026-06-16  
+**Contexto:** PA-05 exige criptografar o localStorage da fila offline de leads. A chave precisa ser acessível durante a sessão e descartada no logout, sem necessidade de senha extra do usuário.  
+**Decisão:** Derivar a chave AES-GCM 256 bits do `userId` via PBKDF2-SHA256 (100.000 iterações, salt público fixo por versão). A chave fica cacheada em memória (Map) e é descartada ao fazer logout ou ao recarregar a página.  
+**Alternativas consideradas:**
+- Chave aleatória por sessão persistida no sessionStorage — descartada ao fechar a aba, mas sessionStorage também é acessível por JS local (mesma limitação)
+- Prompt de senha adicional do usuário — rejeitado: UX inaceitável para vendedores em campo
+- Sem criptografia — rejeitado: NC S-02 da auditoria LGPD  
+
+**Limitação aceita:** Proteção derivada do `userId` (não de senha), portanto não protege contra quem conhece o `userId`. O objetivo é proteger contra acesso físico ao dispositivo por terceiro que não conhece o `userId`. Documentado em `src/lib/crypto.js`.  
+**Consequências:** `getQueue()`/`saveQueue()` tornadas assíncronas; fallback silencioso para texto plano quando `crypto.subtle` não estiver disponível (ambientes SSR ou muito antigos).
+
+---
+
 ### [D-033] — PA-04: Opção A (ficha física) para consentimento LGPD na captação de leads
 
 **Data:** 2026-06-16  
