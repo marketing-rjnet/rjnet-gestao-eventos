@@ -876,25 +876,16 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟡 Em progresso (documento criado; pendente aprovação pelo DPO) |
 | **Prioridade** | MÉDIA |
 | **ID Auditoria** | L-09 |
 | **Responsável** | — (DPO + técnico) |
 | **Prazo** | 2026-12-16 |
 | **Data de conclusão** | — |
 
-**O que fazer:**
-
-Elaborar RIPD/DPIA para o tratamento de dados de leads em eventos, cobrindo:
-1. Descrição sistemática do tratamento
-2. Avaliação de necessidade e proporcionalidade
-3. Avaliação dos riscos para os direitos e liberdades dos titulares
-4. Medidas de mitigação adotadas
-5. Parecer do DPO
-
-Armazenar em `doc/RIPD.md`.
-
-**Evidência de conclusão:** _Documento RIPD aprovado_
+**Evidência de conclusão:**
+- `doc/RIPD.md` (novo): RIPD v1.0 cobrindo descrição do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de riscos com 8 riscos identificados, medidas de mitigação adotadas e pendentes
+- ⚠️ Pendente: aprovação formal pelo DPO após nomeação (PA-19)
 
 ---
 
@@ -902,26 +893,16 @@ Armazenar em `doc/RIPD.md`.
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟡 Em progresso (documento criado; pendente validação pelo DPO) |
 | **Prioridade** | MÉDIA |
 | **ID Auditoria** | L-10 |
 | **Responsável** | — (DPO) |
 | **Prazo** | 2026-12-16 |
 | **Data de conclusão** | — |
 
-**O que fazer:**
-
-Criar `doc/ROPA.md` contendo, para cada operação de tratamento:
-- Finalidade
-- Base legal
-- Categorias de titulares
-- Categorias de dados
-- Destinatários
-- Transferências internacionais
-- Prazo de retenção
-- Medidas de segurança
-
-**Evidência de conclusão:** _Documento ROPA criado e validado pelo DPO_
+**Evidência de conclusão:**
+- `doc/ROPA.md` (novo): 4 operações de tratamento documentadas — captação de leads, exportação CSV, autenticação de usuários internos e auditoria de operações; bases legais, destinatários, transferências internacionais, retenção e medidas de segurança
+- ⚠️ Pendente: validação pelo DPO após nomeação (PA-19); prazo de retenção do audit_log a definir
 
 ---
 
@@ -951,25 +932,16 @@ Criar `doc/ROPA.md` contendo, para cada operação de tratamento:
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟡 Em progresso (documento criado; pendente aprovação pelo DPO e tabletop exercise) |
 | **Prioridade** | MÉDIA |
 | **ID Auditoria** | G-03 |
 | **Responsável** | — (DPO + técnico) |
 | **Prazo** | 2026-12-16 |
 | **Data de conclusão** | — |
 
-**O que fazer:**
-
-Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
-1. Definição de incidente de dados (vazamento, acesso não autorizado, perda, etc.)
-2. Procedimento de contenção imediata
-3. Avaliação de impacto
-4. Notificação à ANPD em até 72h (art. 48 LGPD) — quando obrigatório
-5. Notificação aos titulares afetados
-6. Registro do incidente
-7. Lições aprendidas e medidas corretivas
-
-**Evidência de conclusão:** _Documento aprovado + simulação de tabletop exercise_
+**Evidência de conclusão:**
+- `doc/PLANO_INCIDENTES.md` (novo): classificação de severidade (4 níveis), procedimento em 6 fases (detecção → contenção → avaliação → notificação → correção → lições aprendidas), queries SQL para investigação via audit_log, prazos ANPD (72h), modelo de registro de incidentes
+- ⚠️ Pendente: aprovação pelo DPO (PA-19); simulação de tabletop exercise; preenchimento de contatos de emergência
 
 ---
 
@@ -1024,10 +996,10 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | PA-14 | Assinar DPA com Supabase | 3 | ALTA | 🟡 | 2026-09-16 |
 | PA-15 | Processo DSAR para direitos de titulares | 3 | ALTA | 🟢 | 2026-09-16 |
 | PA-16 | Elaborar política de privacidade | 4 | ALTA | 🟢 | 2026-12-16 |
-| PA-17 | Elaborar RIPD/DPIA | 4 | MÉDIA | 🔴 | 2026-12-16 |
-| PA-18 | Criar ROPA | 4 | MÉDIA | 🔴 | 2026-12-16 |
+| PA-17 | Elaborar RIPD/DPIA | 4 | MÉDIA | 🟡 | 2026-12-16 |
+| PA-18 | Criar ROPA | 4 | MÉDIA | 🟡 | 2026-12-16 |
 | PA-19 | Nomear DPO | 4 | MÉDIA | 🔴 | 2026-12-16 |
-| PA-20 | Plano de resposta a incidentes | 4 | MÉDIA | 🔴 | 2026-12-16 |
+| PA-20 | Plano de resposta a incidentes | 4 | MÉDIA | 🟡 | 2026-12-16 |
 | PA-21 | Avaliar e remover campos excessivos | 4 | MÉDIA | 🔴 | 2026-12-16 |
 
 ---
@@ -1039,10 +1011,10 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | `doc/POLITICA_DE_PRIVACIDADE.md` | Jurídico | PA-16 | 🟢 |
 | `doc/POLITICA_RETENCAO.md` | DPO + Técnico | PA-10 | 🟢 |
 | `doc/ROTEIRO_DSAR.md` | DPO | PA-15 | 🟢 |
-| `doc/RIPD.md` | DPO + Técnico | PA-17 | 🔴 |
-| `doc/ROPA.md` | DPO | PA-18 | 🔴 |
+| `doc/RIPD.md` | DPO + Técnico | PA-17 | 🟡 |
+| `doc/ROPA.md` | DPO | PA-18 | 🟡 |
 | `doc/DPA_FORNECEDORES.md` | Jurídico | PA-14 | 🟡 |
-| `doc/PLANO_INCIDENTES.md` | DPO + Técnico | PA-20 | 🔴 |
+| `doc/PLANO_INCIDENTES.md` | DPO + Técnico | PA-20 | 🟡 |
 
 ---
 

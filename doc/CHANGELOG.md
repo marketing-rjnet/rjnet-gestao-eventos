@@ -4,6 +4,19 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.2] — Fase 4 LGPD: PA-17, PA-18, PA-20 (RIPD, ROPA, Plano de Incidentes)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **PA-17 — RIPD (`doc/RIPD.md`):** Relatório de Impacto v1.0 com descrição do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de 8 riscos identificados e medidas de mitigação; pendente aprovação pelo DPO
+- **PA-18 — ROPA (`doc/ROPA.md`):** Registro de 4 operações de tratamento (captação de leads, exportação CSV, autenticação interna, auditoria); bases legais, destinatários, transferências internacionais e retenção documentados; pendente validação pelo DPO
+- **PA-20 — Plano de Incidentes (`doc/PLANO_INCIDENTES.md`):** 6 fases de resposta, classificação por severidade, queries SQL de investigação, prazos ANPD (72h), modelo de registro; pendente aprovação pelo DPO e tabletop exercise
+- **PA-19 e PA-21:** mantidos como 🔴 Em aberto — dependem de decisão da diretoria/negócio
+
+**Conformidade:** L-09, L-10, G-03 parcialmente sanados (documentos criados; aprovação DPO pendente)
+
+---
+
 ## [v3.1] — Fase 4 LGPD: PA-16 (Política de Privacidade)
 **Data:** 2026-06-16
 
