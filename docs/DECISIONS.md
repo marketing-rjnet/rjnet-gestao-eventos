@@ -1006,6 +1006,40 @@ Raiz com 6 arquivos `.md` soltos dificultava a identificação de arquivos de c�
 
 ---
 
+### [D-029] — Controle Sim/Não para "já é cliente" e exclusão de lead pelo vendedor
+
+**Data:** 16/06/2026
+
+**Tipo:** Feature
+
+**Decisão:**
+O campo "Já é cliente RJNet?" foi migrado de checkbox para controle segmentado com dois botões **Não / Sim**, usando o padrão `.seg-control` / `.seg-btn` já existente no projeto. O valor armazenado continua sendo booleano. Adicionado botão **"Excluir lead"** na aba "Meus Leads" do `VendedorApp`, com confirmação inline em dois passos antes de executar a exclusão.
+
+**Motivação:**
+- Checkbox desmarcado era ambíguo: podia significar "não é cliente" ou "campo não respondido". Botões explícitos Não/Sim eliminam a ambiguidade.
+- Vendedores precisavam poder corrigir cadastros errados sem depender do marketing para excluir o lead.
+
+**Alternativas Avaliadas:**
+- Manter checkbox (descartada — ambiguidade de estado)
+- Radio buttons HTML nativos (descartada — inconsistente com o padrão visual `.seg-btn` já adotado para temperatura e serviços)
+- Confirmação via `window.confirm()` (descartada — bloqueado em alguns WebViews mobile; inline é mais confiável)
+
+**Impactos:**
+- Positivo: UX mais clara para campo de cliente existente
+- Positivo: vendedor pode corrigir erros de cadastro sem abrir chamado para o marketing
+- A exclusão usa o soft delete existente (`deletado = true`), sem alterar a arquitetura de dados
+
+**Arquivos Afetados:**
+- `src/apps/VendedorApp.jsx` (campo Sim/Não, estado `confirmandoDelId`, UI de exclusão)
+- `src/index.css` (classes `.lm-del-btn`, `.lm-del-confirm`, `.lm-del-confirm-yes`, `.lm-del-confirm-no`)
+
+**Riscos:**
+- Nenhum — exclusão via soft delete preserva o dado no banco; sem impacto em integridade referencial
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

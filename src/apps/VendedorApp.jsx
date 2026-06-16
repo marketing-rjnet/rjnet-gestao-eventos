@@ -87,10 +87,13 @@ function LeadEditInline({ lead, onSave, onCancel }) {
         <label>Observação</label>
         <textarea rows="2" value={e.observacao} onChange={(ev) => upd("observacao", ev.target.value)} />
       </div>
-      <label className="checkbox-field" style={{ marginBottom: 14 }}>
-        <input type="checkbox" checked={e.jaClienteRjnet} onChange={(ev) => upd("jaClienteRjnet", ev.target.checked)} />
-        <span>Já é cliente RJNet?</span>
-      </label>
+      <div className="big-field" style={{ marginBottom: 14 }}>
+        <label>Já é cliente RJNet?</label>
+        <div className="seg-control">
+          <button type="button" className={"seg-btn" + (!e.jaClienteRjnet ? " active" : "")} onClick={() => upd("jaClienteRjnet", false)}>Não</button>
+          <button type="button" className={"seg-btn" + (e.jaClienteRjnet ? " active" : "")} onClick={() => upd("jaClienteRjnet", true)}>Sim</button>
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button type="button" className="btn-primary" style={{ flex: 1 }} onClick={() => onSave(e)}>Salvar</button>
         <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={onCancel}>Cancelar</button>
@@ -118,6 +121,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const [editandoId, setEditandoId] = useState(null);
+  const [confirmandoDelId, setConfirmandoDelId] = useState(null);
 
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
@@ -293,11 +297,13 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                     ))}
                   </div>
                 </div>
-                <label className="checkbox-field">
-                  <input type="checkbox" checked={f.jaClienteRjnet} onChange={(e) => set("jaClienteRjnet", e.target.checked)} />
-                  <span>Já é cliente RJNet?</span>
-                  {f.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 8, fontSize: 11 }}>Sim</span>}
-                </label>
+                <div className="big-field">
+                  <label>Já é cliente RJNet?</label>
+                  <div className="seg-control">
+                    <button type="button" className={"seg-btn" + (!f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", false)}>Não</button>
+                    <button type="button" className={"seg-btn" + (f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", true)}>Sim</button>
+                  </div>
+                </div>
                 <div className="big-field">
                   <label>Temperatura do lead</label>
                   <div className="temp-grid">
@@ -376,7 +382,18 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                               WhatsApp
                             </a>
                           </div>
-                          <button type="button" className="lm-edit-btn" onClick={() => setEditandoId(l.id)}>Editar dados</button>
+                          <button type="button" className="lm-edit-btn" onClick={() => { setEditandoId(l.id); setConfirmandoDelId(null); }}>Editar dados</button>
+                          {confirmandoDelId === l.id ? (
+                            <div className="lm-del-confirm">
+                              <span>Confirmar exclusão do lead?</span>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button type="button" className="lm-del-confirm-yes" onClick={() => { removeLead(l.id); setConfirmandoDelId(null); }}>Sim, excluir</button>
+                                <button type="button" className="lm-del-confirm-no" onClick={() => setConfirmandoDelId(null)}>Cancelar</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" className="lm-del-btn" onClick={() => { setConfirmandoDelId(l.id); setEditandoId(null); }}>Excluir lead</button>
+                          )}
                         </>
                       )}
                     </div>
@@ -569,7 +586,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
           <Icon name="plus" size={22} stroke={aba === "registrar" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
           Registrar
         </button>
-        <button className={"vend-nav-btn" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); }}>
+        <button className={"vend-nav-btn" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); setConfirmandoDelId(null); }}>
           <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
           Meus Leads
           {leadsDoEvento.length > 0 && <span className="vend-nav-badge">{leadsDoEvento.length}</span>}
