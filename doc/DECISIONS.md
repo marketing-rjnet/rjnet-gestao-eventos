@@ -77,7 +77,7 @@ Riscos conhecidos.
 **Alternativas rejeitadas:**
 - Hash SHA-256 — perde a busca por prefixo parcial; CPF ainda seria coletado (risco na transmissão)
 - pgcrypto — chave precisa ser acessível ao app; não elimina risco de coleta  
-**Consequências:** `CheckinTab` reescrito com busca por substring de nome; campo CPF removido do formulário de captura, edição e lista de leads; coluna removida do banco via migração idempotente; coluna CPF removida do CSV exportado.
+**Consequências:** `CheckinTab` reescrito com busca por substring de nome (permanente). CPF reintroduzido como campo **opcional** com finalidade declarada no label ("para visita técnica e contrato") — necessário para o fluxo de negócio de agendamento e conversão. Campo oculto no modo rápido. Exibido na lista de leads apenas quando preenchido. Coluna CPF de volta no CSV exportado para equipe técnica. Risco residual (texto plano) aceito e documentado.
 
 ---
 

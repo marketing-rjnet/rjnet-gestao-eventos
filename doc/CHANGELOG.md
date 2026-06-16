@@ -4,6 +4,23 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v2.5] — PA-08b: Reintrodução do CPF opcional com finalidade declarada
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Banco (`supabase/migracao-readd-cpf.sql`):** `ADD COLUMN IF NOT EXISTS cpf text` — coluna reintroduzida como opcional (nullable)
+- **Camada de dados (`src/lib/dataService.js`):** `leadFromDb` e `leadToDb` com campo `cpf` de volta
+- **Formulário vendedor (`src/apps/VendedorApp.jsx`):** campo CPF opcional reintroduzido no formulário de captura (modo normal) e edição inline, com label explicando a finalidade: *"opcional — para visita técnica e contrato"*; exibido na lista de leads apenas quando preenchido
+- **Exportação CSV (`src/utils/csv.js`):** coluna CPF de volta no arquivo exportado para a equipe técnica
+
+**Por que mudou**
+- CPF é necessário para o fluxo de negócio (agendamento de visita técnica e assinatura de contrato). A NC original (L-03) era sobre coleta sem finalidade declarada — resolvida com a label de finalidade no campo. Check-in permanece por nome (sem uso de CPF), eliminando o conflito original.
+
+**Ação manual necessária**
+- Executar `supabase/migracao-readd-cpf.sql` no Supabase Dashboard → SQL Editor
+
+---
+
 ## [v2.4] — PA-08: Remoção do CPF + check-in por nome (BD-02, L-03)
 **Data:** 2026-06-16
 
