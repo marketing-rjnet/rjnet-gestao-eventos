@@ -161,7 +161,7 @@ const eventoToDb = (e) => ({
 const leadFromDb = (r) => ({
   id: r.id, eventoId: r.evento_id, vendedorNome: r.vendedor_nome ?? "",
   vendedorId: r.vendedor_id ?? null,
-  nome: r.nome, telefone: r.telefone ?? "",
+  nome: r.nome, telefone: r.telefone ?? "", cpf: r.cpf ?? "",
   endereco: r.endereco ?? "", servicoInteresse: (() => {
     const v = r.servico_interesse;
     if (!v) return [];
@@ -178,7 +178,7 @@ const leadFromDb = (r) => ({
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId, vendedor_nome: l.vendedorNome ?? null,
   vendedor_id: l.vendedorId ?? null,
-  nome: l.nome, telefone: l.telefone || null,
+  nome: l.nome, telefone: l.telefone || null, cpf: l.cpf || null,
   endereco: l.endereco || null,
   servico_interesse: Array.isArray(l.servicoInteresse) ? JSON.stringify(l.servicoInteresse) : (l.servicoInteresse ?? null),
   temperatura: l.temperatura ?? 'morno', observacao: l.observacao || null,

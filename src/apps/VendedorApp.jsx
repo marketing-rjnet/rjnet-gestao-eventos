@@ -4,7 +4,7 @@ import { useRanking } from '../hooks/useRanking';
 import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';
 import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
-import { maskTel, validarTelefone } from '../utils/masks';
+import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
 
@@ -28,6 +28,7 @@ function LeadEditInline({ lead, onSave, onCancel }) {
   const [e, setE] = useState({
     nome: lead.nome,
     telefone: lead.telefone,
+    cpf: lead.cpf || "",
     endereco: lead.endereco || "",
     servicoInteresse: Array.isArray(lead.servicoInteresse)
       ? lead.servicoInteresse
@@ -46,6 +47,10 @@ function LeadEditInline({ lead, onSave, onCancel }) {
       <div className="big-field" style={{ marginBottom: 10 }}>
         <label>Telefone *</label>
         <input required value={e.telefone} onChange={(ev) => upd("telefone", maskTel(ev.target.value))} inputMode="tel" autoComplete="off" />
+      </div>
+      <div className="big-field" style={{ marginBottom: 10 }}>
+        <label>CPF <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional — para visita técnica)</span></label>
+        <input value={e.cpf} onChange={(ev) => upd("cpf", maskCpf(ev.target.value))} inputMode="numeric" placeholder="000.000.000-00" />
       </div>
       <div className="big-field" style={{ marginBottom: 10 }}>
         <label>Endereço</label>
@@ -109,7 +114,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   }, [ativos, eventoId]);
 
   const [aba, setAba] = useState("registrar");
-  const FORM_VAZIO = { nome: "", telefone: "", endereco: "", servicoInteresse: ["internet_residencial"], temperatura: "morno", observacao: "", jaClienteRjnet: false, consentimentoColetado: false };
+  const FORM_VAZIO = { nome: "", telefone: "", cpf: "", endereco: "", servicoInteresse: ["internet_residencial"], temperatura: "morno", observacao: "", jaClienteRjnet: false, consentimentoColetado: false };
   const [f, setF] = useState(FORM_VAZIO);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const [modoRapido, setModoRapido] = useState(false);
@@ -161,6 +166,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     const novo = addLead({
       ...f,
       nome,
+      cpf: sanitizeText(f.cpf, 14),
       endereco: sanitizeText(f.endereco, 200),
       observacao: sanitizeText(f.observacao, 500),
       eventoId,
@@ -178,6 +184,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     updateLead(id, {
       ...dados,
       nome:       sanitizeText(dados.nome, 120),
+      cpf:        sanitizeText(dados.cpf || "", 14),
       endereco:   sanitizeText(dados.endereco || "", 200),
       observacao: sanitizeText(dados.observacao || "", 500),
     });
@@ -269,10 +276,16 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   <input required maxLength={15} value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
                 </div>
                 {!modoRapido && (
-                  <div className="big-field">
-                    <label>Endereço</label>
-                    <input maxLength={200} value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
-                  </div>
+                  <>
+                    <div className="big-field">
+                      <label>CPF <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional — para visita técnica e contrato)</span></label>
+                      <input maxLength={14} value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
+                    </div>
+                    <div className="big-field">
+                      <label>Endereço</label>
+                      <input maxLength={200} value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+                    </div>
+                  </>
                 )}
                 <div className="big-field">
                   <label>Serviços de interesse * (selecione um ou mais)</label>
@@ -375,6 +388,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                             >{tc.label}</button>
                           </div>
                           <div className="lm-sub" style={{ marginTop: 4 }}>
+                            {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
                             {servicoLabel(l.servicoInteresse)}
                             {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
                           </div>

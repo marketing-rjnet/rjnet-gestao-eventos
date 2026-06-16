@@ -514,7 +514,8 @@
 - `src/features/checkin/CheckinTab.jsx`: check-in reescrito — busca por nome (substring case-insensitive) dentro do evento; exibe lista de matches quando mais de um resultado; sem campo CPF na UI
 - `src/apps/VendedorApp.jsx`: campo CPF removido do formulário de captura, do formulário de edição inline (`LeadEditInline`) e da lista de leads; `FORM_VAZIO` sem `cpf`; import `maskCpf` removido
 - `src/utils/csv.js`: coluna CPF removida do CSV exportado
-- **Ação manual necessária:** executar `supabase/migracao-remove-cpf.sql` no Supabase Dashboard → SQL Editor
+- **Migração de remoção aplicada em produção em 2026-06-16** — coluna `cpf` removida ✅
+- **Reintrodução (PA-08b):** coluna `cpf` readicionada como opcional (`supabase/migracao-readd-cpf.sql`) com finalidade declarada — visita técnica e contrato. Executar migração no SQL Editor.
 
 ---
 

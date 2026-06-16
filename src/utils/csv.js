@@ -1,9 +1,9 @@
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportLeadsCSV(dados, sufixo, servicoLabel, evName, onAudit) {
   if (dados.length === 0) return;
-  const cabecalho = ["Nome", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
+  const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
   const linhas = dados.map((l) => [
-    l.nome, l.telefone, l.endereco || "",
+    l.nome, l.cpf || "", l.telefone, l.endereco || "",
     servicoLabel(l.servicoInteresse), l.temperatura,
     l.jaClienteRjnet ? "Sim" : "Não",
     l.vendedorNome, evName(l.eventoId),
