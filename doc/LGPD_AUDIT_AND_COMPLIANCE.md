@@ -841,7 +841,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | L-05 | Sem mecanismo para exercício de direitos pelo titular (acesso, correção, exclusão, portabilidade) | Art. 18 | **ALTA** |
 | L-06 | Soft delete não constitui eliminação real — dados permanecem no banco | Art. 18, VI | **ALTA** |
 | L-07 | Transferência internacional de dados sem DPA com Supabase ou cláusulas contratuais padrão | Art. 33 | **ALTA** |
-| L-08 | Exportação CSV sem controle ou rastreabilidade — risco de vazamento | Art. 6º, VII (segurança) | **ALTA** |
+| L-08 | ~~Exportação CSV sem controle ou rastreabilidade — risco de vazamento~~ **✅ RESOLVIDO — PA-06 (2026-06-16):** log em `audit_exportacoes` com usuário, filtros e total | Art. 6º, VII (segurança) | **ALTA** |
 | L-09 | Sem Relatório de Impacto à Proteção de Dados Pessoais (RIPD/DPIA) | Art. 38 | **MÉDIA** |
 | L-10 | Sem Registro de Operações de Tratamento (ROPA) documentado | Art. 37 | **MÉDIA** |
 | L-11 | Sem identificação formal do Encarregado de Proteção de Dados (DPO) | Art. 41 | **MÉDIA** |
@@ -900,7 +900,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 
 | ID | Não Conformidade | Classificação |
 |----|-----------------|--------------|
-| A-01 | Sem log de exportações CSV | **ALTA** |
+| A-01 | ~~Sem log de exportações CSV~~ **✅ RESOLVIDO — PA-06 (2026-06-16):** tabela `audit_exportacoes` com RLS + `db.registrarExportacao()` | **ALTA** |
 | A-02 | Sem histórico de alterações em dados de leads | **ALTA** |
 | A-03 | Sem registro de quem realizou soft delete e quando | **ALTA** |
 | A-04 | Sem log de acesso a dados individuais de leads | **ALTA** |
@@ -1109,13 +1109,13 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.3 Fase 2 — Privacidade e rastreabilidade (7–30 dias)
 
-**Status:** 🟡 Em progresso (2/6 concluído)
+**Status:** 🟡 Em progresso (3/6 concluído)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
 | PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🟢 | 2026-06-16 | Migração SQL + checkbox obrigatório no VendedorApp + mapeamento dataService |
 | PA-05 | Criptografar fila offline localStorage | S-02 | 🟢 | 2026-06-16 | `src/lib/crypto.js` (AES-GCM 256 + PBKDF2) + dataService async queue + RootAuth lifecycle |
-| PA-06 | Log de exportações CSV | A-01, L-08 | 🔴 | — | — |
+| PA-06 | Log de exportações CSV | A-01, L-08 | 🟢 | 2026-06-16 | `audit_exportacoes` (SQL) + `db.registrarExportacao()` + callback em `csv.js` |
 | PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🔴 | — | — |
 | PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🔴 | — | — |
 | PA-09 | Corrigir stack trace na Edge Function | S-05 | 🟢 | 2026-06-16 | Resolvido em PA-03 |

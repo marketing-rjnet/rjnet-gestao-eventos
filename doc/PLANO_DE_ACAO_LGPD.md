@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 6 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04 e PA-05 concluídas na Fase 2)
+> **Status geral:** 🟡 EM PROGRESSO — 7 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04, PA-05 e PA-06 concluídas na Fase 2)
 
 ---
 
@@ -348,14 +348,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | A-01, L-08 |
 | **Não conformidade** | Exportações de dados pessoais sem qualquer log ou rastreabilidade |
 | **Impacto** | Impossibilidade de auditar vazamentos; não conformidade com princípio de segurança LGPD |
 | **Responsável** | — |
 | **Prazo** | 2026-07-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -398,11 +398,17 @@
 - `src/lib/dataService.js` (novo método `db.registrarExportacao()`)
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/SUPABASE.md` — documentar nova tabela
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar A-01, L-08 como resolvidos
+- [x] `doc/SUPABASE.md` — nova tabela `audit_exportacoes` documentada na tabela de migrações
+- [x] `doc/CHANGELOG.md` (v2.2)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — A-01, L-08 marcados como resolvidos
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-audit-exportacoes.sql` (novo): cria tabela `audit_exportacoes` com RLS — apenas papel `marketing` pode inserir e consultar; índices por `usuario_id` e `exportado_em`; totalmente idempotente
+- `src/lib/dataService.js`: `db.registrarExportacao({ usuarioId, usuarioNome, usuarioEmail, filtros, totalRegistros })` — fire-and-forget, nunca bloqueia o download; falha silenciosa com `console.warn`
+- `src/utils/csv.js`: parâmetro `onAudit` opcional — callback chamado após o download com `{ totalRegistros }` para desacoplar a lógica de auditoria da geração do arquivo
+- `src/features/leads/LeadsTab.jsx`: recebe `session` via prop; callback `onAudit` passado para `exportLeadsCSV` com `usuarioId`, `usuarioNome`, `usuarioEmail` e filtros aplicados (`evento`, `vendedor`, `servico`)
+- `src/apps/MarketingApp.jsx`: `<LeadsTab session={session} />` — prop adicionada
+- **Ação manual necessária:** executar `supabase/migracao-audit-exportacoes.sql` no Supabase Dashboard → SQL Editor
 
 ---
 

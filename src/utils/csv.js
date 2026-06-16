@@ -1,4 +1,5 @@
-export function exportLeadsCSV(dados, sufixo, servicoLabel, evName) {
+// onAudit: callback opcional (async) chamado após o download com { totalRegistros }
+export function exportLeadsCSV(dados, sufixo, servicoLabel, evName, onAudit) {
   if (dados.length === 0) return;
   const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
   const linhas = dados.map((l) => [
@@ -17,4 +18,5 @@ export function exportLeadsCSV(dados, sufixo, servicoLabel, evName) {
   a.download = `leads_${sufixo}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+  if (onAudit) onAudit({ totalRegistros: dados.length });
 }

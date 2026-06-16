@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v2.2] — PA-06: Log de exportações CSV (A-01, L-08)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Banco (`supabase/migracao-audit-exportacoes.sql`):** nova tabela `audit_exportacoes` com RLS — colunas: `usuario_id`, `usuario_nome`, `usuario_email`, `acao`, `filtros` (jsonb), `total_registros`, `exportado_em`; policies `INSERT`/`SELECT` restritas a papel `marketing`; índices por usuário e data
+- **Camada de dados (`src/lib/dataService.js`):** `db.registrarExportacao()` — fire-and-forget, nunca bloqueia o download; falha com `console.warn` sem propagar ao usuário
+- **Exportação (`src/utils/csv.js`):** parâmetro `onAudit` opcional adicionado; callback invocado após download com `{ totalRegistros }`
+- **Aba Leads (`src/features/leads/LeadsTab.jsx`):** recebe `session` via prop; passa callback de auditoria com usuário e filtros ativos para `exportLeadsCSV`
+- **Shell marketing (`src/apps/MarketingApp.jsx`):** `<LeadsTab session={session} />` — prop `session` propagada
+
+**Por que mudou**
+- PA-06 do Plano de Ação LGPD (NC A-01, L-08): exportações de dados pessoais sem rastreabilidade — impossibilidade de auditar quem baixou o quê e quando
+
+**Ação manual necessária**
+- Executar `supabase/migracao-audit-exportacoes.sql` no Supabase Dashboard → SQL Editor
+
+**Conformidade**
+- NC A-01 e L-08 sanadas — todas as exportações CSV passam a ser registradas com usuário, filtros e total de registros
+
+---
+
 ## [v2.1] — PA-05: Criptografia da fila offline no localStorage (S-02)
 **Data:** 2026-06-16
 
