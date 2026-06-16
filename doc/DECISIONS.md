@@ -68,6 +68,19 @@ Riscos conhecidos.
 
 ---
 
+### [D-035] — PA-08: Remoção do CPF (Opção A) em vez de pseudonimização ou criptografia
+
+**Data:** 2026-06-16  
+**Contexto:** PA-08 exige endereçar CPF em texto plano na tabela `leads`. O plano oferecia 3 opções: remover, criptografar (pgcrypto) ou hash (SHA-256). O check-in usava CPF como identificador.  
+**Decisão:** Opção A — remoção total do CPF. Check-in migrado para busca por **nome** dentro do evento selecionado.  
+**Justificativa:** CPF não tem finalidade obrigatória no fluxo de negócio (o evento filtra os leads; o nome é suficiente para identificar); coletar CPF sem necessidade clara viola o princípio da minimização (art. 6°, III da LGPD). Não coletar é sempre mais seguro que criptografar.  
+**Alternativas rejeitadas:**
+- Hash SHA-256 — perde a busca por prefixo parcial; CPF ainda seria coletado (risco na transmissão)
+- pgcrypto — chave precisa ser acessível ao app; não elimina risco de coleta  
+**Consequências:** `CheckinTab` reescrito com busca por substring de nome; campo CPF removido do formulário de captura, edição e lista de leads; coluna removida do banco via migração idempotente; coluna CPF removida do CSV exportado.
+
+---
+
 ### [D-034] — PA-05: Derivação de chave PBKDF2 a partir do userId para criptografia da fila offline
 
 **Data:** 2026-06-16  

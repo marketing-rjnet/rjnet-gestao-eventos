@@ -4,6 +4,29 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v2.4] — PA-08: Remoção do CPF + check-in por nome (BD-02, L-03)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Banco (`supabase/migracao-remove-cpf.sql`):** `DROP COLUMN IF EXISTS cpf` — CPF removido definitivamente da tabela `leads`
+- **Camada de dados (`src/lib/dataService.js`):** `leadFromDb` e `leadToDb` sem campo `cpf`
+- **Check-in (`src/features/checkin/CheckinTab.jsx`):** reescrito — busca por **nome** (substring, case-insensitive) dentro do evento selecionado; mostra lista de múltiplos resultados quando necessário; título atualizado para "Check-in por Nome"
+- **Formulário vendedor (`src/apps/VendedorApp.jsx`):** campo CPF removido do formulário de captura, edição inline e lista de leads; `FORM_VAZIO` sem `cpf`; import `maskCpf` removido
+- **Exportação CSV (`src/utils/csv.js`):** coluna CPF removida do arquivo exportado
+
+**Por que mudou**
+- PA-08 do Plano de Ação LGPD (NC BD-02, L-03): CPF em texto plano com alto potencial de dano em caso de vazamento — solução escolhida: minimização de dados (Opção A), CPF não coletado nem armazenado; check-in migrado para nome, que é suficiente com o filtro por evento
+
+**Ação manual necessária**
+- Executar `supabase/migracao-remove-cpf.sql` no Supabase Dashboard → SQL Editor
+
+**Conformidade**
+- NC BD-02 e L-03 sanadas pela raiz — dado não coletado elimina risco de vazamento
+- Decisão D-035 registrada em `doc/DECISIONS.md`
+- **Fase 2 completa** (6/6 ações: PA-04, PA-05, PA-06, PA-07, PA-08, PA-09)
+
+---
+
 ## [v2.3] — PA-07: Rastreabilidade do soft delete de leads (BD-06, A-03)
 **Data:** 2026-06-16
 

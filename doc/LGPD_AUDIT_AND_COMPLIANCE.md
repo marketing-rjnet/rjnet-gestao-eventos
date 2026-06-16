@@ -836,7 +836,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 |----|-----------------|-------------|--------------|
 | L-01 | Ausência total de consentimento do titular para coleta de dados pessoais (nome, telefone, CPF, endereço) | Art. 7º, I; Art. 8º | **CRÍTICA** |
 | L-02 | Sem informação ao titular sobre finalidade do tratamento, direitos e dados do controlador | Art. 9º, Art. 18 | **CRÍTICA** |
-| L-03 | Coleta de CPF sem finalidade claramente justificada ou consentimento | Art. 6º, III (necessidade) | **CRÍTICA** |
+| L-03 | ~~Coleta de CPF sem finalidade claramente justificada ou consentimento~~ **✅ RESOLVIDO — PA-08 (2026-06-16):** CPF removido do formulário, banco e exportação CSV | Art. 6º, III (necessidade) | **CRÍTICA** |
 | L-04 | Sem política de retenção de dados — leads retidos indefinidamente | Art. 15, Art. 16 | **ALTA** |
 | L-05 | Sem mecanismo para exercício de direitos pelo titular (acesso, correção, exclusão, portabilidade) | Art. 18 | **ALTA** |
 | L-06 | Soft delete não constitui eliminação real — dados permanecem no banco | Art. 18, VI | **ALTA** |
@@ -863,7 +863,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | ID | Não Conformidade | Classificação |
 |----|-----------------|--------------|
 | BD-01 | Policies anônimas (`to anon using (true)`) no `schema.sql` — acesso total se migração não aplicada | **CRÍTICA** |
-| BD-02 | CPF armazenado em texto plano sem criptografia ou pseudonimização | **ALTA** |
+| BD-02 | ~~CPF armazenado em texto plano sem criptografia ou pseudonimização~~ **✅ RESOLVIDO — PA-08 (2026-06-16):** coluna `cpf` removida da tabela `leads` | **ALTA** |
 | BD-03 | Telefone armazenado em texto plano sem criptografia | **ALTA** |
 | BD-04 | Sem tabela de auditoria (audit log) de operações em dados pessoais | **ALTA** |
 | BD-05 | Soft delete não elimina os dados — apenas oculta da leitura | **ALTA** |
@@ -1109,7 +1109,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.3 Fase 2 — Privacidade e rastreabilidade (7–30 dias)
 
-**Status:** 🟡 Em progresso (4/6 concluído)
+**Status:** 🟢 Fase 2 completa (6/6 concluído)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
@@ -1117,7 +1117,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | PA-05 | Criptografar fila offline localStorage | S-02 | 🟢 | 2026-06-16 | `src/lib/crypto.js` (AES-GCM 256 + PBKDF2) + dataService async queue + RootAuth lifecycle |
 | PA-06 | Log de exportações CSV | A-01, L-08 | 🟢 | 2026-06-16 | `audit_exportacoes` (SQL) + `db.registrarExportacao()` + callback em `csv.js` |
 | PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🟢 | 2026-06-16 | `deletado_em` + `deletado_por` em `leads` + `db.removeLead()` atualizado |
-| PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🔴 | — | — |
+| PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🟢 | 2026-06-16 | CPF removido do banco e da UI; check-in migrado para busca por nome |
 | PA-09 | Corrigir stack trace na Edge Function | S-05 | 🟢 | 2026-06-16 | Resolvido em PA-03 |
 
 **Artefatos a criar/modificar nesta fase:**

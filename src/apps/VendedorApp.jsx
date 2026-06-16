@@ -4,7 +4,7 @@ import { useRanking } from '../hooks/useRanking';
 import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';
 import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
-import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
+import { maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
 
@@ -28,7 +28,6 @@ function LeadEditInline({ lead, onSave, onCancel }) {
   const [e, setE] = useState({
     nome: lead.nome,
     telefone: lead.telefone,
-    cpf: lead.cpf || "",
     endereco: lead.endereco || "",
     servicoInteresse: Array.isArray(lead.servicoInteresse)
       ? lead.servicoInteresse
@@ -47,10 +46,6 @@ function LeadEditInline({ lead, onSave, onCancel }) {
       <div className="big-field" style={{ marginBottom: 10 }}>
         <label>Telefone *</label>
         <input required value={e.telefone} onChange={(ev) => upd("telefone", maskTel(ev.target.value))} inputMode="tel" autoComplete="off" />
-      </div>
-      <div className="big-field" style={{ marginBottom: 10 }}>
-        <label>CPF</label>
-        <input value={e.cpf} onChange={(ev) => upd("cpf", maskCpf(ev.target.value))} inputMode="numeric" />
       </div>
       <div className="big-field" style={{ marginBottom: 10 }}>
         <label>Endereço</label>
@@ -114,7 +109,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   }, [ativos, eventoId]);
 
   const [aba, setAba] = useState("registrar");
-  const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: ["internet_residencial"], temperatura: "morno", observacao: "", jaClienteRjnet: false, consentimentoColetado: false };
+  const FORM_VAZIO = { nome: "", telefone: "", endereco: "", servicoInteresse: ["internet_residencial"], temperatura: "morno", observacao: "", jaClienteRjnet: false, consentimentoColetado: false };
   const [f, setF] = useState(FORM_VAZIO);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const [modoRapido, setModoRapido] = useState(false);
@@ -166,7 +161,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     const novo = addLead({
       ...f,
       nome,
-      cpf: sanitizeText(f.cpf, 14),
       endereco: sanitizeText(f.endereco, 200),
       observacao: sanitizeText(f.observacao, 500),
       eventoId,
@@ -184,7 +178,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     updateLead(id, {
       ...dados,
       nome:       sanitizeText(dados.nome, 120),
-      cpf:        sanitizeText(dados.cpf || "", 14),
       endereco:   sanitizeText(dados.endereco || "", 200),
       observacao: sanitizeText(dados.observacao || "", 500),
     });
@@ -274,10 +267,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 <div className="big-field">
                   <label>Telefone *</label>
                   <input required maxLength={15} value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
-                </div>
-                <div className="big-field">
-                  <label>CPF do cliente</label>
-                  <input maxLength={14} value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
                 </div>
                 {!modoRapido && (
                   <div className="big-field">
@@ -386,7 +375,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                             >{tc.label}</button>
                           </div>
                           <div className="lm-sub" style={{ marginTop: 4 }}>
-                            {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
                             {servicoLabel(l.servicoInteresse)}
                             {l.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
                           </div>

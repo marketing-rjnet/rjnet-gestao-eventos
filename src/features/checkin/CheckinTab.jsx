@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon } from '../../components/ui';
-import { maskCpf } from '../../utils/masks';
 import { servicoLabel } from '../../utils/format';
 
 const TEMPERATURA_CONFIG = {
@@ -14,33 +13,34 @@ const TEMPERATURA_CONFIG = {
 export function CheckinTab() {
   const { leads, eventos } = useApp();
   const [eventoId, setEventoId] = useState("");
-  const [cpfInput, setCpfInput] = useState("");
+  const [nomeInput, setNomeInput] = useState("");
   const [resultado, setResultado] = useState(null);
   const [buscado, setBuscado] = useState(false);
 
-  const handleCpf = (v) => {
-    setCpfInput(maskCpf(v));
+  const handleNome = (v) => {
+    setNomeInput(v);
     setResultado(null);
     setBuscado(false);
   };
 
   const buscar = (e) => {
     e.preventDefault();
-    const digits = cpfInput.replace(/\D/g, "");
-    if (!eventoId || digits.length < 3) return;
-    const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.cpf);
-    if (digits.length === 11) {
-      const lead = leadsDoEvento.find((l) => l.cpf.replace(/\D/g, "") === digits);
-      setResultado(lead ? { found: true, lead } : { found: false, parcial: false });
+    const termo = nomeInput.trim().toLowerCase();
+    if (!eventoId || termo.length < 2) return;
+    const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId);
+    const matches = leadsDoEvento.filter((l) => l.nome.toLowerCase().includes(termo));
+    if (matches.length === 1) {
+      setResultado({ found: true, parcial: false, lead: matches[0] });
+    } else if (matches.length > 1) {
+      setResultado({ found: true, parcial: true, matches });
     } else {
-      const matches = leadsDoEvento.filter((l) => l.cpf.replace(/\D/g, "").startsWith(digits));
-      setResultado(matches.length > 0 ? { found: true, parcial: true, matches } : { found: false, parcial: true });
+      setResultado({ found: false });
     }
     setBuscado(true);
   };
 
   const limpar = () => {
-    setCpfInput("");
+    setNomeInput("");
     setResultado(null);
     setBuscado(false);
   };
@@ -51,7 +51,7 @@ export function CheckinTab() {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-title">Check-in por CPF</div>
+          <div className="page-title">Check-in por Nome</div>
           <p className="tab-desc">Verifique se um lead já foi cadastrado no evento selecionado.</p>
         </div>
       </div>
@@ -73,18 +73,18 @@ export function CheckinTab() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">CPF do Lead</label>
+            <label className="form-label">Nome do Lead</label>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 className="form-input"
                 type="text"
-                inputMode="numeric"
-                placeholder="000.000.000-00"
-                value={cpfInput}
-                onChange={(e) => handleCpf(e.target.value)}
-                style={{ flex: 1, fontFamily: "monospace", letterSpacing: 1 }}
+                placeholder="Digite o nome…"
+                value={nomeInput}
+                onChange={(e) => handleNome(e.target.value)}
+                style={{ flex: 1 }}
+                autoComplete="off"
               />
-              {cpfInput && (
+              {nomeInput && (
                 <button type="button" className="btn-ghost" onClick={limpar} title="Limpar">
                   <Icon name="x" size={16} />
                 </button>
@@ -95,7 +95,7 @@ export function CheckinTab() {
           <button
             type="submit"
             className="btn-primary"
-            disabled={!eventoId || cpfInput.replace(/\D/g, "").length < 3}
+            disabled={!eventoId || nomeInput.trim().length < 2}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
             <Icon name="search" size={16} stroke="#000" /> Consultar
@@ -117,8 +117,8 @@ export function CheckinTab() {
                 {resultado.matches.map((lead) => (
                   <div key={lead.id} style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: 8, border: "1px solid var(--border)" }}>
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>{lead.nome}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "monospace" }}>{lead.cpf}</div>
                     <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>{lead.telefone}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-3)" }}>{lead.vendedorNome}</div>
                   </div>
                 ))}
               </div>
@@ -134,7 +134,6 @@ export function CheckinTab() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div className="info-line"><span className="k">Nome</span><span className="v strong">{resultado.lead.nome}</span></div>
-                <div className="info-line"><span className="k">CPF</span><span className="v mono">{resultado.lead.cpf}</span></div>
                 <div className="info-line"><span className="k">Telefone</span><span className="v mono">{resultado.lead.telefone}</span></div>
                 {resultado.lead.endereco && (
                   <div className="info-line"><span className="k">Endereço</span><span className="v">{resultado.lead.endereco}</span></div>
@@ -170,7 +169,7 @@ export function CheckinTab() {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#ef4444" }}>Nenhum lead encontrado</div>
                   <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
-                    Nenhum lead com este CPF foi cadastrado em <b>{eventoSelecionado?.nome}</b>.
+                    Nenhum lead com este nome foi cadastrado em <b>{eventoSelecionado?.nome}</b>.
                   </div>
                 </div>
               </div>

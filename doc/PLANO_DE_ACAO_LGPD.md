@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 8 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04, PA-05, PA-06 e PA-07 concluídas na Fase 2)
+> **Status geral:** 🟡 EM PROGRESSO — 9 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04, PA-05, PA-06, PA-07 e PA-08 concluídas na Fase 2)
 
 ---
 
@@ -471,14 +471,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | BD-02, L-03 |
 | **Não conformidade** | CPF armazenado em texto plano; coleta possivelmente excessiva |
 | **Impacto** | Em caso de vazamento, CPF é dado pessoal com alto potencial de dano |
 | **Responsável** | — |
 | **Prazo** | 2026-07-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer (avaliar qual caminho seguir):**
 
@@ -503,12 +503,18 @@
 - `supabase/schema.sql` ou novo SQL de migração
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/DECISIONS.md` — registrar decisão entre as opções
-- [ ] `doc/SUPABASE.md`
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar BD-02, L-03
+- [x] `doc/DECISIONS.md` — D-035: Opção A (remoção do CPF) escolhida via migração para check-in por nome
+- [x] `doc/SUPABASE.md` — migração PA-08 adicionada na tabela de ordem
+- [x] `doc/CHANGELOG.md` (v2.4)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — BD-02, L-03 marcados como resolvidos
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-remove-cpf.sql` (novo): `DROP COLUMN IF EXISTS cpf` — remove coluna e todos os valores existentes da tabela `leads`
+- `src/lib/dataService.js`: `leadFromDb` e `leadToDb` sem campo `cpf` — dado não entra nem sai do banco
+- `src/features/checkin/CheckinTab.jsx`: check-in reescrito — busca por nome (substring case-insensitive) dentro do evento; exibe lista de matches quando mais de um resultado; sem campo CPF na UI
+- `src/apps/VendedorApp.jsx`: campo CPF removido do formulário de captura, do formulário de edição inline (`LeadEditInline`) e da lista de leads; `FORM_VAZIO` sem `cpf`; import `maskCpf` removido
+- `src/utils/csv.js`: coluna CPF removida do CSV exportado
+- **Ação manual necessária:** executar `supabase/migracao-remove-cpf.sql` no Supabase Dashboard → SQL Editor
 
 ---
 
