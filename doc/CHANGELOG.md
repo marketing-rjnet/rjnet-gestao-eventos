@@ -4,6 +4,29 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.0] — Fase 3 LGPD: PA-10 a PA-15 (retenção, RLS, MFA, auditoria, DPA, DSAR)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **PA-11 — RLS vendedor (`supabase/migracao-rls-vendedor-leads.sql`):** policy `leads_select` recriada — vendedor recebe do banco apenas seus próprios leads (`vendedor_id = auth.uid()`); antes todos os leads chegavam ao dispositivo e o frontend filtrava
+- **PA-10 — Retenção automática (`supabase/migracao-retencao.sql`):** pg_cron + `configuracoes_retencao` + função `limpar_leads_expirados()` com hard delete diário às 02:00 BRT; padrões: 90 dias soft delete, 365 dias evento encerrado
+- **PA-13 — Audit log (`supabase/migracao-audit-log.sql`):** tabela `audit_log` + trigger `audit_leads` registra INSERT/UPDATE/DELETE em leads com dados antes/depois em JSONB
+- **PA-12 — MFA TOTP (`src/auth/LoginAuth.jsx` + `src/lib/dataService.js`):** tela de código TOTP exibida automaticamente quando usuário tem MFA configurado; `auth.verifyMfa()` verifica código e estabelece sessão
+- **PA-14 — DPA fornecedores (`doc/DPA_FORNECEDORES.md`):** novo documento com Supabase Inc. e Vercel; assinatura DPA com Supabase pendente (ação jurídica)
+- **PA-15 — DSAR (`doc/ROTEIRO_DSAR.md`):** roteiro completo com queries SQL para todos os direitos do art. 18 LGPD; prazo 15 dias; canal privacidade@rjnet.com.br (a criar)
+
+**Ações manuais necessárias**
+- Executar no Supabase SQL Editor (nesta ordem): `migracao-rls-vendedor-leads.sql`, `migracao-audit-log.sql`, `migracao-retencao.sql`
+- Habilitar pg_cron: Dashboard → Database → Extensions → pg_cron
+- Habilitar MFA TOTP: Dashboard → Authentication → Multi-Factor Auth
+- Assinar DPA Supabase: https://supabase.com/privacy
+- Criar canal privacidade@rjnet.com.br
+
+**Conformidade**
+- Fase 3 em progresso (5/6): PA-14 pendente assinatura DPA (ação jurídica)
+
+---
+
 ## [v2.5] — PA-08b: Reintrodução do CPF opcional com finalidade declarada
 **Data:** 2026-06-16
 

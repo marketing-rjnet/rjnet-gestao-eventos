@@ -143,7 +143,7 @@ Execute este checklist antes de qualquer go-live ou atualização relevante:
 - [ ] Script `supabase/verificar-migracao-auth.sql` executado e todos os blocos validados
 - [ ] Primeiro usuário marketing criado e ativado
 - [x] Variáveis `VITE_MARKETING_USER` e `VITE_MARKETING_PASS` **não definidas** em produção (PA-01 — guard implementado em `vite.config.js`)
-- [ ] MFA habilitado no Dashboard para usuários marketing (PA-12 — planejado)
+- [ ] MFA habilitado no Dashboard para usuários marketing (PA-12 — UI implementada; habilitar em Authentication → Multi-Factor Auth)
 
 **Query rápida de verificação de policies anônimas:**
 ```sql
@@ -153,6 +153,28 @@ WHERE schemaname = 'public'
   AND roles @> ARRAY['anon'];
 -- Resultado esperado em produção: zero linhas
 ```
+
+---
+
+## MFA TOTP (PA-12)
+
+Suporte a autenticação multifator (TOTP) adicionado via PA-12.
+
+### Como habilitar
+
+1. **Supabase Dashboard → Authentication → Multi-Factor Auth → habilitar TOTP**
+2. Orientar usuários marketing a configurar um app autenticador (Google Authenticator, Authy, etc.) na próxima sessão de login
+3. Após habilitar no Dashboard, o fluxo de login detecta MFA automaticamente
+
+### Como funciona no app
+
+- `src/lib/dataService.js`: `auth.signIn()` detecta o desafio MFA quando `session === null && user === null` após o login com e-mail/senha — cria challenge TOTP e retorna `{ mfaRequired: true, factorId, challengeId }`
+- `src/auth/LoginAuth.jsx`: exibe automaticamente uma tela de código TOTP quando `mfaRequired`; campo numérico com `autoComplete="one-time-code"`; `auth.verifyMfa(factorId, challengeId, codigo)` verifica o código e estabelece a sessão completa
+- Usuários sem MFA configurado passam pelo fluxo normal de login sem interrupção
+
+### Observação
+
+MFA é recomendado apenas para usuários com papel `marketing` (acesso total a dados). O Supabase não permite forçar MFA por papel nativamente — a orientação deve ser feita administrativamente.
 
 ---
 
@@ -169,8 +191,9 @@ WHERE schemaname = 'public'
 | 6 | `supabase/migracao-soft-delete-audit.sql` | ✅ Aplicado em produção (PA-07) | Colunas `deletado_em` e `deletado_por` em `leads` — rastreabilidade de soft delete — confirmado 2026-06-16 |
 | 7 | `supabase/migracao-remove-cpf.sql` | ✅ Aplicado em produção (PA-08) | Remove coluna `cpf` de `leads` — confirmado 2026-06-16 |
 | 8 | `supabase/migracao-readd-cpf.sql` | ✅ Aplicado em produção (PA-08b) | Reintroduz `cpf` como opcional com finalidade declarada — confirmado 2026-06-16 |
-| 8 | `supabase/migracao-audit-log.sql` | 🔴 Planejado (PA-13) | Tabela de auditoria de operações |
-| 8 | `supabase/migracao-retencao.sql` | 🔴 Planejado (PA-10) | Política de retenção automática |
+| 9 | `supabase/migracao-rls-vendedor-leads.sql` | ⚠️ Pendente execução em produção (PA-11) | RLS: vendedor vê apenas os próprios leads |
+| 10 | `supabase/migracao-audit-log.sql` | ⚠️ Pendente execução em produção (PA-13) | Tabela `audit_log` + trigger em leads |
+| 11 | `supabase/migracao-retencao.sql` | ⚠️ Pendente execução em produção (PA-10) | Retenção automática via pg_cron |
 
 > Auditorias e conformidade completa: `doc/LGPD_AUDIT_AND_COMPLIANCE.md`  
 > Plano de ação LGPD: `doc/PLANO_DE_ACAO_LGPD.md`

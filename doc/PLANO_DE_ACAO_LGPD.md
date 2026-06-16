@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 9 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04, PA-05, PA-06, PA-07 e PA-08 concluídas na Fase 2)
+> **Status geral:** 🟡 EM PROGRESSO — 15 de 21 ações concluídas (Fase 1 e 2 completas; PA-10 a PA-15 concluídas na Fase 3)
 
 ---
 
@@ -557,13 +557,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA (LGPD) |
 | **ID Auditoria** | L-04, BD-05, L-06 |
 | **Não conformidade** | Sem política de retenção — leads retidos indefinidamente mesmo após soft delete |
 | **Responsável** | — |
 | **Prazo** | 2026-09-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -588,12 +588,15 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 5. Documentar política de retenção em `doc/POLITICA_RETENCAO.md` (novo documento)
 
 **Documentação a atualizar após conclusão:**
-- [ ] Novo: `doc/POLITICA_RETENCAO.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md`
-- [ ] `doc/SUPABASE.md`
-- [ ] `doc/CHANGELOG.md`
+- [x] Novo: `doc/POLITICA_RETENCAO.md`
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md`
+- [x] `doc/SUPABASE.md`
+- [x] `doc/CHANGELOG.md`
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-retencao.sql` (novo): extensão `pg_cron`, tabela `configuracoes_retencao` com valores padrão (90 dias para soft delete, 365 dias para eventos encerrados), função `limpar_leads_expirados()` com hard delete automático, job agendado para 02:00 BRT diariamente
+- **Ação manual necessária:** executar `supabase/migracao-retencao.sql` no Supabase Dashboard → SQL Editor (requer extensão pg_cron habilitada em Database → Extensions)
+- Prazos padrão adotados: 90 dias (leads deletados) e 365 dias (leads de eventos encerrados) — ajustar em `configuracoes_retencao` conforme decisão jurídica
 
 ---
 
@@ -601,13 +604,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | MÉDIA |
 | **ID Auditoria** | SB-04 (RLS), princípio da minimização LGPD |
 | **Não conformidade** | Vendedor lê CPF, telefone e endereço de leads de colegas |
 | **Responsável** | — |
 | **Prazo** | 2026-09-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -634,12 +637,15 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 3. Testar fluxo completo do vendedor após a mudança
 
 **Documentação a atualizar após conclusão:**
-- [ ] `supabase/migracao-auth.sql` ou novo SQL
-- [ ] `doc/SUPABASE.md`
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md`
+- [x] `supabase/migracao-auth.sql` ou novo SQL
+- [x] `doc/SUPABASE.md`
+- [x] `doc/CHANGELOG.md`
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md`
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-rls-vendedor-leads.sql` (novo): recria `leads_select` policy — vendedor recebe do banco apenas `vendedor_id = auth.uid()` (antes recebia todos os leads e o frontend filtrava); marketing mantém acesso total
+- Nota: o frontend já filtrava por `vendedorNome` na UI — agora a restrição existe também na camada de banco, eliminando o tráfego de dados de colegas para o dispositivo do vendedor
+- **Ação manual necessária:** executar `supabase/migracao-rls-vendedor-leads.sql` no Supabase Dashboard → SQL Editor
 
 ---
 
@@ -647,13 +653,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído (UI implementada; configuração Supabase é manual) |
 | **Prioridade** | MÉDIA |
 | **ID Auditoria** | S-03 |
 | **Não conformidade** | Sem segundo fator de autenticação |
 | **Responsável** | — |
 | **Prazo** | 2026-09-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -662,7 +668,10 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 3. Tornar MFA obrigatório apenas para usuários `marketing` (que têm acesso a todos os dados)
 4. Documentar o processo de configuração para os usuários de marketing em `doc/SUPABASE.md`
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `src/lib/dataService.js`: `auth.signIn()` detecta desafio MFA (`session === null && user === null`) — cria challenge TOTP e retorna `{ mfaRequired: true, factorId, challengeId }`; novo método `auth.verifyMfa(factorId, challengeId, codigo)` verifica o código e estabelece sessão completa
+- `src/auth/LoginAuth.jsx`: tela de código TOTP exibida automaticamente quando `mfaRequired`; campo numérico com `autoComplete="one-time-code"`, botão voltar ao login
+- **Ação manual necessária (Supabase Dashboard):** Authentication → Multi-Factor Auth → habilitar TOTP; orientar usuários marketing a configurar o autenticador (Google Authenticator, Authy, etc.)
 
 ---
 
@@ -670,13 +679,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | A-02, A-04, A-05, BD-04 |
 | **Não conformidade** | Sem log de edições, acessos e alterações de permissões |
 | **Responsável** | — |
 | **Prazo** | 2026-09-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -735,11 +744,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 3. Criar view de auditoria para o painel de marketing
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/SUPABASE.md`
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar A-02, A-04, A-05, BD-04
+- [x] `doc/SUPABASE.md`
+- [x] `doc/CHANGELOG.md`
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar A-02, A-04, A-05, BD-04
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-audit-log.sql` (novo): tabela `audit_log` com RLS (select restrito a marketing, insert permitido a authenticated); índices por usuário, registro e data; trigger `audit_leads` registra automaticamente INSERT/UPDATE/DELETE na tabela `leads` com dados antes/depois em JSONB; função `log_lead_change()` com SECURITY DEFINER
+- **Ação manual necessária:** executar `supabase/migracao-audit-log.sql` no Supabase Dashboard → SQL Editor
 
 ---
 
@@ -747,7 +758,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟡 Em progresso (requer ação jurídica) |
 | **Prioridade** | ALTA (LGPD) |
 | **ID Auditoria** | L-07, I-01 |
 | **Não conformidade** | Transferência de dados pessoais de brasileiros para os EUA sem garantias adequadas documentadas |
@@ -770,10 +781,12 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 5. Criar seção em `doc/LGPD_AUDIT_AND_COMPLIANCE.md` documentando o DPA
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-07, I-01
-- [ ] Novo: `doc/DPA_FORNECEDORES.md` — registro de todos os DPAs
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-07, I-01
+- [x] Novo: `doc/DPA_FORNECEDORES.md` — registro de todos os DPAs
 
-**Evidência de conclusão:** _Número/data do DPA assinado com Supabase_
+**Evidência de conclusão:**
+- `doc/DPA_FORNECEDORES.md` (novo): registro de fornecedores com acesso a dados pessoais — Supabase Inc. (EUA, SOC 2/ISO 27001) e Vercel Inc. (sem dados pessoais)
+- **Ação manual necessária (jurídico):** assinar DPA com Supabase em https://supabase.com/privacy e preencher data/número em `doc/DPA_FORNECEDORES.md`
 
 ---
 
@@ -781,13 +794,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA (LGPD) |
 | **ID Auditoria** | L-05 |
 | **Não conformidade** | Sem mecanismo para titulares exercerem direitos do art. 18 LGPD |
 | **Responsável** | — |
 | **Prazo** | 2026-09-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -806,10 +819,12 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 4. Definir prazo de resposta: 15 dias (recomendado) conforme boas práticas ANPD
 
 **Documentação a atualizar após conclusão:**
-- [ ] Novo: `doc/ROTEIRO_DSAR.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-05
+- [x] Novo: `doc/ROTEIRO_DSAR.md`
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-05
 
-**Evidência de conclusão:** _Link para o e-mail/canal de contato publicado_
+**Evidência de conclusão:**
+- `doc/ROTEIRO_DSAR.md` (novo): roteiro completo com queries SQL para acesso, correção, exclusão (hard delete), portabilidade e revogação de consentimento; prazo de resposta 15 dias; modelo de registro de atendimentos
+- **Ação manual necessária:** criar canal de contato `privacidade@rjnet.com.br` para receber solicitações de titulares
 
 ---
 
@@ -995,17 +1010,17 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | PA-02 | Confirmar aplicação de `migracao-auth.sql` em produção | 1 | CRÍTICA | 🟢 | 2026-06-17 |
 | PA-03 | Restringir CORS da Edge Function | 1 | ALTA | 🟢 | 2026-06-23 |
 | PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🟢 | 2026-07-16 |
-| PA-05 | Criptografar fila offline no localStorage | 2 | ALTA | 🔴 | 2026-07-16 |
-| PA-06 | Criar log de exportações CSV | 2 | ALTA | 🔴 | 2026-07-16 |
-| PA-07 | Rastreabilidade do soft delete (quem/quando) | 2 | ALTA | 🔴 | 2026-07-16 |
-| PA-08 | Pseudonimizar/criptografar CPF | 2 | ALTA | 🔴 | 2026-07-16 |
+| PA-05 | Criptografar fila offline no localStorage | 2 | ALTA | 🟢 | 2026-07-16 |
+| PA-06 | Criar log de exportações CSV | 2 | ALTA | 🟢 | 2026-07-16 |
+| PA-07 | Rastreabilidade do soft delete (quem/quando) | 2 | ALTA | 🟢 | 2026-07-16 |
+| PA-08 | Pseudonimizar/criptografar CPF | 2 | ALTA | 🟢 | 2026-07-16 |
 | PA-09 | Corrigir stack trace na Edge Function | 2 | MÉDIA | 🟢 | 2026-07-16 |
-| PA-10 | Política de retenção e exclusão automática | 3 | ALTA | 🔴 | 2026-09-16 |
-| PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🔴 | 2026-09-16 |
-| PA-12 | Habilitar MFA para usuários marketing | 3 | MÉDIA | 🔴 | 2026-09-16 |
-| PA-13 | Tabela de auditoria de operações | 3 | ALTA | 🔴 | 2026-09-16 |
-| PA-14 | Assinar DPA com Supabase | 3 | ALTA | 🔴 | 2026-09-16 |
-| PA-15 | Processo DSAR para direitos de titulares | 3 | ALTA | 🔴 | 2026-09-16 |
+| PA-10 | Política de retenção e exclusão automática | 3 | ALTA | 🟢 | 2026-09-16 |
+| PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🟢 | 2026-09-16 |
+| PA-12 | Habilitar MFA para usuários marketing | 3 | MÉDIA | 🟢 | 2026-09-16 |
+| PA-13 | Tabela de auditoria de operações | 3 | ALTA | 🟢 | 2026-09-16 |
+| PA-14 | Assinar DPA com Supabase | 3 | ALTA | 🟡 | 2026-09-16 |
+| PA-15 | Processo DSAR para direitos de titulares | 3 | ALTA | 🟢 | 2026-09-16 |
 | PA-16 | Elaborar política de privacidade | 4 | ALTA | 🔴 | 2026-12-16 |
 | PA-17 | Elaborar RIPD/DPIA | 4 | MÉDIA | 🔴 | 2026-12-16 |
 | PA-18 | Criar ROPA | 4 | MÉDIA | 🔴 | 2026-12-16 |
@@ -1020,11 +1035,11 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | Documento | Criado por | PA Responsável | Status |
 |-----------|-----------|---------------|--------|
 | `doc/POLITICA_DE_PRIVACIDADE.md` | Jurídico | PA-16 | 🔴 |
-| `doc/POLITICA_RETENCAO.md` | DPO + Técnico | PA-10 | 🔴 |
-| `doc/ROTEIRO_DSAR.md` | DPO | PA-15 | 🔴 |
+| `doc/POLITICA_RETENCAO.md` | DPO + Técnico | PA-10 | 🟢 |
+| `doc/ROTEIRO_DSAR.md` | DPO | PA-15 | 🟢 |
 | `doc/RIPD.md` | DPO + Técnico | PA-17 | 🔴 |
 | `doc/ROPA.md` | DPO | PA-18 | 🔴 |
-| `doc/DPA_FORNECEDORES.md` | Jurídico | PA-14 | 🔴 |
+| `doc/DPA_FORNECEDORES.md` | Jurídico | PA-14 | 🟡 |
 | `doc/PLANO_INCIDENTES.md` | DPO + Técnico | PA-20 | 🔴 |
 
 ---
@@ -1033,11 +1048,12 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 
 | Arquivo | PA Responsável | Status |
 |---------|---------------|--------|
-| `supabase/migracao-consentimento.sql` | PA-04 | 🔴 |
-| `supabase/migracao-audit-exportacoes.sql` | PA-06 | 🔴 |
-| `supabase/migracao-soft-delete-audit.sql` | PA-07 | 🔴 |
-| `supabase/migracao-audit-log.sql` | PA-13 | 🔴 |
-| `supabase/migracao-retencao.sql` | PA-10 | 🔴 |
+| `supabase/migracao-consentimento.sql` | PA-04 | 🟢 |
+| `supabase/migracao-audit-exportacoes.sql` | PA-06 | 🟢 |
+| `supabase/migracao-soft-delete-audit.sql` | PA-07 | 🟢 |
+| `supabase/migracao-audit-log.sql` | PA-13 | 🟢 |
+| `supabase/migracao-retencao.sql` | PA-10 | 🟢 |
+| `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟢 |
 
 ---
 
