@@ -168,7 +168,7 @@ WHERE schemaname = 'public'
 | 5 | `supabase/migracao-audit-exportacoes.sql` | ✅ Aplicado em produção (PA-06) | Tabela `audit_exportacoes` — log de exportações CSV de dados pessoais — confirmado 2026-06-16 |
 | 6 | `supabase/migracao-soft-delete-audit.sql` | ✅ Aplicado em produção (PA-07) | Colunas `deletado_em` e `deletado_por` em `leads` — rastreabilidade de soft delete — confirmado 2026-06-16 |
 | 7 | `supabase/migracao-remove-cpf.sql` | ✅ Aplicado em produção (PA-08) | Remove coluna `cpf` de `leads` — confirmado 2026-06-16 |
-| 8 | `supabase/migracao-readd-cpf.sql` | ⚠️ Pendente execução em produção (PA-08b) | Reintroduz `cpf` como opcional com finalidade declarada (visita técnica/contrato) |
+| 8 | `supabase/migracao-readd-cpf.sql` | ✅ Aplicado em produção (PA-08b) | Reintroduz `cpf` como opcional com finalidade declarada — confirmado 2026-06-16 |
 | 8 | `supabase/migracao-audit-log.sql` | 🔴 Planejado (PA-13) | Tabela de auditoria de operações |
 | 8 | `supabase/migracao-retencao.sql` | 🔴 Planejado (PA-10) | Política de retenção automática |
 

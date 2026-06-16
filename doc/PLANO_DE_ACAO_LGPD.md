@@ -515,7 +515,7 @@
 - `src/apps/VendedorApp.jsx`: campo CPF removido do formulário de captura, do formulário de edição inline (`LeadEditInline`) e da lista de leads; `FORM_VAZIO` sem `cpf`; import `maskCpf` removido
 - `src/utils/csv.js`: coluna CPF removida do CSV exportado
 - **Migração de remoção aplicada em produção em 2026-06-16** — coluna `cpf` removida ✅
-- **Reintrodução (PA-08b):** coluna `cpf` readicionada como opcional (`supabase/migracao-readd-cpf.sql`) com finalidade declarada — visita técnica e contrato. Executar migração no SQL Editor.
+- **Reintrodução (PA-08b):** coluna `cpf` readicionada como opcional com finalidade declarada — visita técnica e contrato — **aplicada em produção em 2026-06-16** ✅
 
 ---
 
