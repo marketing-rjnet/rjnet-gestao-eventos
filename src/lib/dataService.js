@@ -302,7 +302,15 @@ export const db = {
     );
   },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
-  removeLead:   (id) => exec(supabase?.from('leads').update({ deletado: true }).eq('id', id), 'remover lead'),
+  // PA-07/LGPD: registra quem excluiu e quando (rastreabilidade BD-06, A-03)
+  removeLead: (id) => exec(
+    supabase?.from('leads').update({
+      deletado:     true,
+      deletado_em:  new Date().toISOString(),
+      deletado_por: _queueUserId || null,
+    }).eq('id', id),
+    'remover lead',
+  ),
 
   // PA-06/LGPD: registra exportação CSV na tabela de auditoria (fire-and-forget; nunca bloqueia o download)
   registrarExportacao: async ({ usuarioId, usuarioNome, usuarioEmail, filtros, totalRegistros }) => {
