@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v2.3] — PA-07: Rastreabilidade do soft delete de leads (BD-06, A-03)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Banco (`supabase/migracao-soft-delete-audit.sql`):** 2 novas colunas em `leads`:
+  - `deletado_em timestamptz` — timestamp da exclusão lógica
+  - `deletado_por uuid REFERENCES auth.users(id) ON DELETE SET NULL` — quem excluiu
+  - Índices parciais (`WHERE deletado = true`) para eficiência em consultas de auditoria
+- **Camada de dados (`src/lib/dataService.js`):** `db.removeLead()` atualizado para gravar `deletado_em` e `deletado_por` automaticamente — reutiliza `_queueUserId` já presente em memória (PA-05), sem mudança na assinatura pública da função
+
+**Por que mudou**
+- PA-07 do Plano de Ação LGPD (NC BD-06, A-03): exclusões de dados pessoais sem rastreabilidade — impossibilidade de auditar quem excluiu e quando, violando o princípio de responsabilização LGPD
+
+**Ação manual necessária**
+- Executar `supabase/migracao-soft-delete-audit.sql` no Supabase Dashboard → SQL Editor
+
+**Conformidade**
+- NC BD-06 e A-03 sanadas — toda exclusão de lead passa a registrar responsável e timestamp no banco
+
+---
+
 ## [v2.2] — PA-06: Log de exportações CSV (A-01, L-08)
 **Data:** 2026-06-16
 

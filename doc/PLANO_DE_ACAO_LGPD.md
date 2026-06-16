@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 7 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04, PA-05 e PA-06 concluídas na Fase 2)
+> **Status geral:** 🟡 EM PROGRESSO — 8 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04, PA-05, PA-06 e PA-07 concluídas na Fase 2)
 
 ---
 
@@ -416,14 +416,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | BD-06, A-03 |
 | **Não conformidade** | Soft delete sem registro de quem excluiu e quando |
 | **Impacto** | Impossibilidade de auditar exclusões; não conformidade com rastreabilidade LGPD |
 | **Responsável** | — |
 | **Prazo** | 2026-07-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -456,11 +456,14 @@
 - `src/features/events/EventDetail.jsx`
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/SUPABASE.md`
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar BD-06, A-03 como resolvidos
+- [x] `doc/SUPABASE.md` — migração PA-07 adicionada na tabela de ordem
+- [x] `doc/CHANGELOG.md` (v2.3)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — BD-06, A-03 marcados como resolvidos
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-soft-delete-audit.sql` (novo): `ADD COLUMN IF NOT EXISTS deletado_em timestamptz` e `deletado_por uuid REFERENCES auth.users(id) ON DELETE SET NULL` na tabela `leads`; índices parciais (`WHERE deletado = true`) para consultas de auditoria eficientes
+- `src/lib/dataService.js`: `db.removeLead(id)` atualizado para gravar `deletado: true`, `deletado_em: new Date().toISOString()` e `deletado_por: _queueUserId` — reutiliza o userId já registrado em memória via PA-05 (`setQueueUserId`), sem necessidade de alterar assinatura da função nem propagar props por toda a cadeia
+- **Ação manual necessária:** executar `supabase/migracao-soft-delete-audit.sql` no Supabase Dashboard → SQL Editor
 
 ---
 
