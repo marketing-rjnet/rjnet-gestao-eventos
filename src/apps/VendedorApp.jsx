@@ -6,7 +6,7 @@ import SyncBadge from '../components/SyncBadge';
 import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
-import { META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
+import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
 
 const TEMPERATURA_CONFIG = {
   frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
@@ -30,7 +30,9 @@ function LeadEditInline({ lead, onSave, onCancel }) {
     telefone: lead.telefone,
     cpf: lead.cpf || "",
     endereco: lead.endereco || "",
-    servicoInteresse: lead.servicoInteresse,
+    servicoInteresse: Array.isArray(lead.servicoInteresse)
+      ? lead.servicoInteresse
+      : (lead.servicoInteresse ? [lead.servicoInteresse] : []),
     temperatura: lead.temperatura,
     observacao: lead.observacao || "",
     jaClienteRjnet: lead.jaClienteRjnet || false,
@@ -55,10 +57,17 @@ function LeadEditInline({ lead, onSave, onCancel }) {
         <input value={e.endereco} onChange={(ev) => upd("endereco", ev.target.value)} />
       </div>
       <div className="big-field" style={{ marginBottom: 10 }}>
-        <label>Serviço de interesse</label>
+        <label>Serviços de interesse (selecione um ou mais)</label>
         <div className="seg-control">
           {Object.keys(SERVICO_LABEL).map((s) => (
-            <button type="button" key={s} className={"seg-btn" + (e.servicoInteresse === s ? " active" : "")} onClick={() => upd("servicoInteresse", s)}>
+            <button type="button" key={s}
+              className={"seg-btn" + (e.servicoInteresse.includes(s) ? " active" : "")}
+              onClick={() => {
+                const arr = e.servicoInteresse.includes(s)
+                  ? e.servicoInteresse.filter((x) => x !== s)
+                  : [...e.servicoInteresse, s];
+                upd("servicoInteresse", arr);
+              }}>
               {SERVICO_LABEL[s]}
             </button>
           ))}
@@ -102,7 +111,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   }, [ativos, eventoId]);
 
   const [aba, setAba] = useState("registrar");
-  const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: "internet_residencial", temperatura: "morno", observacao: "", jaClienteRjnet: false };
+  const FORM_VAZIO = { nome: "", telefone: "", endereco: "", cpf: "", servicoInteresse: ["internet_residencial"], temperatura: "morno", observacao: "", jaClienteRjnet: false };
   const [f, setF] = useState(FORM_VAZIO);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const [modoRapido, setModoRapido] = useState(false);
@@ -113,8 +122,11 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
 
-  const pct = Math.min((leadsDoEvento.length / META_DIARIA) * 100, 100);
-  const metaBatida = leadsDoEvento.length >= META_DIARIA;
+  const pct = Math.min((leadsDoEvento.length / META_OURO) * 100, 100);
+  const metaBronze = leadsDoEvento.length >= META_BRONZE;
+  const metaPrata  = leadsDoEvento.length >= META_PRATA;
+  const metaOuro   = leadsDoEvento.length >= META_OURO;
+  const nivelMeta  = metaOuro ? "ouro" : metaPrata ? "prata" : metaBronze ? "bronze" : "";
 
   const { ranking, rankingLoading } = useRanking(eventoId, leads.length);
 
@@ -145,6 +157,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     const nome = sanitizeText(f.nome, 120);
     if (!nome) { setFormErro("Nome é obrigatório."); return; }
     if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
+    if (!f.servicoInteresse.length) { setFormErro("Selecione ao menos um serviço de interesse."); return; }
     const novoId = "l" + Date.now() + Math.random().toString(36).slice(2,7);
     addLead({
       id: novoId,
@@ -207,17 +220,28 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
           <>
             <div className="vend-top">
               <span style={{ fontSize: 18, fontWeight: 700 }}>Novo Lead</span>
-              <span className="count-badge" style={metaBatida ? { background: "var(--green)" } : {}}>
-                {leadsDoEvento.length}/{META_DIARIA} leads
+              <span className="count-badge" style={
+                metaOuro ? { background: "var(--green)" } :
+                metaPrata ? { background: "#9ca3af", color: "#111" } :
+                metaBronze ? { background: "#b45309" } : {}
+              }>
+                {metaOuro ? "🥇" : metaPrata ? "🥈" : metaBronze ? "🥉" : ""} {leadsDoEvento.length} leads
               </span>
             </div>
             <div className="meta-bar-wrap">
               <div className="meta-bar-header">
-                <span className="meta-bar-label">{metaBatida ? "Meta batida! 🎯" : "Meta diária"}</span>
-                <span className="meta-bar-count">{leadsDoEvento.length} de {META_DIARIA}</span>
+                <span className="meta-bar-label">
+                  {metaOuro ? "Meta Ouro atingida! 🥇" : metaPrata ? "Meta Prata atingida! 🥈" : metaBronze ? "Meta Bronze atingida! 🥉" : "Progresso das metas"}
+                </span>
+                <span className="meta-bar-count">{leadsDoEvento.length} de {META_OURO}</span>
               </div>
               <div className="meta-bar-track">
-                <div className={"meta-bar-fill" + (metaBatida ? " done" : "")} style={{ width: pct + "%" }} />
+                <div className={"meta-bar-fill" + (nivelMeta ? " " + nivelMeta : "")} style={{ width: pct + "%" }} />
+              </div>
+              <div className="meta-bar-stages">
+                <span className={"meta-stage" + (metaBronze ? " achieved" : "")}>🥉 {META_BRONZE}</span>
+                <span className={"meta-stage" + (metaPrata ? " achieved" : "")}>🥈 {META_PRATA}</span>
+                <span className={"meta-stage" + (metaOuro ? " achieved" : "")}>🥇 {META_OURO}</span>
               </div>
             </div>
             <label className="modo-rapido-toggle">
@@ -253,10 +277,17 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   </div>
                 )}
                 <div className="big-field">
-                  <label>Serviço de interesse *</label>
+                  <label>Serviços de interesse * (selecione um ou mais)</label>
                   <div className="seg-control">
                     {Object.keys(SERVICO_LABEL).map((s) => (
-                      <button type="button" key={s} className={"seg-btn" + (f.servicoInteresse === s ? " active" : "")} onClick={() => set("servicoInteresse", s)}>
+                      <button type="button" key={s}
+                        className={"seg-btn" + (f.servicoInteresse.includes(s) ? " active" : "")}
+                        onClick={() => {
+                          const arr = f.servicoInteresse.includes(s)
+                            ? f.servicoInteresse.filter((x) => x !== s)
+                            : [...f.servicoInteresse, s];
+                          set("servicoInteresse", arr);
+                        }}>
                         {SERVICO_LABEL[s]}
                       </button>
                     ))}
@@ -513,7 +544,10 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                           <div className="ranking-header">
                             <span className={"ranking-pos" + (i < 3 ? " " + posColors[i] : "")}>{i + 1}º</span>
                             <span className="ranking-name">{item.nome}{item.nome === session.vendedorNome && <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>(você)</span>}</span>
-                            <span className="ranking-count">{item.total}</span>
+                            <span className="ranking-count">
+                              {item.total}
+                              {item.total >= META_OURO ? " 🥇" : item.total >= META_PRATA ? " 🥈" : item.total >= META_BRONZE ? " 🥉" : ""}
+                            </span>
                           </div>
                           <div className="ranking-bar-track">
                             <div className="ranking-bar-fill" style={{ width: Math.round((item.total / maxRanking) * 100) + "%" }} />

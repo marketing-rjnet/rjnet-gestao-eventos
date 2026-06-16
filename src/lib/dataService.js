@@ -128,7 +128,11 @@ const leadFromDb = (r) => ({
   id: r.id, eventoId: r.evento_id, vendedorNome: r.vendedor_nome ?? "",
   vendedorId: r.vendedor_id ?? null,
   nome: r.nome, telefone: r.telefone ?? "", cpf: r.cpf ?? "",
-  endereco: r.endereco ?? "", servicoInteresse: r.servico_interesse,
+  endereco: r.endereco ?? "", servicoInteresse: (() => {
+    const v = r.servico_interesse;
+    if (!v) return [];
+    try { const p = JSON.parse(v); return Array.isArray(p) ? p : [v]; } catch { return [v]; }
+  })(),
   temperatura: r.temperatura, observacao: r.observacao ?? "",
   jaClienteRjnet: r.ja_cliente_rjnet ?? false,
   criadoEm: r.criado_em,
@@ -137,7 +141,8 @@ const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId, vendedor_nome: l.vendedorNome ?? null,
   vendedor_id: l.vendedorId ?? null,
   nome: l.nome, telefone: l.telefone || null, cpf: l.cpf || null,
-  endereco: l.endereco || null, servico_interesse: l.servicoInteresse ?? null,
+  endereco: l.endereco || null,
+  servico_interesse: Array.isArray(l.servicoInteresse) ? JSON.stringify(l.servicoInteresse) : (l.servicoInteresse ?? null),
   temperatura: l.temperatura ?? 'morno', observacao: l.observacao || null,
   ja_cliente_rjnet: l.jaClienteRjnet ?? false,
   criado_em: l.criadoEm || new Date().toISOString(),
