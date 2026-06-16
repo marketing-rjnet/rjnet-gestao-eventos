@@ -463,7 +463,7 @@
 **Evidência de conclusão:**
 - `supabase/migracao-soft-delete-audit.sql` (novo): `ADD COLUMN IF NOT EXISTS deletado_em timestamptz` e `deletado_por uuid REFERENCES auth.users(id) ON DELETE SET NULL` na tabela `leads`; índices parciais (`WHERE deletado = true`) para consultas de auditoria eficientes
 - `src/lib/dataService.js`: `db.removeLead(id)` atualizado para gravar `deletado: true`, `deletado_em: new Date().toISOString()` e `deletado_por: _queueUserId` — reutiliza o userId já registrado em memória via PA-05 (`setQueueUserId`), sem necessidade de alterar assinatura da função nem propagar props por toda a cadeia
-- **Ação manual necessária:** executar `supabase/migracao-soft-delete-audit.sql` no Supabase Dashboard → SQL Editor
+- **Migração aplicada em produção em 2026-06-16:** colunas `deletado_em` (timestamptz), `deletado_por` (uuid) e índices parciais criados com sucesso — "Success. No rows returned" ✅
 
 ---
 
