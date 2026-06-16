@@ -1167,25 +1167,34 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.5 Fase 4 — Governança e maturidade (90+ dias)
 
-**Status:** 🔴 Em aberto
+**Status:** 🟡 Em progresso — implementação técnica encerrada; 4 pendências administrativas/jurídicas
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
-| PA-16 | Política de Privacidade | G-01, L-02 | 🔴 | — | — |
-| PA-17 | RIPD/DPIA | L-09 | 🔴 | — | — |
-| PA-18 | ROPA | L-10 | 🔴 | — | — |
-| PA-19 | Nomear DPO | L-11 | 🔴 | — | — |
-| PA-20 | Plano de Resposta a Incidentes | G-03 | 🔴 | — | — |
-| PA-21 | Avaliar campos excessivos | L-03 | 🔴 | — | — |
+| PA-16 | Política de Privacidade | G-01, L-02 | 🟢 | 2026-06-16 | `doc/POLITICA_DE_PRIVACIDADE.md` v1.0 |
+| PA-17 | RIPD/DPIA | L-09 | 🟡 | 2026-06-16 | `doc/RIPD.md` v1.0 — pendente aprovação DPO |
+| PA-18 | ROPA | L-10 | 🟡 | 2026-06-16 | `doc/ROPA.md` v1.0 — pendente validação DPO |
+| PA-19 | Nomear DPO | L-11 | 🔴 | — | Decisão da diretoria |
+| PA-20 | Plano de Resposta a Incidentes | G-03 | 🟡 | 2026-06-16 | `doc/PLANO_INCIDENTES.md` v1.0 — pendente aprovação DPO |
+| PA-21 | Avaliar campos excessivos | L-03 | 🔴 | — | Decisão do negócio |
 
-**Artefatos a criar nesta fase:**
+**Artefatos criados nesta fase:**
 
 | Artefato | Tipo | PA | Status |
 |---------|------|----|--------|
-| `doc/POLITICA_DE_PRIVACIDADE.md` | Documento (novo) | PA-16 | 🔴 |
-| `doc/RIPD.md` | Documento (novo) | PA-17 | 🔴 |
-| `doc/ROPA.md` | Documento (novo) | PA-18 | 🔴 |
-| `doc/PLANO_INCIDENTES.md` | Documento (novo) | PA-20 | 🔴 |
+| `doc/POLITICA_DE_PRIVACIDADE.md` | Documento | PA-16 | 🟢 |
+| `doc/RIPD.md` | Documento | PA-17 | 🟡 pendente DPO |
+| `doc/ROPA.md` | Documento | PA-18 | 🟡 pendente DPO |
+| `doc/PLANO_INCIDENTES.md` | Documento | PA-20 | 🟡 pendente DPO |
+
+**Pendências administrativas — implementação técnica encerrada:**
+
+| # | Ação | Responsável | PA | Risco se não feito |
+|---|------|------------|----|--------------------|
+| 1 | Criar e-mail `privacidade@rjnet.com.br` | TI | PA-15 | Titulares sem canal para exercer direitos LGPD |
+| 2 | Nomear o DPO formalmente | Diretoria | PA-19 | RIPD, ROPA e Plano de Incidentes sem aprovação formal |
+| 3 | Upgrade Supabase Pro + assinar DPA | Gestão/Financeiro | PA-14 | Transferência internacional sem garantia contratual (art. 33 LGPD) |
+| 4 | Decidir sobre campos endereço e observações | Negócio | PA-21 | Possível coleta excessiva não endereçada |
 
 ---
 
@@ -1193,6 +1202,18 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 > Esta seção é atualizada à medida que as ações do plano são concluídas.  
 > Formato: `[DATA] PA-XX — Descrição — Evidência`
+
+- **[2026-06-16] PA-16 — Política de Privacidade v1.0 (G-01, L-02)**
+  - `doc/POLITICA_DE_PRIVACIDADE.md` criado: controlador, dados coletados, finalidades, bases legais, compartilhamento, retenção, direitos dos titulares (art. 18), medidas de segurança, transferência internacional (EUA/Supabase) e canal de contato
+
+- **[2026-06-16] PA-17 — RIPD v1.0 (L-09) — pendente aprovação DPO**
+  - `doc/RIPD.md` criado: descrição sistemática do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de 8 riscos (R-01 a R-08), medidas de mitigação adotadas e pendentes
+
+- **[2026-06-16] PA-18 — ROPA v1.0 (L-10) — pendente validação DPO**
+  - `doc/ROPA.md` criado: 4 operações de tratamento — captação de leads, exportação CSV, autenticação interna, auditoria; bases legais, destinatários, transferências internacionais, prazos de retenção e medidas de segurança
+
+- **[2026-06-16] PA-20 — Plano de Resposta a Incidentes v1.0 (G-03) — pendente aprovação DPO**
+  - `doc/PLANO_INCIDENTES.md` criado: classificação em 4 níveis de severidade, procedimento em 6 fases (detecção → contenção → avaliação → notificação ANPD → correção → lições aprendidas), queries SQL de investigação via audit_log, modelo de registro de incidentes
 
 - **[2026-06-16] PA-04 — Consentimento LGPD no formulário de captação de leads (L-01, L-02, L-03)**
   - `supabase/migracao-consentimento.sql`: 3 novas colunas em `leads` — `consentimento_coletado` (bool, default false), `consentimento_em` (timestamptz), `versao_termo` (text); índice de auditoria

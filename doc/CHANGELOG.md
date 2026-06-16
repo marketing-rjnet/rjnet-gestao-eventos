@@ -4,6 +4,18 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.3] — Encerramento da implementação técnica LGPD
+**Data:** 2026-06-16
+
+**O que mudou**
+- Plano de Ação LGPD atualizado com tabela de pendências administrativas — implementação técnica declarada encerrada
+- `doc/LGPD_AUDIT_AND_COMPLIANCE.md`: Fase 4 atualizada com status de cada PA, artefatos criados e tabela de pendências
+- 4 pendências restantes são exclusivamente administrativas/jurídicas (ver `doc/PLANO_DE_ACAO_LGPD.md`)
+
+**Situação final:** 16/21 ações 🟢, 3/21 🟡 (pendentes aprovação DPO), 2/21 🔴 (decisão externa)
+
+---
+
 ## [v3.2] — Fase 4 LGPD: PA-17, PA-18, PA-20 (RIPD, ROPA, Plano de Incidentes)
 **Data:** 2026-06-16
 

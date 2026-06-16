@@ -1031,8 +1031,25 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 ---
 
-> **Status geral:** 🟡 EM PROGRESSO — 16 de 21 ações concluídas (Fases 1, 2 e 3 completas; PA-16 concluída na Fase 4)
+> **Status geral:** 🟡 EM PROGRESSO — 16 de 21 ações concluídas. Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
 
-> **Próxima revisão do plano:** 2026-07-16 (após Fase 2)  
+---
+
+## Pendências Administrativas — Implementação Técnica Encerrada
+
+> Todas as ações técnicas foram implementadas. O que segue depende exclusivamente de decisões organizacionais, jurídicas ou contratuais.
+
+| # | Ação | Responsável | PA | Impacto se não feito |
+|---|------|------------|----|--------------------|
+| 1 | Criar e-mail `privacidade@rjnet.com.br` | TI | PA-15 | Titulares sem canal para exercer direitos LGPD |
+| 2 | Nomear o DPO formalmente | Diretoria | PA-19 | RIPD, ROPA e Plano de Incidentes sem aprovação formal |
+| 3 | Upgrade Supabase Pro + assinar DPA | Gestão/Financeiro | PA-14 | Transferência internacional sem garantia contratual (risco art. 33 LGPD) |
+| 4 | Decidir sobre campos endereço e observações | Negócio | PA-21 | Possível coleta excessiva não endereçada |
+
+> Quando qualquer dessas ações for executada, atualizar o PA correspondente neste documento.
+
+---
+
+
 > **Referência de auditoria:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md`  
 > **Histórico de mudanças:** `doc/CHANGELOG.md`
