@@ -1,7 +1,10 @@
 // Constantes globais — centralize aqui para evitar magic numbers espalhados.
 
-// Negócio
-export const META_DIARIA = 15;
+// Negócio — metas em 3 níveis
+export const META_BRONZE = 20;
+export const META_PRATA  = 40;
+export const META_OURO   = 60;
+export const META_DIARIA = META_OURO;
 
 // Validação
 export const SENHA_MIN_LENGTH = 8;

@@ -15,7 +15,10 @@ export default function Dashboard() {
 
   const dist = useMemo(() => {
     const c = { fibra_residencial: 0, fibra_empresarial: 0, hotspot: 0, outro: 0 };
-    leads.forEach((l) => { c[l.servicoInteresse] = (c[l.servicoInteresse] || 0) + 1; });
+    leads.forEach((l) => {
+      const servicos = Array.isArray(l.servicoInteresse) ? l.servicoInteresse : (l.servicoInteresse ? [l.servicoInteresse] : []);
+      servicos.forEach((s) => { c[s] = (c[s] || 0) + 1; });
+    });
     return c;
   }, [leads]);
 

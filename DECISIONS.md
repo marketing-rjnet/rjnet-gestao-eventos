@@ -893,6 +893,83 @@ O `AppProvider` acumulava ~100 linhas de lógica CRUD junto com a orquestração
 
 ---
 
+### [D-026] — `servicoInteresse` como array com persistência JSON-string backward-compatible
+
+**Data:** 2026-06-16
+
+**Tipo:** Feature / Arquitetura
+
+**Decisão:**
+O campo `servicoInteresse` dos leads passa a ser um array de strings em vez de string simples. Na persistência (Supabase), o array é serializado como JSON string na coluna `servico_interesse` (TEXT existente, sem alteração de schema). Na leitura (`leadFromDb`), dados antigos (string simples) são normalizados automaticamente para `[string]`; dados novos são armazenados como JSON array string.
+
+**Motivação:**
+Vendedores em campo identificavam frequentemente interesse em mais de um serviço (ex: Internet + RJNET Móvel). O campo único impedia registrar essa informação sem gambiarras (concatenação, campo extra, etc.).
+
+**Alternativas Avaliadas:**
+- Novo campo JSONB `servicos_interesse` no banco (avaliada — requer migração de schema; descartada para compatibilidade imediata)
+- String comma-separated (avaliada — menos robusto para parse e filtro; descartada)
+- Manter string + campo adicional (descartada — duplicação desnecessária)
+
+**Impactos:**
+- Positivo: multi-seleção de serviços sem migração de banco; backward-compatible com todos os leads existentes
+- Positivo: filtros em `LeadsTab` e contagem em `Dashboard` atualizados para iterar sobre array
+- Negativo: `servico_interesse` no banco armazena JSON string em coluna TEXT — tipo não reflete conteúdo; uma migração para JSONB seria mais correta no longo prazo
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` (leadFromDb: parse JSON com fallback; leadToDb: JSON.stringify)
+- `src/apps/VendedorApp.jsx` (multi-select UI; FORM_VAZIO inicia com array; LeadEditInline normaliza legados)
+- `src/utils/format.js` (servicoLabel suporta array)
+- `src/utils/mockData.js` (mock atualizado para array)
+- `src/features/leads/LeadsTab.jsx` (hasServico helper; filtro e byService para arrays)
+- `src/features/events/Dashboard.jsx` (dist calculation itera array por lead)
+
+**Riscos:**
+- Dado antigo (string) passa a ser JSON string após qualquer edição pelo vendedor — sem impacto no frontend, mas visível no Supabase Studio como string JSON
+- Consultas SQL diretas no banco precisarão de `json_array_elements_text` para filtrar por serviço
+
+**Status:** Ativa
+
+---
+
+### [D-027] — Meta de leads em 3 níveis: Bronze / Prata / Ouro
+
+**Data:** 2026-06-16
+
+**Tipo:** Feature
+
+**Decisão:**
+A meta diária única (`META_DIARIA = 15`) foi substituída por três níveis progressivos em `constants.js`:
+- 🥉 Bronze: `META_BRONZE = 20`
+- 🥈 Prata: `META_PRATA = 40`
+- 🥇 Ouro: `META_OURO = 60`
+
+`META_DIARIA` foi mantido como alias de `META_OURO` (60) para backward-compatibility. A barra de progresso mostra os 3 marcos com cores distintas por nível (bronze: `#b45309`, prata: `#9ca3af`, ouro: `var(--green)`). O Placar da equipe exibe a medalha conquistada ao lado do total de cada vendedor.
+
+**Motivação:**
+Uma única meta não expressava progressão. Com 3 níveis, vendedores têm motivação contínua ao longo do evento: alcançar bronze, depois prata, depois ouro — em vez de um estado binário de "bateu/não bateu".
+
+**Alternativas Avaliadas:**
+- Meta única configurável pelo marketing (avaliada — não dá feedback progressivo; descartada)
+- 5 níveis (avaliada — excessivamente granular para contexto de evento; descartada)
+- Metas personalizáveis por evento (avaliada — overhead desnecessário; descartada)
+
+**Impactos:**
+- Positivo: feedback visual contínuo com 3 marcos de conquista na barra e no badge
+- Positivo: sem quebra em código existente (`META_DIARIA` mantido como alias)
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `src/lib/constants.js` (`META_BRONZE`, `META_PRATA`, `META_OURO` adicionados; `META_DIARIA = META_OURO`)
+- `src/apps/VendedorApp.jsx` (barra de progresso, count-badge com medalha, ranking com medalhas)
+- `src/index.css` (`.meta-bar-fill.bronze/.prata/.ouro`; `.meta-bar-stages`; `.meta-stage`)
+
+**Riscos:**
+- Nenhum — mudança puramente aditiva; `META_DIARIA` mantido como alias
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

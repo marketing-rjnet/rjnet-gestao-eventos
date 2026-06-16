@@ -49,7 +49,7 @@ export const MOCK_LEADS = [
     id: "l1", eventoId: "e1", vendedorNome: "Carlos Silva",
     nome: "João Pereira", telefone: "(24) 99876-5432",
     endereco: "Rua das Flores, 45 - Angra dos Reis",
-    servicoInteresse: "internet_residencial",
+    servicoInteresse: ["internet_residencial"],
     temperatura: "quente",
     observacao: "Muito interesse, mora em área com cobertura",
     criadoEm: "2025-06-07T14:30:00Z",

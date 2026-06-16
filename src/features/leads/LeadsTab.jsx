@@ -16,13 +16,15 @@ export function LeadsTab() {
   const [fServ, setFServ] = useState("");
   const evName = (id) => eventos.find((e) => e.id === id)?.nome || id;
 
+  const hasServico = (l, s) => Array.isArray(l.servicoInteresse) ? l.servicoInteresse.includes(s) : l.servicoInteresse === s;
+
   const filtered = leads.filter((l) =>
     (!fEvento || l.eventoId === fEvento) &&
     (!fVend || l.vendedorNome === fVend) &&
-    (!fServ || l.servicoInteresse === fServ)
+    (!fServ || hasServico(l, fServ))
   );
 
-  const byService = (s) => leads.filter((l) => l.servicoInteresse === s).length;
+  const byService = (s) => leads.filter((l) => hasServico(l, s)).length;
 
   const exportarCSV = () => {
     const dados = filtered.length > 0 ? filtered : leads;

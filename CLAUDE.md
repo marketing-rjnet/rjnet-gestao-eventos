@@ -169,6 +169,8 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **status evento:** `planejado`, `ativo`, `encerrado`
 - **tipo evento:** `sinalizacao`, `presenca_comercial`, `ativacao_especial`
 - **temperatura lead:** `frio`, `morno`, `quente`, `convertido`
+- **serviços de interesse (array):** `internet_residencial`, `internet_empresarial`, `rjnet_movel`, `streamings`, `outro` — `servicoInteresse` é `string[]` no frontend; serializado como JSON string na coluna TEXT `servico_interesse` do banco (backward-compat com string simples legada)
+- **metas do vendedor:** `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` — `META_DIARIA` é alias de `META_OURO`
 - **papel perfil:** `marketing`, `vendedor`
 
 ### RLS (Row Level Security)

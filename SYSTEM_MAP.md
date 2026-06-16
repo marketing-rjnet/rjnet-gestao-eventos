@@ -169,7 +169,7 @@ Shell do vendedor em campo. Navegação por 4 tabs (bottom nav mobile-first):
 
 | Tab | Função |
 |---|---|
-| Registrar | Formulário de captura de lead com modo rápido, auto-sanitização, toast com undo |
+| Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro) |
 | Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, links tel/WhatsApp |
 | Evento | Detalhes do evento ativo, link Maps, ranking da equipe |
 | Pacotes | Tabela de preços dos serviços RJNet (hardcoded) |
@@ -182,7 +182,9 @@ Shell do vendedor em campo. Navegação por 4 tabs (bottom nav mobile-first):
 Unidade central. Possui `status` (`planejado` / `ativo` / `encerrado`), `tipo`, datas, local, e um array `materiais` (JSONB no Supabase). Leads e rankings são sempre associados a um evento.
 
 ### Leads
-Capturados por vendedores em campo, vinculados a `eventoId` e `vendedorNome`. Têm `temperatura` (`frio` / `morno` / `quente` / `convertido`) e `servicoInteresse`. Suportam soft delete via flag `deletado`.
+Capturados por vendedores em campo, vinculados a `eventoId` e `vendedorNome`. Têm `temperatura` (`frio` / `morno` / `quente` / `convertido`) e `servicoInteresse` (array de strings — ver D-026). Suportam soft delete via flag `deletado`.
+
+> **`servicoInteresse` é array:** no frontend sempre `string[]`; no banco (`servico_interesse` TEXT) armazenado como JSON string. `leadFromDb` normaliza strings legadas para `[string]` automaticamente. `servicoLabel()` aceita string ou array.
 
 ### Estoque
 Materiais promocionais com `quantidade` e `nivel` derivado (`crit` / `warn` / `ok`). Alocados a eventos via `evento.materiais[]`.
@@ -232,6 +234,8 @@ AppProvider re-sincroniza estado com dados do banco
 - **Fila offline**: leads capturados offline são enfileirados e sincronizados ao reconectar
 - **Sanitização obrigatória**: `sanitizeText()` em todos os inputs antes de persistir
 - **Cache de ranking**: TTL de 30 s, invalidado a cada mutação de lead
+- **`servicoInteresse` é sempre array no frontend**: `leadFromDb` normaliza strings legadas; `leadToDb` serializa como JSON string na coluna TEXT existente (D-026)
+- **Metas em 3 níveis**: `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` em `constants.js`; `META_DIARIA` é alias de `META_OURO` (D-027)
 
 ---
 

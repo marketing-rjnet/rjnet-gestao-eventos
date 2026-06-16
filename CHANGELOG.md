@@ -4,6 +4,30 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.2] — Multi-seleção de serviços e meta em 3 níveis
+**Data:** 2026-06-16
+
+**O que mudou**
+- `servicoInteresse` agora suporta múltiplos valores (array) por lead; seleção de serviços no formulário do vendedor é multi-select (toggle de botões independentes)
+- `servicoLabel()` em `format.js` atualizado para formatar arrays como lista separada por vírgula
+- Backward-compatible: dados legados (string simples no banco) são automaticamente normalizados para array na leitura (`leadFromDb`); escrita sempre serializa JSON string
+- Filtros de serviço em `LeadsTab` e contagem no gráfico de `Dashboard` tratam tanto array quanto string legada
+- Meta diária única substituída por 3 níveis progressivos: 🥉 Bronze (20) / 🥈 Prata (40) / 🥇 Ouro (60)
+- Barra de progresso exibe 3 marcadores com cores distintas por nível atingido (amarelo → bronze → prata → verde)
+- Ranking da equipe (Placar) exibe medalha ao lado do total de cada vendedor
+- `META_BRONZE`, `META_PRATA`, `META_OURO` adicionados a `constants.js`; `META_DIARIA` mantido como alias de `META_OURO` para backward-compat
+
+**Por que mudou**
+- Vendedores precisavam registrar interesse em mais de um serviço por lead (ex: Internet + RJNET Móvel)
+- Meta única (15 leads) não refletia progressão real; 3 níveis dão motivação contínua ao longo do evento
+
+**Impacto**
+- Leads podem ter múltiplos serviços de interesse registrados
+- Filtros e gráficos do marketing tratam os arrays corretamente
+- Dados existentes continuam funcionando sem migração de banco
+
+---
+
 ## [v1.1] — Refatoração: etapa 18 — centralização do dual mode
 **Data:** 2026-06-16
 
