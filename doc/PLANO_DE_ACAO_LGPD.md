@@ -130,14 +130,19 @@
 - [x] Este documento — evidência preenchida
 - [x] `doc/SUPABASE.md` — seção "Verificação de estado das migrações (PA-02)" adicionada
 
-**Evidência de conclusão:**
-- Criado `supabase/verificar-migracao-auth.sql` — script com 8 blocos de verificação idempotentes, com resultado esperado anotado e instruções de remediação para cada falha possível
-- `doc/SUPABASE.md` atualizado com tabela de resultados esperados e procedimento de execução
-- Tabela de migrações em `doc/SUPABASE.md` atualizada com o script de verificação como artefato disponível
-- Checklist de segurança pré-produção atualizado: PA-01 marcado como implementado via guard de build
-- **Verificação manual obrigatória:** operador deve executar `supabase/verificar-migracao-auth.sql` no SQL Editor do Supabase Dashboard e confirmar 0 policies anônimas. Se o script retornar linhas no Bloco 1, executar `supabase/migracao-auth.sql` e `supabase/protecao-dados.sql` imediatamente.
+**Evidência de conclusão — verificação executada em produção em 2026-06-16:**
 
-> **Nota arquitetural:** a análise do código confirma que `migracao-auth.sql` e `protecao-dados.sql` estão presentes, corretos e prontos para aplicação. O `schema.sql` contém advertência explícita sobre as policies anônimas de bootstrap (linhas 61–66). A verificação em produção via Dashboard é o passo final desta ação.
+| Bloco | Verificação | Resultado | Status |
+|-------|------------|-----------|--------|
+| 1 | Políticas anônimas | **0 linhas** ("No rows returned") | ✅ |
+| 2 | Tabela `perfis` existe | **true** | ✅ |
+| 3 | Colunas `deletado` e `vendedor_id` em `leads` | **2 linhas retornadas** | ✅ |
+| 8 | Resumo leads | 70 total, 4 deletados, 66 ativos, 64 com vendedor_id | ✅ |
+
+- `migracao-auth.sql` está aplicada em produção — nenhuma policy anônima ativa
+- `protecao-dados.sql` está aplicada — coluna `deletado` presente
+- Tabela `perfis` existe e está vinculada ao Supabase Auth
+- 6 leads sem `vendedor_id` são registros legados (anteriores à migração Auth) — esperado
 
 ---
 

@@ -1200,9 +1200,9 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
   - **Ação manual:** configurar secret `CORS_ALLOWED_ORIGINS` no Dashboard antes do próximo deploy da Edge Function
 
 - **[2026-06-16] PA-02 — Verificação e documentação das migrações de Auth (BD-01, SB-01)**
-  - Criado `supabase/verificar-migracao-auth.sql` — script com 8 blocos de verificação idempotentes: policies anônimas, existência de `perfis`, colunas `deletado` e `vendedor_id`, funções `papel_atual()` e `ranking_evento()`, policies por papel e resumo de leads
-  - `doc/SUPABASE.md` atualizado: nova seção "Verificação de estado das migrações (PA-02)" com tabela de resultados esperados; checklist de segurança pré-produção atualizado; tabela de migrações com o novo script
-  - Procedimento de verificação manual documentado com instruções de remediação para cada falha possível
+  - Criado `supabase/verificar-migracao-auth.sql` — script com 8 blocos de verificação idempotentes
+  - `doc/SUPABASE.md` atualizado com seção de verificação e tabela de resultados esperados
+  - **Verificação executada em produção:** 0 policies anônimas ✅ | perfis existe ✅ | colunas deletado + vendedor_id presentes ✅ | 70 leads (66 ativos, 4 soft-deleted, 64 com vendedor_id)
 
 - **[2026-06-16] PA-01 — Remoção de credenciais legadas do bundle JS (S-01)**
   - Guard de build em `vite.config.js`: aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida — impede deploys acidentais com senha no bundle
