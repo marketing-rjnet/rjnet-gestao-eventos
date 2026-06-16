@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { supabaseEnabled } from '../lib/supabase';
+import { isSupabaseMode } from '../lib/mode';
 import { fetchAll, subscribeChanges, auth, rankingEvento, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
@@ -11,11 +11,11 @@ import { createMaterialApi } from '../api/materialApi';
 import { createVendedorApi } from '../api/vendedorApi';
 
 export function AppProvider({ children }) {
-  const [materiais, setMateriais] = usePersisted("rjnet_materiais", supabaseEnabled ? [] : MOCK_MATERIAIS);
-  const [eventos, setEventos] = usePersisted("rjnet_eventos", supabaseEnabled ? [] : MOCK_EVENTOS);
-  const [leads, setLeads] = usePersisted("rjnet_leads", supabaseEnabled ? [] : MOCK_LEADS);
-  const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", supabaseEnabled ? [] : MOCK_VENDEDORES);
-  const [isLoading, setIsLoading] = useState(supabaseEnabled);
+  const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
+  const [eventos, setEventos] = usePersisted("rjnet_eventos", isSupabaseMode() ? [] : MOCK_EVENTOS);
+  const [leads, setLeads] = usePersisted("rjnet_leads", isSupabaseMode() ? [] : MOCK_LEADS);
+  const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", isSupabaseMode() ? [] : MOCK_VENDEDORES);
+  const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
   const abortRef = useRef(null);
@@ -38,7 +38,7 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-    if (!supabaseEnabled) return;
+    if (!isSupabaseMode()) return;
     carregar();
     const unsubRealtime = subscribeChanges(carregar);
     const unsubAuth = auth.onChange((evento) => {
@@ -64,7 +64,7 @@ export function AppProvider({ children }) {
   const genId = (prefix) => prefix + Date.now() + Math.random().toString(36).slice(2, 7);
 
   const obterRanking = async (eventoId) => {
-    if (supabaseEnabled) {
+    if (isSupabaseMode()) {
       const r = await rankingEvento(eventoId);
       if (r) return r;
     }

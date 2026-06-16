@@ -4,7 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
-## [v1.0] — Refatoração: modularização (etapas 1–17 de 18 concluídas)
+## [v1.1] — Refatoração: etapa 18 — centralização do dual mode
+**Data:** 2026-06-16
+
+**O que mudou**
+- Criado `src/lib/mode.js` com `isSupabaseMode()`, `getMode()` e constante `MODE`
+- `AppProvider.jsx`, `Root.jsx`, `MarketingApp.jsx`, `SyncBadge.jsx` e `dataService.js` migrados para importar de `mode.js`
+- Nenhum arquivo fora de `supabase.js` e `mode.js` acessa `supabaseEnabled` ou `VITE_SUPABASE_URL` diretamente
+
+**Por que mudou**
+- A verificação de modo (Supabase vs local) estava duplicada em 5 arquivos
+- Qualquer mudança na lógica de detecção exigia editar múltiplos pontos
+
+**Impacto**
+- Detecção de modo centralizada em único lugar — mudar a lógica é editar apenas `mode.js`
+- Refatoração de 18 etapas concluída 100%
+- Build sem erros — nenhum comportamento alterado
+
+---
+
+## [v1.0] — Refatoração: modularização completa (etapas 1–17)
 **Data:** 2026-06-15 / 2026-06-16
 
 **O que mudou**
@@ -27,7 +46,6 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - Etapa 15: `usePersisted.js` + `useRanking.js` extraídos para `src/hooks/`
 - Etapa 16: `AppContext.js` + `AppProvider.jsx` extraídos para `src/context/`
 - Etapa 17: factories de API (`eventoApi`, `leadApi`, `materialApi`, `vendedorApi`) extraídas para `src/api/`
-- **Etapa 18 (pendente):** centralização do dual mode em `src/lib/mode.js` — eliminar verificações de `VITE_SUPABASE_URL` espalhadas pelo código
 
 **Por que mudou**
 - `main.jsx` com +2.300 linhas tornava qualquer edição arriscada e lenta
@@ -37,7 +55,6 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - Manutenção drasticamente mais simples — cada módulo tem responsabilidade única
 - Nenhum comportamento alterado, zero risco funcional
 - Base pronta para crescimento sem acúmulo em um arquivo único
-- Etapa 18 ainda pendente: verificação de modo duplicada em `AppProvider`, `Root` e `dataService`
 
 ---
 

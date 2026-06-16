@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 17/18 etapas concluídas (94%)
+Progresso geral: 18/18 etapas concluídas (100%) ✅
 Arquivo principal: src/main.jsx — atual: ~35 linhas — meta: < 100 linhas ao fim ✅
 ```
 
@@ -206,7 +206,7 @@ Etapa 14 — App + Layout Shells       ✅ Concluída
 Etapa 15 — Domain Hooks              ✅ Concluída
 Etapa 16 — Infraestrutura            ✅ Concluída
 Etapa 17 — APIs por Domínio          ✅ Concluída
-Etapa 18 — Centralização Dual Mode   ⬜ Não iniciada
+Etapa 18 — Centralização Dual Mode   ✅ Concluída
 ```
 
 ---
@@ -1393,7 +1393,7 @@ Extrair as funções de CRUD por domínio do `AppProvider` para módulos de API 
 
 ## Etapa 18 — Centralização do Dual Mode
 
-**Status: ⬜ Não iniciada**
+**Status: ✅ Concluída em 2026-06-16**
 
 ### Objetivo
 
@@ -1514,16 +1514,6 @@ src/
 
 ---
 
-## Próxima Etapa Recomendada
+## Refatoração Concluída ✅
 
-**→ Etapa 18 — Centralização Dual Mode** (próxima etapa não concluída)
-
-**Resumo do que fazer:**
-
-1. Criar `src/lib/mode.js` com helpers `isSupabaseMode()`, `getMode()`, constante `MODE`.
-2. Substituir verificações `import.meta.env.VITE_SUPABASE_URL` por `isSupabaseMode()` em:
-   - `src/context/AppProvider.jsx`
-   - `src/apps/Root.jsx`
-   - `src/lib/dataService.js`
-3. Executar build e verificar sem erros nos dois modos.
-4. Commit: `refactor: centralize dual-mode detection in src/lib/mode.js`.
+Todas as 18 etapas foram executadas. `src/main.jsx` está reduzido a ~35 linhas (ponto de entrada mínimo). Cada responsabilidade do sistema tem seu módulo dedicado.
