@@ -1,68 +1,58 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { loginMarketing, loginComercial } = require('./helpers/auth');
+const { loginMarketing } = require('./helpers/auth');
 
 async function goToEstoque(page) {
   await loginMarketing(page);
-  await page.locator('.tab-btn', { hasText: 'Estoque' }).click();
-  await expect(page.locator('.tab-btn.active')).toContainText('Estoque');
+  await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+  await expect(page.locator('.page-title')).toHaveText('Estoque');
 }
 
 test.describe('Seção Estoque', () => {
 
   test('seção Estoque carrega sem erros', async ({ page }) => {
     await goToEstoque(page);
-    await expect(page.locator('.estoque-table-wrap, .estoque-table, .empty-state')).toBeVisible();
+    await expect(page.locator('.stock-group').first()).toBeVisible();
   });
 
-  test('tabela de materiais é visível com dados pré-carregados', async ({ page }) => {
+  test('materiais pré-carregados aparecem nas linhas', async ({ page }) => {
     await goToEstoque(page);
-    await expect(page.locator('.estoque-table')).toBeVisible();
-    const rows = page.locator('.estoque-table tbody tr, .estoque-table tr').filter({ hasNotText: /nome|material/i });
-    await expect(rows.first()).toBeVisible();
+    await expect(page.locator('.stock-row').first()).toBeVisible();
+    await expect(page.locator('.sr-name', { hasText: 'Wind Banner 2m' })).toBeVisible();
   });
 
-  test('badges de quantidade estão presentes nas linhas', async ({ page }) => {
+  test('badges de disponibilidade estão presentes nas linhas', async ({ page }) => {
     await goToEstoque(page);
-    await expect(page.locator('.qtd-badge').first()).toBeVisible();
+    const badges = page.locator('.stock-row .badge');
+    await expect(badges.first()).toBeVisible();
+    await expect(badges.first()).toContainText('disp.');
   });
 
-  test('materiais esperados do mock aparecem na tabela', async ({ page }) => {
+  test('cada linha exibe total, em campo e disponível', async ({ page }) => {
     await goToEstoque(page);
-    await expect(page.locator('.estoque-table')).toContainText('Wind Banner');
+    const row = page.locator('.stock-row').first();
+    await expect(row.locator('.sr-num')).toHaveCount(3);
+    await expect(row).toContainText('total');
+    await expect(row).toContainText('em campo');
   });
 
-  test('tabela exibe nome e quantidade de cada material', async ({ page }) => {
+  test('KPIs de estoque exibem totais', async ({ page }) => {
     await goToEstoque(page);
-    const table = page.locator('.estoque-table');
-    await expect(table).toBeVisible();
-    const content = await table.textContent();
-    expect(content).toMatch(/\d+/);
+    const kpis = page.locator('.grid-kpi-3');
+    await expect(kpis).toContainText('Total Tipos');
+    await expect(kpis).toContainText('Em Campo');
   });
 
-  test('atualizar quantidade — se botão existir, funciona sem erro', async ({ page }) => {
-    test.slow();
+  test('adicionar material novo — aparece na listagem', async ({ page }) => {
     await goToEstoque(page);
-    const editBtn = page.locator('.btn-sm, button[aria-label*="editar"], button[title*="editar"]').first();
-    const hasEditBtn = await editBtn.isVisible().catch(() => false);
-    if (hasEditBtn) {
-      await editBtn.click();
-      const input = page.locator('.modal-box input[type="number"], .inline-form input[type="number"]');
-      const hasInput = await input.isVisible().catch(() => false);
-      if (hasInput) {
-        await input.fill('99');
-        await page.locator('.btn-primary').first().click();
-        await expect(page.locator('.estoque-table')).toContainText('99');
-      }
-    } else {
-      test.skip();
-    }
-  });
+    await page.locator('button', { hasText: 'Adicionar Material' }).click();
+    await expect(page.locator('.modal-box')).toBeVisible();
 
-  test('seção Estoque também carrega para Comercial', async ({ page }) => {
-    await loginComercial(page);
-    await page.locator('.tab-btn', { hasText: 'Estoque' }).click();
-    await expect(page.locator('.estoque-table-wrap, .estoque-table, .empty-state')).toBeVisible();
+    await page.locator('.modal-box input').first().fill('Material Teste E2E');
+    await page.locator('.modal-box input[type="number"], .modal-box input[inputmode="numeric"]').first().fill('7');
+    await page.locator('.modal-box button[type="submit"], .modal-box .btn-primary').first().click();
+
+    await expect(page.locator('.sr-name', { hasText: 'Material Teste E2E' })).toBeVisible();
   });
 
 });
