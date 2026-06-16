@@ -4,6 +4,24 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.4] — Sim/Não para "já é cliente" e exclusão de lead pelo vendedor
+**Data:** 2026-06-16
+
+**O que mudou**
+- Campo "Já é cliente RJNet?" migrado de checkbox para controle segmentado **Não / Sim** em `VendedorApp.jsx` — tanto no formulário de novo lead quanto no `LeadEditInline`
+- Botão **"Excluir lead"** adicionado em cada card na aba "Meus Leads", com confirmação inline em dois passos para evitar exclusões acidentais
+- Novos estilos `.lm-del-btn`, `.lm-del-confirm`, `.lm-del-confirm-yes`, `.lm-del-confirm-no` adicionados a `index.css`
+
+**Por que mudou**
+- Checkbox binário não deixava claro qual era o estado padrão ("desmarcado" pode ser confundido com "não respondido")
+- Vendedores precisavam de uma forma de corrigir leads cadastrados por engano sem depender do marketing
+
+**Impacto**
+- UX mais clara para o campo "já é cliente": o estado sempre é explícito (Não ou Sim)
+- Vendedor pode excluir próprios leads; a exclusão usa o soft delete já existente (`deletado = true` no banco)
+
+---
+
 ## [v1.3] — Organização da documentação em `docs/`
 **Data:** 2026-06-16
 

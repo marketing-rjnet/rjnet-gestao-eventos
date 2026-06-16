@@ -170,8 +170,8 @@ Shell do vendedor em campo. Navegação por 4 tabs (bottom nav mobile-first):
 
 | Tab | Função |
 |---|---|
-| Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro) |
-| Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, links tel/WhatsApp |
+| Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, controle Sim/Não para "já é cliente", auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro) |
+| Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, links tel/WhatsApp, exclusão de lead com confirmação inline em dois passos |
 | Evento | Detalhes do evento ativo, link Maps, ranking da equipe |
 | Pacotes | Tabela de preços dos serviços RJNet (hardcoded) |
 
