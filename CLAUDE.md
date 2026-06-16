@@ -10,6 +10,17 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ---
 
+## Documentação de Referência
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `SYSTEM_MAP.md` | **Arquitetura viva** — fonte única de verdade sobre estrutura, fluxo de dados e restrições. Ler primeiro em qualquer nova sessão. |
+| `DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas |
+| `REFATORAÇÃO.md` | Estado atual da refatoração progressiva (etapas concluídas e pendentes) |
+| `SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) |
+
+---
+
 ## Estrutura do Projeto
 
 > **Refatoração em andamento** — etapas 1–17 de 18 concluídas. Ver `REFATORAÇÃO.md`.

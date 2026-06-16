@@ -822,6 +822,40 @@ Os dois componentes representavam o último bloco de UI em `main.jsx`. Com a ext
 
 ---
 
+### [D-025] — SYSTEM_MAP.md como documento de arquitetura viva
+
+**Data:** 16/06/2026
+
+**Tipo:** Infraestrutura / Documentação
+
+**Decisão:**
+Criação de `SYSTEM_MAP.md` como fonte única de verdade sobre a arquitetura atual do sistema. O documento cobre: visão geral funcional, arquitetura por camada, estrutura de diretórios, apps principais, domínios de negócio, fluxo de dados, regras técnicas, dependências e restrições arquiteturais. É atualizado a cada mudança estrutural relevante.
+
+**Motivação:**
+À medida que a refatoração progressiva avança (17 de 18 etapas), o sistema ganhou estrutura modular significativa. Sem um mapa centralizado, cada nova sessão de IA ou desenvolvedor precisa reconstituir o entendimento da arquitetura lendo múltiplos arquivos. O `SYSTEM_MAP.md` resolve isso em 30 segundos de leitura.
+
+**Alternativas Avaliadas:**
+- Manter arquitetura apenas no `CLAUDE.md` (descartada — CLAUDE.md já é longo e mistura operacional com arquitetural)
+- Diagrama Mermaid/C4 (descartada — não reflete código real; fica desatualizado rapidamente)
+- README.md (descartada — README é para usuários/ops, não para IA/devs)
+
+**Impactos:**
+- Positivo: onboarding de nova sessão de IA em < 1 min; restrições arquiteturais explícitas evitam violações involuntárias
+- Positivo: `CLAUDE.md` pode ser simplificado progressivamente — detalhes arquiteturais migram para `SYSTEM_MAP.md`
+- Negativo: requer manutenção ativa — deve ser atualizado a cada mudança estrutural (nova etapa, nova camada, nova regra)
+
+**Arquivos Afetados:**
+- `SYSTEM_MAP.md` (criado)
+- `CLAUDE.md` (adicionada seção "Documentação de Referência" apontando para SYSTEM_MAP.md)
+- `DECISIONS.md` (este registro)
+
+**Riscos:**
+- Divergência entre `SYSTEM_MAP.md` e o código real se não for atualizado após mudanças estruturais
+
+**Status:** Ativa
+
+---
+
 ### [D-024] — Módulos de API por domínio via factory functions (Etapa 17)
 
 **Data:** 16/06/2026
@@ -876,11 +910,12 @@ Nenhuma etapa deve ser considerada concluída sem essa verificação.
 
 Antes de executar qualquer alteração no projeto, uma nova sessão de IA deve:
 
-1. Ler `CLAUDE.md` — visão geral, stack, estrutura, scripts, banco de dados
-2. Ler `REFATORAÇÃO.md` — estado atual da refatoração, próxima etapa pendente
-3. Ler `DECISIONS.md` (este arquivo) — decisões anteriores que devem ser respeitadas
-4. Respeitar decisões previamente registradas
-5. Não substituir decisões existentes sem criar um novo registro (`[D-NNN]`) justificando a mudança
+1. Ler `SYSTEM_MAP.md` — arquitetura viva: estrutura, fluxo de dados, regras técnicas e restrições
+2. Ler `CLAUDE.md` — stack, scripts, variáveis de ambiente, banco de dados
+3. Ler `REFATORAÇÃO.md` — estado atual da refatoração, próxima etapa pendente
+4. Ler `DECISIONS.md` (este arquivo) — decisões anteriores que devem ser respeitadas
+5. Respeitar decisões previamente registradas
+6. Não substituir decisões existentes sem criar um novo registro (`[D-NNN]`) justificando a mudança
 
 Ao iniciar uma sessão, verificar:
 - Qual é a próxima etapa da refatoração pendente?
