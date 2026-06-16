@@ -859,6 +859,45 @@ O `AppProvider` acumulava ~100 linhas de lógica CRUD junto com a orquestração
 
 ---
 
+### [D-025] — Centralização de modo de execução em `src/lib/mode.js` (Etapa 18)
+
+**Data:** 16/06/2026
+
+**Tipo:** Arquitetura / Refatoração
+
+**Decisão:**
+Criado `src/lib/mode.js` como único ponto do projeto que lê `import.meta.env.VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. O módulo exporta `isSupabaseMode()`, `getMode()`, `MODE` (enum), `supabaseUrl` e `supabaseAnonKey`. Todos os outros módulos que precisam detectar o modo de execução importam `isSupabaseMode()` de `mode.js` em vez de acessar a variável de ambiente diretamente. O export `supabaseEnabled` foi removido de `supabase.js`.
+
+**Motivação:**
+Verificações de `supabaseEnabled` (derivada de `VITE_SUPABASE_URL`) estavam espalhadas em 6 arquivos (`AppProvider`, `Root`, `MarketingApp`, `SyncBadge`, `dataService`, `supabase`). Qualquer mudança na lógica de detecção de modo exigia rastrear múltiplos arquivos. Centralizar em `mode.js` cria um contrato explícito: apenas esse módulo conhece a variável de ambiente.
+
+**Alternativas Avaliadas:**
+- Manter `supabaseEnabled` em `supabase.js` como ponto central (avaliada — `supabase.js` mistura inicialização do cliente com detecção de modo; separação é mais clara)
+- Usar constante booleana exportada de `mode.js` em vez de função (avaliada — função é mais testável e deixa explícito que é derivada de ambiente)
+
+**Impactos:**
+- Positivo: nenhum arquivo fora de `mode.js` acessa variável de ambiente de modo diretamente
+- Positivo: `supabase.js` reduzido a criação do cliente; responsabilidade de detecção separada
+- Positivo: `isSupabaseMode()` pode ser mockada em testes sem manipular `import.meta.env`
+- Positivo: sem dependência circular — `mode.js` não importa nenhum módulo do projeto
+- Negativo: chamadas adicionais de função onde antes havia acesso a variável (custo negligenciável)
+
+**Arquivos Afetados:**
+- `src/lib/mode.js` (criado — 22 linhas)
+- `src/lib/supabase.js` (removido acesso direto às env vars; importa de `mode.js`)
+- `src/lib/dataService.js` (5 ocorrências de `supabaseEnabled` → `isSupabaseMode()`)
+- `src/context/AppProvider.jsx` (6 ocorrências substituídas)
+- `src/apps/Root.jsx` (1 ocorrência substituída)
+- `src/apps/MarketingApp.jsx` (1 ocorrência substituída)
+- `src/components/SyncBadge.jsx` (1 ocorrência substituída)
+
+**Riscos:**
+- `isSupabaseMode()` é chamada múltiplas vezes por render; a função é pura e de custo O(1) — sem impacto
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

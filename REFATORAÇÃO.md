@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 17/18 etapas concluídas (94%)
+Progresso geral: 18/18 etapas concluídas (100%) ✅
 Arquivo principal: src/main.jsx — atual: ~35 linhas — meta: < 100 linhas ao fim ✅
 ```
 
@@ -175,6 +175,27 @@ Etapa 17 executada em 16/06/2026.
     corpo do componente; useMemo recebe referências das funções criadas pelas factories.
     Import de db e invalidarRanking removidos de AppProvider (delegados às factories).
   Build passou sem erros (106 módulos transformados).
+
+Etapa 18 executada em 16/06/2026.
+  Criado src/lib/mode.js: módulo puro de detecção de modo de execução. Exporta
+    isSupabaseMode(), getMode(), MODE (enum), supabaseUrl e supabaseAnonKey.
+    É o único arquivo do projeto que lê import.meta.env.VITE_SUPABASE_URL.
+  src/lib/supabase.js atualizado: removido acesso direto a import.meta.env.VITE_SUPABASE_URL
+    e VITE_SUPABASE_ANON_KEY; substituído por imports de mode.js (supabaseUrl, supabaseAnonKey,
+    isSupabaseMode). Export de supabaseEnabled removido — substituído por isSupabaseMode().
+  src/lib/dataService.js atualizado: import de supabaseEnabled removido; adicionado import de
+    isSupabaseMode de mode.js; todas as 5 ocorrências de supabaseEnabled substituídas.
+  src/context/AppProvider.jsx atualizado: import de supabaseEnabled substituído por
+    isSupabaseMode de mode.js; todas as 6 ocorrências substituídas.
+  src/apps/Root.jsx atualizado: import de supabaseEnabled substituído por isSupabaseMode
+    de mode.js; ocorrência na renderização condicional substituída.
+  src/apps/MarketingApp.jsx atualizado: import de supabaseEnabled substituído por
+    isSupabaseMode de mode.js; ocorrência na renderização condicional substituída.
+  src/components/SyncBadge.jsx atualizado: import de supabaseEnabled substituído por
+    isSupabaseMode de mode.js; ocorrência no guard de retorno substituída.
+  Sem dependência circular: mode.js não importa nenhum módulo do projeto.
+  Testes unitários: 93 passou | 0 falhou.
+  Build passou sem erros (107 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -206,7 +227,7 @@ Etapa 14 — App + Layout Shells       ✅ Concluída
 Etapa 15 — Domain Hooks              ✅ Concluída
 Etapa 16 — Infraestrutura            ✅ Concluída
 Etapa 17 — APIs por Domínio          ✅ Concluída
-Etapa 18 — Centralização Dual Mode   ⬜ Não iniciada
+Etapa 18 — Centralização Dual Mode   ✅ Concluída
 ```
 
 ---

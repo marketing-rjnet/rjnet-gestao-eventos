@@ -74,7 +74,8 @@ src/
 │   ├── csv.js            # exportLeadsCSV (etapa 3)
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
-    ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
+    ├── mode.js           # isSupabaseMode(), getMode(), MODE — único leitor de VITE_SUPABASE_URL (etapa 18)
+    ├── supabase.js       # Inicialização do cliente Supabase (usa mode.js; não lê env diretamente)
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
@@ -175,6 +176,12 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - Hook `usePersisted()` sincroniza estado com localStorage/sessionStorage
 - Atualizações otimistas: UI muda imediatamente, sync com DB é assíncrono
 
+### Detecção de Modo (`src/lib/mode.js`)
+
+- Único módulo que lê `import.meta.env.VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
+- Exporta `isSupabaseMode()` — todos os outros módulos usam essa função para detecção de modo
+- `supabase.js` importa `supabaseUrl`/`supabaseAnonKey` de `mode.js` para inicializar o cliente
+
 ### Camada de Dados (`src/lib/dataService.js`)
 
 - Mapeamento automático camelCase ↔ snake_case
@@ -265,6 +272,7 @@ node tests/lead.unit.test.js       # validação de leads
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
 | `src/main.jsx` | ~35 | ErrorBoundary + ponto de entrada React |
+| `src/lib/mode.js` | ~22 | Único leitor de VITE_SUPABASE_URL — isSupabaseMode(), getMode(), MODE (etapa 18) |
 | `src/api/eventoApi.js` | ~22 | Factory CRUD de eventos (etapa 17) |
 | `src/api/leadApi.js` | ~20 | Factory CRUD de leads (etapa 17) |
 | `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |

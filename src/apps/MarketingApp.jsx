@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabaseEnabled } from '../lib/supabase';
+import { isSupabaseMode } from '../lib/mode';
 import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';
 import { Dashboard, EventosTab, EventDetail } from '../features/events';
@@ -46,7 +46,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "estoque" && <EstoqueTab />}
       {tab === "leads" && <LeadsTab />}
-      {tab === "equipe" && (supabaseEnabled ? <EquipeAuthTab /> : <EquipeTab />)}
+      {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}
 
       {/* Bottom nav — mobile only */}
