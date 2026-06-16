@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.3] — Organização da documentação em `docs/`
+**Data:** 2026-06-16
+
+**O que mudou**
+- Diretório `docs/` criado; `CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md` e `SYSTEM_MAP.md` movidos para ele
+- `CLAUDE.md` permanece na raiz (convenção Claude Code)
+- `@docs/SYSTEM_MAP.md` adicionado ao `CLAUDE.md` — garante carregamento automático da arquitetura viva a cada sessão
+- Tabela de Documentação de Referência no `CLAUDE.md` atualizada com novos caminhos e coluna "Quando ler"
+- Decisão [D-028] registrada em `docs/DECISIONS.md`
+
+**Por que mudou**
+- Raiz com 6 `.md` soltos dificultava distinguir código de documentação
+- `@import` do `SYSTEM_MAP.md` garante contexto arquitetural completo em toda sessão sem depender de decisão do Claude
+
+**Impacto**
+- Sem impacto funcional no app
+- Novas docs especializadas entram em `docs/` sem poluir a raiz
+- Arquitetura viva carregada automaticamente a cada sessão Claude
+
+---
+
 ## [v1.2] — Multi-seleção de serviços e meta em 3 níveis
 **Data:** 2026-06-16
 
