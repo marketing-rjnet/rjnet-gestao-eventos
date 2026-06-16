@@ -408,7 +408,7 @@
 - `src/utils/csv.js`: parâmetro `onAudit` opcional — callback chamado após o download com `{ totalRegistros }` para desacoplar a lógica de auditoria da geração do arquivo
 - `src/features/leads/LeadsTab.jsx`: recebe `session` via prop; callback `onAudit` passado para `exportLeadsCSV` com `usuarioId`, `usuarioNome`, `usuarioEmail` e filtros aplicados (`evento`, `vendedor`, `servico`)
 - `src/apps/MarketingApp.jsx`: `<LeadsTab session={session} />` — prop adicionada
-- **Ação manual necessária:** executar `supabase/migracao-audit-exportacoes.sql` no Supabase Dashboard → SQL Editor
+- **Migração aplicada em produção em 2026-06-16:** tabela `audit_exportacoes`, policies RLS e índices criados com sucesso — "Success. No rows returned" ✅
 
 ---
 

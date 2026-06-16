@@ -17,8 +17,8 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Por que mudou**
 - PA-06 do Plano de Ação LGPD (NC A-01, L-08): exportações de dados pessoais sem rastreabilidade — impossibilidade de auditar quem baixou o quê e quando
 
-**Ação manual necessária**
-- Executar `supabase/migracao-audit-exportacoes.sql` no Supabase Dashboard → SQL Editor
+**Aplicado em produção**
+- `supabase/migracao-audit-exportacoes.sql` executado em 2026-06-16 — "Success. No rows returned" ✅
 
 **Conformidade**
 - NC A-01 e L-08 sanadas — todas as exportações CSV passam a ser registradas com usuário, filtros e total de registros

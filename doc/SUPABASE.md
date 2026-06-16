@@ -165,7 +165,7 @@ WHERE schemaname = 'public'
 | 3 | `supabase/protecao-dados.sql` | ✅ Obrigatório | Soft delete em leads |
 | — | `supabase/verificar-migracao-auth.sql` | ✅ Disponível (PA-02) | Script de verificação — confirma que as 3 migrações acima foram aplicadas |
 | 4 | `supabase/migracao-consentimento.sql` | ✅ Aplicado em produção (PA-04) | 3 colunas de consentimento LGPD em `leads` — confirmado 2026-06-16 |
-| 5 | `supabase/migracao-audit-exportacoes.sql` | ⚠️ Pendente execução em produção (PA-06) | Tabela `audit_exportacoes` — log de exportações CSV de dados pessoais |
+| 5 | `supabase/migracao-audit-exportacoes.sql` | ✅ Aplicado em produção (PA-06) | Tabela `audit_exportacoes` — log de exportações CSV de dados pessoais — confirmado 2026-06-16 |
 | 6 | `supabase/migracao-soft-delete-audit.sql` | 🔴 Planejado (PA-07) | Rastreabilidade de soft delete |
 | 7 | `supabase/migracao-audit-log.sql` | 🔴 Planejado (PA-13) | Tabela de auditoria de operações |
 | 8 | `supabase/migracao-retencao.sql` | 🔴 Planejado (PA-10) | Política de retenção automática |
