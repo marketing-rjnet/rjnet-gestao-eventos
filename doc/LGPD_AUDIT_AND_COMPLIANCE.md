@@ -1198,7 +1198,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
   - `src/lib/dataService.js`: `leadFromDb`/`leadToDb` mapeiam os novos campos; `versao_termo` preenchida automaticamente como `v1.0` quando consentimento marcado
   - `src/apps/VendedorApp.jsx`: checkbox obrigatório "Consentimento LGPD" adicionado antes do submit; envio bloqueado com mensagem de erro se não marcado
   - Decisão D-033: Opção A (ficha física) escolhida por praticidade operacional em eventos de campo
-  - **Ação manual:** executar `supabase/migracao-consentimento.sql` no Supabase Dashboard
+  - **Migração aplicada em produção:** 3 colunas confirmadas via query — `consentimento_coletado` boolean NOT NULL default false ✅, `consentimento_em` timestamptz ✅, `versao_termo` text ✅
 
 - **[2026-06-16] PA-03 + PA-09 — CORS restrito e stack trace removido da Edge Function (S-04, S-05)**
   - `supabase/functions/atualizar-email-usuario/index.ts` reescrito: `corsHeaders` global substituído por `getCorsHeaders(req)` por-requisição; origens lidas do secret `CORS_ALLOWED_ORIGINS` (Supabase Dashboard → Settings → Edge Functions → Secrets); reflete a origem do solicitante apenas se estiver na lista; nunca retorna `Access-Control-Allow-Origin: *`

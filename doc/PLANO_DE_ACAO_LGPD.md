@@ -291,7 +291,7 @@
 - `supabase/migracao-consentimento.sql`: migração idempotente com `ADD COLUMN IF NOT EXISTS` para `consentimento_coletado` (bool, default false), `consentimento_em` (timestamptz) e `versao_termo` (text); índice de auditoria criado
 - `src/lib/dataService.js`: `leadFromDb` expõe `consentimentoColetado`, `consentimentoEm`, `versaoTermo`; `leadToDb` persiste `consentimento_em` e `versao_termo` automaticamente quando `consentimentoColetado = true`
 - `src/apps/VendedorApp.jsx`: checkbox obrigatório adicionado antes do botão de submit; validação bloqueia envio com mensagem de erro se não marcado; `FORM_VAZIO` inicializa `consentimentoColetado: false`
-- **Ação manual necessária:** executar `supabase/migracao-consentimento.sql` no SQL Editor do Supabase Dashboard
+- **Migração aplicada em produção em 2026-06-16:** colunas `consentimento_coletado` (boolean, default false, NOT NULL), `consentimento_em` (timestamptz, nullable), `versao_termo` (text, nullable) confirmadas via query de verificação — 3 linhas retornadas ✅
 
 ---
 
