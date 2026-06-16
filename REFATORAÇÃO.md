@@ -22,7 +22,7 @@ Refatorar progressivamente o `src/main.jsx` (~2.354 linhas) sem alterar comporta
 ## STATUS DA REFATORAÇÃO
 
 ```
-Progresso geral: 16/18 etapas concluídas (89%)
+Progresso geral: 17/18 etapas concluídas (94%)
 Arquivo principal: src/main.jsx — atual: ~35 linhas — meta: < 100 linhas ao fim ✅
 ```
 
@@ -164,6 +164,17 @@ Etapa 16 executada em 15/06/2026.
   src/hooks/useApp.js atualizado: import de AppContext corrigido de ../main para ../context/AppContext
     (elimina o último import circular com main.jsx).
   Build passou sem erros (102 módulos transformados).
+
+Etapa 17 executada em 16/06/2026.
+  Criado src/api/eventoApi.js: factory createEventoApi — patchEvento, addEvento, updateEvento, removeEvento.
+  Criado src/api/leadApi.js: factory createLeadApi — addLead, updateLead, removeLead (com invalidarRanking).
+  Criado src/api/materialApi.js: factory createMaterialApi — addMaterial, updateMaterial,
+    addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento (recebe patchEvento como dep).
+  Criado src/api/vendedorApi.js: factory createVendedorApi — addVendedor, updateVendedor, toggleVendedor.
+  src/context/AppProvider.jsx atualizado: implementações CRUD inline removidas; factories chamadas no
+    corpo do componente; useMemo recebe referências das funções criadas pelas factories.
+    Import de db e invalidarRanking removidos de AppProvider (delegados às factories).
+  Build passou sem erros (106 módulos transformados).
 ```
 
 ### Legenda de Status
@@ -194,7 +205,7 @@ Etapa 13 — VendedorApp               ✅ Concluída
 Etapa 14 — App + Layout Shells       ✅ Concluída
 Etapa 15 — Domain Hooks              ✅ Concluída
 Etapa 16 — Infraestrutura            ✅ Concluída
-Etapa 17 — APIs por Domínio          ⬜ Não iniciada
+Etapa 17 — APIs por Domínio          ✅ Concluída
 Etapa 18 — Centralização Dual Mode   ⬜ Não iniciada
 ```
 
@@ -1505,14 +1516,14 @@ src/
 
 ## Próxima Etapa Recomendada
 
-**→ Etapa 17 — APIs por Domínio** (próxima etapa não concluída)
+**→ Etapa 18 — Centralização Dual Mode** (próxima etapa não concluída)
 
 **Resumo do que fazer:**
 
-1. Criar `src/api/eventoApi.js` com CRUD de eventos.
-2. Criar `src/api/leadApi.js` com CRUD de leads.
-3. Criar `src/api/materialApi.js` com CRUD de materiais.
-4. Criar `src/api/vendedorApi.js` com CRUD de vendedores.
-5. Atualizar `src/context/AppProvider.jsx` para importar e usar os módulos de API.
-6. Executar build e verificar sem erros.
-7. Commit: `refactor: extract domain API modules to src/api/`.
+1. Criar `src/lib/mode.js` com helpers `isSupabaseMode()`, `getMode()`, constante `MODE`.
+2. Substituir verificações `import.meta.env.VITE_SUPABASE_URL` por `isSupabaseMode()` em:
+   - `src/context/AppProvider.jsx`
+   - `src/apps/Root.jsx`
+   - `src/lib/dataService.js`
+3. Executar build e verificar sem erros nos dois modos.
+4. Commit: `refactor: centralize dual-mode detection in src/lib/mode.js`.

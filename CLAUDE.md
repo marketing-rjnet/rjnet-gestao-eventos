@@ -12,15 +12,20 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
-> **Refatoração em andamento** — etapas 1–16 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+> **Refatoração em andamento** — etapas 1–17 de 18 concluídas. Ver `REFATORAÇÃO.md`.
 
 ```
 src/
 ├── main.jsx              # Ponto de entrada (~35 linhas) — ErrorBoundary + ReactDOM.createRoot
 ├── index.css             # Estilos globais (tema dark)
+├── api/
+│   ├── eventoApi.js      # Factory createEventoApi — CRUD de eventos (etapa 17)
+│   ├── leadApi.js        # Factory createLeadApi — CRUD de leads (etapa 17)
+│   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
+│   └── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
-│   ├── AppProvider.jsx   # Provider com estado global e ações de domínio (etapa 16)
+│   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
 │   └── index.js          # Re-exports de context (etapa 16)
 ├── apps/
 │   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
@@ -259,7 +264,12 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~220 | AppContext, AppProvider, ErrorBoundary + ponto de entrada React (refatoração em andamento) |
+| `src/main.jsx` | ~35 | ErrorBoundary + ponto de entrada React |
+| `src/api/eventoApi.js` | ~22 | Factory CRUD de eventos (etapa 17) |
+| `src/api/leadApi.js` | ~20 | Factory CRUD de leads (etapa 17) |
+| `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |
+| `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
+| `src/context/AppProvider.jsx` | ~100 | Provider: orquestra estado, efeitos e factories de API (etapas 16–17) |
 | `src/apps/VendedorApp.jsx` | ~345 | Shell completo do vendedor + LeadEditInline (etapa 13) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
