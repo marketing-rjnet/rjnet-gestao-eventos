@@ -16,8 +16,8 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Por que mudou**
 - CPF é necessário para o fluxo de negócio (agendamento de visita técnica e assinatura de contrato). A NC original (L-03) era sobre coleta sem finalidade declarada — resolvida com a label de finalidade no campo. Check-in permanece por nome (sem uso de CPF), eliminando o conflito original.
 
-**Ação manual necessária**
-- Executar `supabase/migracao-readd-cpf.sql` no Supabase Dashboard → SQL Editor
+**Aplicado em produção**
+- `supabase/migracao-readd-cpf.sql` executado em 2026-06-16 — "Success. No rows returned" ✅
 
 ---
 
