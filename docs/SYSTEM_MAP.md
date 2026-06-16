@@ -39,9 +39,10 @@ Padrão **factory function** — cada domínio tem uma factory que recebe estado
 | Factory | Operações |
 |---|---|
 | `createEventoApi` | `addEvento`, `updateEvento`, `removeEvento`, `patchEvento` |
-| `createLeadApi` | `addLead`, `updateLead`, `removeLead` |
+| `createLeadApi` | `addLead`, `updateLead`, `removeLead`, `obterRanking` |
 | `createMaterialApi` | `addMaterial`, `updateMaterial`, `addMaterialEvento`, `removeMaterialEvento`, `toggleRetornadoEvento` |
 | `createVendedorApi` | `addVendedor`, `updateVendedor`, `toggleVendedor` |
+| `createEquipeApi` | `criarUsuario`, `atualizarPerfil`, `excluirUsuario` |
 
 As factories são instanciadas dentro do `AppProvider` e expostas via contexto. **Nenhum componente acessa o banco diretamente.**
 
@@ -56,19 +57,21 @@ As factories são instanciadas dentro do `AppProvider` e expostas via contexto. 
 - **Cache em memória** (`src/lib/cache.js`) com TTL de 30 s para resultados de `rankingEvento`
 - Subscriptions realtime via canais Supabase com debounce de 400 ms
 
-### Detecção de Modo (`src/lib/supabase.js`)
+### Detecção de Modo (`src/lib/supabase.js` + `src/lib/mode.js`)
 
-> **`src/lib/mode.js` não existe.** A detecção de modo é feita por `supabaseEnabled` exportado de `src/lib/supabase.js`.
+`src/lib/supabase.js` inicializa o cliente e exporta `supabaseEnabled`:
 
 ```js
 export const supabase = url && anonKey ? createClient(...) : null;
 export const supabaseEnabled = Boolean(supabase);
 ```
 
-- `supabaseEnabled === true` → modo Supabase (auth, realtime, RLS)
-- `supabaseEnabled === false` → modo local (localStorage, mock data)
+`src/lib/mode.js` exporta `isSupabaseMode()` e `getMode()` como abstração sobre `supabaseEnabled`. Todos os módulos que precisam detectar o modo ativo **devem importar `isSupabaseMode` de `./mode`**, nunca `supabaseEnabled` diretamente de `./supabase`.
 
-O tema dark/light é gerenciado em `Root.jsx` via `localStorage("rjnet-theme")`, não via `mode.js`.
+- `isSupabaseMode() === true` → modo Supabase (auth, realtime, RLS)
+- `isSupabaseMode() === false` → modo local (localStorage, mock data)
+
+O tema dark/light é gerenciado em `Root.jsx` via `localStorage("rjnet-theme")`.
 
 ---
 
@@ -80,9 +83,10 @@ src/
 ├── index.css                   # Estilos globais (tema dark/light via CSS variables)
 ├── api/
 │   ├── eventoApi.js            # Factory CRUD de eventos
-│   ├── leadApi.js              # Factory CRUD de leads
+│   ├── leadApi.js              # Factory CRUD de leads + obterRanking
 │   ├── materialApi.js          # Factory CRUD de materiais
-│   └── vendedorApi.js          # Factory CRUD de vendedores
+│   ├── vendedorApi.js          # Factory CRUD de vendedores (modo local)
+│   └── equipeApi.js            # Factory de gestão de usuários Auth (modo Supabase)
 ├── context/
 │   ├── AppContext.js           # createContext(null)
 │   ├── AppProvider.jsx         # Provider: estado + efeitos + factories
@@ -132,6 +136,7 @@ src/
 │   ├── format.js               # fmtDate, fmtDateLong, initials, label maps
 │   ├── masks.js                # maskCpf, maskTel, validarCpf, validarTelefone
 │   ├── csv.js                  # exportLeadsCSV
+│   ├── ids.js                  # genId(prefix) — gerador de IDs temporários para modo local
 │   └── mockData.js             # MOCK_* para modo local
 └── lib/
     ├── supabase.js             # Cliente Supabase + supabaseEnabled (feature flag de modo)

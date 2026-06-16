@@ -1,6 +1,7 @@
 import { db } from '../lib/dataService';
+import { genId } from '../utils/ids';
 
-export function createVendedorApi({ vendedores, setVendedores, genId }) {
+export function createVendedorApi({ vendedores, setVendedores }) {
   return {
     addVendedor: (nome) => {
       const novo = { id: genId('v'), nome, ativo: true };

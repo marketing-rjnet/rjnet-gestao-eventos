@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { auth } from '../../lib/dataService';
-import { sanitizeText } from '../../lib/security';
 import { initials } from '../../utils/format';
 
 export default function EquipeAuthTab() {
-  const { vendedores: perfis, leads, recarregar } = useApp();
+  const { vendedores: perfis, leads, criarUsuario, atualizarPerfil, excluirUsuario } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "vendedor" });
   const [erro, setErro] = useState("");
@@ -15,19 +13,13 @@ export default function EquipeAuthTab() {
 
   const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor" };
 
-  const toSlug = (nome) =>
-    nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/\s+/g, ".").replace(/[^a-z0-9.]/g, "");
-
   const submit = async (e) => {
     e.preventDefault();
     setErro("");
     if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
-    const emailFinal = f.email.trim() || `${toSlug(f.nome)}@vendedor.rjnet.com.br`;
     setSalvando(true);
     try {
-      await auth.criarUsuario({ nome: sanitizeText(f.nome, 80), email: emailFinal, senha: f.senha, papel: f.papel });
-      await recarregar();
+      await criarUsuario({ nome: f.nome, email: f.email, senha: f.senha, papel: f.papel });
       setF({ nome: "", email: "", senha: "", papel: "vendedor" });
       setShowForm(false);
     } catch (ex) {
@@ -40,8 +32,7 @@ export default function EquipeAuthTab() {
   const salvarEdicao = async (e) => {
     e.preventDefault();
     try {
-      await auth.atualizarPerfil(editando.id, { nome: sanitizeText(editando.nome, 80), email: editando.email.trim() });
-      await recarregar();
+      await atualizarPerfil(editando.id, { nome: editando.nome, email: editando.email.trim() });
       setEditando(null);
     } catch (ex) {
       alert("Falha ao salvar: " + ex.message);
@@ -50,18 +41,18 @@ export default function EquipeAuthTab() {
 
   const toggleAtivo = async (p) => {
     if (p.ativo && !confirm(`Desativar o acesso de ${p.nome}?`)) return;
-    try { await auth.atualizarPerfil(p.id, { ativo: !p.ativo }); await recarregar(); }
+    try { await atualizarPerfil(p.id, { ativo: !p.ativo }); }
     catch (ex) { alert("Falha ao atualizar: " + ex.message); }
   };
 
   const mudarPapel = async (p, papel) => {
-    try { await auth.atualizarPerfil(p.id, { papel }); await recarregar(); }
+    try { await atualizarPerfil(p.id, { papel }); }
     catch (ex) { alert("Falha ao atualizar: " + ex.message); }
   };
 
   const excluir = async (p) => {
     if (!confirm(`Excluir ${p.nome} permanentemente? Esta ação não pode ser desfeita.`)) return;
-    try { await auth.excluirUsuario(p.id); await recarregar(); }
+    try { await excluirUsuario(p.id); }
     catch (ex) { alert("Falha ao excluir: " + ex.message); }
   };
 

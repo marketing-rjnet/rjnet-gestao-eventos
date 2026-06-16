@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, subscribeChanges, auth, rankingEvento, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -9,6 +9,7 @@ import { createEventoApi } from '../api/eventoApi';
 import { createLeadApi } from '../api/leadApi';
 import { createMaterialApi } from '../api/materialApi';
 import { createVendedorApi } from '../api/vendedorApi';
+import { createEquipeApi } from '../api/equipeApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -61,33 +62,20 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  const genId = (prefix) => prefix + Date.now() + Math.random().toString(36).slice(2, 7);
-
-  const obterRanking = async (eventoId) => {
-    if (isSupabaseMode()) {
-      const r = await rankingEvento(eventoId);
-      if (r) return r;
-    }
-    const mapa = {};
-    leads.filter((l) => l.eventoId === eventoId).forEach((l) => {
-      mapa[l.vendedorNome] = (mapa[l.vendedorNome] || 0) + 1;
-    });
-    return Object.entries(mapa)
-      .map(([nome, total]) => ({ nome, total }))
-      .sort((a, b) => b.total - a.total);
-  };
-
   const { patchEvento, addEvento, updateEvento, removeEvento } =
-    createEventoApi({ eventos, setEventos, genId });
+    createEventoApi({ eventos, setEventos });
 
-  const { addLead, updateLead, removeLead } =
-    createLeadApi({ leads, setLeads, genId });
+  const { addLead, updateLead, removeLead, obterRanking } =
+    createLeadApi({ leads, setLeads });
 
   const { addMaterial, updateMaterial, addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento } =
-    createMaterialApi({ materiais, setMateriais, eventos, patchEvento, genId });
+    createMaterialApi({ materiais, setMateriais, eventos, patchEvento });
 
   const { addVendedor, updateVendedor, toggleVendedor } =
-    createVendedorApi({ vendedores, setVendedores, genId });
+    createVendedorApi({ vendedores, setVendedores });
+
+  const { criarUsuario, atualizarPerfil, excluirUsuario } =
+    createEquipeApi({ recarregar: carregar });
 
   const value = useMemo(() => ({
     materiais, eventos, leads, vendedores,
@@ -97,6 +85,7 @@ export function AppProvider({ children }) {
     addMaterial, updateMaterial,
     addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento,
     addVendedor, updateVendedor, toggleVendedor,
+    criarUsuario, atualizarPerfil, excluirUsuario,
     obterRanking,
     recarregar: carregar,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),

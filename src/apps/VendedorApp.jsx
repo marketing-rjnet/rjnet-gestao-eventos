@@ -162,9 +162,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     if (!nome) { setFormErro("Nome é obrigatório."); return; }
     if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
     if (!f.servicoInteresse.length) { setFormErro("Selecione ao menos um serviço de interesse."); return; }
-    const novoId = "l" + Date.now() + Math.random().toString(36).slice(2,7);
-    addLead({
-      id: novoId,
+    const novo = addLead({
       ...f,
       nome,
       cpf: sanitizeText(f.cpf, 14),
@@ -175,14 +173,20 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       vendedorId: session.userId || null,
     });
     if (typeof navigator.vibrate === "function") navigator.vibrate(80);
-    showToast(novoId, nome);
+    showToast(novo.id, nome);
     setF(FORM_VAZIO);
   };
 
   const addObs = (txt) => set("observacao", f.observacao ? f.observacao + ". " + txt : txt);
 
   const salvarEdicao = (id, dados) => {
-    updateLead(id, dados);
+    updateLead(id, {
+      ...dados,
+      nome:       sanitizeText(dados.nome, 120),
+      cpf:        sanitizeText(dados.cpf || "", 14),
+      endereco:   sanitizeText(dados.endereco || "", 200),
+      observacao: sanitizeText(dados.observacao || "", 500),
+    });
     setEditandoId(null);
   };
 

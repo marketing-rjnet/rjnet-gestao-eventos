@@ -1,6 +1,7 @@
 import { db } from '../lib/dataService';
+import { genId } from '../utils/ids';
 
-export function createEventoApi({ eventos, setEventos, genId }) {
+export function createEventoApi({ eventos, setEventos }) {
   const patchEvento = (id, patch) => {
     const atual = eventos.find((e) => e.id === id);
     setEventos((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));

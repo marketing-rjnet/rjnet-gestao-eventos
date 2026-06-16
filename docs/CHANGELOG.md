@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.5] — Correções arquiteturais pós-auditoria (D-030)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **C-1 (segurança):** `salvarEdicao` em `VendedorApp.jsx` agora sanitiza `nome`, `cpf`, `endereco` e `observacao` via `sanitizeText()` antes de chamar `updateLead` — eliminando vetor de XSS armazenado no fluxo de edição de lead
+- **C-6 (documentação):** `docs/SYSTEM_MAP.md` corrigido — seção "Detecção de Modo" agora descreve corretamente que `src/lib/mode.js` existe e que `isSupabaseMode()` é a abstração obrigatória
+- **C-5 (refatoração):** `genId` extraído do `AppProvider` para `src/utils/ids.js`; as 4 factories de API importam diretamente de `utils/ids` e deixam de receber `genId` como parâmetro
+- **C-3 (refatoração):** `obterRanking` movida do `AppProvider` para `createLeadApi` em `src/api/leadApi.js`; o Provider apenas desestrutura e expõe via contexto
+- **C-4 (refatoração):** `createLeadApi.addLead` retorna o objeto criado com o ID canônico; `VendedorApp.submit` removeu a pré-geração local de ID e usa o retorno da factory
+- **C-2 (arquitetural):** novo `src/api/equipeApi.js` com `createEquipeApi` expondo `criarUsuario`, `atualizarPerfil` e `excluirUsuario`; `EquipeAuthTab` removeu import direto de `dataService` e consome via `useApp()`
+
+**Por que mudou**
+- Auditoria pós-refatoração identificou 6 desvios remanescentes, documentados em `docs/ARCHITECTURE_FIX_PLAN.md`
+
+**Impacto**
+- Nenhum componente de feature (`src/features/`) ou app (`src/apps/`) acessa `src/lib/dataService` diretamente
+- Todos os caminhos de escrita de lead (criação e edição) aplicam sanitização
+- `AppProvider` é orquestrador puro sem lógica de domínio
+
+---
+
 ## [v1.4] — Sim/Não para "já é cliente" e exclusão de lead pelo vendedor
 **Data:** 2026-06-16
 

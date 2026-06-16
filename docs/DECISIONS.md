@@ -1040,6 +1040,62 @@ O campo "Já é cliente RJNet?" foi migrado de checkbox para controle segmentado
 
 ---
 
+### [D-030] — Correções arquiteturais pós-auditoria (ARCHITECTURE_FIX_PLAN)
+
+**Data:** 16/06/2026
+
+**Tipo:** Refatoração / Segurança
+
+**Decisão:**
+Execução integral do `docs/ARCHITECTURE_FIX_PLAN.md` — 6 correções aplicadas para eliminar desvios identificados na auditoria pós-refatoração de 18 etapas.
+
+**C-1 — Sanitização no fluxo de edição de lead (`src/apps/VendedorApp.jsx`)**
+A função `salvarEdicao` passou a chamar `sanitizeText()` nos campos de texto livres (`nome`, `cpf`, `endereco`, `observacao`) antes de repassar para `updateLead`, espelhando o padrão do `submit` de criação. Eliminado vetor de XSS armazenado (D-005).
+
+**C-6 — Correção do `SYSTEM_MAP.md` sobre `mode.js`**
+Removida a nota incorreta que afirmava que `src/lib/mode.js` não existe. O documento agora descreve corretamente que `mode.js` exporta `isSupabaseMode()` e `getMode()` como abstração obrigatória sobre `supabaseEnabled`.
+
+**C-5 — `genId` extraído para `src/utils/ids.js`**
+A função pura `genId(prefix)` foi movida do `AppProvider` para `src/utils/ids.js` (D-010). As 4 factories (`eventoApi`, `leadApi`, `materialApi`, `vendedorApi`) passaram a importar diretamente de `utils/ids`. O `AppProvider` não define nem injeta mais `genId`.
+
+**C-3 — `obterRanking` movida para `createLeadApi`**
+A função de agregação de ranking foi extraída do `AppProvider` para `src/api/leadApi.js`, que já é o módulo centralizador do domínio de leads. O `AppProvider` agora apenas desestrutura `obterRanking` da factory e a expõe via contexto.
+
+**C-4 — `addLead` retorna o objeto criado**
+`createLeadApi.addLead` passou a retornar o objeto `novo` com o ID canônico. `VendedorApp.submit` removeu a pré-geração local de ID e usa o ID retornado pela factory para o toast de confirmação. A geração de ID é responsabilidade exclusiva da camada de API.
+
+**C-2 — `createEquipeApi` e refatoração de `EquipeAuthTab`**
+Criado `src/api/equipeApi.js` com factory `createEquipeApi({ recarregar })` expondo `criarUsuario`, `atualizarPerfil` e `excluirUsuario`. A factory importa `auth` de `dataService` e move para si a lógica de `toSlug` e sanitização de nome. O `AppProvider` instancia a factory e expõe as três operações via contexto. `EquipeAuthTab` removeu o import direto de `dataService` e passou a consumir exclusivamente via `useApp()`.
+
+**Motivação:**
+Eliminar os 6 desvios arquiteturais identificados na auditoria, garantindo que nenhum componente de feature acesse `dataService` diretamente e que todos os caminhos de escrita apliquem sanitização.
+
+**Alternativas Avaliadas:**
+- Manter desvios e documentar exceções (descartada — viola contratos explícitos em D-005, D-010, D-024 e SYSTEM_MAP §7/§9)
+
+**Impactos:**
+- Positivo: camada de UI completamente desacoplada de `dataService`
+- Positivo: `AppProvider` é orquestrador puro, sem lógica de domínio
+- Positivo: `createLeadApi` centraliza todo o domínio de leads (CRUD + ranking)
+- Positivo: sanitização sem exceções em todos os caminhos de escrita de lead
+
+**Arquivos Afetados:**
+- `src/apps/VendedorApp.jsx` (C-1, C-4)
+- `docs/SYSTEM_MAP.md` (C-6)
+- `src/utils/ids.js` (novo — C-5)
+- `src/api/eventoApi.js`, `leadApi.js`, `materialApi.js`, `vendedorApi.js` (C-5)
+- `src/api/leadApi.js` (C-3, C-4)
+- `src/api/equipeApi.js` (novo — C-2)
+- `src/context/AppProvider.jsx` (C-2, C-3, C-4, C-5)
+- `src/features/team/EquipeAuthTab.jsx` (C-2)
+
+**Riscos:**
+- Baixo: mudanças de comportamento visível são nulas; a geração de ID e os resultados de ranking são idênticos ao código anterior
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

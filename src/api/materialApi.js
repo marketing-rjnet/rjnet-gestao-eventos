@@ -1,6 +1,7 @@
 import { db } from '../lib/dataService';
+import { genId } from '../utils/ids';
 
-export function createMaterialApi({ materiais, setMateriais, eventos, patchEvento, genId }) {
+export function createMaterialApi({ materiais, setMateriais, eventos, patchEvento }) {
   return {
     addMaterial: (m) => {
       const novo = { ...m, id: genId('m') };
