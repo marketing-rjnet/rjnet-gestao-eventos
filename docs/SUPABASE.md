@@ -108,3 +108,44 @@ todas as policies exigem usuário autenticado e ativo, e o que cada um vê/edita
 fica com perfil inativo até o marketing ativar.
 
 Nunca use a **service_role key** no front-end.
+
+---
+
+## Checklist de segurança pré-produção
+
+Execute este checklist antes de qualquer go-live ou atualização relevante:
+
+- [ ] `supabase/schema.sql` aplicado
+- [ ] `supabase/migracao-auth.sql` aplicado (remove acesso anônimo)
+- [ ] `supabase/protecao-dados.sql` aplicado (soft delete)
+- [ ] Nenhuma policy `to anon` ativa (verificar com a query abaixo)
+- [ ] Primeiro usuário marketing criado e ativado
+- [ ] Variáveis `VITE_MARKETING_USER` e `VITE_MARKETING_PASS` **não definidas** em produção
+- [ ] MFA habilitado no Dashboard para usuários marketing (PA-12 — planejado)
+
+**Query de verificação de policies anônimas:**
+```sql
+SELECT tablename, policyname, roles
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND roles @> ARRAY['anon'];
+-- Resultado esperado em produção: zero linhas
+```
+
+---
+
+## Migrações SQL — Ordem obrigatória de aplicação
+
+| Ordem | Arquivo | Status | Descrição |
+|-------|---------|--------|-----------|
+| 1 | `supabase/schema.sql` | ✅ Obrigatório | Schema base, tabelas, seed |
+| 2 | `supabase/migracao-auth.sql` | ✅ Obrigatório | Auth, perfis, RLS por papel |
+| 3 | `supabase/protecao-dados.sql` | ✅ Obrigatório | Soft delete em leads |
+| 4 | `supabase/migracao-consentimento.sql` | 🔴 Planejado (PA-04) | Campo de consentimento LGPD |
+| 5 | `supabase/migracao-soft-delete-audit.sql` | 🔴 Planejado (PA-07) | Rastreabilidade de soft delete |
+| 6 | `supabase/migracao-audit-exportacoes.sql` | 🔴 Planejado (PA-06) | Log de exportações CSV |
+| 7 | `supabase/migracao-audit-log.sql` | 🔴 Planejado (PA-13) | Tabela de auditoria de operações |
+| 8 | `supabase/migracao-retencao.sql` | 🔴 Planejado (PA-10) | Política de retenção automática |
+
+> Auditorias e conformidade completa: `docs/LGPD_AUDIT_AND_COMPLIANCE.md`  
+> Plano de ação LGPD: `docs/PLANO_DE_ACAO_LGPD.md`

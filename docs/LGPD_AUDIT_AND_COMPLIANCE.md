@@ -1061,8 +1061,157 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ---
 
+---
+
+## 12. FASES DE IMPLEMENTAÇÃO DO PLANO DE CONFORMIDADE
+
+> O plano de ação executável completo está em `docs/PLANO_DE_ACAO_LGPD.md`.  
+> Esta seção registra o progresso das correções e o que foi efetivamente implementado.
+
+---
+
+### 12.1 Visão geral das fases
+
+| Fase | Período | Foco | Ações |
+|------|---------|------|-------|
+| **Fase 1** | 0–7 dias | Bloqueadores críticos de segurança | PA-01, PA-02, PA-03 |
+| **Fase 2** | 7–30 dias | Correções técnicas de privacidade e rastreabilidade | PA-04 a PA-09 |
+| **Fase 3** | 30–90 dias | Conformidade estrutural: auditoria, retenção, RBAC, DPA | PA-10 a PA-15 |
+| **Fase 4** | 90+ dias | Governança, documentação legal, maturidade | PA-16 a PA-21 |
+
+---
+
+### 12.2 Fase 1 — Bloqueadores críticos (0–7 dias)
+
+**Status:** 🔴 Em aberto
+
+| ID | Ação | NC Sanada | Status | Data | Evidência |
+|----|------|-----------|--------|------|-----------|
+| PA-01 | Remover senha de marketing do bundle JS | S-01 | 🔴 | — | — |
+| PA-02 | Confirmar `migracao-auth.sql` em produção | BD-01, SB-01 | 🔴 | — | — |
+| PA-03 | Restringir CORS da Edge Function | S-04, S-05 | 🔴 | — | — |
+
+**Artefatos a criar/modificar nesta fase:**
+
+| Artefato | Tipo | PA | Status |
+|---------|------|----|--------|
+| `src/auth/RootLegacy.jsx` | Código | PA-01 | 🔴 |
+| `supabase/functions/atualizar-email-usuario/index.ts` | Código | PA-03 | 🔴 |
+| `docs/DECISIONS.md` | Decisão técnica | PA-01 | 🔴 |
+| `docs/CHANGELOG.md` | Histórico | PA-01, PA-03 | 🔴 |
+
+---
+
+### 12.3 Fase 2 — Privacidade e rastreabilidade (7–30 dias)
+
+**Status:** 🔴 Em aberto
+
+| ID | Ação | NC Sanada | Status | Data | Evidência |
+|----|------|-----------|--------|------|-----------|
+| PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🔴 | — | — |
+| PA-05 | Criptografar fila offline localStorage | S-02 | 🔴 | — | — |
+| PA-06 | Log de exportações CSV | A-01, L-08 | 🔴 | — | — |
+| PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🔴 | — | — |
+| PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🔴 | — | — |
+| PA-09 | Corrigir stack trace na Edge Function | S-05 | 🔴 | — | — |
+
+**Artefatos a criar/modificar nesta fase:**
+
+| Artefato | Tipo | PA | Status |
+|---------|------|----|--------|
+| `supabase/migracao-consentimento.sql` | SQL | PA-04 | 🔴 |
+| `supabase/migracao-audit-exportacoes.sql` | SQL | PA-06 | 🔴 |
+| `supabase/migracao-soft-delete-audit.sql` | SQL | PA-07 | 🔴 |
+| `src/apps/VendedorApp.jsx` | Código | PA-04 | 🔴 |
+| `src/lib/dataService.js` | Código | PA-05, PA-06, PA-07 | 🔴 |
+| `src/lib/crypto.js` | Código (novo) | PA-05 | 🔴 |
+| `src/utils/csv.js` | Código | PA-06 | 🔴 |
+| `docs/SUPABASE.md` | Documentação | PA-06, PA-07 | 🔴 |
+| `docs/CHANGELOG.md` | Histórico | Todas | 🔴 |
+
+---
+
+### 12.4 Fase 3 — Conformidade estrutural (30–90 dias)
+
+**Status:** 🔴 Em aberto
+
+| ID | Ação | NC Sanada | Status | Data | Evidência |
+|----|------|-----------|--------|------|-----------|
+| PA-10 | Política de retenção com exclusão automática | L-04, BD-05, L-06 | 🔴 | — | — |
+| PA-11 | Restringir SELECT de leads para vendedores | RLS minimização | 🔴 | — | — |
+| PA-12 | Habilitar MFA para usuários marketing | S-03 | 🔴 | — | — |
+| PA-13 | Tabela de auditoria de operações em dados | A-02, A-04, A-05, BD-04 | 🔴 | — | — |
+| PA-14 | Assinar DPA com Supabase Inc. | L-07, I-01 | 🔴 | — | — |
+| PA-15 | Processo DSAR — direitos dos titulares | L-05 | 🔴 | — | — |
+
+**Artefatos a criar/modificar nesta fase:**
+
+| Artefato | Tipo | PA | Status |
+|---------|------|----|--------|
+| `supabase/migracao-audit-log.sql` | SQL | PA-13 | 🔴 |
+| `supabase/migracao-retencao.sql` | SQL | PA-10 | 🔴 |
+| `supabase/functions/limpar-dados-expirados/index.ts` | Edge Function (nova) | PA-10 | 🔴 |
+| `docs/POLITICA_RETENCAO.md` | Documento (novo) | PA-10 | 🔴 |
+| `docs/ROTEIRO_DSAR.md` | Documento (novo) | PA-15 | 🔴 |
+| `docs/DPA_FORNECEDORES.md` | Documento (novo) | PA-14 | 🔴 |
+| `docs/SUPABASE.md` | Atualização | PA-10, PA-11, PA-13 | 🔴 |
+| `docs/CHANGELOG.md` | Histórico | Todas | 🔴 |
+
+---
+
+### 12.5 Fase 4 — Governança e maturidade (90+ dias)
+
+**Status:** 🔴 Em aberto
+
+| ID | Ação | NC Sanada | Status | Data | Evidência |
+|----|------|-----------|--------|------|-----------|
+| PA-16 | Política de Privacidade | G-01, L-02 | 🔴 | — | — |
+| PA-17 | RIPD/DPIA | L-09 | 🔴 | — | — |
+| PA-18 | ROPA | L-10 | 🔴 | — | — |
+| PA-19 | Nomear DPO | L-11 | 🔴 | — | — |
+| PA-20 | Plano de Resposta a Incidentes | G-03 | 🔴 | — | — |
+| PA-21 | Avaliar campos excessivos | L-03 | 🔴 | — | — |
+
+**Artefatos a criar nesta fase:**
+
+| Artefato | Tipo | PA | Status |
+|---------|------|----|--------|
+| `docs/POLITICA_DE_PRIVACIDADE.md` | Documento (novo) | PA-16 | 🔴 |
+| `docs/RIPD.md` | Documento (novo) | PA-17 | 🔴 |
+| `docs/ROPA.md` | Documento (novo) | PA-18 | 🔴 |
+| `docs/PLANO_INCIDENTES.md` | Documento (novo) | PA-20 | 🔴 |
+
+---
+
+### 12.6 Histórico de implementações concluídas
+
+> Esta seção é atualizada à medida que as ações do plano são concluídas.  
+> Formato: `[DATA] PA-XX — Descrição — Evidência`
+
+_Nenhuma ação concluída até o momento._
+
+---
+
+### 12.7 Impacto esperado nas notas de conformidade após conclusão das fases
+
+| Área | Atual | Após Fase 1 | Após Fase 2 | Após Fase 3 | Após Fase 4 |
+|------|-------|------------|------------|------------|------------|
+| LGPD | 1,5 | 2,0 | 5,0 | 7,0 | 8,5 |
+| Segurança | 5,0 | 7,0 | 8,0 | 8,5 | 9,0 |
+| Governança | 1,0 | 1,0 | 2,0 | 4,0 | 8,0 |
+| Arquitetura | 7,5 | 7,5 | 8,5 | 9,0 | 9,0 |
+| Supabase | 5,5 | 7,0 | 8,0 | 8,5 | 9,0 |
+| Controle de Acesso | 6,0 | 6,0 | 6,0 | 8,5 | 8,5 |
+| Auditoria | 1,0 | 1,0 | 4,0 | 8,0 | 8,5 |
+| Integrações | 7,0 | 7,0 | 7,0 | 8,5 | 9,0 |
+| **GERAL** | **4,2** | **5,0** | **6,1** | **7,7** | **8,7** |
+
+---
+
 > **Este documento deve ser revisado a cada:** 6 meses ou após qualquer alteração estrutural no sistema, banco de dados ou processos de captação de dados.
 >
 > **Próxima revisão recomendada:** 2026-12-16
 >
 > **Responsável pela revisão:** DPO ou responsável técnico designado
+>
+> **Plano de ação executável:** `docs/PLANO_DE_ACAO_LGPD.md`

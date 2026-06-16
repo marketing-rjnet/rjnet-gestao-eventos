@@ -68,6 +68,52 @@ Riscos conhecidos.
 
 ---
 
+### [D-031] — Auditoria de LGPD, segurança e governança de dados
+
+**Data:** 2026-06-16
+
+**Tipo:** Segurança / Governança / Compliance
+
+**Decisão:**
+Realização de auditoria completa de LGPD, segurança da informação, governança de dados e arquitetura Supabase do sistema. Os resultados foram documentados em `docs/LGPD_AUDIT_AND_COMPLIANCE.md` como fonte oficial de conformidade. Um plano de ação executável com 21 itens foi criado em `docs/PLANO_DE_ACAO_LGPD.md`.
+
+**Motivação:**
+O sistema trata dados pessoais de cidadãos (titulares externos) capturados durante eventos comerciais, sem mecanismo de consentimento implementado. A auditoria foi necessária para identificar e priorizar as não conformidades com a LGPD (Lei 13.709/2018) e com as boas práticas de segurança da informação.
+
+**Principais não conformidades identificadas:**
+- Ausência total de consentimento LGPD para coleta de dados de leads (L-01)
+- Senha de marketing exposta no bundle JavaScript público via `VITE_MARKETING_PASS` (S-01)
+- Policies anônimas no `schema.sql` que concedem acesso total sem autenticação se `migracao-auth.sql` não estiver aplicado (BD-01)
+- CORS aberto na Edge Function administrativa (S-04)
+- Sem log de exportações CSV contendo dados pessoais (A-01)
+- Sem política de retenção de dados (L-04)
+- Transferência internacional de dados sem DPA com Supabase Inc. (L-07)
+
+**Nota geral de conformidade obtida:** 4,2 / 10
+
+**Plano de ação:** 21 ações organizadas em 4 fases (imediata, curto, médio e longo prazo). Ver `docs/PLANO_DE_ACAO_LGPD.md` para o plano completo com responsáveis, prazos e evidências.
+
+**Alternativas Avaliadas:**
+Correção pontual de itens críticos sem auditoria formal — descartada pois não garante visão completa dos riscos nem conformidade sistêmica.
+
+**Impactos:**
+- Cria a base documental obrigatória para eventual fiscalização pela ANPD
+- Define roteiro técnico claro para elevar a nota de conformidade de 4,2 para 8,7 (após Fase 4)
+- Incorpora `docs/LGPD_AUDIT_AND_COMPLIANCE.md` e `docs/PLANO_DE_ACAO_LGPD.md` como documentos obrigatórios de referência no `CLAUDE.md`
+
+**Arquivos afetados:**
+- `docs/LGPD_AUDIT_AND_COMPLIANCE.md` (criado)
+- `docs/PLANO_DE_ACAO_LGPD.md` (criado)
+- `CLAUDE.md` (atualizado — tabela de referência de documentação)
+
+**Riscos:**
+- Ações do plano não implementadas geram risco regulatório contínuo
+- Sem DPO nomeado, a execução do plano pode ficar sem responsável formal
+
+**Status:** Ativa
+
+---
+
 ### [D-001] — Arquitetura monolítica inicial em `src/main.jsx`
 
 **Data:** Pré-15/06/2026 (estado inicial do projeto)

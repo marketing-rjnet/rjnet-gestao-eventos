@@ -4,6 +4,32 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.6] — Auditoria e plano de conformidade LGPD (D-031)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Docs:** criado `docs/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança, governança e Supabase (1.200+ linhas, 11 seções + seção de fases de implementação)
+- **Docs:** criado `docs/PLANO_DE_ACAO_LGPD.md` — plano de ação executável com 21 ações organizadas em 4 fases, com responsáveis, prazos, queries SQL prontas e checklists de evidência
+- **Docs:** `CLAUDE.md` atualizado — tabela de referência agora inclui os dois novos documentos de conformidade
+- **Docs:** `docs/DECISIONS.md` atualizado — registrada decisão D-031 sobre a auditoria
+
+**Principais não conformidades documentadas**
+- Ausência total de consentimento LGPD para leads captados em eventos (CRÍTICO)
+- Senha de marketing exposta no bundle JavaScript público (CRÍTICO)
+- Policies anônimas no `schema.sql` sem garantia de migração aplicada (CRÍTICO)
+- CORS aberto na Edge Function administrativa (ALTO)
+- Sem log de exportações CSV com dados pessoais (ALTO)
+- CPF em texto plano sem criptografia (ALTO)
+- Sem política de retenção de dados (ALTO)
+
+**Nota de conformidade obtida:** 4,2 / 10 (meta: 8,7 após Fase 4)
+
+**Impacto**
+- Nenhum código de produção alterado nesta versão — apenas documentação
+- Base documental criada para execução do plano de conformidade
+
+---
+
 ## [v1.5] — Correções arquiteturais pós-auditoria (D-030)
 **Data:** 2026-06-16
 
