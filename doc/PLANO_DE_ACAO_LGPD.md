@@ -838,13 +838,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | ALTA |
 | **ID Auditoria** | G-01, L-02 |
 | **Não conformidade** | Sistema sem política de privacidade — não existe documentação pública sobre o tratamento de dados |
-| **Responsável** | — (jurídico) |
+| **Responsável** | — |
 | **Prazo** | 2026-12-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer:**
 
@@ -866,7 +866,9 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 - [ ] Novo: `doc/POLITICA_DE_PRIVACIDADE.md`
 - [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar G-01, L-02
 
-**Evidência de conclusão:** _URL ou path do documento publicado_
+**Evidência de conclusão:**
+- `doc/POLITICA_DE_PRIVACIDADE.md` (novo): política v1.0 cobrindo controlador, dados coletados, finalidades, bases legais, compartilhamento (Supabase/Vercel), retenção, direitos dos titulares, medidas de segurança, transferência internacional e canal de contato
+- Versão do termo referenciada como `v1.0` — já usada em `versao_termo` no consentimento (PA-04)
 
 ---
 
@@ -1021,7 +1023,7 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | PA-13 | Tabela de auditoria de operações | 3 | ALTA | 🟢 | 2026-09-16 |
 | PA-14 | Assinar DPA com Supabase | 3 | ALTA | 🟡 | 2026-09-16 |
 | PA-15 | Processo DSAR para direitos de titulares | 3 | ALTA | 🟢 | 2026-09-16 |
-| PA-16 | Elaborar política de privacidade | 4 | ALTA | 🔴 | 2026-12-16 |
+| PA-16 | Elaborar política de privacidade | 4 | ALTA | 🟢 | 2026-12-16 |
 | PA-17 | Elaborar RIPD/DPIA | 4 | MÉDIA | 🔴 | 2026-12-16 |
 | PA-18 | Criar ROPA | 4 | MÉDIA | 🔴 | 2026-12-16 |
 | PA-19 | Nomear DPO | 4 | MÉDIA | 🔴 | 2026-12-16 |
@@ -1034,7 +1036,7 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 
 | Documento | Criado por | PA Responsável | Status |
 |-----------|-----------|---------------|--------|
-| `doc/POLITICA_DE_PRIVACIDADE.md` | Jurídico | PA-16 | 🔴 |
+| `doc/POLITICA_DE_PRIVACIDADE.md` | Jurídico | PA-16 | 🟢 |
 | `doc/POLITICA_RETENCAO.md` | DPO + Técnico | PA-10 | 🟢 |
 | `doc/ROTEIRO_DSAR.md` | DPO | PA-15 | 🟢 |
 | `doc/RIPD.md` | DPO + Técnico | PA-17 | 🔴 |
@@ -1056,6 +1058,8 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟢 |
 
 ---
+
+> **Status geral:** 🟡 EM PROGRESSO — 16 de 21 ações concluídas (Fases 1, 2 e 3 completas; PA-16 concluída na Fase 4)
 
 > **Próxima revisão do plano:** 2026-07-16 (após Fase 2)  
 > **Referência de auditoria:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md`  
