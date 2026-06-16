@@ -891,84 +891,43 @@ def build_pdf():
     # ─── SLIDE 01: VISÃO GERAL ──────────────────────────────────────────────
     story += page_header("01","Visao Geral","Sistema de Operacoes Comerciais em Campo")
 
-    # 4 pilares como tabela simples
-    def pill_cell(icon, title, desc, col_hex):
-        return [
-            Paragraph(f'<font color="{col_hex}"><b>{icon}  {title}</b></font>', ST["h3"]),
-            sp(4),
-            Paragraph(desc, ST["body"]),
-        ]
-
-    tdata = [[
-        pill_cell("📅","Eventos","Planejamento e controle de acoes comerciais","#F5C000"),
-        pill_cell("👥","Leads","Captacao e qualificacao em tempo real","#22C55E"),
-        pill_cell("📦","Estoque","Materiais com rastreamento automatico","#60A5FA"),
-        pill_cell("📊","Analytics","Relatorios e rankings instantaneos","#FB923C"),
-    ]]
-    tbl_pillars = Table(
-        [[cell[0] for cell in tdata[0]]],
-        colWidths=[MW/4]*4,
-        style=TableStyle([
-            ("BACKGROUND",  (0,0),(-1,-1), colors.white),
-            ("ROWBACKGROUNDS",(0,0),(-1,-1),[colors.white]),
-            ("TOPPADDING",  (0,0),(-1,-1), 14),
-            ("BOTTOMPADDING",(0,0),(-1,-1), 14),
-            ("LEFTPADDING", (0,0),(-1,-1), 10),
-            ("RIGHTPADDING",(0,0),(-1,-1), 10),
-            ("ROUNDEDCORNERS",(0,0),(-1,-1),6),
-            ("GRID",        (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
-            ("VALIGN",      (0,0),(-1,-1), "MIDDLE"),
-        ])
-    )
-    # Subtitles row
-    subtitles = [
-        Paragraph("Planejamento e controle de acoes comerciais", ST["body"]),
-        Paragraph("Captacao e qualificacao em tempo real", ST["body"]),
-        Paragraph("Materiais com rastreamento automatico", ST["body"]),
-        Paragraph("Relatorios e rankings instantaneos", ST["body"]),
-    ]
-    tbl_subs = Table([subtitles], colWidths=[MW/4]*4,
-        style=TableStyle([
-            ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
-            ("LEFTPADDING",(0,0),(-1,-1),10), ("RIGHTPADDING",(0,0),(-1,-1),10),
-        ])
-    )
-
-    # Simpler: just a 2-row table with bold title + description
+    # 4 pilares: cabecalho amarelo com texto preto, descricao branca com texto preto
+    ST_am = S("h3am2", fontName="LSB", fontSize=11, leading=15, textColor=PR)
     rows_pillars = [
-        [Paragraph(f'<font color="{c}"><b>{i}  {t}</b></font>', ST["h3"])
-         for i,t,c in [("📅","Eventos","#F5C000"),("👥","Leads","#22C55E"),("📦","Estoque","#60A5FA"),("📊","Analytics","#FB923C")]],
+        [Paragraph(f"<b>{i}  {t}</b>", ST_am)
+         for i,t in [("📅","Eventos"),("👥","Leads"),("📦","Estoque"),("📊","Analytics")]],
         [Paragraph(d, ST["body"])
-         for d in ["Planejamento e controle de acoes","Captacao e qualificacao em tempo real","Materiais com rastreamento","Relatorios e rankings"]],
+         for d in ["Planejamento e controle de acoes","Captacao e qualificacao em tempo real","Materiais com rastreamento automatico","Relatorios e rankings instantaneos"]],
     ]
     tbl = Table(rows_pillars, colWidths=[MW/4]*4,
         style=TableStyle([
             ("BACKGROUND", (0,0),(-1,-1), colors.white),
             ("BACKGROUND", (0,0),(-1,0), AM),
-            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
-            ("LEFTPADDING",(0,0),(-1,-1), 10), ("RIGHTPADDING", (0,0),(-1,-1),10),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
-            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+            ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
+            ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
         ])
     )
     story.append(tbl)
     story.append(sp(14))
 
-    # Perfis de acesso como tabela 2 colunas
+    # Perfis: MARKETING = amarelo/preto, VENDEDOR = preto/branco
+    ST_wh = S("h3wh", fontName="LSB", fontSize=11, leading=15, textColor=BR)
     roles = [
-        [Paragraph('<font color="#F5C000"><b>👤  MARKETING</b></font>', ST["h3"]),
-         Paragraph('<font color="#60A5FA"><b>📱  VENDEDOR</b></font>', ST["h3"])],
+        [Paragraph("<b>👤  MARKETING</b>", ST_am),
+         Paragraph("<b>📱  VENDEDOR</b>", ST_wh)],
         [Paragraph("Gestao completa da plataforma<br/>Eventos · Estoque · Equipe · Analytics", ST["body"]),
-         Paragraph("Interface mobile para o campo<br/>Leads · Ranking · Evento · Pacotes", ST["body"])],
+         Paragraph("<font color='#FFFFFF'>Interface mobile para o campo<br/>Leads · Ranking · Evento · Pacotes</font>",
+                   S("bwh", fontName="LS", fontSize=9.5, leading=14, textColor=BR))],
     ]
     tbl_roles = Table(roles, colWidths=[MW/2, MW/2],
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.white),
-            ("BACKGROUND", (0,0),(0,0), AM),
-            ("BACKGROUND", (1,0),(1,0), PR),
-            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
+            ("BACKGROUND", (0,0),(0,-1), AM),
+            ("BACKGROUND", (1,0),(1,-1), PR),
+            ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 16), ("RIGHTPADDING", (0,0),(-1,-1),16),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
             ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
         ])
     )
@@ -979,29 +938,29 @@ def build_pdf():
     story += page_header("02","Fluxo Operacional","Do planejamento a conversao em 6 etapas")
 
     steps_data = [
-        ("1","PLANEJAMENTO","Evento criado com local, datas e materiais","#F5C000"),
-        ("2","PREPARACAO",  "Estoque alocado e equipe escalada",          "#60A5FA"),
-        ("3","EM CAMPO",    "Vendedores registram leads no mobile",        "#22C55E"),
-        ("4","ACOMPANHAMENTO","Dashboard em tempo real para marketing",    "#FB923C"),
-        ("5","ENCERRAMENTO","Materiais devolvidos, evento finalizado",     "#A855F7"),
-        ("6","ANALISE",     "Leads exportados, resultados apurados",       "#EF4444"),
+        ("1","PLANEJAMENTO","Evento criado com local, datas e materiais"),
+        ("2","PREPARACAO",  "Estoque alocado e equipe escalada"),
+        ("3","EM CAMPO",    "Vendedores registram leads no mobile"),
+        ("4","ACOMPANHAMENTO","Dashboard em tempo real para marketing"),
+        ("5","ENCERRAMENTO","Materiais devolvidos, evento finalizado"),
+        ("6","ANALISE",     "Leads exportados, resultados apurados"),
     ]
+    ST_step = S("step", fontName="LSB", fontSize=9, leading=13, textColor=PR)
     flow_rows = [
-        [Paragraph(f'<font color="{c}"><b>{n}. {t}</b></font>', ST["h3"]) for n,t,_,c in steps_data],
-        [Paragraph(d, ST["body"]) for _,_,d,_ in steps_data],
+        [Paragraph(f"<b>{n}. {t}</b>", ST_step) for n,t,_ in steps_data],
+        [Paragraph(d, ST["body"]) for _,_,d in steps_data],
     ]
     cw6 = MW / 6
-    _flow_style = [
-        ("BACKGROUND", (0,0),(-1,-1), colors.white),
-        ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),14),
-        ("LEFTPADDING",(0,0),(-1,-1), 8),  ("RIGHTPADDING", (0,0),(-1,-1),8),
-        ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
-        ("VALIGN",     (0,0),(-1,-1), "TOP"),
-    ]
-    for _si, (_,_t,_d,_c) in enumerate(steps_data):
-        _flow_style.append(("BACKGROUND", (_si,0), (_si,0), colors.HexColor(_c)))
-        _flow_style.append(("TEXTCOLOR", (_si,0), (_si,0), PR))
-    tbl_flow = Table(flow_rows, colWidths=[cw6]*6, style=TableStyle(_flow_style))
+    tbl_flow = Table(flow_rows, colWidths=[cw6]*6,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.white),
+            ("BACKGROUND", (0,0),(-1,0), AM),
+            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("LEFTPADDING",(0,0),(-1,-1), 8),  ("RIGHTPADDING", (0,0),(-1,-1),8),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
     story.append(tbl_flow)
     story.append(sp(14))
     story.append(DesktopShot(shot_path("01_dashboard.png"), MW, max_h=220))
@@ -1030,8 +989,8 @@ def build_pdf():
 
     story.append(StateFlow([
         ("PLANEJADO","Evento criado",AM,"Aguardando inicio"),
-        ("ATIVO",    "Em andamento",VE,"Recebe leads"),
-        ("ENCERRADO","Finalizado",  T3,"Dados preservados"),
+        ("ATIVO",    "Em andamento",AM,"Recebe leads"),
+        ("ENCERRADO","Finalizado",  PR,"Dados preservados"),
     ], MW, active=-1))
     story.append(sp(8))
     story.append(DesktopShot(shot_path("02_eventos_lista.png"), MW, max_h=230))
@@ -1047,10 +1006,10 @@ def build_pdf():
     story += page_header("05","Captacao de Leads","Registro rapido e qualificacao instantanea")
 
     story.append(StateFlow([
-        ("FRIO",       "Pouco interesse",      AZ,  "Contato inicial"),
-        ("MORNO",      "Interesse moderado",   LA,  "Quer informacoes"),
-        ("QUENTE",     "Alto interesse",       VM,  "Pronto p/ venda"),
-        ("CONVERTIDO", "Fechou negocio",       VE,  "Contrato ativo"),
+        ("FRIO",       "Pouco interesse",  PR,  "Contato inicial"),
+        ("MORNO",      "Interesse medio",  T2,  "Quer informacoes"),
+        ("QUENTE",     "Alto interesse",   AM,  "Pronto p/ venda"),
+        ("CONVERTIDO", "Fechou negocio",   AM,  "Contrato ativo"),
     ], MW, active=-1))
     story.append(sp(8))
     story.append(DesktopShot(shot_path("05_leads.png"), MW, max_h=230))
@@ -1065,15 +1024,31 @@ def build_pdf():
     # ─── SLIDE 06: CHECK-IN ──────────────────────────────────────────────
     story += page_header("06","Check-in por CPF","Verificacao instantanea em 3 estados")
 
-    story.append(sp(8))
-    # Show three check-in states side by side
-    story.append(PhoneRow3(
-        [shot_path("06_checkin_vazio.png"),
-         shot_path("06_checkin_encontrado.png"),
-         shot_path("06_checkin_nao_encontrado.png")],
-        ["Aguardando busca", "Lead encontrado", "Nao cadastrado"],
-        MW, ph=220
-    ))
+    # Tres screenshots desktop lado a lado dentro de uma tabela
+    cw3 = MW / 3 - 4
+    checkin_imgs = [
+        Paragraph("<b>Aguardando busca</b>", S("ci", fontName="LSB", fontSize=8, textColor=PR, alignment=TA_CENTER)),
+        Paragraph("<b>Lead encontrado</b>",   S("ci2", fontName="LSB", fontSize=8, textColor=PR, alignment=TA_CENTER)),
+        Paragraph("<b>Nao cadastrado</b>",    S("ci3", fontName="LSB", fontSize=8, textColor=PR, alignment=TA_CENTER)),
+    ]
+    checkin_shots = [
+        DesktopShot(shot_path("06_checkin_vazio.png"),      cw3, max_h=180),
+        DesktopShot(shot_path("06_checkin_encontrado.png"), cw3, max_h=180),
+        DesktopShot(shot_path("06_checkin_nao_encontrado.png"), cw3, max_h=180),
+    ]
+    tbl_ci = Table(
+        [checkin_imgs, checkin_shots],
+        colWidths=[cw3+4]*3,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,0), AM),
+            ("BACKGROUND", (0,1),(-1,1), colors.white),
+            ("TOPPADDING", (0,0),(-1,-1), 8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
+            ("LEFTPADDING",(0,0),(-1,-1), 4), ("RIGHTPADDING", (0,0),(-1,-1),4),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
+    story.append(tbl_ci)
     story.append(sp(8))
     story += bullets([
         "Busca por CPF retorna dados exatos do lead: nome, servico, temperatura",
@@ -1086,9 +1061,9 @@ def build_pdf():
     story += page_header("07","Controle de Estoque","Disponibilidade em tempo real com alertas automaticos")
 
     story.append(StateFlow([
-        ("OK",      "Estoque adequado",    VE, "4+ unidades disponiveis"),
-        ("ATENCAO", "Estoque baixo",       LA, "1 a 3 disponiveis"),
-        ("CRITICO", "Sem disponibilidade", VM, "0 unidades livres"),
+        ("OK",      "Estoque adequado",    AM, "4+ unidades disponiveis"),
+        ("ATENCAO", "Estoque baixo",       T2, "1 a 3 disponiveis"),
+        ("CRITICO", "Sem estoque",         PR, "0 unidades livres"),
     ], MW, active=-1))
     story.append(sp(8))
     story.append(DesktopShot(shot_path("04_estoque.png"), MW, max_h=220))
@@ -1135,17 +1110,17 @@ def build_pdf():
     story += page_header("10","Sincronizacao Online e Offline","Operacao garantida mesmo sem internet")
 
     story.append(StateFlow([
-        ("ONLINE",        "Conectado",   VE, "Sync em tempo real"),
-        ("OFFLINE",       "Sem conexao", VM, "Salva localmente"),
+        ("ONLINE",        "Conectado",   AM, "Sync em tempo real"),
+        ("OFFLINE",       "Sem conexao", PR, "Salva localmente"),
         ("SINCRONIZANDO", "Reconectado", AM, "Envio automatico"),
     ], MW, active=-1))
     story.append(sp(14))
 
     # Three-column table describing each state
     sync_rows = [
-        [Paragraph('<font color="#22C55E"><b>ONLINE</b></font>', ST["h3"]),
-         Paragraph('<font color="#EF4444"><b>OFFLINE</b></font>', ST["h3"]),
-         Paragraph('<font color="#F5C000"><b>SINCRONIZANDO</b></font>', ST["h3"])],
+        [Paragraph("<b>ONLINE</b>", ST["h3"]),
+         Paragraph("<b>OFFLINE</b>", ST["h3"]),
+         Paragraph("<b>SINCRONIZANDO</b>", ST["h3"])],
         [Paragraph("Dados gravados imediatamente no servidor. Ranking atualizado a cada 60 segundos entre dispositivos.", ST["body"]),
          Paragraph("Leads salvos localmente no aparelho. Nenhum dado e perdido, mesmo sem sinal de internet.", ST["body"]),
          Paragraph("Ao reconectar, envio automatico de todos os leads pendentes. Nenhuma acao necessaria do vendedor.", ST["body"])],
@@ -1153,9 +1128,10 @@ def build_pdf():
     tbl_sync = Table(sync_rows, colWidths=[MW/3]*3,
         style=TableStyle([
             ("BACKGROUND", (0,0),(-1,-1), colors.white),
+            ("BACKGROUND", (0,0),(-1,0), AM),
             ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
@@ -1178,10 +1154,10 @@ def build_pdf():
     # ─── SLIDE 11: BENEFÍCIOS ────────────────────────────────────────────
     story += page_header("11","Beneficios para o Negocio","Impacto direto nas areas da empresa")
 
+    ST_amh = S("amh", fontName="LSB", fontSize=11, leading=15, textColor=PR)
     benefit_rows = [
-        [Paragraph(f'<font color="{c}"><b>{i}  {t}</b></font>', ST["h3"])
-         for i,t,c in [("📢","Marketing","#F5C000"),("💼","Comercial","#22C55E"),
-                       ("🏢","Diretoria","#60A5FA"),("⚙","Operacao","#FB923C")]],
+        [Paragraph(f"<b>{i}  {t}</b>", ST_amh)
+         for i,t in [("📢","Marketing"),("💼","Comercial"),("🏢","Diretoria"),("⚙","Operacao")]],
         [Paragraph(d, ST["body"]) for d in [
             "Planejamento centralizado<br/>Relatorios automaticos<br/>Estoque sem planilhas",
             "Leads padronizados<br/>Classificacao por temperatura<br/>Exportacao instantanea",
@@ -1192,9 +1168,10 @@ def build_pdf():
     tbl_benefit = Table(benefit_rows, colWidths=[MW/4]*4,
         style=TableStyle([
             ("BACKGROUND", (0,0),(-1,-1), colors.white),
+            ("BACKGROUND", (0,0),(-1,0), AM),
             ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
@@ -1212,50 +1189,51 @@ def build_pdf():
     # ─── SLIDE 12: RESUMO EXECUTIVO ──────────────────────────────────────
     story += page_header("12","Resumo Executivo","O que o RJNET Gestao de Eventos entrega hoje")
 
-    # Antes vs. Depois como tabela simples
+    # Antes vs. Depois: coluna ANTES = fundo preto, coluna COM RJNET = fundo amarelo
+    ST_wh2 = S("wh2", fontName="LSB", fontSize=11, leading=15, textColor=BR)
+    ST_bwh = S("bwh2", fontName="LS", fontSize=9.5, leading=14, textColor=BR)
+    ST_bpr = S("bpr2", fontName="LS", fontSize=9.5, leading=14, textColor=PR)
     before_after = [
-        [Paragraph('<font color="#EF4444"><b>ANTES</b></font>', ST["h3"]),
-         Paragraph('<font color="#22C55E"><b>COM RJNET</b></font>', ST["h3"])],
+        [Paragraph("<b>ANTES</b>", ST_wh2),
+         Paragraph("<b>COM RJNET</b>", S("h3pr", fontName="LSB", fontSize=11, leading=15, textColor=PR))],
         [Paragraph(
-            '<font color="#EF4444">✗</font>  Planilhas manuais dispersas<br/>'
-            '<font color="#EF4444">✗</font>  Sem controle de materiais<br/>'
-            '<font color="#EF4444">✗</font>  Relatorios apenas pos-evento<br/>'
-            '<font color="#EF4444">✗</font>  Leads em papel e WhatsApp<br/>'
-            '<font color="#EF4444">✗</font>  Ranking apurado manualmente', ST["body"]),
+            "✗  Planilhas manuais dispersas<br/>"
+            "✗  Sem controle de materiais<br/>"
+            "✗  Relatorios apenas pos-evento<br/>"
+            "✗  Leads em papel e WhatsApp<br/>"
+            "✗  Ranking apurado manualmente", ST_bwh),
          Paragraph(
-            '<font color="#22C55E">✓</font>  Plataforma unica integrada<br/>'
-            '<font color="#22C55E">✓</font>  Estoque com alertas automaticos<br/>'
-            '<font color="#22C55E">✓</font>  Dashboard em tempo real<br/>'
-            '<font color="#22C55E">✓</font>  App mobile para vendedores<br/>'
-            '<font color="#22C55E">✓</font>  Ranking atualizado ao vivo', ST["body"])],
+            "✓  Plataforma unica integrada<br/>"
+            "✓  Estoque com alertas automaticos<br/>"
+            "✓  Dashboard em tempo real<br/>"
+            "✓  App mobile para vendedores<br/>"
+            "✓  Ranking atualizado ao vivo", ST_bpr)],
     ]
     tbl_ba = Table(before_after, colWidths=[MW/2, MW/2],
         style=TableStyle([
-            ("BACKGROUND", (0,0),(0,-1), colors.HexColor("#FFF5F5")),
-            ("BACKGROUND", (1,0),(1,-1), colors.HexColor("#F5FFF5")),
+            ("BACKGROUND", (0,0),(0,-1), PR),
+            ("BACKGROUND", (1,0),(1,-1), AM),
             ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
             ("LEFTPADDING",(0,0),(-1,-1), 14), ("RIGHTPADDING", (0,0),(-1,-1),14),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
             ("VALIGN",     (0,0),(-1,-1), "TOP"),
         ])
     )
     story.append(tbl_ba)
     story.append(sp(14))
 
-    # Metricas chave como tabela
+    # Metricas chave: amarelo/preto apenas
+    ST_mv = S("mv2", fontName="LSB", fontSize=22, leading=26, textColor=PR, alignment=TA_CENTER)
+    ST_ml = S("ml2", fontName="LS", fontSize=8, leading=11, textColor=T2, alignment=TA_CENTER)
     metrics_rows = [
-        [Paragraph(f'<font color="{c}"><b>{v}</b></font>', S("mv", fontName="LSB", fontSize=22, textColor=colors.HexColor(c), alignment=TA_CENTER))
-         for v,l,c in [("6","Modulos integrados","#F5C000"),("2","Perfis de acesso","#60A5FA"),
-                       ("15","Meta leads por vendedor","#22C55E"),("60s","Sync entre dispositivos","#FB923C")]],
-        [Paragraph(l, S("ml", fontName="LS", fontSize=8, textColor=colors.HexColor("#999999"), alignment=TA_CENTER))
-         for _,l,_ in [("6","Modulos integrados","#F5C000"),("2","Perfis de acesso","#60A5FA"),
-                       ("15","Meta leads por vendedor","#22C55E"),("60s","Sync entre dispositivos","#FB923C")]],
+        [Paragraph(f"<b>{v}</b>", ST_mv) for v in ["6","2","15","60s"]],
+        [Paragraph(l, ST_ml) for l in ["Modulos integrados","Perfis de acesso","Meta leads por vendedor","Sync entre dispositivos"]],
     ]
     tbl_metrics = Table(metrics_rows, colWidths=[MW/4]*4,
         style=TableStyle([
-            ("BACKGROUND", (0,0),(-1,-1), colors.white),
-            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
-            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+            ("BACKGROUND", (0,0),(-1,-1), AM),
+            ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("GRID",       (0,0),(-1,-1), 1, PR),
             ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
         ])
     )
@@ -1296,18 +1274,21 @@ class StateFlow(Flowable):
                 lbl, col, sub = item; sub2=""
             is_act=(i==self.active) or self.active==-1
             bg2=col if is_act else colors.HexColor("#F0F0F0")
-            fg2=BR if is_act else T3
+            # texto: preto em fundo amarelo/claro, branco em fundo preto/escuro
+            dark_bg = (col == PR or col == T2)
+            fg2=(BR if dark_bg else PR) if is_act else T3
+            sub_fg2=(colors.HexColor("#CCCCCC") if dark_bg else T2) if is_act else T3
             if i>0:
                 ax=x-gap+2; ay=self.h/2
-                fill_poly(c,[(ax,ay+5),(ax+gap-4,ay),(ax,ay-5)],AM if is_act else T3)
+                fill_poly(c,[(ax,ay+5),(ax+gap-4,ay),(ax,ay-5)],AM)
             card(c,x,6,bw,self.h-12,bg=bg2,r=8,shadow=False)
             if is_act:
-                c.setStrokeColor(col); c.setLineWidth(1.5)
+                c.setStrokeColor(AM); c.setLineWidth(2)
                 c.roundRect(x,6,bw,self.h-12,8,fill=0,stroke=1)
             cy_box = 6+(self.h-12)/2
             ctext(c,x+bw/2,cy_box+7, lbl,"LSB",8, fg2)
-            if sub:  ctext(c,x+bw/2,cy_box-4,  sub, "LS",6.5,T2 if is_act else T3)
-            if sub2: ctext(c,x+bw/2,cy_box-14, sub2,"LS",6,  T3)
+            if sub:  ctext(c,x+bw/2,cy_box-4,  sub, "LS",6.5,sub_fg2)
+            if sub2: ctext(c,x+bw/2,cy_box-14, sub2,"LS",6,  sub_fg2)
             x+=bw+gap
 
 if __name__=="__main__":
