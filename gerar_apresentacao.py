@@ -888,108 +888,122 @@ def build_pdf():
     story.append(PageBreak())
 
     # ─── SLIDE 01: VISÃO GERAL ──────────────────────────────────────────────
-    story += page_header("01","Visão Geral","Sistema de Operações Comerciais em Campo")
+    story += page_header("01","Visao Geral","Sistema de Operacoes Comerciais em Campo")
 
-    # Hero: 4 pilares visuais
-    class PillarGrid(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 140
-        def draw(self):
-            c=self.canv; fw=self.fw
-            pillars=[
-                ("📅","Eventos","Planejamento e controle de ações comerciais",AM),
-                ("👥","Leads","Captação e qualificação em tempo real",VE),
-                ("📦","Estoque","Materiais com rastreamento automático",AZ),
-                ("📊","Analytics","Relatórios e rankings instantâneos",LA),
-            ]
-            pw=(fw-24)/4
-            for i,(ic,tit,sub,col) in enumerate(pillars):
-                px=i*(pw+8); py=0
-                card(c,px,py,pw,130,bg=CE,r=8)
-                c.setFillColor(col); c.roundRect(px+10,py+95,pw-20,26,5,fill=1,stroke=0)
-                ctext(c,px+pw/2,py+105,ic,"LS",14,BR)
-                ctext(c,px+pw/2,py+80,tit,"LSB",9.5,col)
-                # Multi-line sub
-                words=sub.split(); line=""; lines_=[]
-                for w_ in words:
-                    if len(line+" "+w_)*4.5>pw-10: lines_.append(line); line=w_
-                    else: line=(line+" "+w_).strip()
-                if line: lines_.append(line)
-                yy=py+66
-                for ln in lines_[:3]:
-                    ctext(c,px+pw/2,yy,ln,"LS",6.5,T2); yy-=10
+    # 4 pilares como tabela simples
+    def pill_cell(icon, title, desc, col_hex):
+        return [
+            Paragraph(f'<font color="{col_hex}"><b>{icon}  {title}</b></font>', ST["h3"]),
+            sp(4),
+            Paragraph(desc, ST["body"]),
+        ]
 
-    story.append(PillarGrid())
-    story.append(sp(10))
+    tdata = [[
+        pill_cell("📅","Eventos","Planejamento e controle de acoes comerciais","#F5C000"),
+        pill_cell("👥","Leads","Captacao e qualificacao em tempo real","#22C55E"),
+        pill_cell("📦","Estoque","Materiais com rastreamento automatico","#60A5FA"),
+        pill_cell("📊","Analytics","Relatorios e rankings instantaneos","#FB923C"),
+    ]]
+    tbl_pillars = Table(
+        [[cell[0] for cell in tdata[0]]],
+        colWidths=[MW/4]*4,
+        style=TableStyle([
+            ("BACKGROUND",  (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("ROWBACKGROUNDS",(0,0),(-1,-1),[colors.HexColor("#1A1A1A")]),
+            ("TOPPADDING",  (0,0),(-1,-1), 14),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 14),
+            ("LEFTPADDING", (0,0),(-1,-1), 10),
+            ("RIGHTPADDING",(0,0),(-1,-1), 10),
+            ("ROUNDEDCORNERS",(0,0),(-1,-1),6),
+            ("GRID",        (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",      (0,0),(-1,-1), "MIDDLE"),
+        ])
+    )
+    # Subtitles row
+    subtitles = [
+        Paragraph("Planejamento e controle de acoes comerciais", ST["body"]),
+        Paragraph("Captacao e qualificacao em tempo real", ST["body"]),
+        Paragraph("Materiais com rastreamento automatico", ST["body"]),
+        Paragraph("Relatorios e rankings instantaneos", ST["body"]),
+    ]
+    tbl_subs = Table([subtitles], colWidths=[MW/4]*4,
+        style=TableStyle([
+            ("TOPPADDING",(0,0),(-1,-1),6), ("BOTTOMPADDING",(0,0),(-1,-1),6),
+            ("LEFTPADDING",(0,0),(-1,-1),10), ("RIGHTPADDING",(0,0),(-1,-1),10),
+        ])
+    )
 
-    # Linha de usuários
-    class UserRoles(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW,70
-        def draw(self):
-            c=self.canv; fw=self.fw
-            half=fw/2-8
-            # Marketing
-            card(c,0,0,half,64,bg=CE,r=8)
-            c.setFillColor(AM); c.roundRect(10,44,half-20,16,4,fill=1,stroke=0)
-            ctext(c,half/2,50,"👤  MARKETING","LSB",8,PR)
-            ctext(c,half/2,32,"Gestão completa da plataforma","LS",7.5,T2)
-            ctext(c,half/2,20,"Eventos · Estoque · Equipe · Analytics","LS",7,T3)
-            # Vendedor
-            card(c,half+16,0,half,64,bg=CE,r=8)
-            c.setFillColor(AZ); c.roundRect(half+26,44,half-20,16,4,fill=1,stroke=0)
-            ctext(c,half+16+half/2,50,"📱  VENDEDOR","LSB",8,BR)
-            ctext(c,half+16+half/2,32,"Interface mobile para o campo","LS",7.5,T2)
-            ctext(c,half+16+half/2,20,"Leads · Ranking · Evento · Pacotes","LS",7,T3)
+    # Simpler: just a 2-row table with bold title + description
+    rows_pillars = [
+        [Paragraph(f'<font color="{c}"><b>{i}  {t}</b></font>', ST["h3"])
+         for i,t,c in [("📅","Eventos","#F5C000"),("👥","Leads","#22C55E"),("📦","Estoque","#60A5FA"),("📊","Analytics","#FB923C")]],
+        [Paragraph(d, ST["body"])
+         for d in ["Planejamento e controle de acoes","Captacao e qualificacao em tempo real","Materiais com rastreamento","Relatorios e rankings"]],
+    ]
+    tbl = Table(rows_pillars, colWidths=[MW/4]*4,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
+            ("LEFTPADDING",(0,0),(-1,-1), 10), ("RIGHTPADDING", (0,0),(-1,-1),10),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
+    story.append(tbl)
+    story.append(sp(14))
 
-    story.append(UserRoles())
+    # Perfis de acesso como tabela 2 colunas
+    roles = [
+        [Paragraph('<font color="#F5C000"><b>👤  MARKETING</b></font>', ST["h3"]),
+         Paragraph('<font color="#60A5FA"><b>📱  VENDEDOR</b></font>', ST["h3"])],
+        [Paragraph("Gestao completa da plataforma<br/>Eventos · Estoque · Equipe · Analytics", ST["body"]),
+         Paragraph("Interface mobile para o campo<br/>Leads · Ranking · Evento · Pacotes", ST["body"])],
+    ]
+    tbl_roles = Table(roles, colWidths=[MW/2, MW/2],
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
+            ("LEFTPADDING",(0,0),(-1,-1), 16), ("RIGHTPADDING", (0,0),(-1,-1),16),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
+        ])
+    )
+    story.append(tbl_roles)
     story.append(PageBreak())
 
     # ─── SLIDE 02: FLUXO OPERACIONAL ─────────────────────────────────────
-    story += page_header("02","Fluxo Operacional","Do planejamento à conversão em 6 etapas")
+    story += page_header("02","Fluxo Operacional","Do planejamento a conversao em 6 etapas")
 
-    class OperationalFlow(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 200
-        def draw(self):
-            c=self.canv; fw=self.fw
-            steps=[
-                ("1","PLANEJAMENTO","Evento criado com local, datas e materiais",AM),
-                ("2","PREPARAÇÃO","Estoque alocado e equipe escalada",AZ),
-                ("3","EM CAMPO","Vendedores registram leads no mobile",VE),
-                ("4","ACOMPANHAMENTO","Dashboard em tempo real para marketing",LA),
-                ("5","ENCERRAMENTO","Materiais devolvidos, evento finalizado",colors.HexColor("#A855F7")),
-                ("6","ANÁLISE","Leads exportados, resultados apurados",VM),
-            ]
-            sw=(fw-10)/3; sh=82; gap=10
-            for i,(num,tit,sub,col) in enumerate(steps):
-                col_=i%3; row_=i//3
-                sx=col_*(sw+gap); sy=200-row_*(sh+gap)-sh
-                card(c,sx,sy,sw,sh,bg=CE,r=8)
-                # Color top bar
-                c.setFillColor(col); c.roundRect(sx,sy+sh-10,sw,10,8,fill=1,stroke=0)
-                c.rect(sx,sy+sh-16,sw,6,fill=1,stroke=0)
-                # Number circle
-                c.setFillColor(col); c.circle(sx+18,sy+sh-20,9,fill=1,stroke=0)
-                ctext(c,sx+18,sy+sh-23,num,"LSB",8,PR)
-                ctext(c,sx+32,sy+sh-22,tit,"LSB",8,col,"left")
-                # Description
-                words=sub.split(); line=""; lines_=[]
-                for w_ in words:
-                    if len(line+" "+w_)*4.2>sw-16: lines_.append(line); line=w_
-                    else: line=(line+" "+w_).strip()
-                if line: lines_.append(line)
-                yy=sy+sh-42
-                for ln in lines_[:3]:
-                    ctext(c,sx+10,yy,ln,"LS",7,T2,"left"); yy-=11
-                # Row connector arrow
-                if col_<2:
-                    ax=sx+sw+2; ay=sy+sh/2
-                    fill_poly(c,[(ax,ay+4),(ax+gap-2,ay),(ax,ay-4)],T3)
-
-    story.append(OperationalFlow())
+    steps_data = [
+        ("1","PLANEJAMENTO","Evento criado com local, datas e materiais","#F5C000"),
+        ("2","PREPARACAO",  "Estoque alocado e equipe escalada",          "#60A5FA"),
+        ("3","EM CAMPO",    "Vendedores registram leads no mobile",        "#22C55E"),
+        ("4","ACOMPANHAMENTO","Dashboard em tempo real para marketing",    "#FB923C"),
+        ("5","ENCERRAMENTO","Materiais devolvidos, evento finalizado",     "#A855F7"),
+        ("6","ANALISE",     "Leads exportados, resultados apurados",       "#EF4444"),
+    ]
+    flow_rows = [
+        [Paragraph(f'<font color="{c}"><b>{n}. {t}</b></font>', ST["h3"]) for n,t,_,c in steps_data],
+        [Paragraph(d, ST["body"]) for _,_,d,_ in steps_data],
+    ]
+    cw6 = MW / 6
+    tbl_flow = Table(flow_rows, colWidths=[cw6]*6,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("LEFTPADDING",(0,0),(-1,-1), 8),  ("RIGHTPADDING", (0,0),(-1,-1),8),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
+    story.append(tbl_flow)
+    story.append(sp(14))
+    story.append(DesktopShot(shot_path("01_dashboard.png"), MW))
     story.append(sp(8))
     story += bullets([
-        "Cada etapa é registrada e rastreada pelo sistema em tempo real",
+        "Cada etapa e registrada e rastreada pelo sistema em tempo real",
         "Marketing acompanha o funil completo sem sair da plataforma",
-        "Dados de todos os eventos ficam preservados para análise histórica",
+        "Dados de todos os eventos ficam preservados para analise historica",
     ])
     story.append(PageBreak())
 
@@ -1112,143 +1126,147 @@ def build_pdf():
     story.append(PageBreak())
 
     # ─── SLIDE 10: SINCRONIZAÇÃO ─────────────────────────────────────────
-    story += page_header("10","Sincronização Online / Offline","Operação garantida mesmo sem internet")
+    story += page_header("10","Sincronizacao Online e Offline","Operacao garantida mesmo sem internet")
 
     story.append(StateFlow([
-        ("ONLINE",       "Conectado",       VE, "Sync em tempo real"),
-        ("OFFLINE",      "Sem conexão",     VM, "Salva localmente"),
-        ("SINCRONIZANDO","Reconectado",     AM, "Envio automático"),
+        ("ONLINE",        "Conectado",   VE, "Sync em tempo real"),
+        ("OFFLINE",       "Sem conexao", VM, "Salva localmente"),
+        ("SINCRONIZANDO", "Reconectado", AM, "Envio automatico"),
     ], MW, active=-1))
-    story.append(sp(10))
+    story.append(sp(14))
 
-    class SyncPhones(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 270
-        def draw(self):
-            c=self.canv; fw=self.fw
-            pw=120; ph=250; gap=(fw-3*pw)/2
-            configs=[("online","ONLINE",VE),("offline","OFFLINE",VM),("syncing","SINCRONIZANDO",AM)]
-            for i,(state,lbl,col) in enumerate(configs):
-                px=i*(pw+gap); py=20
-                pf=PhoneFrame(pw,ph,lambda c2,sw,sh,s=state: draw_sync_state(c2,sw,sh,s),"")
-                pf.canv=c; pf.drawOn(c,px,py)
-                c.setFillColor(col); c.roundRect(px+pw/2-30,4,60,15,7,fill=1,stroke=0)
-                ctext(c,px+pw/2,9.5,lbl,"LSB",6.5,PR)
-
-    story.append(SyncPhones())
+    # Three-column table describing each state
+    sync_rows = [
+        [Paragraph('<font color="#22C55E"><b>ONLINE</b></font>', ST["h3"]),
+         Paragraph('<font color="#EF4444"><b>OFFLINE</b></font>', ST["h3"]),
+         Paragraph('<font color="#F5C000"><b>SINCRONIZANDO</b></font>', ST["h3"])],
+        [Paragraph("Dados gravados imediatamente no servidor. Ranking atualizado a cada 60 segundos entre dispositivos.", ST["body"]),
+         Paragraph("Leads salvos localmente no aparelho. Nenhum dado e perdido, mesmo sem sinal de internet.", ST["body"]),
+         Paragraph("Ao reconectar, envio automatico de todos os leads pendentes. Nenhuma acao necessaria do vendedor.", ST["body"])],
+    ]
+    tbl_sync = Table(sync_rows, colWidths=[MW/3]*3,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
+    story.append(tbl_sync)
+    story.append(sp(14))
+    story.append(PhoneRow3(
+        [shot_path("08_app_registrar.png"),
+         shot_path("09_app_meus_leads.png"),
+         shot_path("10_app_evento.png")],
+        ["App com conexao", "Lista de leads", "Info do evento"],
+        MW, ph=200
+    ))
     story.append(sp(8))
     story += bullets([
         "Leads registrados offline ficam em fila local — enviados automaticamente ao reconectar",
-        "Ranking atualiza a cada 60 segundos entre dispositivos quando online",
-        "Zero perda de dados — sistema descarta apenas registros de eventos já encerrados",
+        "Zero perda de dados — o app funciona normalmente em areas sem sinal",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 11: BENEFÍCIOS ────────────────────────────────────────────
-    story += page_header("11","Benefícios para o Negócio","Impacto direto nas áreas da empresa")
+    story += page_header("11","Beneficios para o Negocio","Impacto direto nas areas da empresa")
 
-    class BenefitCards(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 280
-        def draw(self):
-            c=self.canv; fw=self.fw
-            areas=[
-                ("📢","Marketing",     AM, [
-                    "Planejamento centralizado","Relatórios automáticos","Estoque sem planilhas",
-                ]),
-                ("💼","Comercial",     VE, [
-                    "Leads padronizados","Classificação por temperatura","Exportação instantânea",
-                ]),
-                ("🏢","Diretoria",     AZ, [
-                    "KPIs em tempo real","Histórico completo","Rastreabilidade total",
-                ]),
-                ("⚙","Operação",      LA, [
-                    "Elimina processos manuais","Funciona sem internet","Check-in por CPF",
-                ]),
-            ]
-            cw=(fw-18)/4; ch=260
-            for i,(ic,tit,col,items) in enumerate(areas):
-                cx=i*(cw+6)
-                card(c,cx,0,cw,ch,bg=CE,r=8)
-                # Header color
-                c.setFillColor(col); c.roundRect(cx,ch-48,cw,48,8,fill=1,stroke=0)
-                c.rect(cx,ch-48,cw,24,fill=1,stroke=0)
-                ctext(c,cx+cw/2,ch-18,ic,"LS",18,BR)
-                ctext(c,cx+cw/2,ch-38,tit,"LSB",9,BR)
-                # Items
-                y=ch-66
-                for it in items:
-                    c.setFillColor(col); c.roundRect(cx+8,y+1,5,5,1,fill=1,stroke=0)
-                    # Word wrap
-                    words=it.split(); line=""; lines_=[]
-                    for w_ in words:
-                        if len(line+" "+w_)*4.2>cw-22: lines_.append(line); line=w_
-                        else: line=(line+" "+w_).strip()
-                    if line: lines_.append(line)
-                    for ln in lines_[:2]:
-                        ctext(c,cx+16,y,ln,"LS",7,T2,"left"); y-=10
-                    y-=4
-                # Bottom divider
-                c.setFillColor(col); c.roundRect(cx,0,cw,4,2,fill=1,stroke=0)
-
-    story.append(BenefitCards())
-    story.append(sp(10))
+    benefit_rows = [
+        [Paragraph(f'<font color="{c}"><b>{i}  {t}</b></font>', ST["h3"])
+         for i,t,c in [("📢","Marketing","#F5C000"),("💼","Comercial","#22C55E"),
+                       ("🏢","Diretoria","#60A5FA"),("⚙","Operacao","#FB923C")]],
+        [Paragraph(d, ST["body"]) for d in [
+            "Planejamento centralizado<br/>Relatorios automaticos<br/>Estoque sem planilhas",
+            "Leads padronizados<br/>Classificacao por temperatura<br/>Exportacao instantanea",
+            "KPIs em tempo real<br/>Historico completo<br/>Rastreabilidade total",
+            "Elimina processos manuais<br/>Funciona sem internet<br/>Check-in por CPF",
+        ]],
+    ]
+    tbl_benefit = Table(benefit_rows, colWidths=[MW/4]*4,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("LEFTPADDING",(0,0),(-1,-1), 12), ("RIGHTPADDING", (0,0),(-1,-1),12),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
+    story.append(tbl_benefit)
+    story.append(sp(14))
+    # Show a composite: login + dashboard side by side as reference
+    story.append(DesktopShot(shot_path("03_evento_detalhe.png"), MW))
+    story.append(sp(8))
     story += bullets([
-        "Um único sistema substitui planilhas, relatórios manuais e aplicativos descoordenados",
-        "Dados rastreáveis do evento ao lead, do lead à conversão",
+        "Um unico sistema substitui planilhas, relatorios manuais e apps descoordenados",
+        "Dados rastreaveis do evento ao lead, do lead a conversao",
     ])
     story.append(PageBreak())
 
     # ─── SLIDE 12: RESUMO EXECUTIVO ──────────────────────────────────────
-    story += page_header("12","Resumo Executivo","O que o RJNET — Gestão de Eventos entrega hoje")
+    story += page_header("12","Resumo Executivo","O que o RJNET Gestao de Eventos entrega hoje")
 
-    class ExecutiveSummary(Flowable):
-        def wrap(self,aW,_): self.fw=aW; return aW, 350
-        def draw(self):
-            c=self.canv; fw=self.fw
-            # Before/After comparison
-            half=fw/2-8
-            # ANTES
-            card(c,0,180,half,160,bg=colors.HexColor("#1A0A0A"),r=8)
-            c.setFillColor(VM); c.roundRect(0,320,half,20,8,fill=1,stroke=0)
-            c.rect(0,320,half,10,fill=1,stroke=0)
-            ctext(c,half/2,326,"ANTES","LSB",9,BR)
-            befores=["Planilhas manuais dispersas","Sem controle de materiais",
-                     "Relatórios pós-evento","Leads em papel/WhatsApp","Ranking apurado manualmente"]
-            yy=300
-            for b in befores:
-                ctext(c,12,yy,f"✗  {b}","LS",7.5,colors.HexColor("#FF6B6B"),"left"); yy-=20
-            # DEPOIS
-            card(c,half+16,180,half,160,bg=colors.HexColor("#0A1A0A"),r=8)
-            c.setFillColor(VE); c.roundRect(half+16,320,half,20,8,fill=1,stroke=0)
-            c.rect(half+16,320,half,10,fill=1,stroke=0)
-            ctext(c,half+16+half/2,326,"COM RJNET","LSB",9,BR)
-            afters=["Plataforma única integrada","Estoque com alertas automáticos",
-                    "Dashboard em tempo real","App mobile para vendedores","Ranking atualizado ao vivo"]
-            yy=300
-            for a in afters:
-                ctext(c,half+26,yy,f"✓  {a}","LS",7.5,VE,"left"); yy-=20
-            # Arrow between
-            fill_poly(c,[(half-4,262),(half+20,270),(half-4,278)],AM)
-            # Big metrics
-            metrics=[("6","Módulos\nintegrados",AM),("2","Perfis de\nacesso",AZ),
-                     ("15","Meta leads\npor vendedor",VE),("60s","Sync entre\ndispositivos",LA)]
-            mw=(fw-18)/4; mh=70
-            for i,(v,l,col) in enumerate(metrics):
-                mx=i*(mw+6); my=100
-                card(c,mx,my,mw,mh,bg=CE,r=8)
-                c.setFillColor(col); c.roundRect(mx,my+mh-8,mw,8,4,fill=1,stroke=0)
-                ctext(c,mx+mw/2,my+mh-28,v,"LSB",22,col)
-                lines_=l.split("\n")
-                for j,ln in enumerate(lines_):
-                    ctext(c,mx+mw/2,my+24-j*12,ln,"LS",6.5,T2)
-            # Final tagline
-            card(c,0,0,fw,88,bg=CE,r=8)
-            c.setFillColor(AM); c.roundRect(0,0,fw,88,8,fill=1,stroke=0)
-            c.setFillColor(colors.HexColor("#F5C00015")); c.circle(fw-30,44,60,fill=1,stroke=0)
-            ctext(c,fw/2,56,"RJNET — Gestão de Eventos","LSB",16,PR)
-            ctext(c,fw/2,34,"Do planejamento à conversão — tudo em uma única plataforma","LS",9,colors.HexColor("#3A2A00"))
-            ctext(c,fw/2,14,"Documento Confidencial  •  Uso exclusivo para diretoria e sócios","LS",7.5,colors.HexColor("#5A4A00"))
+    # Antes vs. Depois como tabela simples
+    before_after = [
+        [Paragraph('<font color="#EF4444"><b>ANTES</b></font>', ST["h3"]),
+         Paragraph('<font color="#22C55E"><b>COM RJNET</b></font>', ST["h3"])],
+        [Paragraph(
+            '<font color="#EF4444">✗</font>  Planilhas manuais dispersas<br/>'
+            '<font color="#EF4444">✗</font>  Sem controle de materiais<br/>'
+            '<font color="#EF4444">✗</font>  Relatorios apenas pos-evento<br/>'
+            '<font color="#EF4444">✗</font>  Leads em papel e WhatsApp<br/>'
+            '<font color="#EF4444">✗</font>  Ranking apurado manualmente', ST["body"]),
+         Paragraph(
+            '<font color="#22C55E">✓</font>  Plataforma unica integrada<br/>'
+            '<font color="#22C55E">✓</font>  Estoque com alertas automaticos<br/>'
+            '<font color="#22C55E">✓</font>  Dashboard em tempo real<br/>'
+            '<font color="#22C55E">✓</font>  App mobile para vendedores<br/>'
+            '<font color="#22C55E">✓</font>  Ranking atualizado ao vivo', ST["body"])],
+    ]
+    tbl_ba = Table(before_after, colWidths=[MW/2, MW/2],
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(0,-1), colors.HexColor("#1A0A0A")),
+            ("BACKGROUND", (1,0),(1,-1), colors.HexColor("#0A1A0A")),
+            ("TOPPADDING", (0,0),(-1,-1), 14), ("BOTTOMPADDING",(0,0),(-1,-1),14),
+            ("LEFTPADDING",(0,0),(-1,-1), 14), ("RIGHTPADDING", (0,0),(-1,-1),14),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "TOP"),
+        ])
+    )
+    story.append(tbl_ba)
+    story.append(sp(14))
 
-    story.append(ExecutiveSummary())
+    # Metricas chave como tabela
+    metrics_rows = [
+        [Paragraph(f'<font color="{c}"><b>{v}</b></font>', S("mv", fontName="LSB", fontSize=22, textColor=colors.HexColor(c), alignment=TA_CENTER))
+         for v,l,c in [("6","Modulos integrados","#F5C000"),("2","Perfis de acesso","#60A5FA"),
+                       ("15","Meta leads por vendedor","#22C55E"),("60s","Sync entre dispositivos","#FB923C")]],
+        [Paragraph(l, S("ml", fontName="LS", fontSize=8, textColor=colors.HexColor("#999999"), alignment=TA_CENTER))
+         for _,l,_ in [("6","Modulos integrados","#F5C000"),("2","Perfis de acesso","#60A5FA"),
+                       ("15","Meta leads por vendedor","#22C55E"),("60s","Sync entre dispositivos","#FB923C")]],
+    ]
+    tbl_metrics = Table(metrics_rows, colWidths=[MW/4]*4,
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#1A1A1A")),
+            ("TOPPADDING", (0,0),(-1,-1), 12), ("BOTTOMPADDING",(0,0),(-1,-1),12),
+            ("GRID",       (0,0),(-1,-1), 0.5, colors.HexColor("#2E2E2E")),
+            ("VALIGN",     (0,0),(-1,-1), "MIDDLE"),
+        ])
+    )
+    story.append(tbl_metrics)
+    story.append(sp(14))
+
+    tagline = Table(
+        [[Paragraph('<b>RJNET — Gestao de Eventos</b><br/>Do planejamento a conversao — tudo em uma unica plataforma',
+                    S("tag2", fontName="LSB", fontSize=12, textColor=PR, alignment=TA_CENTER, leading=18))]],
+        colWidths=[MW],
+        style=TableStyle([
+            ("BACKGROUND", (0,0),(-1,-1), colors.HexColor("#F5C000")),
+            ("TOPPADDING", (0,0),(-1,-1), 16), ("BOTTOMPADDING",(0,0),(-1,-1),16),
+            ("ROUNDEDCORNERS",(0,0),(-1,-1),6),
+        ])
+    )
+    story.append(tagline)
 
     doc.build(story, onFirstPage=lambda c,d:None, onLaterPages=footer)
     print(f"PDF gerado: {path}")
