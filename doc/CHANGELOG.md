@@ -17,8 +17,8 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Por que mudou**
 - PA-07 do Plano de Ação LGPD (NC BD-06, A-03): exclusões de dados pessoais sem rastreabilidade — impossibilidade de auditar quem excluiu e quando, violando o princípio de responsabilização LGPD
 
-**Ação manual necessária**
-- Executar `supabase/migracao-soft-delete-audit.sql` no Supabase Dashboard → SQL Editor
+**Aplicado em produção**
+- `supabase/migracao-soft-delete-audit.sql` executado em 2026-06-16 — "Success. No rows returned" ✅
 
 **Conformidade**
 - NC BD-06 e A-03 sanadas — toda exclusão de lead passa a registrar responsável e timestamp no banco
