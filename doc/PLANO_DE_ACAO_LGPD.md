@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 4 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada)
+> **Status geral:** 🟡 EM PROGRESSO — 5 de 21 ações concluídas (Fase 1 completa; PA-09 antecipada; PA-04 iniciada Fase 2)
 
 ---
 
@@ -228,14 +228,14 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | 🔴 Em aberto |
+| **Status** | 🟢 Concluído |
 | **Prioridade** | CRÍTICA (LGPD) |
 | **ID Auditoria** | L-01, L-02, L-03 |
 | **Não conformidade** | Dados pessoais coletados sem consentimento, sem informação ao titular |
 | **Impacto** | Ilegalidade do tratamento — risco de autuação pela ANPD e ações de titulares |
 | **Responsável** | — |
 | **Prazo** | 2026-07-16 |
-| **Data de conclusão** | — |
+| **Data de conclusão** | 2026-06-16 |
 
 **O que fazer — Opção A (Ficha física — mais rápida de implementar):**
 
@@ -282,12 +282,16 @@
 - `src/lib/dataService.js` (mapeador `leadToDb`/`leadFromDb`)
 
 **Documentação a atualizar após conclusão:**
-- [ ] `doc/DECISIONS.md` — registrar decisão entre Opção A e B
-- [ ] `doc/CHANGELOG.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — atualizar seção 3.3 e marcar L-01, L-02 como resolvidos
-- [ ] Criar/atualizar `doc/POLITICA_DE_PRIVACIDADE.md` (ver PA-16)
+- [x] `doc/DECISIONS.md` — decisão D-033: Opção A (ficha física) escolhida
+- [x] `doc/CHANGELOG.md` (v2.0)
+- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — L-01, L-02 marcados como resolvidos
+- [ ] `doc/POLITICA_DE_PRIVACIDADE.md` — pendente (PA-16, Fase 4)
 
-**Evidência de conclusão:** _Preencher aqui_
+**Evidência de conclusão:**
+- `supabase/migracao-consentimento.sql`: migração idempotente com `ADD COLUMN IF NOT EXISTS` para `consentimento_coletado` (bool, default false), `consentimento_em` (timestamptz) e `versao_termo` (text); índice de auditoria criado
+- `src/lib/dataService.js`: `leadFromDb` expõe `consentimentoColetado`, `consentimentoEm`, `versaoTermo`; `leadToDb` persiste `consentimento_em` e `versao_termo` automaticamente quando `consentimentoColetado = true`
+- `src/apps/VendedorApp.jsx`: checkbox obrigatório adicionado antes do botão de submit; validação bloqueia envio com mensagem de erro se não marcado; `FORM_VAZIO` inicializa `consentimentoColetado: false`
+- **Ação manual necessária:** executar `supabase/migracao-consentimento.sql` no SQL Editor do Supabase Dashboard
 
 ---
 
@@ -965,7 +969,7 @@ Elaborar `doc/PLANO_INCIDENTES.md` cobrindo:
 | PA-01 | Remover senha de marketing do bundle JS | 1 | CRÍTICA | 🟢 | 2026-06-23 |
 | PA-02 | Confirmar aplicação de `migracao-auth.sql` em produção | 1 | CRÍTICA | 🟢 | 2026-06-17 |
 | PA-03 | Restringir CORS da Edge Function | 1 | ALTA | 🟢 | 2026-06-23 |
-| PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🔴 | 2026-07-16 |
+| PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🟢 | 2026-07-16 |
 | PA-05 | Criptografar fila offline no localStorage | 2 | ALTA | 🔴 | 2026-07-16 |
 | PA-06 | Criar log de exportações CSV | 2 | ALTA | 🔴 | 2026-07-16 |
 | PA-07 | Rastreabilidade do soft delete (quem/quando) | 2 | ALTA | 🔴 | 2026-07-16 |

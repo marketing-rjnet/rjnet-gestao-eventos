@@ -1109,16 +1109,16 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.3 Fase 2 — Privacidade e rastreabilidade (7–30 dias)
 
-**Status:** 🔴 Em aberto
+**Status:** 🟡 Em progresso (1/6 concluído)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
-| PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🔴 | — | — |
+| PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🟢 | 2026-06-16 | Migração SQL + checkbox obrigatório no VendedorApp + mapeamento dataService |
 | PA-05 | Criptografar fila offline localStorage | S-02 | 🔴 | — | — |
 | PA-06 | Log de exportações CSV | A-01, L-08 | 🔴 | — | — |
 | PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🔴 | — | — |
 | PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🔴 | — | — |
-| PA-09 | Corrigir stack trace na Edge Function | S-05 | 🔴 | — | — |
+| PA-09 | Corrigir stack trace na Edge Function | S-05 | 🟢 | 2026-06-16 | Resolvido em PA-03 |
 
 **Artefatos a criar/modificar nesta fase:**
 
@@ -1192,6 +1192,13 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 > Esta seção é atualizada à medida que as ações do plano são concluídas.  
 > Formato: `[DATA] PA-XX — Descrição — Evidência`
+
+- **[2026-06-16] PA-04 — Consentimento LGPD no formulário de captação de leads (L-01, L-02, L-03)**
+  - `supabase/migracao-consentimento.sql`: 3 novas colunas em `leads` — `consentimento_coletado` (bool, default false), `consentimento_em` (timestamptz), `versao_termo` (text); índice de auditoria
+  - `src/lib/dataService.js`: `leadFromDb`/`leadToDb` mapeiam os novos campos; `versao_termo` preenchida automaticamente como `v1.0` quando consentimento marcado
+  - `src/apps/VendedorApp.jsx`: checkbox obrigatório "Consentimento LGPD" adicionado antes do submit; envio bloqueado com mensagem de erro se não marcado
+  - Decisão D-033: Opção A (ficha física) escolhida por praticidade operacional em eventos de campo
+  - **Ação manual:** executar `supabase/migracao-consentimento.sql` no Supabase Dashboard
 
 - **[2026-06-16] PA-03 + PA-09 — CORS restrito e stack trace removido da Edge Function (S-04, S-05)**
   - `supabase/functions/atualizar-email-usuario/index.ts` reescrito: `corsHeaders` global substituído por `getCorsHeaders(req)` por-requisição; origens lidas do secret `CORS_ALLOWED_ORIGINS` (Supabase Dashboard → Settings → Edge Functions → Secrets); reflete a origem do solicitante apenas se estiver na lista; nunca retorna `Access-Control-Allow-Origin: *`

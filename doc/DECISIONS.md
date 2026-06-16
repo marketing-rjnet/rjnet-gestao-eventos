@@ -68,6 +68,32 @@ Riscos conhecidos.
 
 ---
 
+### [D-033] — PA-04: Opção A (ficha física) para consentimento LGPD na captação de leads
+
+**Data:** 2026-06-16  
+**Contexto:** PA-04 do Plano de Ação LGPD (NC L-01, L-02, L-03) — dados pessoais coletados sem consentimento documentado do titular, sem informação sobre finalidade ou controlador.
+
+**Decisão:** Implementar **Opção A — Ficha física de consentimento**, com registro digital no sistema.
+- O vendedor apresenta ficha física ao titular no evento (a ser impressa pelo marketing)
+- O titular assina a ficha; o vendedor marca o checkbox no app antes de registrar
+- Os campos `consentimento_coletado`, `consentimento_em` e `versao_termo` são gravados no banco
+
+**Alternativas consideradas:**
+- **Opção B (QR Code / formulário digital):** mais robusto (IP, timestamp no próprio dispositivo do titular), mas requer desenvolvimento de rota pública, política de privacidade publicada e infraestrutura adicional — escopo da Fase 4 (PA-16). Não descartada para evolução futura.
+
+**Motivação da escolha:** A Opção A é a mais rápida de implementar e válida juridicamente — o consentimento pode ser coletado em papel (art. 7º, I, LGPD não exige formato digital). A ficha física é prática no contexto de eventos de rua. O registro digital garante rastreabilidade no banco.
+
+**Versão do termo:** `v1.0` — referencia `doc/POLITICA_DE_PRIVACIDADE.md` (a ser criado em PA-16).
+
+**Arquivos Afetados:**
+- `supabase/migracao-consentimento.sql` (novo)
+- `src/lib/dataService.js` — `leadFromDb` e `leadToDb`
+- `src/apps/VendedorApp.jsx` — checkbox obrigatório + validação
+
+**Status:** Ativa
+
+---
+
 ### [D-032] — PA-01: Estratégia de proteção de credenciais legadas do bundle JavaScript
 
 **Data:** 2026-06-16  

@@ -137,6 +137,10 @@ const leadFromDb = (r) => ({
   temperatura: r.temperatura, observacao: r.observacao ?? "",
   jaClienteRjnet: r.ja_cliente_rjnet ?? false,
   criadoEm: r.criado_em,
+  // PA-04/LGPD: campos de consentimento do titular
+  consentimentoColetado: r.consentimento_coletado ?? false,
+  consentimentoEm: r.consentimento_em ?? null,
+  versaoTermo: r.versao_termo ?? null,
 });
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId, vendedor_nome: l.vendedorNome ?? null,
@@ -147,6 +151,10 @@ const leadToDb = (l) => ({
   temperatura: l.temperatura ?? 'morno', observacao: l.observacao || null,
   ja_cliente_rjnet: l.jaClienteRjnet ?? false,
   criado_em: l.criadoEm || new Date().toISOString(),
+  // PA-04/LGPD: campos de consentimento do titular
+  consentimento_coletado: l.consentimentoColetado ?? false,
+  consentimento_em: l.consentimentoColetado ? (l.consentimentoEm || new Date().toISOString()) : null,
+  versao_termo: l.consentimentoColetado ? (l.versaoTermo || 'v1.0') : null,
 });
 
 const perfilFromDb = (r) => ({

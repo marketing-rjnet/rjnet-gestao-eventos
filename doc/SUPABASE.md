@@ -164,7 +164,7 @@ WHERE schemaname = 'public'
 | 2 | `supabase/migracao-auth.sql` | ✅ Obrigatório | Auth, perfis, RLS por papel |
 | 3 | `supabase/protecao-dados.sql` | ✅ Obrigatório | Soft delete em leads |
 | — | `supabase/verificar-migracao-auth.sql` | ✅ Disponível (PA-02) | Script de verificação — confirma que as 3 migrações acima foram aplicadas |
-| 4 | `supabase/migracao-consentimento.sql` | 🔴 Planejado (PA-04) | Campo de consentimento LGPD |
+| 4 | `supabase/migracao-consentimento.sql` | ✅ Pronto para aplicar (PA-04) | 3 colunas de consentimento LGPD em `leads` — **executar no Dashboard** |
 | 5 | `supabase/migracao-soft-delete-audit.sql` | 🔴 Planejado (PA-07) | Rastreabilidade de soft delete |
 | 6 | `supabase/migracao-audit-exportacoes.sql` | 🔴 Planejado (PA-06) | Log de exportações CSV |
 | 7 | `supabase/migracao-audit-log.sql` | 🔴 Planejado (PA-13) | Tabela de auditoria de operações |

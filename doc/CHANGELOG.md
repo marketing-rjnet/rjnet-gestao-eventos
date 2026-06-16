@@ -4,6 +4,31 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v2.0] — PA-04: Consentimento LGPD no formulário de captação de leads (L-01, L-02, L-03)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Banco (`supabase/migracao-consentimento.sql`):** 3 novas colunas em `leads`:
+  - `consentimento_coletado boolean NOT NULL DEFAULT false`
+  - `consentimento_em timestamptz`
+  - `versao_termo text`
+  - Índice `idx_leads_consentimento` para consultas de auditoria
+- **Camada de dados (`src/lib/dataService.js`):** `leadFromDb` expõe `consentimentoColetado`, `consentimentoEm`, `versaoTermo`; `leadToDb` persiste os campos automaticamente com `versao_termo = 'v1.0'` quando consentimento marcado
+- **Formulário vendedor (`src/apps/VendedorApp.jsx`):** checkbox obrigatório "Consentimento LGPD" adicionado antes do botão de submit; validação bloqueia envio se não marcado; `FORM_VAZIO` inicializa com `consentimentoColetado: false`
+
+**Por que mudou**
+- PA-04 do Plano de Ação LGPD (NC L-01, L-02, L-03): dados pessoais coletados em eventos sem consentimento documentado do titular — base legal exigida pelo art. 7º, I da LGPD
+
+**Ação manual necessária**
+- Executar `supabase/migracao-consentimento.sql` no Supabase Dashboard → SQL Editor
+
+**Conformidade**
+- NC L-01 e L-02 sanadas — consentimento coletado e registrado digitalmente
+- Decisão D-033 registrada em `doc/DECISIONS.md`
+- Fase 2 iniciada
+
+---
+
 ## [v1.9] — PA-03 + PA-09: CORS restrito e stack trace removido da Edge Function (S-04, S-05)
 **Data:** 2026-06-16
 
