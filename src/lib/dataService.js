@@ -375,7 +375,31 @@ export const auth = {
         : error.message;
       throw new Error(msg);
     }
+    // PA-12/LGPD: detecta desafio MFA — retorna indicador para a UI exibir campo TOTP
+    if (data?.session === null && data?.user === null) {
+      const factors = await supabase.auth.mfa.listFactors();
+      if (factors.data?.totp?.length > 0) {
+        const { data: challenge, error: chalErr } = await supabase.auth.mfa.challenge({ factorId: factors.data.totp[0].id });
+        if (chalErr) throw new Error(chalErr.message);
+        return { mfaRequired: true, factorId: factors.data.totp[0].id, challengeId: challenge.id };
+      }
+    }
     const perfil = await auth.getPerfil(data.user.id);
+    if (!perfil || !perfil.ativo) {
+      await supabase.auth.signOut();
+      throw new Error('Seu acesso ainda não foi ativado. Fale com o marketing.');
+    }
+    return { role: perfil.papel, vendedorNome: perfil.nome, userId: perfil.id, email: perfil.email };
+  },
+
+  // PA-12/LGPD: verifica código TOTP do MFA e retorna sessão completa
+  async verifyMfa(factorId, challengeId, codigo) {
+    const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code: codigo });
+    if (error) throw new Error('Código inválido ou expirado.');
+    const { data } = await supabase.auth.getSession();
+    const user = data?.session?.user;
+    if (!user) throw new Error('Sessão MFA não estabelecida.');
+    const perfil = await auth.getPerfil(user.id);
     if (!perfil || !perfil.ativo) {
       await supabase.auth.signOut();
       throw new Error('Seu acesso ainda não foi ativado. Fale com o marketing.');
