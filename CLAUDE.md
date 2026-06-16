@@ -12,16 +12,73 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 
 ## Estrutura do Projeto
 
+> **Refatoração em andamento** — etapas 1–17 de 18 concluídas. Ver `REFATORAÇÃO.md`.
+
 ```
 src/
-├── main.jsx              # App React completo (~2.500 linhas) — todos os componentes
+├── main.jsx              # Ponto de entrada (~35 linhas) — ErrorBoundary + ReactDOM.createRoot
 ├── index.css             # Estilos globais (tema dark)
+├── api/
+│   ├── eventoApi.js      # Factory createEventoApi — CRUD de eventos (etapa 17)
+│   ├── leadApi.js        # Factory createLeadApi — CRUD de leads (etapa 17)
+│   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
+│   └── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+├── context/
+│   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
+│   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
+│   └── index.js          # Re-exports de context (etapa 16)
+├── apps/
+│   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
+│   ├── MarketingApp.jsx  # Shell do usuário marketing: navegação, tabs, dark mode (etapa 14)
+│   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline (etapa 13)
+├── auth/
+│   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
+│   ├── LoginAuth.jsx     # Formulário de login Supabase + recuperação de senha (etapa 8)
+│   ├── NovaSenha.jsx     # Formulário de redefinição de senha por link (etapa 8)
+│   ├── RootAuth.jsx      # Roteador de auth modo Supabase (etapa 8)
+│   ├── RootLegacy.jsx    # Roteador de auth modo legado (etapa 8)
+│   └── index.js          # Re-exports de auth (etapa 8)
+├── components/
+│   ├── ui.jsx            # Icon, StatusBadge, TipoBadge, Kpi, ChartView (etapa 6)
+│   ├── SyncBadge.jsx     # Indicador visual de sincronização (etapa 7)
+│   └── modals/
+│       ├── EventModal.jsx    # Modal de criação/edição de evento (etapa 9)
+│       ├── MaterialModal.jsx # Modal de criação de material (etapa 9)
+│       └── index.js          # Re-exports de modais (etapa 9)
+├── features/
+│   ├── events/
+│   │   ├── Dashboard.jsx     # KPIs, gráfico de leads, próximos eventos (etapa 10)
+│   │   ├── EventosTab.jsx    # Lista de eventos com filtros de status (etapa 10)
+│   │   ├── EventDetail.jsx   # Detalhe do evento, materiais e leads (etapa 10)
+│   │   └── index.js          # Re-exports de events (etapa 10)
+│   ├── inventory/
+│   │   ├── EstoqueTab.jsx    # Gestão de materiais por nível de estoque (etapa 11)
+│   │   └── index.js          # Re-export de inventory (etapa 11)
+│   ├── leads/
+│   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
+│   │   └── index.js          # Re-export de leads (etapa 11)
+│   ├── checkin/
+│   │   ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
+│   │   └── index.js          # Re-export de checkin (etapa 11)
+│   └── team/
+│       ├── EquipeTab.jsx     # Gestão de vendedores modo local (etapa 12)
+│       ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
+│       └── index.js          # Re-exports de team (etapa 12)
+├── hooks/
+│   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
+│   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
+│   └── useRanking.js     # Hook de polling de ranking com debounce e cleanup automático (etapa 15)
+├── utils/
+│   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
+│   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
+│   ├── csv.js            # exportLeadsCSV (etapa 3)
+│   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
-    ├── supabase.js       # Inicialização do cliente Supabase
+    ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
-    └── constants.js      # Constantes globais (validações, metadados)
+    └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, limites (etapas 5)
 
 supabase/
 ├── schema.sql            # Schema inicial (4 tabelas + seed)
@@ -40,9 +97,6 @@ tests/
 ├── estoque.test.js       # E2E: inventário
 ├── marketing.test.js     # E2E: dashboard marketing
 └── helpers/auth.js       # Helpers de autenticação para testes
-
-config/
-└── security.js           # Utilitários de segurança Node.js (espelha src/lib/security.js)
 
 data/
 ├── colaboradores.example.json
@@ -210,8 +264,34 @@ node tests/lead.unit.test.js       # validação de leads
 
 | Arquivo | Linhas | Propósito |
 |---------|--------|-----------|
-| `src/main.jsx` | ~2.500 | App inteiro: componentes, context, formulários, gráficos |
-| `src/lib/dataService.js` | ~330 | Queries Supabase, auth, realtime, retry |
+| `src/main.jsx` | ~35 | ErrorBoundary + ponto de entrada React |
+| `src/api/eventoApi.js` | ~22 | Factory CRUD de eventos (etapa 17) |
+| `src/api/leadApi.js` | ~20 | Factory CRUD de leads (etapa 17) |
+| `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |
+| `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
+| `src/context/AppProvider.jsx` | ~100 | Provider: orquestra estado, efeitos e factories de API (etapas 16–17) |
+| `src/apps/VendedorApp.jsx` | ~345 | Shell completo do vendedor + LeadEditInline (etapa 13) |
+| `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
+| `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
+| `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
+| `src/auth/RootAuth.jsx` | ~38 | Roteador de auth modo Supabase (etapa 8) |
+| `src/auth/RootLegacy.jsx` | ~25 | Roteador de auth modo legado (etapa 8) |
+| `src/components/ui.jsx` | ~80 | Componentes UI atômicos extraídos (etapa 6) |
+| `src/components/SyncBadge.jsx` | ~14 | Indicador de sincronização (etapa 7) |
+| `src/components/modals/EventModal.jsx` | ~90 | Modal de criação/edição de evento (etapa 9) |
+| `src/components/modals/MaterialModal.jsx` | ~50 | Modal de criação de material (etapa 9) |
+| `src/features/events/Dashboard.jsx` | ~70 | KPIs, gráfico donut, próximos eventos (etapa 10) |
+| `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
+| `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
+| `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
+| `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
+| `src/hooks/useRanking.js` | ~38 | Hook de polling de ranking com debounce e cleanup (etapa 15) |
+| `src/utils/format.js` | ~21 | Formatação de datas, labels e iniciais (etapa 1) |
+| `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
+| `src/utils/csv.js` | ~20 | Exportação CSV de leads (etapa 3) |
+| `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
+| `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
+| `src/lib/dataService.js` | ~394 | Queries Supabase, auth, realtime, retry |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |

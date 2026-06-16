@@ -14,3 +14,16 @@ export const MAX_DESCRICAO = 255;
 // Tempo
 export const REALTIME_DEBOUNCE_MS = 400;
 export const TOAST_DURATION_MS = 5000;
+export const RANKING_DEBOUNCE_MS = 3000;
+export const RANKING_POLL_MS = 60_000;
+
+// Enums de domínio
+export const SYNC_STATUS = { IDLE: 'idle', SYNCING: 'syncing', ERROR: 'error' };
+export const STATUS_EVENTO = { PLANEJADO: 'planejado', ATIVO: 'ativo', ENCERRADO: 'encerrado' };
+export const NIVEL_ESTOQUE = { CRIT: 'crit', WARN: 'warn', OK: 'ok' };
+
+// Limites de UI
+export const UPCOMING_EVENTS_LIMIT = 3;
+export const AVATARS_SHOWN = 4;
+export const RECENT_EVENTS_SHOWN = 5;
+export const CHART_CUTOUT = '62%';
