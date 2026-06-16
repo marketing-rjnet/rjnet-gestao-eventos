@@ -175,6 +175,19 @@ Etapa 17 executada em 16/06/2026.
     corpo do componente; useMemo recebe referências das funções criadas pelas factories.
     Import de db e invalidarRanking removidos de AppProvider (delegados às factories).
   Build passou sem erros (106 módulos transformados).
+
+Etapa 18 executada em 16/06/2026.
+  Criado src/lib/mode.js: helpers de detecção de modo — isSupabaseMode(), getMode() e
+    constante MODE (~10 linhas). Única fonte de verdade sobre modo ativo.
+  AppProvider.jsx, Root.jsx, MarketingApp.jsx, SyncBadge.jsx e dataService.js migrados
+    para importar isSupabaseMode de ./mode (ou ../lib/mode) em vez de acessar
+    supabaseEnabled ou VITE_SUPABASE_URL diretamente.
+  Nenhum arquivo fora de supabase.js e mode.js acessa supabaseEnabled ou
+    import.meta.env.VITE_SUPABASE_URL diretamente.
+  Decisão registrada em docs/DECISIONS.md como D-003a.
+  Build passou sem erros.
+  main.jsx permanece em ~35 linhas — ponto de entrada mínimo com ErrorBoundary e
+    ReactDOM.createRoot.
 ```
 
 ### Legenda de Status
