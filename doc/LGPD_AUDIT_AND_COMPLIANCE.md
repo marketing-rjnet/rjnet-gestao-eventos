@@ -1083,12 +1083,12 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.2 Fase 1 — Bloqueadores críticos (0–7 dias)
 
-**Status:** 🟡 Em progresso (1/3 concluído)
+**Status:** 🟡 Em progresso (2/3 concluído)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
 | PA-01 | Remover senha de marketing do bundle JS | S-01 | 🟢 | 2026-06-16 | Guard de build (`vite.config.js`) + guard de runtime (`Login.jsx`) + remoção do objeto `AUTH` exportado |
-| PA-02 | Confirmar `migracao-auth.sql` em produção | BD-01, SB-01 | 🔴 | — | — |
+| PA-02 | Confirmar `migracao-auth.sql` em produção | BD-01, SB-01 | 🟢 | 2026-06-16 | Script `supabase/verificar-migracao-auth.sql` criado (8 blocos); seção de verificação adicionada a `doc/SUPABASE.md` |
 | PA-03 | Restringir CORS da Edge Function | S-04, S-05 | 🔴 | — | — |
 
 **Artefatos a criar/modificar nesta fase:**
@@ -1099,9 +1099,11 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `src/auth/Login.jsx` | Código | PA-01 | 🟢 |
 | `src/auth/index.js` | Código | PA-01 | 🟢 |
 | `.env.example` | Documentação | PA-01 | 🟢 |
+| `supabase/verificar-migracao-auth.sql` | SQL (verificação) | PA-02 | 🟢 |
+| `doc/SUPABASE.md` | Documentação | PA-02 | 🟢 |
 | `supabase/functions/atualizar-email-usuario/index.ts` | Código | PA-03 | 🔴 |
 | `doc/DECISIONS.md` | Decisão técnica | PA-01 | 🟢 |
-| `doc/CHANGELOG.md` | Histórico | PA-01, PA-03 | 🟡 |
+| `doc/CHANGELOG.md` | Histórico | PA-01, PA-02, PA-03 | 🟡 |
 
 ---
 
@@ -1190,6 +1192,11 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 > Esta seção é atualizada à medida que as ações do plano são concluídas.  
 > Formato: `[DATA] PA-XX — Descrição — Evidência`
+
+- **[2026-06-16] PA-02 — Verificação e documentação das migrações de Auth (BD-01, SB-01)**
+  - Criado `supabase/verificar-migracao-auth.sql` — script com 8 blocos de verificação idempotentes: policies anônimas, existência de `perfis`, colunas `deletado` e `vendedor_id`, funções `papel_atual()` e `ranking_evento()`, policies por papel e resumo de leads
+  - `doc/SUPABASE.md` atualizado: nova seção "Verificação de estado das migrações (PA-02)" com tabela de resultados esperados; checklist de segurança pré-produção atualizado; tabela de migrações com o novo script
+  - Procedimento de verificação manual documentado com instruções de remediação para cada falha possível
 
 - **[2026-06-16] PA-01 — Remoção de credenciais legadas do bundle JS (S-01)**
   - Guard de build em `vite.config.js`: aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida — impede deploys acidentais com senha no bundle

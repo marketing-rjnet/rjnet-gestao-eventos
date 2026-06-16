@@ -4,6 +4,25 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v1.8] — PA-02: Script de verificação de migrações de Auth
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Novo arquivo (`supabase/verificar-migracao-auth.sql`):** script SQL com 8 blocos de verificação idempotentes para confirmar o estado das migrações `migracao-auth.sql` e `protecao-dados.sql` em produção; inclui resultado esperado anotado e instruções de remediação
+- **Documentação (`doc/SUPABASE.md`):** nova seção "Verificação de estado das migrações (PA-02)" com tabela de resultados esperados; tabela de migrações atualizada com o script de verificação; checklist de segurança pré-produção atualizado
+
+**Por que mudou**
+- PA-02 do Plano de Ação LGPD (NC BD-01, SB-01): policies anônimas do `schema.sql` expõem todos os dados se `migracao-auth.sql` não estiver aplicada em produção; a ação requer verificação operacional documentada
+
+**Impacto**
+- Nenhuma alteração de código de produção — apenas artefatos de verificação e documentação
+- Operador deve executar `supabase/verificar-migracao-auth.sql` no Supabase Dashboard e confirmar 0 policies anônimas
+
+**Conformidade**
+- NC BD-01 e SB-01 documentadas e com procedimento de verificação — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+
+---
+
 ## [v1.7] — PA-01: Remoção de credenciais legadas do bundle JS (D-032)
 **Data:** 2026-06-16
 
