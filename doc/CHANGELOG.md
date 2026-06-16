@@ -4,6 +4,30 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v2.1] — PA-05: Criptografia da fila offline no localStorage (S-02)
+**Data:** 2026-06-16
+
+**O que mudou**
+- **Novo módulo (`src/lib/crypto.js`):** utilitário de criptografia usando Web Crypto API nativa do browser (sem dependências externas)
+  - Derivação de chave via PBKDF2-SHA256 (100.000 iterações, salt fixo por versão `rjnet-lgpd-queue-v1`)
+  - Algoritmo AES-GCM 256 bits (autenticado — detecta adulteração/corrupção)
+  - Chave cacheada em memória (Map); nunca escrita em disco; descartada no logout
+  - Fallback gracioso: se `crypto.subtle` não disponível, fila volta a texto plano sem quebrar o app
+- **Camada de dados (`src/lib/dataService.js`):**
+  - `getQueue()` e `saveQueue()` tornadas assíncronas; criptografam/descriptografam usando `_queueUserId`
+  - `addToQueue()` e `flushPendingQueue()` atualizados para `await` nas novas funções assíncronas
+  - Exporta `setQueueUserId(userId)` e `clearQueueSession(userId)` para gerenciamento do ciclo de vida da chave
+- **Auth (`src/auth/RootAuth.jsx`):** integrado ao ciclo de login/logout — `setQueueUserId` ao iniciar sessão, `clearQueueSession` ao sair
+
+**Por que mudou**
+- PA-05 do Plano de Ação LGPD (NC S-02): dados pessoais (CPF, telefone) em texto plano no localStorage expõem titulares em caso de acesso físico ao dispositivo do vendedor
+
+**Conformidade**
+- NC S-02 sanada — fila offline criptografada com AES-GCM 256; chave inacessível após logout
+- Decisão D-034 registrada em `doc/DECISIONS.md`
+
+---
+
 ## [v2.0] — PA-04: Consentimento LGPD no formulário de captação de leads (L-01, L-02, L-03)
 **Data:** 2026-06-16
 
