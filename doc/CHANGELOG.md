@@ -4,6 +4,21 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.7] — Separação visual de administradores e equipe de vendas na tela Equipe
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/features/team/EquipeAuthTab.jsx`**: lista única substituída por dois blocos distintos — "Administradores" (papel `marketing`) e "Equipe de Vendas" (demais papéis). A divisão é dinâmica: mudar o papel de um usuário via dropdown move o card para o bloco correto imediatamente.
+- **`src/index.css`**: estilos `.equipe-section`, `.equipe-section--admin` (borda amarela) e `.equipe-section--vendas` adicionados.
+
+**Por que mudou**
+- Clareza de hierarquia de acesso: usuários com papel `marketing` têm acesso total ao sistema, enquanto vendedores têm escopo restrito à captura de leads. A distinção visual reduz risco de mudança acidental de papel.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança apenas na UI; sem alteração de schema ou migrations.
+
+---
+
 ## [v3.6] — Suspensão temporária do campo de consentimento LGPD
 **Data:** 2026-06-17
 
