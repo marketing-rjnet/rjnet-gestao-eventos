@@ -117,8 +117,11 @@ export default function EquipeAuthTab() {
         </div>
       )}
 
-      <div className="vendor-grid">
-        {perfis.map((p) => (
+      {(() => {
+        const admins = perfis.filter((p) => p.papel === "marketing");
+        const vendedores = perfis.filter((p) => p.papel !== "marketing");
+
+        const renderCard = (p) => (
           <div key={p.id} className="vendor-card">
             <div className="v-av">{initials(p.nome)}</div>
             <div className="v-name">{p.nome}</div>
@@ -149,8 +152,44 @@ export default function EquipeAuthTab() {
               </button>
             </div>
           </div>
-        ))}
-      </div>
+        );
+
+        return (
+          <>
+            <div className="equipe-section equipe-section--admin">
+              <div className="equipe-section-header">
+                <div className="equipe-section-title">
+                  <span className="equipe-section-icon">⚙</span>
+                  Administradores
+                </div>
+                <span className="equipe-section-count">{admins.length}</span>
+              </div>
+              <p className="equipe-section-desc">Acesso total ao sistema — eventos, estoque, leads e equipe.</p>
+              <div className="vendor-grid">
+                {admins.length === 0
+                  ? <p className="empty-state">Nenhum administrador cadastrado.</p>
+                  : admins.map(renderCard)}
+              </div>
+            </div>
+
+            <div className="equipe-section equipe-section--vendas">
+              <div className="equipe-section-header">
+                <div className="equipe-section-title">
+                  <span className="equipe-section-icon">👥</span>
+                  Equipe de Vendas
+                </div>
+                <span className="equipe-section-count">{vendedores.length}</span>
+              </div>
+              <p className="equipe-section-desc">Capturam leads em campo e acompanham desempenho por evento.</p>
+              <div className="vendor-grid">
+                {vendedores.length === 0
+                  ? <p className="empty-state">Nenhum vendedor cadastrado.</p>
+                  : vendedores.map(renderCard)}
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
