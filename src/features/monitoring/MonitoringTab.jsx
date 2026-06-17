@@ -4,7 +4,6 @@ import {
   getActivityLogs,
   getActivityLogsForDay,
   getActivityDays,
-  clearActivityDay,
 } from '../../lib/activityLog';
 import { initials } from '../../utils/format';
 import { Icon } from '../../components/ui';
@@ -199,14 +198,6 @@ export default function MonitoringTab() {
     setFilter('all');
   }, [selectedDay, isToday]);
 
-  const handleClear = () => {
-    clearActivityDay(selectedDay);
-    setLogs([]);
-    const newDays = getActivityDays();
-    setDays(newDays);
-    if (!isToday) setSelectedDay(today);
-  };
-
   const eventoNome = (id) => id ? (eventos.find((e) => e.id === id)?.nome ?? id.slice(-6)) : null;
 
   const stats = useMemo(() => ({
@@ -314,14 +305,6 @@ export default function MonitoringTab() {
               </span>
             )}
           </div>
-          {logs.length > 0 && (
-            <button
-              onClick={handleClear}
-              style={{ fontSize: 12, color: 'var(--text-3)', padding: '5px 10px', borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)' }}
-            >
-              Limpar
-            </button>
-          )}
         </div>
       </div>
 
