@@ -15,7 +15,9 @@ export const MAX_LOCAL = 150;
 export const MAX_DESCRICAO = 255;
 
 // Tempo
-export const REALTIME_DEBOUNCE_MS = 400;
+// QW-005: aumentado de 400ms para 1500ms para reduzir fetchAll consecutivos
+// durante bursts de inserção. Tradeoff: dashboard atualiza com até 1.5s de atraso.
+export const REALTIME_DEBOUNCE_MS = 1500;
 export const TOAST_DURATION_MS = 5000;
 export const RANKING_DEBOUNCE_MS = 3000;
 export const RANKING_POLL_MS = 60_000;

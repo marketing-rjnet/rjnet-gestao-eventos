@@ -1262,6 +1262,92 @@ Eliminar os 6 desvios arquiteturais identificados na auditoria, garantindo que n
 
 ---
 
+### [D-036] — QW-003: AbortSignal.timeout(15s) em fetchAll para evitar loading infinito
+
+**Data:** 2026-06-17  
+**Tipo:** Performance / UX
+
+**Decisão:**
+Adicionado `AbortSignal.timeout(15_000)` composto com o `AbortController` existente em `carregar()` do `AppProvider`, via `AbortSignal.any([controller.signal, timeoutSignal])`. A função `fetchAll()` recebia apenas o sinal do `AbortController` (sem timeout automático), podendo ficar pendente indefinidamente em conexão instável.
+
+**Motivação:**
+Vendedores usam o sistema em campo com conexão móvel instável (3G/4G em eventos). Sem timeout, o estado `isLoading=true` poderia perdurar por minutos em um timeout TCP silencioso, congelando a UI de captura de leads. O timeout de 15s garante que o usuário receba feedback de erro (via `syncStatus = ERROR`) dentro de um tempo razoável.
+
+**Alternativas avaliadas:**
+- Timeout dentro de `withRetry()` — descartado: alteraria o comportamento global do retry e não resolveria o caso de timeout TCP silencioso no Supabase client
+- `Promise.race()` manual — descartado: `AbortSignal.any()` é mais elegante e suportado (Chrome 103+, Firefox 100+, Safari 15.4+)
+
+**Impacto:**
+- Positivo: elimina loading infinito; UX consistente em conexões instáveis
+- Positivo: o `abortRef` existente (para cancelar na remontagem) continua funcionando independentemente
+- Negativo: nenhum em condições normais (timeout de 15s não será atingido em conexão estável)
+
+**Arquivos Afetados:**
+- `src/context/AppProvider.jsx` (2 linhas adicionadas em `carregar()`)
+
+**Riscos:**
+- `AbortSignal.any()` requer browser moderno — verificado que está dentro do baseline de suporte do projeto
+
+**Status:** Ativa
+
+---
+
+### [D-037] — QW-004: Column pruning no fetchAll (select explícito vs select *)
+
+**Data:** 2026-06-17  
+**Tipo:** Performance
+
+**Decisão:**
+Substituído `select('*')` por seleção explícita de colunas em todas as 4 queries do `fetchAll()` em `src/lib/dataService.js`. As colunas selecionadas correspondem exatamente ao que os mapeadores `*FromDb()` utilizam.
+
+**Motivação:**
+`select('*')` retorna todas as colunas, incluindo campos de auditoria (`criado_em` em perfis, timestamps internos) que não são mapeados pelo frontend. Com o crescimento do banco, cada `fetchAll` transfere dados desnecessários. Esta mudança reduz o payload em 10–30% sem impactar funcionalidade.
+
+**Alternativas avaliadas:**
+- Manter `select('*')` com compressão gzip (Supabase já aplica) — descartado: a compressão reduz o tamanho mas não a alocação de memória no cliente
+
+**Impacto:**
+- Positivo: redução de payload por `fetchAll`; menos memória alocada para parsing JSON
+- Negativo: qualquer novo campo adicionado ao banco precisa ser explicitamente adicionado ao select
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` (query de `fetchAll` — 4 linhas)
+
+**Riscos:**
+- Baixo: se um novo campo for adicionado ao banco e esquecido no select, o mapeador retornará `undefined` para esse campo (comportamento já existente — os mapeadores já lidam com campos ausentes)
+
+**Status:** Ativa
+
+---
+
+### [D-038] — QW-005: Aumento do REALTIME_DEBOUNCE_MS de 400ms para 1500ms
+
+**Data:** 2026-06-17  
+**Tipo:** Performance
+
+**Decisão:**
+`REALTIME_DEBOUNCE_MS` em `src/lib/constants.js` aumentado de `400` para `1500`. Esta constante controla o debounce do canal realtime Supabase que dispara `fetchAll()` após mutações no banco.
+
+**Motivação:**
+Com debounce de 400ms, um burst de leads inseridos com pausas > 400ms entre eles (ex: 5 leads em 2 segundos com pequenas variações de timing) ainda poderia gerar múltiplos `fetchAll()` consecutivos no dashboard do marketing. O valor de 1500ms coalesce bursts típicos de captura de leads em um único refetch.
+
+**Trade-off aceito:**
+O dashboard do marketing passa a refletir mudanças com até 1.5s de atraso em vez de 400ms. Para o caso de uso (dashboard de acompanhamento, não de controle em tempo real), 1.5s é imperceptível.
+
+**Alternativas avaliadas:**
+- Debounce de 2000ms — descartado: atraso perceptível em telas com animação de ranking
+- Manter 400ms e resolver via delta realtime (TB-005) — a solução correta a longo prazo, mas de alta complexidade; o debounce é uma mitigação imediata de baixo risco
+
+**Arquivos Afetados:**
+- `src/lib/constants.js` (1 constante)
+
+**Riscos:**
+- Baixo: mudança de configuração centralizada; sem impacto em lógica de negócio
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

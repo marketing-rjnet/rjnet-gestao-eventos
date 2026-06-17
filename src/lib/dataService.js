@@ -205,12 +205,14 @@ export async function fetchAll(signal) {
     withRetry(async () => {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
+      // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
+      // reduz payload transferido e memória usada no cliente
       const [materiais, perfis, eventos, leads] = await Promise.all([
-        supabase.from('materiais').select('*').order('nome').abortSignal(signal),
-        supabase.from('perfis').select('*').order('nome').abortSignal(signal),
-        supabase.from('eventos').select('*').order('data_inicio').abortSignal(signal),
+        supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
+        supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
+        supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
         // Exclui leads marcados como deletados (soft delete via protecao-dados.sql)
-        supabase.from('leads').select('*').eq('deletado', false).order('criado_em').abortSignal(signal),
+        supabase.from('leads').select('id,evento_id,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo').eq('deletado', false).order('criado_em').abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error || leads.error;

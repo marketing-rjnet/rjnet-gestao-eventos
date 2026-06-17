@@ -2,7 +2,8 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-16
+> Atualizado em: 2026-06-17 (D-036, D-037, D-038 — quick wins de performance)
+> Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 
 ---
 
@@ -237,7 +238,8 @@ AppProvider re-sincroniza estado com dados do banco
 - **RLS ativo no Supabase**: `marketing` tem acesso total; `vendedor` só escreve/edita próprios leads (`vendedor_id = auth.uid()`)
 - **Updates otimistas**: estado local muda antes da resposta do banco
 - **Retry com backoff**: `withRetry()` — base 800 ms, fator 2x, máx. 3 tentativas
-- **Realtime com debounce**: subscriptions Supabase com 400 ms de debounce
+- **Timeout de fetch**: `carregar()` usa `AbortSignal.any([controller, AbortSignal.timeout(15s)])` — evita loading infinito (D-036)
+- **Realtime com debounce**: subscriptions Supabase com 1500 ms de debounce (`REALTIME_DEBOUNCE_MS` — D-038, era 400 ms)
 - **Fila offline**: leads capturados offline são enfileirados e sincronizados ao reconectar
 - **Sanitização obrigatória**: `sanitizeText()` em todos os inputs antes de persistir
 - **Cache de ranking**: TTL de 30 s, invalidado a cada mutação de lead
