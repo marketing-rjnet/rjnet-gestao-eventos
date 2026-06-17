@@ -193,7 +193,7 @@ export default function MonitoringTab() {
     let realtimeChannel = null;
     if (supabase) {
       realtimeChannel = supabase
-        .channel('rjnet-monitor-recv')
+        .channel('rjnet-monitor')
         .on('broadcast', { event: 'log' }, ({ payload }) => {
           const isNew = receiveActivityLog(payload);
           if (isNew) {
