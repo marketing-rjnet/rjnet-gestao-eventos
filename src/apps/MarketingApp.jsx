@@ -7,6 +7,7 @@ import { EstoqueTab } from '../features/inventory';
 import { LeadsTab } from '../features/leads';
 import { CheckinTab } from '../features/checkin';
 import { EquipeTab, EquipeAuthTab } from '../features/team';
+import { MonitoringTab } from '../features/monitoring';
 
 export default function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
   const [tab, setTab] = useState("eventos");
@@ -18,6 +19,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
     { id: "leads", label: "Leads", ico: "users" },
     { id: "equipe", label: "Equipe", ico: "briefcase" },
     { id: "checkin", label: "Check-in", ico: "search" },
+    { id: "monitor", label: "Monitor", ico: "activity" },
   ];
 
   const switchTab = (id) => { setTab(id); setDetailId(null); };
@@ -48,6 +50,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}
+      {tab === "monitor" && <MonitoringTab />}
 
       {/* Bottom nav — mobile only */}
       <nav className="bottom-nav">

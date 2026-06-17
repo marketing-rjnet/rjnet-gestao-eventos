@@ -6,6 +6,7 @@ import { isSupabaseMode } from './mode';
 import { cache } from './cache';
 import { encryptQueue, decryptQueue, clearCryptoKey, cryptoSupported } from './crypto';
 import { REALTIME_DEBOUNCE_MS } from './constants';
+import { logActivity } from './activityLog';
 
 /* ─── Fila offline — PA-05/LGPD: dados criptografados em repouso ─── */
 
@@ -62,6 +63,7 @@ async function addToQueue(op) {
   const queue = await getQueue();
   queue.push({ ...op, queuedAt: new Date().toISOString() });
   await saveQueue(queue);
+  logActivity({ type: 'offline_queue', level: 'warn', eventoId: op.data?.evento_id, detail: 'aguardando sync' });
 }
 
 // Envia todos os leads pendentes ao Supabase. Descarta itens cujo evento
@@ -121,7 +123,10 @@ async function trackPerf(label, fn) {
   try {
     const result = await fn();
     const ms = Math.round(performance.now() - t0);
-    if (ms > 1000) console.warn(`[rjnet:perf] ${label} demorou ${ms}ms`);
+    if (ms > 1000) {
+      console.warn(`[rjnet:perf] ${label} demorou ${ms}ms`);
+      logActivity({ type: 'perf_warn', level: 'warn', detail: label, ms });
+    }
     return result;
   } catch (err) {
     const ms = Math.round(performance.now() - t0);
@@ -335,6 +340,7 @@ function exec(promise, acao, onFail) {
       .catch((err) => {
         console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
         window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
+        logActivity({ type: 'sync_error', level: 'error', detail: `${acao}: ${err.message}` });
         if (onFail) onFail();
       })
   );

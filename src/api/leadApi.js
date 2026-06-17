@@ -1,6 +1,7 @@
 import { db, invalidarRanking, rankingEvento } from '../lib/dataService';
 import { genId } from '../utils/ids';
 import { isSupabaseMode } from '../lib/mode';
+import { logActivity } from '../lib/activityLog';
 
 export function createLeadApi({ leads, setLeads }) {
   return {
@@ -9,12 +10,17 @@ export function createLeadApi({ leads, setLeads }) {
       setLeads((p) => [...p, novo]);
       db.saveLead(novo);
       if (novo.eventoId) invalidarRanking(novo.eventoId);
+      logActivity({ type: 'lead_add', vendedor: novo.vendedorNome, eventoId: novo.eventoId, detail: novo.nome });
       return novo;
     },
     updateLead: (id, patch) => {
       const atual = leads.find((l) => l.id === id);
       setLeads((p) => p.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-      if (atual) { db.saveLead({ ...atual, ...patch }); invalidarRanking(atual.eventoId); }
+      if (atual) {
+        db.saveLead({ ...atual, ...patch });
+        invalidarRanking(atual.eventoId);
+        logActivity({ type: 'lead_update', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome });
+      }
     },
     removeLead: (id) => {
       const atual = leads.find((l) => l.id === id);
@@ -23,6 +29,7 @@ export function createLeadApi({ leads, setLeads }) {
         if (atual) setLeads((p) => [...p, atual]);
       });
       if (atual?.eventoId) invalidarRanking(atual.eventoId);
+      if (atual) logActivity({ type: 'lead_remove', level: 'warn', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome });
     },
     obterRanking: async (eventoId) => {
       if (isSupabaseMode()) {
