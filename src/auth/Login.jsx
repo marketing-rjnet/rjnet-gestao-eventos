@@ -5,11 +5,11 @@ import { useApp } from '../hooks/useApp';
 // PA-01/LGPD: Guard de runtime — detecta credenciais legadas expostas em produção.
 // VITE_MARKETING_PASS é substituída literalmente no bundle pelo Vite em tempo de build.
 // Se chegar até aqui em produção, o dano já ocorreu — emite erro crítico visível.
-if (import.meta.env.PROD && import.meta.env.VITE_MARKETING_PASS) {
+if (import.meta.env.PROD && (import.meta.env.VITE_MARKETING_PASS || import.meta.env.VITE_VENDEDOR_PASS)) {
   console.error(
-    '[rjnet/PA-01] CRÍTICO: VITE_MARKETING_PASS está definida em produção. ' +
+    '[rjnet/PA-01] CRÍTICO: VITE_MARKETING_PASS ou VITE_VENDEDOR_PASS está definida em produção. ' +
     'A senha está exposta no bundle JavaScript público. ' +
-    'Remova esta variável da configuração de produção e use Supabase Auth.'
+    'Remova estas variáveis da configuração de produção e use Supabase Auth.'
   );
 }
 
@@ -19,6 +19,7 @@ export function Login({ onLogin, darkMode, toggleDark }) {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [vendedorId, setVendedorId] = useState("");
+  const [senhaVendedor, setSenhaVendedor] = useState("");
   const [err, setErr] = useState("");
 
   const vendedoresAtivos = vendedores.filter((v) => v.ativo);
@@ -39,8 +40,14 @@ export function Login({ onLogin, darkMode, toggleDark }) {
   const submitVendedor = (e) => {
     e.preventDefault();
     setErr("");
+    const expectedPass = import.meta.env.VITE_VENDEDOR_PASS || "";
+    if (!expectedPass) {
+      setErr("Modo legado não configurado. Defina VITE_VENDEDOR_PASS no .env.local.");
+      return;
+    }
     const v = vendedoresAtivos.find((x) => x.id === vendedorId);
     if (!v) { setErr("Selecione um vendedor."); return; }
+    if (senhaVendedor !== expectedPass) { setErr("Senha incorreta."); return; }
     onLogin({ role: "vendedor", vendedorNome: v.nome, userId: v.id });
   };
 
@@ -79,8 +86,12 @@ export function Login({ onLogin, darkMode, toggleDark }) {
                 ))}
               </select>
             </div>
+            <div className="field-group">
+              <label>Senha</label>
+              <input type="password" value={senhaVendedor} onChange={(e) => setSenhaVendedor(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+            </div>
             {err && <p className="error-msg">{err}</p>}
-            <button type="submit" className="login-btn" disabled={!vendedorId}>Entrar</button>
+            <button type="submit" className="login-btn" disabled={!vendedorId || !senhaVendedor}>Entrar</button>
           </form>
         )}
 
