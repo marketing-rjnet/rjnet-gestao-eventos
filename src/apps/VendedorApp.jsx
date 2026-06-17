@@ -166,7 +166,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     if (!nome) { setFormErro("Nome é obrigatório."); return; }
     if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
     if (!f.servicoInteresse.length) { setFormErro("Selecione ao menos um serviço de interesse."); return; }
-    if (!f.consentimentoColetado) { setFormErro("O titular precisa assinar a ficha de consentimento LGPD antes do registro."); return; }
+    // D-043: validação de consentimento suspensa temporariamente — campo oculto da UI até decisão externa
     const novo = addLead({
       ...f,
       nome,
@@ -336,19 +336,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                     <textarea rows="2" maxLength={500} value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais..." />
                   </div>
                 )}
-                <div className="big-field" style={{ marginTop: 8 }}>
-                  <label className="consent-label" style={{ display:"flex", alignItems:"flex-start", gap:10, cursor:"pointer", fontSize:13, lineHeight:1.5, color: f.consentimentoColetado ? "var(--green)" : "var(--text-2)" }}>
-                    <input
-                      type="checkbox"
-                      checked={f.consentimentoColetado}
-                      onChange={(e) => set("consentimentoColetado", e.target.checked)}
-                      style={{ marginTop:3, flexShrink:0, accentColor:"var(--green)", width:18, height:18 }}
-                    />
-                    <span>
-                      <strong>Consentimento LGPD</strong> — o titular assinou a ficha de consentimento e autoriza o contato comercial da RJNet para apresentação de serviços.
-                    </span>
-                  </label>
-                </div>
+                {/* D-043: campo de consentimento LGPD oculto até decisão externa sobre processo/ficha */}
                 {formErro && <div style={{ color:"var(--red)", fontSize:13, padding:"8px 12px", background:"var(--red-bg)", borderRadius:8, marginBottom:4 }}>{formErro}</div>}
                 <button type="submit" className="btn-primary btn-full lead-submit">Registrar Lead</button>
               </form>

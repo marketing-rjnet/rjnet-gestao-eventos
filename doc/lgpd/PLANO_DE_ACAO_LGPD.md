@@ -293,6 +293,8 @@
 - `src/apps/VendedorApp.jsx`: checkbox obrigatório adicionado antes do botão de submit; validação bloqueia envio com mensagem de erro se não marcado; `FORM_VAZIO` inicializa `consentimentoColetado: false`
 - **Migração aplicada em produção em 2026-06-16:** colunas `consentimento_coletado` (boolean, default false, NOT NULL), `consentimento_em` (timestamptz, nullable), `versao_termo` (text, nullable) confirmadas via query de verificação — 3 linhas retornadas ✅
 
+> **⚠️ Atualização 2026-06-17 — D-043:** Campo de consentimento **ocultado temporariamente da UI** enquanto as decisões externas sobre o processo de coleta (ficha física vs. digital, fluxo) não são finalizadas. Schema e lógica de `dataService.js` preservados. Status PA-04 rebaixado para 🟡 (parcial). Para reativar: descomentar bloco do checkbox em `VendedorApp.jsx` e reintroduzir validação. Ver D-043 em `DECISIONS.md`.
+
 ---
 
 ### PA-05 — Criptografar dados da fila offline no localStorage
@@ -983,7 +985,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-01 | Remover senha de marketing do bundle JS | 1 | CRÍTICA | 🟢 | 2026-06-23 |
 | PA-02 | Confirmar aplicação de `migracao-auth.sql` em produção | 1 | CRÍTICA | 🟢 | 2026-06-17 |
 | PA-03 | Restringir CORS da Edge Function | 1 | ALTA | 🟢 | 2026-06-23 |
-| PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🟢 | 2026-07-16 |
+| PA-04 | Implementar consentimento LGPD para leads | 2 | CRÍTICA | 🟡 | 2026-07-16 |
 | PA-05 | Criptografar fila offline no localStorage | 2 | ALTA | 🟢 | 2026-07-16 |
 | PA-06 | Criar log de exportações CSV | 2 | ALTA | 🟢 | 2026-07-16 |
 | PA-07 | Rastreabilidade do soft delete (quem/quando) | 2 | ALTA | 🟢 | 2026-07-16 |

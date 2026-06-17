@@ -4,6 +4,24 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.5] — Suspensão temporária do campo de consentimento LGPD
+**Data:** 2026-06-17
+
+**O que mudou**
+- **D-043 — Campo de consentimento LGPD oculto da UI** (`src/apps/VendedorApp.jsx`): checkbox "Consentimento LGPD" removido do formulário de captura de lead e validação de bloqueio suspensa — aguardando decisão externa sobre processo/ficha de consentimento
+
+**Por que mudou**
+- As decisões externas sobre o processo de coleta de consentimento (ficha física vs. digital, fluxo de coleta) ainda não foram tomadas; expor o campo sem processo definido cria obrigações LGPD que o sistema não consegue honrar completamente
+
+**O que NÃO mudou**
+- Schema do banco intacto: `consentimento_coletado`, `consentimento_em`, `versao_termo` preservados
+- Lógica de `dataService.js` preservada — reativação é só UI
+
+**Ações manuais necessárias**
+- Nenhuma — mudança apenas na UI; sem alteração de schema ou migrations
+
+---
+
 ## [v3.4] — Quick wins de performance + carregamento on-demand + melhorias de UX
 **Data:** 2026-06-17
 

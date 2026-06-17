@@ -68,6 +68,21 @@ Riscos conhecidos.
 
 ---
 
+### [D-043] — Suspensão temporária do campo de consentimento LGPD na UI
+
+**Data:** 2026-06-17  
+**Contexto:** O campo de consentimento LGPD (checkbox "Consentimento LGPD — o titular assinou a ficha...") foi implementado em PA-04/D-033. A validação bloqueava o envio do formulário caso não estivesse marcado. A decisão de qual processo externo adotar (ficha física, termo digital, fluxo de coleta) ainda não foi tomada pelos stakeholders.  
+**Decisão:** Ocultar o campo da UI e suspender a validação de bloqueio enquanto as decisões externas não estiverem definidas.  
+**O que NÃO mudou:**
+- Colunas `consentimento_coletado`, `consentimento_em` e `versao_termo` permanecem no banco (sem rollback de schema)
+- `leadFromDb` / `leadToDb` em `dataService.js` continuam mapeando os campos
+- `FORM_VAZIO` mantém `consentimentoColetado: false` — ao reativar, basta descomentar o bloco e a validação
+**Motivação:** Expor o campo sem que o processo externo esteja definido cria obrigações legais (LGPD art. 7°, I) que o sistema ainda não está preparado para cumprir completamente. Pior do que não coletar é coletar e não honrar o processo.  
+**Como reativar:** Remover o comentário `{/* D-043 */}` em `VendedorApp.jsx` (linha ~339) e reintroduzir a validação `if (!f.consentimentoColetado)`. Registrar nova decisão com o processo definido.  
+**Status:** Ativa
+
+---
+
 ### [D-035] — PA-08: CPF endereçado — remoção do check-in por CPF + reintrodução como campo opcional com finalidade declarada
 
 **Data:** 2026-06-16  
