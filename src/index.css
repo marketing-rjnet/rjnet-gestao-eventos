@@ -233,6 +233,18 @@
       .stock-row .sr-num { text-align: center; font-size: 12px; color: var(--text-3); min-width: 56px; }
       .stock-row .sr-num b { display: block; font-size: 16px; color: var(--text); font-family: "DM Mono", monospace; }
 
+      /* ---------- Equipe sections ---------- */
+      .equipe-section { margin-bottom: 32px; }
+      .equipe-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+      .equipe-section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text); }
+      .equipe-section-icon { font-size: 16px; line-height: 1; }
+      .equipe-section-count { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: var(--border); color: var(--text-3); }
+      .equipe-section-desc { font-size: 12px; color: var(--text-3); margin: 0 0 12px; }
+      .equipe-section--admin { border-left: 3px solid var(--rj-yellow); padding-left: 14px; }
+      .equipe-section--vendas { border-left: 3px solid var(--border); padding-left: 14px; }
+      .equipe-section--admin .equipe-section-title { color: var(--rj-yellow); }
+      .empty-state { color: var(--text-3); font-size: 13px; padding: 12px 0; }
+
       /* ---------- Vendor cards ---------- */
       .vendor-grid { display: flex; flex-direction: column; gap: 12px; }
       .vendor-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--border); padding: 16px 18px; display: grid; grid-template-columns: 48px 1fr auto; grid-template-rows: auto auto auto; column-gap: 14px; row-gap: 4px; align-items: center; }
@@ -281,6 +293,12 @@
       .lm-contact-whats { background: #dcfce7; color: #16a34a; }
       .lm-edit-btn { margin-top: 8px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--bg); border: 1px solid var(--border); cursor: pointer; transition: all .15s; }
       .lm-edit-btn:hover { border-color: var(--rj-blue); color: var(--rj-blue); }
+      .lm-del-btn { margin-top: 6px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--red); background: var(--bg); border: 1px solid var(--red); cursor: pointer; transition: all .15s; }
+      .lm-del-btn:hover { background: var(--red); color: #fff; }
+      .lm-del-confirm { margin-top: 8px; padding: 10px; background: var(--red-bg); border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
+      .lm-del-confirm > span { font-size: 13px; font-weight: 500; color: var(--red); }
+      .lm-del-confirm-yes { flex: 1; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #fff; background: var(--red); border: none; cursor: pointer; }
+      .lm-del-confirm-no { flex: 1; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--surface2); border: none; cursor: pointer; }
 
       /* Barra de navegação inferior */
       .vend-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #0d1117; border-top: 1px solid #1e2a3a; display: flex; justify-content: space-around; align-items: stretch; padding: 0; safe-area-inset-bottom: env(safe-area-inset-bottom); }
@@ -327,6 +345,12 @@
       .meta-bar-track { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
       .meta-bar-fill { height: 100%; border-radius: 999px; background: var(--rj-blue); transition: width .4s ease; }
       .meta-bar-fill.done { background: var(--green); }
+      .meta-bar-fill.bronze { background: #b45309; }
+      .meta-bar-fill.prata  { background: #9ca3af; }
+      .meta-bar-fill.ouro   { background: var(--green); }
+      .meta-bar-stages { display: flex; justify-content: space-between; margin-top: 6px; }
+      .meta-stage { font-size: 11px; color: var(--text-3); }
+      .meta-stage.achieved { color: var(--text); font-weight: 700; }
 
       /* Modo rápido toggle */
       .modo-rapido-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }

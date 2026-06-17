@@ -1,8 +1,103 @@
 // Camada de dados Supabase — converte entre o formato do app (camelCase)
 // e as colunas do banco (snake_case). Schema em supabase/schema.sql e
 // autenticação/papéis em supabase/migracao-auth.sql.
-import { supabase, supabaseEnabled, supabaseConfig } from './supabase';
+import { supabase, supabaseConfig } from './supabase';
+import { isSupabaseMode } from './mode';
 import { cache } from './cache';
+import { encryptQueue, decryptQueue, clearCryptoKey, cryptoSupported } from './crypto';
+import { REALTIME_DEBOUNCE_MS } from './constants';
+import { logActivity } from './activityLog';
+
+/* ─── Fila offline — PA-05/LGPD: dados criptografados em repouso ─── */
+
+const QUEUE_KEY = 'rjnet_pending_queue';
+
+// userId da sessão ativa — necessário para derivar a chave de criptografia.
+// Atualizado por setQueueUserId() chamado no login/logout.
+let _queueUserId = null;
+
+export function setQueueUserId(userId) {
+  _queueUserId = userId || null;
+}
+
+export function clearQueueSession(userId) {
+  clearCryptoKey(userId);
+  _queueUserId = null;
+}
+
+async function getQueue() {
+  try {
+    const raw = localStorage.getItem(QUEUE_KEY);
+    if (!raw) return [];
+
+    // PA-05: se cripto disponível e usuário logado, tenta descriptografar
+    if (cryptoSupported && _queueUserId && raw.includes('.')) {
+      const decrypted = await decryptQueue(raw, _queueUserId);
+      if (decrypted !== null) return decrypted;
+      // Falha na descriptografia: dados de outro usuário ou legados — descarta
+      console.warn('[rjnet/PA-05] Fila offline inacessível (chave diferente ou formato legado). Descartando.');
+      localStorage.removeItem(QUEUE_KEY);
+      return [];
+    }
+
+    // Fallback: formato legado sem criptografia (migração transparente)
+    return JSON.parse(raw);
+  } catch { return []; }
+}
+
+async function saveQueue(queue) {
+  try {
+    if (cryptoSupported && _queueUserId) {
+      const encrypted = await encryptQueue(queue, _queueUserId);
+      localStorage.setItem(QUEUE_KEY, encrypted);
+    } else {
+      // Fallback: sem cripto (modo local sem userId ou browser sem Web Crypto)
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    }
+  } catch (err) {
+    console.error('[rjnet] Falha ao salvar fila offline:', err.message);
+  }
+}
+
+async function addToQueue(op) {
+  const queue = await getQueue();
+  queue.push({ ...op, queuedAt: new Date().toISOString() });
+  await saveQueue(queue);
+  logActivity({ type: 'offline_queue', level: 'warn', eventoId: op.data?.evento_id, detail: 'aguardando sync' });
+}
+
+// Envia todos os leads pendentes ao Supabase. Descarta itens cujo evento
+// não está mais ativo (ex: marketing encerrou o evento enquanto vendedor
+// estava offline). Itens com falha permanecem na fila para próxima tentativa.
+export async function flushPendingQueue() {
+  if (!isSupabaseMode()) return;
+  const queue = await getQueue();
+  if (queue.length === 0) return;
+
+  let activeEventIds = new Set();
+  try {
+    const { data } = await supabase.from('eventos').select('id').eq('status', 'ativo');
+    if (data) activeEventIds = new Set(data.map((e) => e.id));
+  } catch { /* sem validação de evento se fetch falhar */ }
+
+  const remaining = [];
+  for (const op of queue) {
+    try {
+      if (op.type === 'saveLead') {
+        if (activeEventIds.size > 0 && op.data.evento_id && !activeEventIds.has(op.data.evento_id)) {
+          console.warn('[rjnet] Lead offline descartado: evento encerrado', op.data.evento_id);
+          continue;
+        }
+        const { error } = await supabase.from('leads').upsert(op.data);
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error('[rjnet] Falha ao sincronizar da fila:', err.message);
+      remaining.push(op);
+    }
+  }
+  await saveQueue(remaining);
+}
 
 /* ─── Utilitários de resiliência ─────────────────────────────────── */
 
@@ -28,7 +123,10 @@ async function trackPerf(label, fn) {
   try {
     const result = await fn();
     const ms = Math.round(performance.now() - t0);
-    if (ms > 1000) console.warn(`[rjnet:perf] ${label} demorou ${ms}ms`);
+    if (ms > 1000) {
+      console.warn(`[rjnet:perf] ${label} demorou ${ms}ms`);
+      logActivity({ type: 'perf_warn', level: 'warn', detail: label, ms });
+    }
     return result;
   } catch (err) {
     const ms = Math.round(performance.now() - t0);
@@ -70,19 +168,32 @@ const leadFromDb = (r) => ({
   id: r.id, eventoId: r.evento_id, vendedorNome: r.vendedor_nome ?? "",
   vendedorId: r.vendedor_id ?? null,
   nome: r.nome, telefone: r.telefone ?? "", cpf: r.cpf ?? "",
-  endereco: r.endereco ?? "", servicoInteresse: r.servico_interesse,
+  endereco: r.endereco ?? "", servicoInteresse: (() => {
+    const v = r.servico_interesse;
+    if (!v) return [];
+    try { const p = JSON.parse(v); return Array.isArray(p) ? p : [v]; } catch { return [v]; }
+  })(),
   temperatura: r.temperatura, observacao: r.observacao ?? "",
   jaClienteRjnet: r.ja_cliente_rjnet ?? false,
   criadoEm: r.criado_em,
+  // PA-04/LGPD: campos de consentimento do titular
+  consentimentoColetado: r.consentimento_coletado ?? false,
+  consentimentoEm: r.consentimento_em ?? null,
+  versaoTermo: r.versao_termo ?? null,
 });
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId, vendedor_nome: l.vendedorNome ?? null,
   vendedor_id: l.vendedorId ?? null,
   nome: l.nome, telefone: l.telefone || null, cpf: l.cpf || null,
-  endereco: l.endereco || null, servico_interesse: l.servicoInteresse ?? null,
+  endereco: l.endereco || null,
+  servico_interesse: Array.isArray(l.servicoInteresse) ? JSON.stringify(l.servicoInteresse) : (l.servicoInteresse ?? null),
   temperatura: l.temperatura ?? 'morno', observacao: l.observacao || null,
   ja_cliente_rjnet: l.jaClienteRjnet ?? false,
   criado_em: l.criadoEm || new Date().toISOString(),
+  // PA-04/LGPD: campos de consentimento do titular
+  consentimento_coletado: l.consentimentoColetado ?? false,
+  consentimento_em: l.consentimentoColetado ? (l.consentimentoEm || new Date().toISOString()) : null,
+  versao_termo: l.consentimentoColetado ? (l.versaoTermo || 'v1.0') : null,
 });
 
 const perfilFromDb = (r) => ({
@@ -92,23 +203,25 @@ const perfilFromDb = (r) => ({
 
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
-// Busca as tabelas em paralelo. Cancela via AbortController quando o
-// componente desmonta. Retorna null se o Supabase estiver indisponível.
+// Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
+const LEADS_COLS = 'id,evento_id,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo';
+
+// TB-004: busca apenas materiais, eventos e perfis no boot.
+// Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
 export async function fetchAll(signal) {
-  if (!supabaseEnabled) return null;
+  if (!isSupabaseMode()) return null;
   return trackPerf('fetchAll', () =>
     withRetry(async () => {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-      const [materiais, perfis, eventos, leads] = await Promise.all([
-        supabase.from('materiais').select('*').order('nome').abortSignal(signal),
-        supabase.from('perfis').select('*').order('nome').abortSignal(signal),
-        supabase.from('eventos').select('*').order('data_inicio').abortSignal(signal),
-        // Exclui leads marcados como deletados (soft delete via protecao-dados.sql)
-        supabase.from('leads').select('*').eq('deletado', false).order('criado_em').abortSignal(signal),
+      // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
+      const [materiais, perfis, eventos] = await Promise.all([
+        supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
+        supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
+        supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
       ]);
 
-      const erro = materiais.error || eventos.error || leads.error;
+      const erro = materiais.error || eventos.error;
       if (erro) throw erro;
 
       // Antes da migração de auth a tabela perfis não existe — cai para a
@@ -126,7 +239,7 @@ export async function fetchAll(signal) {
         materiais: materiais.data.map(materialFromDb),
         vendedores,
         eventos: eventos.data.map(eventoFromDb),
-        leads: leads.data.map(leadFromDb),
+        leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
   ).catch((err) => {
@@ -136,10 +249,58 @@ export async function fetchAll(signal) {
   });
 }
 
+// TB-004: leads de um único evento — usado pelo vendedor e pelo EventDetail.
+export async function fetchLeadsEvento(eventoId, signal) {
+  if (!isSupabaseMode() || !eventoId) return null;
+  return trackPerf('fetchLeadsEvento', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .eq('evento_id', eventoId)
+        .eq('deletado', false)
+        .order('criado_em')
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads do evento:', err.message || err);
+    return null;
+  });
+}
+
+// TB-004: leads de múltiplos eventos — usado pela exportação consolidada do marketing.
+// Retorna leads ordenados por evento_id depois por criado_em (blocos por evento).
+export async function fetchLeadsEventos(eventoIds, signal) {
+  if (!isSupabaseMode() || !eventoIds?.length) return null;
+  return trackPerf('fetchLeadsEventos', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .in('evento_id', eventoIds)
+        .eq('deletado', false)
+        .order('evento_id')
+        .order('criado_em')
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads consolidados:', err.message || err);
+    return null;
+  });
+}
+
 // Placar do evento com cache de 30 s — evita RPC redundante quando o
 // vendedor adiciona vários leads em sequência rápida.
 export async function rankingEvento(eventoId) {
-  if (!supabaseEnabled || !eventoId) return null;
+  if (!isSupabaseMode() || !eventoId) return null;
 
   const cacheKey = `ranking:${eventoId}`;
   const cached = cache.get(cacheKey);
@@ -167,8 +328,8 @@ export function invalidarRanking(eventoId) {
 
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
-function exec(promise, acao) {
-  if (!supabaseEnabled) return;
+function exec(promise, acao, onFail) {
+  if (!isSupabaseMode()) return;
   // Retry uma vez após 1 s em caso de falha transitória
   const tentativa = (p) => p.then(({ error }) => {
     if (error) throw error;
@@ -179,6 +340,8 @@ function exec(promise, acao) {
       .catch((err) => {
         console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
         window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
+        logActivity({ type: 'sync_error', level: 'error', detail: `${acao}: ${err.message}` });
+        if (onFail) onFail();
       })
   );
 }
@@ -187,9 +350,39 @@ export const db = {
   saveMaterial: (m) => exec(supabase?.from('materiais').upsert(materialToDb(m)), 'salvar material'),
   saveVendedor: (v) => exec(supabase?.from('vendedores').upsert(vendedorToDb(v)), 'salvar vendedor'),
   saveEvento:   (e) => exec(supabase?.from('eventos').upsert(eventoToDb(e)), 'salvar evento'),
-  saveLead:     (l) => exec(supabase?.from('leads').upsert(leadToDb(l)), 'salvar lead'),
+  saveLead: (l) => {
+    const dbData = leadToDb(l);
+    exec(
+      supabase?.from('leads').upsert(dbData),
+      'salvar lead',
+      () => addToQueue({ type: 'saveLead', data: dbData }),
+    );
+  },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
-  removeLead:   (id) => exec(supabase?.from('leads').update({ deletado: true }).eq('id', id), 'remover lead'),
+  // PA-07/LGPD: hard delete pelo vendedor (leads_delete policy, sem with_check).
+  // Auditoria registrada pelo trigger audit_leads (AFTER DELETE → audit_log).
+  removeLead: (id, onFail) => exec(
+    supabase?.from('leads').delete().eq('id', id),
+    'remover lead',
+    onFail,
+  ),
+
+  // PA-06/LGPD: registra exportação CSV na tabela de auditoria (fire-and-forget; nunca bloqueia o download)
+  registrarExportacao: async ({ usuarioId, usuarioNome, usuarioEmail, filtros, totalRegistros }) => {
+    if (!supabase) return;
+    try {
+      await supabase.from('audit_exportacoes').insert({
+        usuario_id:      usuarioId  || null,
+        usuario_nome:    usuarioNome  || null,
+        usuario_email:   usuarioEmail || null,
+        acao:            'export_csv_leads',
+        filtros:         filtros || null,
+        total_registros: totalRegistros ?? null,
+      });
+    } catch (err) {
+      console.warn('[rjnet/PA-06] Falha ao registrar exportação:', err);
+    }
+  },
 };
 
 /* ─── Autenticação (Supabase Auth + perfis por papel) ────────────── */
@@ -237,7 +430,31 @@ export const auth = {
         : error.message;
       throw new Error(msg);
     }
+    // PA-12/LGPD: detecta desafio MFA — retorna indicador para a UI exibir campo TOTP
+    if (data?.session === null && data?.user === null) {
+      const factors = await supabase.auth.mfa.listFactors();
+      if (factors.data?.totp?.length > 0) {
+        const { data: challenge, error: chalErr } = await supabase.auth.mfa.challenge({ factorId: factors.data.totp[0].id });
+        if (chalErr) throw new Error(chalErr.message);
+        return { mfaRequired: true, factorId: factors.data.totp[0].id, challengeId: challenge.id };
+      }
+    }
     const perfil = await auth.getPerfil(data.user.id);
+    if (!perfil || !perfil.ativo) {
+      await supabase.auth.signOut();
+      throw new Error('Seu acesso ainda não foi ativado. Fale com o marketing.');
+    }
+    return { role: perfil.papel, vendedorNome: perfil.nome, userId: perfil.id, email: perfil.email };
+  },
+
+  // PA-12/LGPD: verifica código TOTP do MFA e retorna sessão completa
+  async verifyMfa(factorId, challengeId, codigo) {
+    const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code: codigo });
+    if (error) throw new Error('Código inválido ou expirado.');
+    const { data } = await supabase.auth.getSession();
+    const user = data?.session?.user;
+    if (!user) throw new Error('Sessão MFA não estabelecida.');
+    const perfil = await auth.getPerfil(user.id);
     if (!perfil || !perfil.ativo) {
       await supabase.auth.signOut();
       throw new Error('Seu acesso ainda não foi ativado. Fale com o marketing.');
@@ -278,6 +495,11 @@ export const auth = {
     // E-mail vai pela Edge Function (requer service_role para atualizar auth.users)
     if (patch.email !== undefined) {
       await callEdgeFunction('atualizar-email', { userId, email: patch.email });
+      // Envia email de redefinição de senha para o novo endereço,
+      // permitindo que o usuário defina sua própria senha ao trocar o login.
+      await supabase.auth.resetPasswordForEmail(patch.email, {
+        redirectTo: `${window.location.origin}/`,
+      });
       const { email: _email, ...restPatch } = patch;
       patch = restPatch;
     }
@@ -297,7 +519,9 @@ export const auth = {
   },
 
   // E-mail de redefinição de senha (usa o e-mail transacional do Supabase)
-  resetSenha: (email) => supabase.auth.resetPasswordForEmail(email),
+  resetSenha: (email) => supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/`,
+  }),
 
   // Define a nova senha do usuário logado (fluxo de recuperação)
   async atualizarSenha(senha) {
@@ -311,14 +535,14 @@ export const auth = {
 // Chama onChange sempre que qualquer tabela mudar em outro dispositivo.
 // Retorna função de cleanup para usar em useEffect.
 export function subscribeChanges(onChange) {
-  if (!supabaseEnabled) return () => {};
+  if (!isSupabaseMode()) return () => {};
   let timer = null;
   const channel = supabase
     .channel('rjnet-sync')
     .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-      // debounce: várias mudanças seguidas geram um único refetch
+      // debounce: várias mudanças seguidas geram um único refetch (D-038/QW-005)
       clearTimeout(timer);
-      timer = setTimeout(onChange, 400);
+      timer = setTimeout(onChange, REALTIME_DEBOUNCE_MS);
     })
     .subscribe();
   return () => {
