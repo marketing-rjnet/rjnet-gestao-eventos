@@ -12,7 +12,8 @@ const darkScale = {
 
 export default function EventDetail({ eventoId, onBack }) {
   const { eventos, materiais, getLeadsEvento, getMateriaisDisponiveis,
-          addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento, carregarLeadsEvento } = useApp();
+          addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento,
+          removeEvento, carregarLeadsEvento } = useApp();
   useEffect(() => {
     carregarLeadsEvento(eventoId);
   }, [eventoId]);
@@ -75,6 +76,20 @@ export default function EventDetail({ eventoId, onBack }) {
               }}
             >
               Finalizar Evento
+            </button>
+          )}
+          {ev.status !== "ativo" && (
+            <button
+              className="btn-ghost"
+              style={{ fontSize:13, color:"var(--red)", borderColor:"var(--red)" }}
+              onClick={() => {
+                if (confirm(`Excluir permanentemente o evento "${ev.nome}"?\n\nEsta ação não pode ser desfeita. Os leads associados também serão removidos.`)) {
+                  removeEvento(eventoId);
+                  onBack();
+                }
+              }}
+            >
+              Excluir Evento
             </button>
           )}
         </div>
