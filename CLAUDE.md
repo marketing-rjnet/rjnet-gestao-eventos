@@ -42,7 +42,8 @@ src/
 │   ├── eventoApi.js      # Factory createEventoApi — CRUD de eventos (etapa 17)
 │   ├── leadApi.js        # Factory createLeadApi — CRUD de leads (etapa 17)
 │   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
-│   └── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+│   ├── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+│   └── equipeApi.js      # Factory createEquipeApi — gestão de usuários Auth (D-030 C-2)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -91,7 +92,8 @@ src/
 ├── utils/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
-│   ├── csv.js            # exportLeadsCSV (etapa 3)
+│   ├── csv.js            # exportLeadsCSV, exportLeadsConsolidadoCSV (etapa 3 + D-039)
+│   ├── ids.js            # genId(prefix) — gerador de IDs temporários para modo local (D-030 C-5)
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled

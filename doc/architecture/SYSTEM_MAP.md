@@ -56,7 +56,7 @@ As factories são instanciadas dentro do `AppProvider` e expostas via contexto. 
 - `trackPerf(label, fn)` — alerta para requisições lentas (>1 s)
 - **Fila offline**: operações de `saveLead` são enfileiradas no `localStorage` quando offline e sincronizadas em `flushPendingQueue()` ao reconectar
 - **Cache em memória** (`src/lib/cache.js`) com TTL de 30 s para resultados de `rankingEvento`
-- Subscriptions realtime via canais Supabase com debounce de 400 ms
+- Subscriptions realtime via canais Supabase com debounce de 1500 ms (`REALTIME_DEBOUNCE_MS` — D-038)
 
 ### Detecção de Modo (`src/lib/supabase.js` + `src/lib/mode.js`)
 
