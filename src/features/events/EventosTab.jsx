@@ -8,7 +8,7 @@ import Dashboard from './Dashboard';
 
 export default function EventosTab({ onOpen }) {
   const { eventos, getLeadsEvento } = useApp();
-  const [filter, setFilter] = useState("todos");
+  const [filter, setFilter] = useState("ativo");
   const [showModal, setShowModal] = useState(false);
 
   const filtered = eventos.filter((e) => filter === "todos" || e.status === filter);
@@ -18,7 +18,7 @@ export default function EventosTab({ onOpen }) {
     <div className="page">
       <div className="page-head">
         <div className="chips">
-          {["todos", "ativo", "planejado", "encerrado"].map((c) => (
+          {["ativo", "planejado", "encerrado", "todos"].map((c) => (
             <button key={c} className={"chip" + (filter === c ? " active" : "")} onClick={() => setFilter(c)}>
               {c === "todos" ? "Todos" : STATUS_LABEL[c]}
             </button>
