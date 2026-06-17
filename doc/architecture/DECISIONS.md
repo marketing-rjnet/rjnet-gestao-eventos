@@ -1397,6 +1397,62 @@ Marketing não precisa visualizar todos os leads simultaneamente — o fluxo rea
 
 ---
 
+### [D-040] — Painel de eventos: filtro padrão "Ativo" e reordenação dos chips
+
+**Data:** 2026-06-17  
+**Tipo:** UX
+
+**Decisão:**
+O filtro padrão da `EventosTab` foi alterado de `"todos"` para `"ativo"`. A ordem dos chips de filtro foi reordenada de `Todos / Ativo / Planejado / Encerrado` para `Ativo / Planejado / Encerrado / Todos`.
+
+**Motivação:**
+Com o acúmulo de eventos encerrados ao longo do tempo, a visão inicial do painel ficava poluída com histórico irrelevante para o dia a dia do marketing. O filtro `"Ativo"` como padrão exibe apenas o que está operacional. A reordenação dos chips segue a mesma lógica: o estado mais relevante operacionalmente aparece primeiro.
+
+**Impacto:**
+- Marketing abre o painel e vê apenas eventos ativos
+- Eventos encerrados e histórico acessíveis via chips — nada foi removido
+- Vendedor não é afetado (não tem acesso ao painel de eventos)
+
+**Arquivos Afetados:**
+- `src/features/events/EventosTab.jsx` (2 linhas)
+
+**Riscos:**
+- Nenhum — mudança de estado inicial de UI, sem impacto em dados
+
+**Status:** Ativa
+
+---
+
+### [D-041] — Exclusão permanente de evento pelo marketing
+
+**Data:** 2026-06-17  
+**Tipo:** Feature / Segurança
+
+**Decisão:**
+Adicionado botão "Excluir Evento" na tela de detalhe do evento (`EventDetail`), disponível exclusivamente para o perfil marketing. O botão só aparece em eventos com `status !== "ativo"` — eventos ativos são protegidos contra exclusão acidental. A ação exige confirmação explícita via `confirm()` antes de executar.
+
+**Motivação:**
+O marketing precisava remover eventos de teste e entradas incorretas criadas durante a configuração do sistema. A operação `removeEvento` já existia na camada de API (`eventoApi.js`) e no `dataService`, mas não estava exposta na interface.
+
+**Regra de segurança:**
+Eventos com `status = "ativo"` não exibem o botão de exclusão. Isso impede que um evento seja apagado enquanto vendedores estão em campo capturando leads — situação que resultaria em perda de dados e inconsistência no ranking.
+
+**Impacto:**
+- Marketing pode excluir eventos planejados ou encerrados diretamente pelo detalhe do evento
+- Exclusão é permanente e remove os leads associados (comportamento do `DELETE` em cascata no Supabase via RLS)
+- Após confirmação, retorna automaticamente para a lista de eventos
+
+**Arquivos Afetados:**
+- `src/features/events/EventDetail.jsx` (botão + lógica de guarda)
+
+**Riscos:**
+- Médio: exclusão é irreversível. Mitigado pelo `confirm()` explícito e pela proteção de eventos ativos.
+- Sem impacto no modo local (a operação `removeEvento` já funcionava nos dois modos)
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
