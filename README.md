@@ -120,7 +120,7 @@ src/
 
 ## Regras Importantes do Sistema
 
-Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/DECISIONS.md`:
+Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/architecture/DECISIONS.md`:
 
 | Regra | Por quê |
 |-------|---------|
@@ -284,7 +284,7 @@ export function createExemploApi({ itens, setItens }) {
 
 O projeto nasceu como um único `main.jsx` com ~2.354 linhas. Foi decomposto em 18 etapas progressivas sem alterar nenhum comportamento. Cada etapa gerou um commit independente. Resultado: 25+ módulos com responsabilidades únicas, zero importações circulares.
 
-Detalhes completos em `doc/REFATORAÇÃO.md`.
+Detalhes completos em `doc/architecture/REFATORAÇÃO.md`.
 
 ---
 
@@ -304,8 +304,8 @@ Com a base modular estabilizada, as evoluções mais naturais são:
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `doc/SYSTEM_MAP.md` | Arquitetura viva — estrutura, fluxo de dados e restrições |
-| `doc/DECISIONS.md` | Histórico de decisões arquiteturais com justificativas |
-| `doc/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, usuários de teste) |
+| `doc/architecture/SYSTEM_MAP.md` | Arquitetura viva — estrutura, fluxo de dados e restrições |
+| `doc/architecture/DECISIONS.md` | Histórico de decisões arquiteturais com justificativas |
+| `doc/architecture/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, usuários de teste) |
 | `doc/CHANGELOG.md` | Histórico completo de mudanças por versão |
 | `CLAUDE.md` | Instruções para sessões de IA (stack, scripts, variáveis, banco) |
