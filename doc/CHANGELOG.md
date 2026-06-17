@@ -4,6 +4,24 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.1] — Monitor: confirmação de sync, descrições legíveis e filtros separados
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/features/monitoring/MonitoringTab.jsx`**: reescrita completa do feed com (1) tipo `lead_sync_ok` (⊙ verde) que confirma quando o lead chegou ao Supabase, (2) linha `↳ descrição` em linguagem de campo sob cada entrada do feed (ex: "lista de leads demorou — vendedor aguardou para ver seus registros"), (3) filtros separados `Sync` e `Perf` em vez do antigo botão "Erros" que misturava os dois, (4) card de vendedor mostrando tanto leads da sessão quanto total real do contexto quando diferem.
+- **`src/lib/dataService.js`**: `exec()` aceita 4º parâmetro `onSuccess` — chamado após escrita bem-sucedida no Supabase (primeira tentativa ou retry) e imediatamente no modo local. `db.saveLead(l, onSuccess)` repassa o callback.
+- **`src/api/leadApi.js`**: `addLead` e `updateLead` passam callback `onSuccess` para `db.saveLead` que dispara `logActivity({ type: 'lead_sync_ok' })` com `vendedorNome` e `eventoId`.
+
+**Por que mudou**
+- Em campo, "Erros (3)" se mostrou enganoso quando todos eram `perf_warn` (requisições lentas), não falhas de sync reais. O usuário precisa distinguir ao vivo se é lentidão tolerável ou dado perdido.
+- A confirmação `lead_sync_ok` fecha o ciclo: `lead_add` → dado no app → `lead_sync_ok` → dado no servidor.
+- Descrições em linguagem de campo permitem diagnóstico sem abrir DevTools.
+
+**Ações manuais necessárias**
+- Nenhuma — sem alteração de schema ou migrations.
+
+---
+
 ## [v4.0] — Aba Monitor: diagnóstico ao vivo no perfil marketing
 **Data:** 2026-06-17
 

@@ -328,34 +328,41 @@ export function invalidarRanking(eventoId) {
 
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
-function exec(promise, acao, onFail) {
-  if (!isSupabaseMode()) return;
+function exec(promise, acao, onFail, onSuccess) {
+  if (!isSupabaseMode()) {
+    if (onSuccess) onSuccess();
+    return;
+  }
   // Retry uma vez após 1 s em caso de falha transitória
   const tentativa = (p) => p.then(({ error }) => {
     if (error) throw error;
   });
-  tentativa(promise).catch(() =>
-    new Promise((r) => setTimeout(r, 1000))
-      .then(() => tentativa(promise))
-      .catch((err) => {
-        console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
-        window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
-        logActivity({ type: 'sync_error', level: 'error', detail: `${acao}: ${err.message}` });
-        if (onFail) onFail();
-      })
-  );
+  tentativa(promise)
+    .then(() => { if (onSuccess) onSuccess(); })
+    .catch(() =>
+      new Promise((r) => setTimeout(r, 1000))
+        .then(() => tentativa(promise))
+        .then(() => { if (onSuccess) onSuccess(); })
+        .catch((err) => {
+          console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
+          window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
+          logActivity({ type: 'sync_error', level: 'error', detail: `${acao}: ${err.message}` });
+          if (onFail) onFail();
+        })
+    );
 }
 
 export const db = {
   saveMaterial: (m) => exec(supabase?.from('materiais').upsert(materialToDb(m)), 'salvar material'),
   saveVendedor: (v) => exec(supabase?.from('vendedores').upsert(vendedorToDb(v)), 'salvar vendedor'),
   saveEvento:   (e) => exec(supabase?.from('eventos').upsert(eventoToDb(e)), 'salvar evento'),
-  saveLead: (l) => {
+  saveLead: (l, onSuccess) => {
     const dbData = leadToDb(l);
     exec(
       supabase?.from('leads').upsert(dbData),
       'salvar lead',
       () => addToQueue({ type: 'saveLead', data: dbData }),
+      onSuccess,
     );
   },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),

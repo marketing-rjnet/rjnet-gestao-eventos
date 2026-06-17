@@ -8,18 +8,23 @@ export function createLeadApi({ leads, setLeads }) {
     addLead: (l) => {
       const novo = { id: genId('l'), criadoEm: new Date().toISOString(), ...l };
       setLeads((p) => [...p, novo]);
-      db.saveLead(novo);
-      if (novo.eventoId) invalidarRanking(novo.eventoId);
       logActivity({ type: 'lead_add', vendedor: novo.vendedorNome, eventoId: novo.eventoId, detail: novo.nome });
+      db.saveLead(novo, () => {
+        logActivity({ type: 'lead_sync_ok', vendedor: novo.vendedorNome, eventoId: novo.eventoId, detail: novo.nome });
+      });
+      if (novo.eventoId) invalidarRanking(novo.eventoId);
       return novo;
     },
     updateLead: (id, patch) => {
       const atual = leads.find((l) => l.id === id);
       setLeads((p) => p.map((l) => (l.id === id ? { ...l, ...patch } : l)));
       if (atual) {
-        db.saveLead({ ...atual, ...patch });
-        invalidarRanking(atual.eventoId);
+        const atualizado = { ...atual, ...patch };
         logActivity({ type: 'lead_update', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome });
+        db.saveLead(atualizado, () => {
+          logActivity({ type: 'lead_sync_ok', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome });
+        });
+        invalidarRanking(atual.eventoId);
       }
     },
     removeLead: (id) => {

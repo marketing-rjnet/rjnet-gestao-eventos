@@ -100,6 +100,36 @@ Riscos conhecidos.
 
 **Riscos:** Nenhum crítico. `sessionStorage.setItem` pode falhar silenciosamente em modo de navegação privada com storage cheio (tratado com try/catch). O overhead de serialização JSON para 200 entradas é negligenciável.
 
+**Status:** Ativa — atualizado em D-044b com melhorias de campo
+
+---
+
+### [D-044b] — Monitor v2: sync confirmado, descrições legíveis e filtros separados
+
+**Data:** 2026-06-17  
+**Tipo:** Feature (incremento sobre D-044)
+
+**Decisão:** Adicionar tipo `lead_sync_ok` via callback `onSuccess` em `exec()`, reescrever `MonitoringTab` com descrições em linguagem de campo e separar filtros `Sync` / `Perf`.
+
+**Motivação:** Em produção, o botão "Erros (3)" mostrava 3 `perf_warn` (req. lentas), não falhas reais de sync — enganoso em campo. Além disso, o usuário não conseguia entender o impacto de cada evento sem abrir DevTools.
+
+**Alternativas Avaliadas:**
+- Manter `level === 'error'` como critério de filtro: rejeitado — `perf_warn` usa `level: 'info'` mas ainda aparecia no agrupamento "Erros" original, confundindo lentidão tolerável com dado perdido.
+- Adicionar tooltips no hover: rejeitado — em campo (mobile, evento barulhento) hover não é viável.
+
+**Impactos:**
+- `exec(promise, acao, onFail, onSuccess)` — 4º param opcional, zero breaking change (todos os callsites existentes continuam funcionando sem ele).
+- `db.saveLead` é o único método que recebe `onSuccess` — o único ponto de escrita onde a identidade do vendedor está disponível no callsite.
+- Feed agora mostra linha `↳ descrição` para todos os 7 tipos de evento; vendedor consegue ler "confirmado no servidor — dado salvo com segurança" ou "lista de leads demorou — vendedor aguardou para ver seus registros" sem interpretação técnica.
+- Card de vendedor mostra total real do contexto (leads carregados em memória filtrados por `vendedorNome`) quando maior que o total da sessão — resolve discrepância visual para leads cadastrados antes da sessão atual.
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` — `exec()` + `db.saveLead()` modificados
+- `src/api/leadApi.js` — `addLead` e `updateLead` passam `onSuccess` callback
+- `src/features/monitoring/MonitoringTab.jsx` — reescrita completa
+
+**Riscos:** Nenhum novo. `onSuccess` nunca é chamado se `exec` não completa com sucesso, portanto `lead_sync_ok` nunca é um falso positivo.
+
 **Status:** Ativa
 
 ---
