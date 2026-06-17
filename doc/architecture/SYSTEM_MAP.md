@@ -223,7 +223,7 @@ src/lib/dataService.js
     ↓ se online: upsert/delete no Supabase com withRetry()
     ↓ se offline (leads): enfileira em localStorage para flush posterior
 Supabase (PostgreSQL + RLS)
-    ↓ subscription realtime notifica AppProvider (debounce 400ms)
+    ↓ subscription realtime notifica AppProvider (debounce 1500ms — D-038)
 AppProvider re-sincroniza estado com dados do banco
 ```
 

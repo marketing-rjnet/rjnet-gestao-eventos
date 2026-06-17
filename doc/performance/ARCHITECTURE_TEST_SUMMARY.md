@@ -22,7 +22,7 @@ A camada de dados (`src/lib/dataService.js`) é a única ponte entre a aplicaç�
 - `trackPerf()` com alerta para requisições > 1s
 - Fila offline com criptografia AES-GCM 256 (PA-05/LGPD)
 - Cache em memória com TTL de 30s para rankings (via `src/lib/cache.js`)
-- Subscriptions realtime com debounce de 400ms
+- Subscriptions realtime com debounce de 1500ms (D-038 — era 400ms)
 
 ### Principais Módulos
 
@@ -69,7 +69,7 @@ VendedorApp.submit()
       → supabase.from('leads').upsert()
         → [se offline] addToQueue() → encryptQueue() → localStorage
       → invalidarRanking(eventoId)
-      → canal realtime notifica marketing em ~400ms
+      → canal realtime notifica marketing em ~1500ms (debounce D-038)
 ```
 
 **Por que é crítico:** Todo o propósito do sistema em campo é este fluxo. Latência percebida aqui impacta diretamente a produtividade dos vendedores em eventos.
@@ -109,11 +109,11 @@ useRanking(eventoId, leadsCount)
 subscribeChanges(onChange)
   → canal 'rjnet-sync' (WebSocket Supabase)
     → evento postgres_changes (qualquer tabela)
-      → debounce(400ms)
+      → debounce(1500ms — D-038, era 400ms)
         → fetchAll() (recarga completa de todos os dados)
 ```
 
-**Por que é alto:** Cada mutação de qualquer tabela dispara um `fetchAll()` completo no marketing. Com múltiplos vendedores inserindo leads em paralelo, o debounce de 400ms pode ainda gerar múltiplos fetchAll consecutivos.
+**Por que é alto:** Cada mutação de qualquer tabela dispara um `fetchAll()` completo no marketing. Com múltiplos vendedores inserindo leads em paralelo, o debounce de 1500ms coalesce a maioria dos bursts em um único fetchAll (QW-005 aplicado).
 
 ### FC-05 — Exportação CSV de Leads
 **Prioridade: MÉDIA**
@@ -177,7 +177,7 @@ Em produção durante um evento ativo:
 
 1. `db.saveLead()` — chamado por cada vendedor a cada lead capturado
 2. `rankingEvento()` — chamado por todos os vendedores a cada 60s (mitigado por cache)
-3. `fetchAll()` — chamado pelo marketing via realtime (debounce 400ms)
+3. `fetchAll()` — chamado pelo marketing via realtime (debounce 1500ms — D-038)
 4. `supabase.auth.getSession()` — chamado a cada abertura do app
 
 ---

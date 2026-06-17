@@ -47,10 +47,12 @@ Redução de 80–95% no tamanho da resposta em produção com histórico de dad
 **Impacto:** Alto — cada lead inserido por qualquer vendedor causa re-carga completa no marketing  
 **Prioridade:** 2
 
-**Causa provável:**  
-`src/lib/dataService.js:477-492` — o canal realtime escuta `event: '*', schema: 'public'` (qualquer tabela, qualquer operação). O callback executa `onChange` que dispara `fetchAll()` completo após debounce de 400ms.
+> **Mitigação aplicada (QW-005 / D-038, 2026-06-17):** `REALTIME_DEBOUNCE_MS` aumentado de 400ms para 1500ms — coalesce bursts típicos de captura em um único `fetchAll`. A correção estrutural (delta realtime em vez de refetch completo — TB-005) permanece no backlog como solução de longo prazo.
 
-Com 20 vendedores inserindo leads simultaneamente, o debounce de 400ms coalesce os eventos, mas sequências de bursts podem ainda gerar múltiplos `fetchAll()` consecutivos.
+**Causa provável:**  
+`src/lib/dataService.js:477-492` — o canal realtime escuta `event: '*', schema: 'public'` (qualquer tabela, qualquer operação). O callback executa `onChange` que dispara `fetchAll()` completo após debounce de 400ms (valor original; atual: 1500ms).
+
+Com 20 vendedores inserindo leads simultaneamente, o debounce de 400ms coalescía os eventos, mas sequências de bursts podiam ainda gerar múltiplos `fetchAll()` consecutivos. O debounce de 1500ms reduz significativamente esses casos.
 
 **Evidência:**  
 ```javascript
