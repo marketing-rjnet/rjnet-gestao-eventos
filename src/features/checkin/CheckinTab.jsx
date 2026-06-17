@@ -11,16 +11,28 @@ const TEMPERATURA_CONFIG = {
 };
 
 export function CheckinTab() {
-  const { leads, eventos } = useApp();
+  const { leads, eventos, carregarLeadsEvento } = useApp();
   const [eventoId, setEventoId] = useState("");
   const [nomeInput, setNomeInput] = useState("");
   const [resultado, setResultado] = useState(null);
   const [buscado, setBuscado] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
   const handleNome = (v) => {
     setNomeInput(v);
     setResultado(null);
     setBuscado(false);
+  };
+
+  const handleEvento = async (id) => {
+    setEventoId(id);
+    setResultado(null);
+    setBuscado(false);
+    if (id) {
+      setCarregando(true);
+      await carregarLeadsEvento(id);
+      setCarregando(false);
+    }
   };
 
   const buscar = (e) => {
@@ -62,8 +74,9 @@ export function CheckinTab() {
             <label className="form-label">Evento</label>
             <select
               value={eventoId}
-              onChange={(e) => { setEventoId(e.target.value); setResultado(null); setBuscado(false); }}
+              onChange={(e) => handleEvento(e.target.value)}
               required
+              disabled={carregando}
             >
               <option value="">Selecione o evento…</option>
               {eventos.map((ev) => (
@@ -95,10 +108,10 @@ export function CheckinTab() {
           <button
             type="submit"
             className="btn-primary"
-            disabled={!eventoId || nomeInput.trim().length < 2}
+            disabled={!eventoId || nomeInput.trim().length < 2 || carregando}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
-            <Icon name="search" size={16} stroke="#000" /> Consultar
+            <Icon name="search" size={16} stroke="#000" /> {carregando ? "Carregando leads…" : "Consultar"}
           </button>
         </form>
       </div>

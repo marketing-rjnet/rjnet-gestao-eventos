@@ -4,6 +4,20 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.9] — Correção do Check-in por Nome (leads não encontrados)
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/features/checkin/CheckinTab.jsx`**: ao selecionar um evento no dropdown, o componente agora chama `carregarLeadsEvento(eventoId)` antes de permitir a busca. Enquanto os leads são carregados, o select fica desabilitado e o botão exibe "Carregando leads…".
+
+**Por que mudou**
+- O `CheckinTab` pesquisava no array `leads` do contexto, que é vazio no boot — leads são carregados sob demanda por evento (D-039). A busca por nome nunca encontrava nenhum resultado, mesmo para leads confirmadamente cadastrados.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança apenas em `CheckinTab.jsx`; sem alteração de schema ou migrations.
+
+---
+
 ## [v3.8] — Envio automático de email de redefinição de senha ao trocar email de usuário
 **Data:** 2026-06-17
 
