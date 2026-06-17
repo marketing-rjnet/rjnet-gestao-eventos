@@ -19,7 +19,9 @@ export function createLeadApi({ leads, setLeads }) {
     removeLead: (id) => {
       const atual = leads.find((l) => l.id === id);
       setLeads((p) => p.filter((l) => l.id !== id));
-      db.removeLead(id);
+      db.removeLead(id, () => {
+        if (atual) setLeads((p) => [...p, atual]);
+      });
       if (atual?.eventoId) invalidarRanking(atual.eventoId);
     },
     obterRanking: async (eventoId) => {
