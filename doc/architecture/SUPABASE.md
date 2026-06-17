@@ -195,5 +195,5 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 10 | `supabase/migracao-audit-log.sql` | ⚠️ Pendente execução em produção (PA-13) | Tabela `audit_log` + trigger em leads |
 | 11 | `supabase/migracao-retencao.sql` | ⚠️ Pendente execução em produção (PA-10) | Retenção automática via pg_cron |
 
-> Auditorias e conformidade completa: `doc/LGPD_AUDIT_AND_COMPLIANCE.md`  
-> Plano de ação LGPD: `doc/PLANO_DE_ACAO_LGPD.md`
+> Auditorias e conformidade completa: `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`  
+> Plano de ação LGPD: `doc/lgpd/PLANO_DE_ACAO_LGPD.md`

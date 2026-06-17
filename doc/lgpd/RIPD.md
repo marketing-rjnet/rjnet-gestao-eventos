@@ -133,4 +133,4 @@ O titular é consultado por meio do consentimento explícito coletado no momento
 ---
 
 > Próxima revisão obrigatória: após nomeação do DPO (PA-19) ou em caso de mudança significativa no tratamento de dados.  
-> Referência: `doc/PLANO_DE_ACAO_LGPD.md` — PA-17.
+> Referência: `doc/lgpd/PLANO_DE_ACAO_LGPD.md` — PA-17.

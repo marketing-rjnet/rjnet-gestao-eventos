@@ -1065,7 +1065,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ## 12. FASES DE IMPLEMENTAÇÃO DO PLANO DE CONFORMIDADE
 
-> O plano de ação executável completo está em `doc/PLANO_DE_ACAO_LGPD.md`.  
+> O plano de ação executável completo está em `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.  
 > Esta seção registra o progresso das correções e o que foi efetivamente implementado.
 
 ---
@@ -1088,7 +1088,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
 | PA-01 | Remover senha de marketing do bundle JS | S-01 | 🟢 | 2026-06-16 | Guard de build (`vite.config.js`) + guard de runtime (`Login.jsx`) + remoção do objeto `AUTH` exportado |
-| PA-02 | Confirmar `migracao-auth.sql` em produção | BD-01, SB-01 | 🟢 | 2026-06-16 | Script `supabase/verificar-migracao-auth.sql` criado (8 blocos); seção de verificação adicionada a `doc/SUPABASE.md` |
+| PA-02 | Confirmar `migracao-auth.sql` em produção | BD-01, SB-01 | 🟢 | 2026-06-16 | Script `supabase/verificar-migracao-auth.sql` criado (8 blocos); seção de verificação adicionada a `doc/architecture/SUPABASE.md` |
 | PA-03 | Restringir CORS da Edge Function | S-04, S-05 | 🟢 | 2026-06-16 | `getCorsHeaders(req)` por-requisição via secret `CORS_ALLOWED_ORIGINS`; stack trace removido do erro 500 |
 
 **Artefatos a criar/modificar nesta fase:**
@@ -1100,9 +1100,9 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `src/auth/index.js` | Código | PA-01 | 🟢 |
 | `.env.example` | Documentação | PA-01 | 🟢 |
 | `supabase/verificar-migracao-auth.sql` | SQL (verificação) | PA-02 | 🟢 |
-| `doc/SUPABASE.md` | Documentação | PA-02 | 🟢 |
+| `doc/architecture/SUPABASE.md` | Documentação | PA-02 | 🟢 |
 | `supabase/functions/atualizar-email-usuario/index.ts` | Código | PA-03 | 🟢 |
-| `doc/DECISIONS.md` | Decisão técnica | PA-01 | 🟢 |
+| `doc/architecture/DECISIONS.md` | Decisão técnica | PA-01 | 🟢 |
 | `doc/CHANGELOG.md` | Histórico | PA-01, PA-02, PA-03 | 🟢 |
 
 ---
@@ -1131,7 +1131,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `src/lib/dataService.js` | Código | PA-05, PA-06, PA-07 | 🟡 (PA-05 ✅) |
 | `src/lib/crypto.js` | Código (novo) | PA-05 | 🟢 |
 | `src/utils/csv.js` | Código | PA-06 | 🔴 |
-| `doc/SUPABASE.md` | Documentação | PA-06, PA-07 | 🔴 |
+| `doc/architecture/SUPABASE.md` | Documentação | PA-06, PA-07 | 🔴 |
 | `doc/CHANGELOG.md` | Histórico | Todas | 🟡 |
 
 ---
@@ -1146,8 +1146,8 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | PA-11 | Restringir SELECT de leads para vendedores | RLS minimização | 🟢 | 2026-06-16 | leads_select restrita a vendedor_id = auth.uid() |
 | PA-12 | Habilitar MFA para usuários marketing | S-03 | 🟢 | 2026-06-16 | UI TOTP em LoginAuth.jsx + auth.verifyMfa() em dataService |
 | PA-13 | Tabela de auditoria de operações em dados | A-02, A-04, A-05, BD-04 | 🟢 | 2026-06-16 | audit_log + trigger audit_leads |
-| PA-14 | Assinar DPA com Supabase Inc. | L-07, I-01 | 🟡 | — | doc/DPA_FORNECEDORES.md criado; assinatura DPA pendente (jurídico) |
-| PA-15 | Processo DSAR — direitos dos titulares | L-05 | 🟢 | 2026-06-16 | doc/ROTEIRO_DSAR.md com queries SQL para todos os direitos do art. 18 |
+| PA-14 | Assinar DPA com Supabase Inc. | L-07, I-01 | 🟡 | — | doc/lgpd/DPA_FORNECEDORES.md criado; assinatura DPA pendente (jurídico) |
+| PA-15 | Processo DSAR — direitos dos titulares | L-05 | 🟢 | 2026-06-16 | doc/lgpd/ROTEIRO_DSAR.md com queries SQL para todos os direitos do art. 18 |
 
 **Artefatos a criar/modificar nesta fase:**
 
@@ -1158,9 +1158,9 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `supabase/migracao-rls-vendedor-leads.sql` | SQL | PA-11 | 🟢 |
 | `supabase/functions/limpar-dados-expirados/index.ts` | Edge Function (nova) | PA-10 | 🟢 |
 | `doc/POLITICA_RETENCAO.md` | Documento (novo) | PA-10 | 🟢 |
-| `doc/ROTEIRO_DSAR.md` | Documento (novo) | PA-15 | 🟢 |
-| `doc/DPA_FORNECEDORES.md` | Documento (novo) | PA-14 | 🟡 |
-| `doc/SUPABASE.md` | Atualização | PA-10, PA-11, PA-13 | 🟢 |
+| `doc/lgpd/ROTEIRO_DSAR.md` | Documento (novo) | PA-15 | 🟢 |
+| `doc/lgpd/DPA_FORNECEDORES.md` | Documento (novo) | PA-14 | 🟡 |
+| `doc/architecture/SUPABASE.md` | Atualização | PA-10, PA-11, PA-13 | 🟢 |
 | `doc/CHANGELOG.md` | Histórico | Todas | 🟢 |
 
 ---
@@ -1171,21 +1171,21 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
-| PA-16 | Política de Privacidade | G-01, L-02 | 🟢 | 2026-06-16 | `doc/POLITICA_DE_PRIVACIDADE.md` v1.0 |
-| PA-17 | RIPD/DPIA | L-09 | 🟡 | 2026-06-16 | `doc/RIPD.md` v1.0 — pendente aprovação DPO |
-| PA-18 | ROPA | L-10 | 🟡 | 2026-06-16 | `doc/ROPA.md` v1.0 — pendente validação DPO |
+| PA-16 | Política de Privacidade | G-01, L-02 | 🟢 | 2026-06-16 | `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` v1.0 |
+| PA-17 | RIPD/DPIA | L-09 | 🟡 | 2026-06-16 | `doc/lgpd/RIPD.md` v1.0 — pendente aprovação DPO |
+| PA-18 | ROPA | L-10 | 🟡 | 2026-06-16 | `doc/lgpd/ROPA.md` v1.0 — pendente validação DPO |
 | PA-19 | Nomear DPO | L-11 | 🔴 | — | Decisão da diretoria |
-| PA-20 | Plano de Resposta a Incidentes | G-03 | 🟡 | 2026-06-16 | `doc/PLANO_INCIDENTES.md` v1.0 — pendente aprovação DPO |
+| PA-20 | Plano de Resposta a Incidentes | G-03 | 🟡 | 2026-06-16 | `doc/lgpd/PLANO_INCIDENTES.md` v1.0 — pendente aprovação DPO |
 | PA-21 | Avaliar campos excessivos | L-03 | 🔴 | — | Decisão do negócio |
 
 **Artefatos criados nesta fase:**
 
 | Artefato | Tipo | PA | Status |
 |---------|------|----|--------|
-| `doc/POLITICA_DE_PRIVACIDADE.md` | Documento | PA-16 | 🟢 |
-| `doc/RIPD.md` | Documento | PA-17 | 🟡 pendente DPO |
-| `doc/ROPA.md` | Documento | PA-18 | 🟡 pendente DPO |
-| `doc/PLANO_INCIDENTES.md` | Documento | PA-20 | 🟡 pendente DPO |
+| `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` | Documento | PA-16 | 🟢 |
+| `doc/lgpd/RIPD.md` | Documento | PA-17 | 🟡 pendente DPO |
+| `doc/lgpd/ROPA.md` | Documento | PA-18 | 🟡 pendente DPO |
+| `doc/lgpd/PLANO_INCIDENTES.md` | Documento | PA-20 | 🟡 pendente DPO |
 
 **Pendências administrativas — implementação técnica encerrada:**
 
@@ -1204,16 +1204,16 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 > Formato: `[DATA] PA-XX — Descrição — Evidência`
 
 - **[2026-06-16] PA-16 — Política de Privacidade v1.0 (G-01, L-02)**
-  - `doc/POLITICA_DE_PRIVACIDADE.md` criado: controlador, dados coletados, finalidades, bases legais, compartilhamento, retenção, direitos dos titulares (art. 18), medidas de segurança, transferência internacional (EUA/Supabase) e canal de contato
+  - `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` criado: controlador, dados coletados, finalidades, bases legais, compartilhamento, retenção, direitos dos titulares (art. 18), medidas de segurança, transferência internacional (EUA/Supabase) e canal de contato
 
 - **[2026-06-16] PA-17 — RIPD v1.0 (L-09) — pendente aprovação DPO**
-  - `doc/RIPD.md` criado: descrição sistemática do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de 8 riscos (R-01 a R-08), medidas de mitigação adotadas e pendentes
+  - `doc/lgpd/RIPD.md` criado: descrição sistemática do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de 8 riscos (R-01 a R-08), medidas de mitigação adotadas e pendentes
 
 - **[2026-06-16] PA-18 — ROPA v1.0 (L-10) — pendente validação DPO**
-  - `doc/ROPA.md` criado: 4 operações de tratamento — captação de leads, exportação CSV, autenticação interna, auditoria; bases legais, destinatários, transferências internacionais, prazos de retenção e medidas de segurança
+  - `doc/lgpd/ROPA.md` criado: 4 operações de tratamento — captação de leads, exportação CSV, autenticação interna, auditoria; bases legais, destinatários, transferências internacionais, prazos de retenção e medidas de segurança
 
 - **[2026-06-16] PA-20 — Plano de Resposta a Incidentes v1.0 (G-03) — pendente aprovação DPO**
-  - `doc/PLANO_INCIDENTES.md` criado: classificação em 4 níveis de severidade, procedimento em 6 fases (detecção → contenção → avaliação → notificação ANPD → correção → lições aprendidas), queries SQL de investigação via audit_log, modelo de registro de incidentes
+  - `doc/lgpd/PLANO_INCIDENTES.md` criado: classificação em 4 níveis de severidade, procedimento em 6 fases (detecção → contenção → avaliação → notificação ANPD → correção → lições aprendidas), queries SQL de investigação via audit_log, modelo de registro de incidentes
 
 - **[2026-06-16] PA-04 — Consentimento LGPD no formulário de captação de leads (L-01, L-02, L-03)**
   - `supabase/migracao-consentimento.sql`: 3 novas colunas em `leads` — `consentimento_coletado` (bool, default false), `consentimento_em` (timestamptz), `versao_termo` (text); índice de auditoria
@@ -1230,7 +1230,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 - **[2026-06-16] PA-02 — Verificação e documentação das migrações de Auth (BD-01, SB-01)**
   - Criado `supabase/verificar-migracao-auth.sql` — script com 8 blocos de verificação idempotentes
-  - `doc/SUPABASE.md` atualizado com seção de verificação e tabela de resultados esperados
+  - `doc/architecture/SUPABASE.md` atualizado com seção de verificação e tabela de resultados esperados
   - **Verificação executada em produção:** 0 policies anônimas ✅ | perfis existe ✅ | colunas deletado + vendedor_id presentes ✅ | 70 leads (66 ativos, 4 soft-deleted, 64 com vendedor_id)
 
 - **[2026-06-16] PA-01 — Remoção de credenciais legadas do bundle JS (S-01)**
@@ -1238,7 +1238,7 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
   - Guard de runtime em `src/auth/Login.jsx`: `console.error` crítico se `import.meta.env.PROD && VITE_MARKETING_PASS` (camada secundária de detecção)
   - Remoção do objeto `AUTH` exportado de `Login.jsx` e `src/auth/index.js` — elimina superfície de exposição desnecessária
   - `.env.example` atualizado com aviso explícito de que `VITE_MARKETING_PASS` é variável de desenvolvimento exclusivamente
-  - Decisão técnica registrada em `doc/DECISIONS.md` (D-032)
+  - Decisão técnica registrada em `doc/architecture/DECISIONS.md` (D-032)
 
 ---
 
@@ -1264,4 +1264,4 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 >
 > **Responsável pela revisão:** DPO ou responsável técnico designado
 >
-> **Plano de ação executável:** `doc/PLANO_DE_ACAO_LGPD.md`
+> **Plano de ação executável:** `doc/lgpd/PLANO_DE_ACAO_LGPD.md`

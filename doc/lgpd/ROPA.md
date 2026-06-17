@@ -104,4 +104,4 @@
 ---
 
 > Atualizar este documento sempre que uma nova operação de tratamento for iniciada ou alterada.  
-> Referência: `doc/PLANO_DE_ACAO_LGPD.md` — PA-18.
+> Referência: `doc/lgpd/PLANO_DE_ACAO_LGPD.md` — PA-18.

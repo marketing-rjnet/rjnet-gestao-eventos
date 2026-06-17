@@ -9,8 +9,8 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **O que mudou**
 - Plano de Ação LGPD atualizado com tabela de pendências administrativas — implementação técnica declarada encerrada
-- `doc/LGPD_AUDIT_AND_COMPLIANCE.md`: Fase 4 atualizada com status de cada PA, artefatos criados e tabela de pendências
-- 4 pendências restantes são exclusivamente administrativas/jurídicas (ver `doc/PLANO_DE_ACAO_LGPD.md`)
+- `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`: Fase 4 atualizada com status de cada PA, artefatos criados e tabela de pendências
+- 4 pendências restantes são exclusivamente administrativas/jurídicas (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`)
 
 **Situação final:** 16/21 ações 🟢, 3/21 🟡 (pendentes aprovação DPO), 2/21 🔴 (decisão externa)
 
@@ -20,9 +20,9 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Data:** 2026-06-16
 
 **O que mudou**
-- **PA-17 — RIPD (`doc/RIPD.md`):** Relatório de Impacto v1.0 com descrição do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de 8 riscos identificados e medidas de mitigação; pendente aprovação pelo DPO
-- **PA-18 — ROPA (`doc/ROPA.md`):** Registro de 4 operações de tratamento (captação de leads, exportação CSV, autenticação interna, auditoria); bases legais, destinatários, transferências internacionais e retenção documentados; pendente validação pelo DPO
-- **PA-20 — Plano de Incidentes (`doc/PLANO_INCIDENTES.md`):** 6 fases de resposta, classificação por severidade, queries SQL de investigação, prazos ANPD (72h), modelo de registro; pendente aprovação pelo DPO e tabletop exercise
+- **PA-17 — RIPD (`doc/lgpd/RIPD.md`):** Relatório de Impacto v1.0 com descrição do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de 8 riscos identificados e medidas de mitigação; pendente aprovação pelo DPO
+- **PA-18 — ROPA (`doc/lgpd/ROPA.md`):** Registro de 4 operações de tratamento (captação de leads, exportação CSV, autenticação interna, auditoria); bases legais, destinatários, transferências internacionais e retenção documentados; pendente validação pelo DPO
+- **PA-20 — Plano de Incidentes (`doc/lgpd/PLANO_INCIDENTES.md`):** 6 fases de resposta, classificação por severidade, queries SQL de investigação, prazos ANPD (72h), modelo de registro; pendente aprovação pelo DPO e tabletop exercise
 - **PA-19 e PA-21:** mantidos como 🔴 Em aberto — dependem de decisão da diretoria/negócio
 
 **Conformidade:** L-09, L-10, G-03 parcialmente sanados (documentos criados; aprovação DPO pendente)
@@ -33,7 +33,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Data:** 2026-06-16
 
 **O que mudou**
-- **PA-16 — Política de Privacidade (`doc/POLITICA_DE_PRIVACIDADE.md`):** documento v1.0 cobrindo controlador, dados coletados, finalidades, bases legais (consentimento e legítimo interesse), compartilhamento com Supabase/Vercel, retenção, direitos dos titulares (art. 18 LGPD), medidas de segurança, transferência internacional e canal de contato
+- **PA-16 — Política de Privacidade (`doc/lgpd/POLITICA_DE_PRIVACIDADE.md`):** documento v1.0 cobrindo controlador, dados coletados, finalidades, bases legais (consentimento e legítimo interesse), compartilhamento com Supabase/Vercel, retenção, direitos dos titulares (art. 18 LGPD), medidas de segurança, transferência internacional e canal de contato
 - **PA-15 — DSAR:** canal privacidade@rjnet.com.br marcado como pendente criação pela TI
 
 **Conformidade:** G-01, L-02 sanados
@@ -48,8 +48,8 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - **PA-10 — Retenção automática (`supabase/migracao-retencao.sql`):** pg_cron + `configuracoes_retencao` + função `limpar_leads_expirados()` com hard delete diário às 02:00 BRT; padrões: 90 dias soft delete, 365 dias evento encerrado
 - **PA-13 — Audit log (`supabase/migracao-audit-log.sql`):** tabela `audit_log` + trigger `audit_leads` registra INSERT/UPDATE/DELETE em leads com dados antes/depois em JSONB
 - **PA-12 — MFA TOTP (`src/auth/LoginAuth.jsx` + `src/lib/dataService.js`):** tela de código TOTP exibida automaticamente quando usuário tem MFA configurado; `auth.verifyMfa()` verifica código e estabelece sessão
-- **PA-14 — DPA fornecedores (`doc/DPA_FORNECEDORES.md`):** novo documento com Supabase Inc. e Vercel; assinatura DPA com Supabase pendente (ação jurídica)
-- **PA-15 — DSAR (`doc/ROTEIRO_DSAR.md`):** roteiro completo com queries SQL para todos os direitos do art. 18 LGPD; prazo 15 dias; canal privacidade@rjnet.com.br (a criar)
+- **PA-14 — DPA fornecedores (`doc/lgpd/DPA_FORNECEDORES.md`):** novo documento com Supabase Inc. e Vercel; assinatura DPA com Supabase pendente (ação jurídica)
+- **PA-15 — DSAR (`doc/lgpd/ROTEIRO_DSAR.md`):** roteiro completo com queries SQL para todos os direitos do art. 18 LGPD; prazo 15 dias; canal privacidade@rjnet.com.br (a criar)
 
 **Ações manuais necessárias**
 - Executar no Supabase SQL Editor (nesta ordem): `migracao-rls-vendedor-leads.sql`, `migracao-audit-log.sql`, `migracao-retencao.sql`
@@ -98,7 +98,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **Conformidade**
 - NC BD-02 e L-03 sanadas pela raiz — dado não coletado elimina risco de vazamento
-- Decisão D-035 registrada em `doc/DECISIONS.md`
+- Decisão D-035 registrada em `doc/architecture/DECISIONS.md`
 - **Fase 2 completa** (6/6 ações: PA-04, PA-05, PA-06, PA-07, PA-08, PA-09)
 
 ---
@@ -165,7 +165,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **Conformidade**
 - NC S-02 sanada — fila offline criptografada com AES-GCM 256; chave inacessível após logout
-- Decisão D-034 registrada em `doc/DECISIONS.md`
+- Decisão D-034 registrada em `doc/architecture/DECISIONS.md`
 
 ---
 
@@ -189,7 +189,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **Conformidade**
 - NC L-01 e L-02 sanadas — consentimento coletado e registrado digitalmente
-- Decisão D-033 registrada em `doc/DECISIONS.md`
+- Decisão D-033 registrada em `doc/architecture/DECISIONS.md`
 - Fase 2 iniciada
 
 ---
@@ -214,7 +214,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - Fazer deploy: `supabase functions deploy atualizar-email-usuario`
 
 **Conformidade**
-- NC S-04 sanada; NC S-05 antecipada e sanada — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+- NC S-04 sanada; NC S-05 antecipada e sanada — ver `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
 - **Fase 1 do Plano LGPD completa (PA-01, PA-02, PA-03 ✅)**
 
 ---
@@ -224,7 +224,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **O que mudou**
 - **Novo arquivo (`supabase/verificar-migracao-auth.sql`):** script SQL com 8 blocos de verificação idempotentes para confirmar o estado das migrações `migracao-auth.sql` e `protecao-dados.sql` em produção; inclui resultado esperado anotado e instruções de remediação
-- **Documentação (`doc/SUPABASE.md`):** nova seção "Verificação de estado das migrações (PA-02)" com tabela de resultados esperados; tabela de migrações atualizada com o script de verificação; checklist de segurança pré-produção atualizado
+- **Documentação (`doc/architecture/SUPABASE.md`):** nova seção "Verificação de estado das migrações (PA-02)" com tabela de resultados esperados; tabela de migrações atualizada com o script de verificação; checklist de segurança pré-produção atualizado
 
 **Por que mudou**
 - PA-02 do Plano de Ação LGPD (NC BD-01, SB-01): policies anônimas do `schema.sql` expõem todos os dados se `migracao-auth.sql` não estiver aplicada em produção; a ação requer verificação operacional documentada
@@ -234,7 +234,7 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - Operador deve executar `supabase/verificar-migracao-auth.sql` no Supabase Dashboard e confirmar 0 policies anônimas
 
 **Conformidade**
-- NC BD-01 e SB-01 documentadas e com procedimento de verificação — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+- NC BD-01 e SB-01 documentadas e com procedimento de verificação — ver `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
 
 ---
 
@@ -256,8 +256,8 @@ Histórico de mudanças relevantes. Mais recente no topo.
 - `AUTH` não é mais exportado; nenhum código interno o usava fora do próprio `Login.jsx`
 
 **Conformidade**
-- NC S-01 sanada — ver `doc/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
-- Decisão D-032 registrada em `doc/DECISIONS.md`
+- NC S-01 sanada — ver `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` seção 12.2 e 12.6
+- Decisão D-032 registrada em `doc/architecture/DECISIONS.md`
 
 ---
 
@@ -265,10 +265,10 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Data:** 2026-06-16
 
 **O que mudou**
-- **Docs:** criado `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança, governança e Supabase (1.200+ linhas, 11 seções + seção de fases de implementação)
-- **Docs:** criado `doc/PLANO_DE_ACAO_LGPD.md` — plano de ação executável com 21 ações organizadas em 4 fases, com responsáveis, prazos, queries SQL prontas e checklists de evidência
+- **Docs:** criado `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança, governança e Supabase (1.200+ linhas, 11 seções + seção de fases de implementação)
+- **Docs:** criado `doc/lgpd/PLANO_DE_ACAO_LGPD.md` — plano de ação executável com 21 ações organizadas em 4 fases, com responsáveis, prazos, queries SQL prontas e checklists de evidência
 - **Docs:** `CLAUDE.md` atualizado — tabela de referência agora inclui os dois novos documentos de conformidade
-- **Docs:** `doc/DECISIONS.md` atualizado — registrada decisão D-031 sobre a auditoria
+- **Docs:** `doc/architecture/DECISIONS.md` atualizado — registrada decisão D-031 sobre a auditoria
 
 **Principais não conformidades documentadas**
 - Ausência total de consentimento LGPD para leads captados em eventos (CRÍTICO)
@@ -292,14 +292,14 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 **O que mudou**
 - **C-1 (segurança):** `salvarEdicao` em `VendedorApp.jsx` agora sanitiza `nome`, `cpf`, `endereco` e `observacao` via `sanitizeText()` antes de chamar `updateLead` — eliminando vetor de XSS armazenado no fluxo de edição de lead
-- **C-6 (documentação):** `doc/SYSTEM_MAP.md` corrigido — seção "Detecção de Modo" agora descreve corretamente que `src/lib/mode.js` existe e que `isSupabaseMode()` é a abstração obrigatória
+- **C-6 (documentação):** `doc/architecture/SYSTEM_MAP.md` corrigido — seção "Detecção de Modo" agora descreve corretamente que `src/lib/mode.js` existe e que `isSupabaseMode()` é a abstração obrigatória
 - **C-5 (refatoração):** `genId` extraído do `AppProvider` para `src/utils/ids.js`; as 4 factories de API importam diretamente de `utils/ids` e deixam de receber `genId` como parâmetro
 - **C-3 (refatoração):** `obterRanking` movida do `AppProvider` para `createLeadApi` em `src/api/leadApi.js`; o Provider apenas desestrutura e expõe via contexto
 - **C-4 (refatoração):** `createLeadApi.addLead` retorna o objeto criado com o ID canônico; `VendedorApp.submit` removeu a pré-geração local de ID e usa o retorno da factory
 - **C-2 (arquitetural):** novo `src/api/equipeApi.js` com `createEquipeApi` expondo `criarUsuario`, `atualizarPerfil` e `excluirUsuario`; `EquipeAuthTab` removeu import direto de `dataService` e consome via `useApp()`
 
 **Por que mudou**
-- Auditoria pós-refatoração identificou 6 desvios remanescentes, documentados em `doc/ARCHITECTURE_FIX_PLAN.md`
+- Auditoria pós-refatoração identificou 6 desvios remanescentes, documentados em `doc/architecture/ARCHITECTURE_FIX_PLAN.md`
 
 **Impacto**
 - Nenhum componente de feature (`src/features/`) ou app (`src/apps/`) acessa `src/lib/dataService` diretamente
@@ -332,9 +332,9 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **O que mudou**
 - Diretório `doc/` criado; `CHANGELOG.md`, `DECISIONS.md`, `REFATORAÇÃO.md`, `SUPABASE.md` e `SYSTEM_MAP.md` movidos para ele
 - `CLAUDE.md` permanece na raiz (convenção Claude Code)
-- `@doc/SYSTEM_MAP.md` adicionado ao `CLAUDE.md` — garante carregamento automático da arquitetura viva a cada sessão
+- `@doc/architecture/SYSTEM_MAP.md` adicionado ao `CLAUDE.md` — garante carregamento automático da arquitetura viva a cada sessão
 - Tabela de Documentação de Referência no `CLAUDE.md` atualizada com novos caminhos e coluna "Quando ler"
-- Decisão [D-028] registrada em `doc/DECISIONS.md`
+- Decisão [D-028] registrada em `doc/architecture/DECISIONS.md`
 
 **Por que mudou**
 - Raiz com 6 `.md` soltos dificultava distinguir código de documentação

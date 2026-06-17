@@ -183,4 +183,4 @@ Preencher o **Registro de Incidente** (seção 5) e realizar reunião de liçõe
 ---
 
 > Simular um exercício tabletop anualmente para validar o plano.  
-> Referência: `doc/PLANO_DE_ACAO_LGPD.md` — PA-20.
+> Referência: `doc/lgpd/PLANO_DE_ACAO_LGPD.md` — PA-20.
