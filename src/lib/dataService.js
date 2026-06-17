@@ -489,6 +489,11 @@ export const auth = {
     // E-mail vai pela Edge Function (requer service_role para atualizar auth.users)
     if (patch.email !== undefined) {
       await callEdgeFunction('atualizar-email', { userId, email: patch.email });
+      // Envia email de redefinição de senha para o novo endereço,
+      // permitindo que o usuário defina sua própria senha ao trocar o login.
+      await supabase.auth.resetPasswordForEmail(patch.email, {
+        redirectTo: `${window.location.origin}/`,
+      });
       const { email: _email, ...restPatch } = patch;
       patch = restPatch;
     }
