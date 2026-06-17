@@ -1,9 +1,44 @@
+import { supabase } from './supabase';
+
 const KEY_PREFIX = 'rjnet_activity_';
 const MAX_LOGS_PER_DAY = 200;
 const MAX_DAYS = 30;
 
 let _pruned = false;
 
+/* ─── Canal Supabase Realtime para broadcast entre dispositivos ─── */
+let _channel = null;
+let _subscribed = false;
+let _queue = [];
+
+function initChannel() {
+  if (!supabase || _channel) return;
+  _channel = supabase.channel('rjnet-monitor', {
+    config: { broadcast: { self: false } },
+  });
+  _channel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      _subscribed = true;
+      _queue.forEach((payload) =>
+        _channel.send({ type: 'broadcast', event: 'log', payload }).catch(() => {})
+      );
+      _queue = [];
+    }
+  });
+}
+
+initChannel();
+
+function broadcast(record) {
+  if (!supabase || !_channel) return;
+  if (_subscribed) {
+    _channel.send({ type: 'broadcast', event: 'log', payload: record }).catch(() => {});
+  } else {
+    _queue.push(record);
+  }
+}
+
+/* ─── Helpers de storage ────────────────────────────────────────── */
 function todayKey() {
   return KEY_PREFIX + new Date().toISOString().slice(0, 10);
 }
@@ -24,6 +59,7 @@ function pruneOldDays() {
   } catch {}
 }
 
+/* ─── API pública ───────────────────────────────────────────────── */
 export function logActivity(entry) {
   pruneOldDays();
   const record = {
@@ -42,7 +78,21 @@ export function logActivity(entry) {
   if (all.length > MAX_LOGS_PER_DAY) all.splice(0, all.length - MAX_LOGS_PER_DAY);
   try { localStorage.setItem(key, JSON.stringify(all)); } catch {}
   window.dispatchEvent(new CustomEvent('rjnet:activity', { detail: record }));
+  broadcast(record);
   return record;
+}
+
+/* Recebe evento de outro dispositivo via Realtime e persiste localmente.
+   Retorna true se era novo (UI deve atualizar), false se já existia. */
+export function receiveActivityLog(record) {
+  const date = (record.ts ?? new Date().toISOString()).slice(0, 10);
+  const key = KEY_PREFIX + date;
+  const all = getActivityLogsForDay(key);
+  if (all.some((l) => l.id === record.id)) return false;
+  all.push(record);
+  if (all.length > MAX_LOGS_PER_DAY) all.splice(0, all.length - MAX_LOGS_PER_DAY);
+  try { localStorage.setItem(key, JSON.stringify(all)); } catch {}
+  return true;
 }
 
 export function getActivityLogs() {

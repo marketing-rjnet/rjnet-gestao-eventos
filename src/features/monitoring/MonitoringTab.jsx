@@ -4,7 +4,9 @@ import {
   getActivityLogs,
   getActivityLogsForDay,
   getActivityDays,
+  receiveActivityLog,
 } from '../../lib/activityLog';
+import { supabase } from '../../lib/supabase';
 import { initials } from '../../utils/format';
 import { Icon } from '../../components/ui';
 
@@ -166,18 +168,18 @@ export default function MonitoringTab() {
   const [filter, setFilter] = useState('all');
   const isToday = selectedDay === today;
 
-  /* real-time: mesma aba (rjnet:activity) + outra aba (storage event) */
+  /* real-time: 3 canais cobrindo todos os cenários */
   useEffect(() => {
     if (!isToday) return;
     const todayKey = 'rjnet_activity_' + today;
 
-    /* vendedor e marketing na mesma aba */
+    /* 1. mesma aba (CustomEvent) */
     const localHandler = (e) => {
       setLogs(e.detail === null ? [] : getActivityLogs());
       setDays(getActivityDays());
     };
 
-    /* vendedor em outra aba — storage só dispara em abas diferentes da que escreveu */
+    /* 2. outra aba / janela no mesmo dispositivo (storage event) */
     const storageHandler = (e) => {
       if (e.key !== todayKey) return;
       setLogs(e.newValue === null ? [] : getActivityLogs());
@@ -186,9 +188,26 @@ export default function MonitoringTab() {
 
     window.addEventListener('rjnet:activity', localHandler);
     window.addEventListener('storage', storageHandler);
+
+    /* 3. outro dispositivo (Supabase Realtime broadcast) */
+    let realtimeChannel = null;
+    if (supabase) {
+      realtimeChannel = supabase
+        .channel('rjnet-monitor-recv')
+        .on('broadcast', { event: 'log' }, ({ payload }) => {
+          const isNew = receiveActivityLog(payload);
+          if (isNew) {
+            setLogs(getActivityLogs());
+            setDays(getActivityDays());
+          }
+        })
+        .subscribe();
+    }
+
     return () => {
       window.removeEventListener('rjnet:activity', localHandler);
       window.removeEventListener('storage', storageHandler);
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
     };
   }, [isToday, today]);
 
