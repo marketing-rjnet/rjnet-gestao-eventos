@@ -1489,6 +1489,43 @@ CPF armazenado em texto plano (sem criptografia). O risco é menor do que na sit
 
 ---
 
+### [D-043] — Exclusão de leads por vendedor: DELETE físico em vez de soft delete
+
+**Data:** 2026-06-17
+**Tipo:** Segurança / Bug Fix
+
+**Contexto:**
+PA-07 implementou rastreabilidade do soft delete via `UPDATE SET deletado=true, deletado_em=..., deletado_por=...`. No entanto, ao executar essa operação como vendedor, o PostgreSQL retornava "new row violates row-level security policy for table leads", mesmo com `vendedor_id = auth.uid()` correto e a policy `leads_update` com `WITH CHECK (papel_atual() = 'vendedor' AND vendedor_id = auth.uid())` aparentemente válida.
+
+**Decisão:**
+`db.removeLead` usa `supabase.from('leads').delete().eq('id', id)` em vez de UPDATE com soft delete. A rastreabilidade LGPD (BD-06, A-03) é preservada pelo trigger `audit_leads` (AFTER DELETE → `audit_log`).
+
+**Motivação:**
+A policy `leads_delete` usa apenas `USING` (sem `WITH CHECK`), contornando completamente o comportamento de RLS que bloqueava o UPDATE. O trigger `audit_leads` registra `tg_op = 'DELETE'`, `old.*` e `auth.uid()` na tabela `audit_log`, mantendo rastreabilidade equivalente à abordagem anterior.
+
+**Alternativas Avaliadas:**
+- Recriar `leads_update` com `WITH CHECK` mais permissivo — tentada e mantida falha; o comportamento parece ser específico da transição `deletado=false → true` no contexto do vendedor
+- Manter soft delete com policy separada para soft delete — descartada: adiciona complexidade sem garantia de funcionar dado o comportamento observado
+- Hard DELETE com trigger de auditoria — adotada: simples, confiável, auditada
+
+**Impactos:**
+- Leads excluídos por vendedor são removidos fisicamente do banco (não ficam com `deletado=true`)
+- A política de retenção (PA-10) via cron job continua funcionando para leads soft-deleted pelo marketing
+- Audit log registra a exclusão via trigger — rastreabilidade LGPD mantida
+- Rollback automático de UI em caso de falha: `onFail` callback restaura o lead ao estado local
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` — `db.removeLead` usa `.delete()` e aceita `onFail`
+- `src/api/leadApi.js` — `removeLead` passa rollback como `onFail`
+
+**Riscos:**
+- Leads excluídos por vendedor não são recuperáveis via `deletado=false` (hard delete); recuperação só via `audit_log`
+- Colunas `deletado_em` e `deletado_por` não são preenchidas para exclusões de vendedor (preenchidas apenas quando marketing faz soft delete via UPDATE direto no banco)
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

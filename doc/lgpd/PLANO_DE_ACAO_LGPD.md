@@ -465,6 +465,8 @@
 - `src/lib/dataService.js`: `db.removeLead(id)` atualizado para gravar `deletado: true`, `deletado_em: new Date().toISOString()` e `deletado_por: _queueUserId` — reutiliza o userId já registrado em memória via PA-05 (`setQueueUserId`), sem necessidade de alterar assinatura da função nem propagar props por toda a cadeia
 - **Migração aplicada em produção em 2026-06-16:** colunas `deletado_em` (timestamptz), `deletado_por` (uuid) e índices parciais criados com sucesso — "Success. No rows returned" ✅
 
+> **⚠️ Revisão pós-implementação (2026-06-17 — D-043):** O soft delete via UPDATE gerava "new row violates row-level security policy" para vendedores ao tentar setar `deletado=true`, mesmo com `vendedor_id = auth.uid()` correto. `db.removeLead` foi migrado para hard DELETE (`supabase.from('leads').delete()`), que usa a policy `leads_delete` (sem `WITH CHECK`). A rastreabilidade LGPD é mantida pelo trigger `audit_leads` (AFTER DELETE → `audit_log` com `usuario_id`, `usuario_nome`, `dados_antes`). As colunas `deletado_em`/`deletado_por` continuam existindo no schema e são utilizadas quando o marketing realiza soft delete diretamente via SQL.
+
 ---
 
 ### PA-08 — Pseudonimizar ou criptografar CPF no banco de dados

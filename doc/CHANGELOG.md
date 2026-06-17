@@ -4,6 +4,25 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.5] — Correção de bug: exclusão de leads por vendedor
+**Data:** 2026-06-17
+
+**O que mudou**
+- **Fix: rollback de estado local em falha de exclusão** (`src/api/leadApi.js`, `src/lib/dataService.js`): `removeLead` agora aceita callback `onFail`; se o banco rejeitar a operação, o lead é restaurado ao estado local automaticamente — evita inconsistência onde o lead sumia da UI mas permanecia no banco
+- **Fix: exclusão via DELETE direto** (`src/lib/dataService.js`): `db.removeLead` migrado de `UPDATE SET deletado=true` (soft delete) para `DELETE` físico; o soft delete via UPDATE gerava "new row violates row-level security policy" no `WITH CHECK` do `leads_update` mesmo com `vendedor_id = auth.uid()` correto. A auditoria LGPD é preservada pelo trigger `audit_leads` (AFTER DELETE → `audit_log`)
+- **Migration aplicada em produção:** `supabase/migracao-soft-delete-audit.sql` — colunas `deletado_em` (timestamptz) e `deletado_por` (uuid) adicionadas à tabela `leads`; cache PostgREST recarregado via `NOTIFY pgrst, 'reload schema'`
+- **RLS policy recriada:** `leads_update` recriada sem condições extras para garantir estado limpo
+
+**Por que mudou**
+- Vendedores não conseguiam excluir seus próprios leads: soft delete retornava erro RLS mesmo com dados corretos
+- Investigação revelou que o `WITH CHECK` do `leads_update` rejeita a transição `deletado=false → true` em contexto de vendedor, comportamento não documentado do PostgreSQL RLS
+- Decisão documentada em D-043
+
+**Ações manuais necessárias**
+- Migration `migracao-soft-delete-audit.sql` já aplicada em produção em 2026-06-17
+
+---
+
 ## [v3.4] — Quick wins de performance + carregamento on-demand + melhorias de UX
 **Data:** 2026-06-17
 
