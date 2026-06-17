@@ -489,7 +489,7 @@ Sem debounce, múltiplas inserções em sequência (ex: vários vendedores regis
 **Riscos:**
 - Subscriptions não canceladas no unmount causam memory leak (mitigado por cleanup no `useEffect`)
 
-**Status:** Ativa
+**Status:** Atualizada por D-038 — debounce aumentado de 400ms para 1500ms em 2026-06-17
 
 ---
 
@@ -1448,6 +1448,308 @@ Eventos com `status = "ativo"` não exibem o botão de exclusão. Isso impede qu
 **Riscos:**
 - Médio: exclusão é irreversível. Mitigado pelo `confirm()` explícito e pela proteção de eventos ativos.
 - Sem impacto no modo local (a operação `removeEvento` já funcionava nos dois modos)
+
+**Status:** Ativa
+
+---
+
+### [D-042] — Migração do sistema de build de Babel/CDN para Vite
+
+**Data:** 2026-06-09 (v0.6)
+
+**Tipo:** Infraestrutura
+
+**Decisão:**
+O sistema de build foi migrado de Babel (via CDN externo) para Vite. A CSP foi ajustada para remover `unsafe-eval`, que não é mais necessário com Vite.
+
+**Motivação:**
+O app exibia tela preta no Vercel com o setup Babel/CDN. A CSP bloqueava carregamento em alguns browsers por causa do `unsafe-eval` exigido pelo Babel via CDN. Além disso, a dependência de CDN externo tornava o app frágil em conexões instáveis (exatamente o contexto de eventos de campo).
+
+**Alternativas Avaliadas:**
+- Manter Babel/CDN e corrigir a CSP (descartada — problema de deploy persistia; CDN externo é ponto de falha)
+- Webpack (descartada — configuração mais pesada; Vite é mais adequado para projetos React modernos sem server-side)
+
+**Impactos:**
+- Positivo: deploy estável no Vercel; build mais rápido; bundle otimizado com tree-shaking nativo
+- Positivo: sem dependência de CDN externo — app funciona em conexão restrita
+- Positivo: `unsafe-eval` removido da CSP — postura de segurança melhorada
+- Negativo: variáveis de ambiente agora devem usar prefixo `VITE_` (convenção Vite)
+
+**Arquivos Afetados:**
+- `vite.config.js` (criado)
+- `vercel.json` (CSP ajustada — remoção de `unsafe-eval`)
+- `package.json` (scripts atualizados para CLI do Vite)
+
+**Riscos:**
+- Variáveis de ambiente sem prefixo `VITE_` não são expostas ao bundle — risco de configuração incorreta em novos deployments
+
+**Status:** Ativa
+
+---
+
+### [D-043] — Remoção do papel comercial e unificação em dois papéis (marketing / vendedor)
+
+**Data:** 2026-06-12 (v0.8)
+
+**Tipo:** Arquitetura / Segurança
+
+**Decisão:**
+O papel `comercial` foi removido do sistema. O modelo de permissões passa a ter exatamente dois papéis: `marketing` (acesso total) e `vendedor` (captura e gestão dos próprios leads).
+
+**Motivação:**
+O papel `comercial` sobrepunha o `marketing` sem distinção funcional real — ambos tinham acesso ao painel de gestão. A redundância gerava casos de borda nas RLS policies do Supabase e ambiguidade no roteamento de auth, aumentando a superfície de erro sem agregar valor de negócio.
+
+**Alternativas Avaliadas:**
+- Manter `comercial` com permissões restritas (descartada — não havia requisito de negócio que justificasse o terceiro papel)
+- Fundir `comercial` com `vendedor` (avaliada — `comercial` tinha acesso a painel de relatórios; semântica mais próxima de `marketing`)
+
+**Impactos:**
+- Positivo: modelo de permissões simples e auditável; RLS policies com menos casos de borda
+- Positivo: roteamento de auth simplificado — decisão binária (marketing/vendedor) em vez de ternária
+- Negativo: usuários com papel `comercial` existentes precisaram ter o papel migrado para `marketing`
+
+**Arquivos Afetados:**
+- `supabase/migracao-auth.sql` (RLS policies atualizadas — remoção de `comercial`)
+- `src/lib/dataService.js` (lógica de papel simplificada)
+- `src/apps/Root.jsx` (roteamento ternário → binário)
+
+**Riscos:**
+- Migração de usuários existentes com papel `comercial` deve ser feita manualmente no Supabase Dashboard
+
+**Status:** Ativa
+
+---
+
+### [D-044] — Reintrodução do CPF como campo opcional com finalidade declarada (revisão parcial de D-035)
+
+**Data:** 2026-06-16 (v2.5)
+
+**Tipo:** Feature / Segurança / LGPD
+
+**Decisão:**
+O CPF foi reintroduzido na tabela `leads` como coluna nullable (`ADD COLUMN IF NOT EXISTS cpf text`) e como campo **opcional** no formulário de captura. A label declara explicitamente a finalidade: *"opcional — para visita técnica e contrato"*. O campo é exibido na lista de leads apenas quando preenchido. O check-in permanece por busca de nome (sem uso de CPF).
+
+**Contexto em relação a D-035:**
+D-035 removeu o CPF com base no princípio de minimização (LGPD art. 6°, III), afirmando que CPF não tem finalidade obrigatória no fluxo. Após a remoção, identificou-se que CPF é necessário para o fluxo de agendamento de visita técnica e assinatura de contrato. A não conformidade original (L-03) era sobre coleta **sem finalidade declarada** — não sobre coleta em si. Com a label de finalidade, a coleta é legítima.
+
+**Alternativas Avaliadas:**
+- Manter CPF removido e coletar via sistema externo no momento do contrato (descartada — duplicação de esforço; dado já está no contato de campo)
+- Pseudonimizar/criptografar CPF no banco (avaliada — complexidade sem necessidade imediata dado que o campo é opcional e a conformidade foi alcançada pela declaração de finalidade)
+
+**Impactos:**
+- Positivo: fluxo de conversão completo sem dependência de sistema externo
+- Negativo: CPF em texto plano no banco (risco residual aceito — campo opcional, finalidade declarada, coleta opt-in)
+- Decisão D-035 permanece válida quanto ao check-in (permanece por nome)
+
+**Arquivos Afetados:**
+- `supabase/migracao-readd-cpf.sql` (novo — `ADD COLUMN IF NOT EXISTS cpf text`)
+- `src/lib/dataService.js` (`leadFromDb` e `leadToDb` com campo `cpf` de volta)
+- `src/apps/VendedorApp.jsx` (campo CPF opcional com label de finalidade)
+- `src/utils/csv.js` (coluna CPF de volta no export)
+
+**Riscos:**
+- Médio: CPF em texto plano — o risco de vazamento persiste, mitigado pela opcionalidade do campo e pelo RLS que restringe acesso por papel
+
+**Status:** Ativa — substitui parcialmente D-035 (check-in permanece por nome; CPF reintroduzido como campo opcional com finalidade declarada)
+
+---
+
+### [D-045] — PA-03: CORS restrito na Edge Function administrativa (S-04)
+
+**Data:** 2026-06-16 (v1.9)
+
+**Tipo:** Segurança
+
+**Decisão:**
+A constante global `corsHeaders` com `Access-Control-Allow-Origin: *` foi substituída pela função `getCorsHeaders(req)` na Edge Function `atualizar-email-usuario`. A função lê as origens permitidas do secret `CORS_ALLOWED_ORIGINS` e reflete a origem da requisição somente se estiver na lista. Fallback de desenvolvimento: `http://localhost:3000`. Stack traces do catch final passaram a retornar mensagem genérica (NC S-05 corrigida junto).
+
+**Motivação:**
+CORS aberto (`*`) em uma Edge Function administrativa — que tem acesso a operações de criação e exclusão de usuários — permite que qualquer origem invoque essas operações. Vetor de CSRF em caso de XSS em qualquer domínio.
+
+**Alternativas Avaliadas:**
+- Hardcode das origens permitidas no código (descartada — exige rebuild para adicionar domínio; secret permite configuração sem deploy)
+- Validação apenas no Supabase RLS (descartada — RLS não opera sobre Edge Functions da mesma forma que sobre tabelas)
+
+**Impactos:**
+- Positivo: Surface de ataque da Edge Function administrativa reduzida a origens explicitamente listadas
+- Negativo: requer configuração do secret `CORS_ALLOWED_ORIGINS` no Supabase Dashboard antes do deploy
+
+**Arquivos Afetados:**
+- `supabase/functions/atualizar-email-usuario/index.ts`
+
+**Ação manual necessária:**
+Configurar secret `CORS_ALLOWED_ORIGINS` no Supabase → Settings → Edge Functions → Secrets.
+
+**Riscos:**
+- Secret não configurado resulta em CORS restrito a `localhost:3000` apenas — bloqueia produção até ser configurado
+
+**Status:** Ativa
+
+---
+
+### [D-046] — PA-06: Log de exportações CSV contendo dados pessoais (A-01, L-08)
+
+**Data:** 2026-06-16 (v2.2)
+
+**Tipo:** Segurança / LGPD
+
+**Decisão:**
+Criada tabela `audit_exportacoes` no Supabase com RLS (`INSERT`/`SELECT` restritas ao papel `marketing`). A função `db.registrarExportacao()` em `dataService.js` registra cada exportação CSV com: `usuario_id`, `usuario_nome`, `usuario_email`, `acao`, `filtros` (jsonb), `total_registros`, `exportado_em`. O registro é fire-and-forget — nunca bloqueia o download. `LeadsTab` recebe `session` via prop para extrair identidade do exportador.
+
+**Motivação:**
+Exportações de dados pessoais (nome, CPF, telefone) sem rastreabilidade impossibilitavam auditar quem baixou o quê e quando — violação do princípio de responsabilização (LGPD art. 6°, X) e impossibilidade de responder a DSARs.
+
+**Alternativas Avaliadas:**
+- Log apenas em memória/console (descartada — não persiste; inútil para auditoria)
+- Log no frontend/localStorage (descartada — dado sensível fora do servidor; facilmente adulterável)
+
+**Impactos:**
+- Positivo: rastreabilidade completa de exportações de dados pessoais
+- Positivo: evidência concreta para responder a DSARs sobre "quem acessou seus dados"
+- Negativo: falha no log não bloqueia o download (fire-and-forget) — lacuna aceitável para não degradar UX
+
+**Arquivos Afetados:**
+- `supabase/migracao-audit-exportacoes.sql` (novo)
+- `src/lib/dataService.js` (`db.registrarExportacao()`)
+- `src/utils/csv.js` (parâmetro `onAudit` opcional)
+- `src/features/leads/LeadsTab.jsx` (callback de auditoria)
+- `src/apps/MarketingApp.jsx` (prop `session` para `LeadsTab`)
+
+**Riscos:**
+- Baixo: `registrarExportacao` é fire-and-forget — falha silenciosa não notificada ao usuário (apenas `console.warn`)
+
+**Status:** Ativa
+
+---
+
+### [D-047] — PA-07: Audit trail de exclusão lógica de leads (BD-06, A-03)
+
+**Data:** 2026-06-16 (v2.3)
+
+**Tipo:** Segurança / LGPD
+
+**Decisão:**
+Adicionadas 2 colunas à tabela `leads`: `deletado_em timestamptz` e `deletado_por uuid REFERENCES auth.users(id) ON DELETE SET NULL`. A função `db.removeLead()` grava ambas automaticamente na operação de soft delete, reutilizando `_queueUserId` já presente em memória (estabelecido em PA-05). Índices parciais `WHERE deletado = true` foram adicionados para eficiência em consultas de auditoria.
+
+**Motivação:**
+Exclusões de dados pessoais sem rastreabilidade impediam auditar quem excluiu e quando — violação do princípio de responsabilização (LGPD art. 6°, X). Sem rastreabilidade, é impossível responder a um DSAR ou a uma investigação da ANPD sobre exclusão indevida.
+
+**Alternativas Avaliadas:**
+- Trigger no banco para auto-preencher `deletado_por` (avaliada — requer `auth.uid()` acessível no trigger context Supabase; mais frágil que preencher na camada de dados)
+- Audit log genérico via `PA-13` (avaliada — abordagens complementares; o campo na própria tabela é mais direto para relatórios)
+
+**Impactos:**
+- Positivo: toda exclusão de lead registra responsável e timestamp permanentemente no banco
+- Positivo: sem mudança na assinatura pública de `removeLead` — transparente para a camada de API
+- Negativo: nenhum
+
+**Arquivos Afetados:**
+- `supabase/migracao-soft-delete-audit.sql` (novo)
+- `src/lib/dataService.js` (`db.removeLead()` atualizado)
+
+**Riscos:**
+- `deletado_por` é `SET NULL ON DELETE` — se o usuário que excluiu for removido do sistema, a rastreabilidade é perdida (aceitável; o timestamp permanece)
+
+**Status:** Ativa
+
+---
+
+### [D-048] — PA-10: Retenção automática de dados pessoais (L-04)
+
+**Data:** 2026-06-16 (v3.0)
+
+**Tipo:** Infraestrutura / LGPD
+
+**Decisão:**
+Implementada política de retenção automática via pg_cron no Supabase: função `limpar_leads_expirados()` executa diariamente às 02:00 BRT com hard delete de leads que excedam os períodos configurados na tabela `configuracoes_retencao`. Padrões: 90 dias para soft delete; 365 dias para evento encerrado.
+
+**Motivação:**
+Ausência de política de retenção de dados é não conformidade L-04 da auditoria LGPD. Dados pessoais não podem ser retidos indefinidamente — LGPD exige que sejam eliminados quando encerrada a finalidade (art. 15). Sem retenção automática, leads históricos acumulam indefinidamente no banco.
+
+**Alternativas Avaliadas:**
+- Exclusão manual periódica pelo marketing (descartada — depende de ação humana; propensa a ser esquecida; não satisfaz requisito de processo sistemático)
+- Retenção configurada por evento no frontend (avaliada — complexidade maior sem ganho; os prazos são de política da empresa, não por evento)
+
+**Impactos:**
+- Positivo: conformidade com princípio da necessidade LGPD; dados não retidos além da finalidade
+- Positivo: tabela `configuracoes_retencao` permite ajustar prazos sem deploy
+- Negativo: requer habilitação de pg_cron no Supabase Dashboard (extensão não ativa por padrão)
+- Negativo: hard delete é irreversível — dados anteriores ao período de retenção são permanentemente removidos
+
+**Arquivos Afetados:**
+- `supabase/migracao-retencao.sql` (novo — tabela `configuracoes_retencao` + função + pg_cron job)
+
+**Ação manual necessária:**
+Habilitar pg_cron: Supabase Dashboard → Database → Extensions → pg_cron.
+
+**Riscos:**
+- Alto (se pg_cron não habilitado): exclusões automáticas não ocorrem; política de retenção ineficaz
+- Médio: hard delete de leads sem backup prévio — irreversível
+
+**Status:** Ativa
+
+---
+
+### [D-049] — PA-11: Correção de RLS vendedor — leads restritos ao próprio vendedor no banco
+
+**Data:** 2026-06-16 (v3.0)
+
+**Tipo:** Segurança / Arquitetura
+
+**Decisão:**
+A policy `leads_select` foi recriada para que vendedores recebam do banco apenas seus próprios leads (`vendedor_id = auth.uid()`). Anteriormente, a policy permitia que o vendedor lesse todos os leads de qualquer vendedor, e o filtro era feito no frontend — o que significa que todos os leads de todos os vendedores trafegavam para o dispositivo do vendedor.
+
+**Motivação:**
+Filtro de dados pessoais apenas no frontend é uma falha de segurança e de minimização (LGPD art. 6°, III): dados de leads de outros vendedores chegavam ao dispositivo (memória, potencialmente LocalStorage/cache) mesmo sem exibição. Em caso de acesso indevido ao dispositivo, todos os leads do evento ficavam expostos.
+
+**Alternativas Avaliadas:**
+- Manter filtro no frontend e adicionar apenas um aviso na documentação (descartada — o dado continua trafegando; não resolve a não conformidade)
+
+**Impactos:**
+- Positivo: vendedor recebe apenas seus dados — princípio de minimização respeitado na camada de transporte
+- Positivo: redução de payload por carregamento de leads para o vendedor
+- Negativo: ranking da equipe continua sendo calculado pelo backend via `rankingEvento` — não impactado (query separada agregada)
+
+**Arquivos Afetados:**
+- `supabase/migracao-rls-vendedor-leads.sql` (novo — policy `leads_select` recriada)
+
+**Riscos:**
+- Baixo: se `vendedor_id` não estiver populado em algum lead, o vendedor não vê o lead mesmo sendo seu (mitigado pela validação obrigatória de `vendedorNome` no formulário)
+
+**Status:** Ativa
+
+---
+
+### [D-050] — PA-12: Autenticação multifator TOTP para usuários de alto privilégio
+
+**Data:** 2026-06-16 (v3.0)
+
+**Tipo:** Segurança
+
+**Decisão:**
+Implementado suporte a MFA TOTP (Time-based One-Time Password) no fluxo de login Supabase. `LoginAuth.jsx` exibe automaticamente uma tela de código TOTP quando o usuário tem MFA configurado. `auth.verifyMfa()` em `dataService.js` verifica o código e estabelece a sessão.
+
+**Motivação:**
+O sistema armazena dados pessoais de titulares externos. Contas com papel `marketing` têm acesso total a todos os leads, materiais e eventos. Uma senha comprometida (NC S-03) permitiria acesso irrestrito a todos esses dados. MFA adiciona segunda camada de verificação sem alterar o fluxo de login para usuários sem MFA configurado (backward-compatible).
+
+**Alternativas Avaliadas:**
+- MFA obrigatório para todos os usuários (avaliada — melhor postura de segurança, mas UX mais friction para vendedores em campo; descartada por ora)
+- Magic link por email em vez de TOTP (descartada — requer acesso ao email no momento do login; menos prático em campo)
+
+**Impactos:**
+- Positivo: proteção de contas marketing contra comprometimento de senha
+- Positivo: backward-compatible — usuários sem MFA configurado não são impactados
+- Negativo: usuários que ativarem MFA precisam de app autenticador (Google Authenticator, Authy etc.)
+
+**Arquivos Afetados:**
+- `src/auth/LoginAuth.jsx` (tela de código TOTP condicional)
+- `src/lib/dataService.js` (`auth.verifyMfa()`)
+
+**Ação manual necessária:**
+Habilitar MFA TOTP: Supabase Dashboard → Authentication → Multi-Factor Auth.
+
+**Riscos:**
+- Se usuário perder acesso ao app autenticador, recuperação depende de processo manual no Supabase Dashboard (sem self-service de recuperação de MFA implementado)
 
 **Status:** Ativa
 
