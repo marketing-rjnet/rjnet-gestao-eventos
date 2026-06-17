@@ -10,8 +10,8 @@
 
 | ID | Título | Prioridade | Esforço | Risco | Status |
 |----|--------|-----------|---------|-------|--------|
-| QW-001 | Fix `ranking_evento`: filtrar `deletado = false` | 🔴 Crítico | Baixo | Mínimo | ✅ Implementado |
-| QW-002 | Índice composto `leads(evento_id, deletado)` | 🟠 Alto | Baixo | Mínimo | ✅ Implementado |
+| QW-001 | Fix `ranking_evento`: filtrar `deletado = false` | 🔴 Crítico | Baixo | Mínimo | ✅ Aplicado em produção |
+| QW-002 | Índice composto `leads(evento_id, deletado)` | 🟠 Alto | Baixo | Mínimo | ✅ Aplicado em produção |
 | QW-003 | Timeout de 15s em `fetchAll` via `AbortSignal` | 🟠 Alto | Baixo | Mínimo | ✅ Implementado |
 | QW-004 | Pruning de colunas no `fetchAll` | 🟡 Médio | Baixo | Baixo | ✅ Implementado |
 | QW-005 | Aumentar debounce realtime de 400ms para 1500ms | 🟡 Médio | Mínimo | Baixo | ✅ Implementado |
