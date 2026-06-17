@@ -1,0 +1,7 @@
+[project]
+# Preencha com o project_id do seu projeto Supabase
+# Dashboard → Settings → General → Reference ID
+id = "seu-project-ref"
+
+[functions.atualizar-email-usuario]
+verify_jwt = true
