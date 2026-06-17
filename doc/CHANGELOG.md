@@ -4,6 +4,21 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.2] — Monitor: histórico persistente por dia de evento
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/lib/activityLog.js`**: migração de `sessionStorage` → `localStorage` com chave por data (`rjnet_activity_YYYY-MM-DD`). Novos exports: `getActivityLogsForDay(date)`, `getActivityDays()`, `clearActivityDay(date)`. Auto-purge de dias com mais de 30 dias na primeira chamada de `logActivity()` por sessão. `clearActivityLogs()` mantido para compatibilidade retroativa.
+- **`src/features/monitoring/MonitoringTab.jsx`**: seletor de dias anteriores (dropdown, aparece só se existirem dias passados), banner "somente leitura" ao visualizar histórico, feed e cards carregados do dia selecionado, botão "Limpar" remove o dia visualizado (retorna para Hoje ao limpar dia passado), real-time listener ativo apenas no modo Hoje.
+
+**Por que mudou**
+- O log baseado em `sessionStorage` zerava ao fechar a aba, impedindo análise pós-evento. Com `localStorage` por data, o criador do sistema pode abrir o Monitor no dia seguinte e revisar tudo que aconteceu — leads capturados, erros de sync, lentidões — sem depender de ter mantido a aba aberta.
+
+**Ações manuais necessárias**
+- Nenhuma — dados anteriores (sessionStorage) são perdidos ao migrar, mas eram apagados a cada fechamento de aba de qualquer forma.
+
+---
+
 ## [v4.1] — Monitor: confirmação de sync, descrições legíveis e filtros separados
 **Data:** 2026-06-17
 

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { getActivityLogs, clearActivityLogs } from '../../lib/activityLog';
+import {
+  getActivityLogs,
+  getActivityLogsForDay,
+  getActivityDays,
+  clearActivityDay,
+} from '../../lib/activityLog';
 import { initials } from '../../utils/format';
 import { Icon } from '../../components/ui';
 
@@ -52,6 +57,15 @@ function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function fmtDay(dateStr) {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (dateStr === today) return 'Hoje';
+  if (dateStr === yesterday) return 'Ontem';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 /* ─── Card por vendedor ─────────────────────────────────────────── */
 function VendedorCard({ nome, sessionLeads, totalLeads, removes, lastTs, hasError }) {
   const ini = initials(nome);
@@ -79,7 +93,7 @@ function VendedorCard({ nome, sessionLeads, totalLeads, removes, lastTs, hasErro
         </span>
         {mostrarTotal && (
           <span style={{ fontWeight: 400, color: 'var(--text-3)', fontSize: 11, marginLeft: 5 }}>
-            ({sessionLeads} esta sessão)
+            ({sessionLeads} registrados no dia)
           </span>
         )}
         {removes > 0 && (
@@ -146,14 +160,37 @@ function FeedEntry({ log, eventoNome }) {
 /* ─── Tab principal ─────────────────────────────────────────────── */
 export default function MonitoringTab() {
   const { eventos, leads } = useApp();
+  const today = new Date().toISOString().slice(0, 10);
+  const [days, setDays] = useState(() => getActivityDays());
+  const [selectedDay, setSelectedDay] = useState(today);
   const [logs, setLogs] = useState(() => getActivityLogs());
   const [filter, setFilter] = useState('all');
+  const isToday = selectedDay === today;
 
+  /* real-time: só quando vendo hoje */
   useEffect(() => {
-    const handler = (e) => setLogs(e.detail === null ? [] : getActivityLogs());
+    if (!isToday) return;
+    const handler = (e) => {
+      setLogs(e.detail === null ? [] : getActivityLogs());
+      setDays(getActivityDays());
+    };
     window.addEventListener('rjnet:activity', handler);
     return () => window.removeEventListener('rjnet:activity', handler);
-  }, []);
+  }, [isToday]);
+
+  /* troca de dia: carrega do localStorage */
+  useEffect(() => {
+    setLogs(isToday ? getActivityLogs() : getActivityLogsForDay(selectedDay));
+    setFilter('all');
+  }, [selectedDay, isToday]);
+
+  const handleClear = () => {
+    clearActivityDay(selectedDay);
+    setLogs([]);
+    const newDays = getActivityDays();
+    setDays(newDays);
+    if (!isToday) setSelectedDay(today);
+  };
 
   const eventoNome = (id) => id ? (eventos.find((e) => e.id === id)?.nome ?? id.slice(-6)) : null;
 
@@ -164,7 +201,6 @@ export default function MonitoringTab() {
     offline: logs.filter((l) => l.type === 'offline_queue').length,
   }), [logs]);
 
-  /* cards por vendedor — cruza sessão com leads carregados no contexto */
   const vendedores = useMemo(() => {
     const map = {};
     for (const log of logs) {
@@ -175,7 +211,6 @@ export default function MonitoringTab() {
       if (log.type === 'lead_remove') v.removes++;
       if (log.ts > v.lastTs) v.lastTs = log.ts;
     }
-    // correlaciona sync_error com vendedor ativo mais próximo (janela 5s)
     const syncErrors = logs.filter((l) => l.type === 'sync_error');
     for (const err of syncErrors) {
       const errMs = new Date(err.ts).getTime();
@@ -183,14 +218,14 @@ export default function MonitoringTab() {
         if (Math.abs(errMs - new Date(v.lastTs).getTime()) < 5000) v.hasError = true;
       }
     }
-    // total real do contexto (leads já carregados em memória)
     return Object.values(map)
       .map((v) => ({
         ...v,
-        totalLeads: leads.filter((l) => l.vendedorNome === v.nome).length,
+        /* histórico: totalLeads não está no contexto; usa contagem do log */
+        totalLeads: isToday ? leads.filter((l) => l.vendedorNome === v.nome).length : v.sessionLeads,
       }))
       .sort((a, b) => b.sessionLeads - a.sessionLeads);
-  }, [logs, leads]);
+  }, [logs, leads, isToday]);
 
   const feed = useMemo(() => {
     const reversed = [...logs].reverse();
@@ -223,9 +258,27 @@ export default function MonitoringTab() {
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="activity" size={18} /> Monitor
           </h2>
-          <p style={{ color: 'var(--text-3)', fontSize: 12 }}>Atividade em tempo real · dados desta sessão</p>
+          <p style={{ color: 'var(--text-3)', fontSize: 12 }}>
+            {isToday ? 'Atividade em tempo real · dados de hoje' : `Histórico · ${fmtDay(selectedDay)}`}
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Seletor de dias anteriores */}
+          {days.length > 1 && (
+            <select
+              value={selectedDay}
+              onChange={(e) => setSelectedDay(e.target.value)}
+              style={{
+                fontSize: 12, padding: '5px 8px', borderRadius: 6,
+                background: 'var(--surface2)', border: '1px solid var(--border)',
+                color: 'var(--text-1)', cursor: 'pointer',
+              }}
+            >
+              {days.map((d) => (
+                <option key={d} value={d}>{fmtDay(d)}</option>
+              ))}
+            </select>
+          )}
           <div style={{ display: 'flex', gap: 14 }}>
             <span style={{ fontSize: 12 }}>
               <span style={{ fontWeight: 700, color: 'var(--green)' }}>{stats.leads}</span>
@@ -248,7 +301,7 @@ export default function MonitoringTab() {
           </div>
           {logs.length > 0 && (
             <button
-              onClick={clearActivityLogs}
+              onClick={handleClear}
               style={{ fontSize: 12, color: 'var(--text-3)', padding: '5px 10px', borderRadius: 6, background: 'var(--surface2)', border: '1px solid var(--border)' }}
             >
               Limpar
@@ -257,11 +310,26 @@ export default function MonitoringTab() {
         </div>
       </div>
 
+      {/* Banner de modo histórico */}
+      {!isToday && (
+        <div style={{
+          marginBottom: 16, padding: '8px 14px', borderRadius: 8,
+          background: 'var(--surface2)', border: '1px solid var(--border)',
+          fontSize: 12, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span>📅</span>
+          Visualizando histórico de{' '}
+          <strong style={{ color: 'var(--text-2)' }}>{fmtDay(selectedDay)}</strong>
+          {' '}— somente leitura. Para monitoramento ao vivo, selecione{' '}
+          <strong>Hoje</strong> no seletor acima.
+        </div>
+      )}
+
       {/* Vendedor cards */}
       {vendedores.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
-            Vendedores ativos esta sessão
+            {isToday ? 'Vendedores ativos hoje' : `Vendedores ativos em ${fmtDay(selectedDay)}`}
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {vendedores.map((v) => <VendedorCard key={v.nome} {...v} />)}
@@ -287,7 +355,9 @@ export default function MonitoringTab() {
           {feed.length === 0 ? (
             <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-3)' }}>
               {logs.length === 0
-                ? 'Nenhuma atividade registrada ainda. Ações dos vendedores aparecerão aqui em tempo real.'
+                ? (isToday
+                    ? 'Nenhuma atividade registrada ainda. Ações dos vendedores aparecerão aqui em tempo real.'
+                    : `Nenhuma atividade registrada em ${fmtDay(selectedDay)}.`)
                 : 'Nenhum resultado para este filtro.'}
             </div>
           ) : (

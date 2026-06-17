@@ -68,6 +68,38 @@ Riscos conhecidos.
 
 ---
 
+### [D-045] — Monitor: persistência por dia via localStorage com chave por data
+
+**Data:** 2026-06-17  
+**Tipo:** Feature (incremento sobre D-044 e D-044b)
+
+**Decisão:** Migrar o buffer de atividade de `sessionStorage` para `localStorage` usando chaves no formato `rjnet_activity_YYYY-MM-DD`. Cada dia de evento gera sua própria chave. O MonitoringTab exibe um seletor de dias anteriores e carrega o log correspondente sob demanda.
+
+**Motivação:** O criador do sistema monitora eventos ao vivo e depois analisa o que aconteceu no dia seguinte (ou horas depois). Com `sessionStorage`, o histórico apagava ao fechar a aba. A necessidade é pontual — só dias de evento — mas o valor de ter o log preservado é alto (identificar padrões de falha, confirmar que todos os leads foram sincronizados, entender por que o app travou no horário de pico).
+
+**Alternativas Avaliadas:**
+- **Manter sessionStorage + botão de export JSON:** rejeitado — exige que o usuário lembre de exportar antes de fechar. Histórico depende de ação manual.
+- **Tabela `activity_log` no Supabase:** rejeitado — requer migration, RLS, e levanta questões de LGPD (dados comportamentais de vendedores no servidor precisam de finalidade documentada). Overhead desproporcional para uso pontual.
+- **IndexedDB:** rejeitado — API mais complexa, sem benefício sobre localStorage para volumes de 200 entradas/dia.
+
+**Impactos:**
+- `activityLog.js` agora escreve em `localStorage` com chave diária. Dados do dia corrente persistem entre reloads e fechamentos de aba.
+- Auto-purge de dias > 30 dias na primeira chamada de `logActivity()` por sessão (guard `_pruned` evita execução repetida).
+- `getActivityDays()` itera as chaves do `localStorage` e retorna apenas as que começam com `rjnet_activity_` — sem conflito com outras chaves do app.
+- `MonitoringTab`: real-time listener (`rjnet:activity`) ativo apenas quando visualizando "Hoje". Ao trocar para dia passado, o feed é somente leitura.
+- "Limpar" em dia passado: remove a chave do localStorage e retorna para Hoje. "Limpar" em Hoje: comportamento idêntico ao anterior.
+- Espaço estimado: ~60 KB/dia (200 entradas × ~300 bytes). 30 dias = ~1,8 MB — bem dentro do limite de 5–10 MB do localStorage.
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` — reescrito: `sessionStorage` → `localStorage`, novos exports `getActivityLogsForDay`, `getActivityDays`, `clearActivityDay`
+- `src/features/monitoring/MonitoringTab.jsx` — seletor de dias, banner histórico, real-time condicional
+
+**Riscos:** `localStorage.length` e `localStorage.key(i)` são síncronos e percorrem todas as chaves (não apenas as nossas). Em dispositivos com muitas extensões de browser que também usam localStorage, pode haver lentidão mínima. O try/catch em `getActivityDays()` e `pruneOldDays()` isola falhas em modo privado ou com storage bloqueado.
+
+**Status:** Ativa
+
+---
+
 ### [D-044] — Aba Monitor: diagnóstico ao vivo baseado em buffer de sessão
 
 **Data:** 2026-06-17  

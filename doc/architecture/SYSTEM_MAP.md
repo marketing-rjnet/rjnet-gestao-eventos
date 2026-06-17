@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-17 (D-044b — Monitor v2: sync confirmado, descrições de campo, filtros separados; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-06-17 (D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 
 ---
@@ -130,7 +130,7 @@ src/
 │   │   ├── EquipeAuthTab.jsx   # Usuários com RBAC (modo Supabase)
 │   │   └── index.js
 │   └── monitoring/
-│       ├── MonitoringTab.jsx   # Diagnóstico ao vivo: cards por vendedor + feed de atividade + descrições de campo (D-044, D-044b)
+│       ├── MonitoringTab.jsx   # Diagnóstico ao vivo + histórico por dia: cards, feed com descrições, seletor de dias (D-044, D-044b, D-045)
 │       └── index.js
 ├── hooks/
 │   ├── useApp.js               # Wrapper de useContext(AppContext)
@@ -145,7 +145,7 @@ src/
 └── lib/
     ├── supabase.js             # Cliente Supabase + supabaseEnabled (feature flag de modo)
     ├── dataService.js          # Queries, auth, realtime, retry, fila offline
-    ├── activityLog.js          # Buffer circular sessionStorage (200 eventos) + dispatch rjnet:activity (D-044)
+    ├── activityLog.js          # Buffer circular localStorage por data (200/dia, 30 dias) + dispatch rjnet:activity (D-044, D-045)
     ├── crypto.js               # PA-05/LGPD: AES-GCM 256 + PBKDF2 para fila offline no localStorage
     ├── security.js             # sanitizeText() — sanitização de inputs
     ├── cache.js                # Cache em memória com TTL
@@ -174,7 +174,7 @@ Shell do time de marketing. Navegação por 6 tabs:
 | Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico |
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
 | Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
-| Monitor | `MonitoringTab` | Diagnóstico ao vivo: cards por vendedor (sessão + total DB), feed com 7 tipos de evento, filtros Todos/Leads/Sync/Perf, descrições em linguagem de campo (D-044, D-044b) |
+| Monitor | `MonitoringTab` | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards por vendedor, feed 7 tipos, filtros Sync/Perf, descrições de campo (D-044, D-044b, D-045) |
 
 ### `VendedorApp.jsx`
 
@@ -265,7 +265,7 @@ AppProvider re-sincroniza estado com dados do banco
 - **Cache de ranking**: TTL de 30 s, invalidado a cada mutação de lead
 - **`servicoInteresse` é sempre array no frontend**: `leadFromDb` normaliza strings legadas; `leadToDb` serializa como JSON string na coluna TEXT existente (D-026)
 - **Metas em 3 níveis**: `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` em `constants.js`; `META_DIARIA` é alias de `META_OURO` (D-027)
-- **Log de atividade em sessionStorage**: `activityLog.js` mantém buffer circular de 200 entradas por sessão; dados somem ao fechar a aba (intencional — escopo de sessão = escopo do evento monitorado); sem persistência no banco (D-044)
+- **Log de atividade em localStorage por data**: `activityLog.js` mantém buffer circular de 200 entradas por dia em chave `rjnet_activity_YYYY-MM-DD`; persiste entre fechamentos de aba; auto-purge após 30 dias; sem persistência no banco (D-044, D-045)
 - **`exec(promise, acao, onFail, onSuccess)`**: 4º parâmetro opcional — chamado após escrita bem-sucedida no Supabase (1ª tentativa ou retry) e imediatamente no modo local; usado por `db.saveLead` para acionar `lead_sync_ok` no feed do Monitor (D-044b)
 - **7 tipos de evento no Monitor**: `lead_add`, `lead_update`, `lead_remove`, `lead_sync_ok`, `sync_error`, `perf_warn`, `offline_queue` — cada tipo tem marca visual, cor e descrição em linguagem de campo; filtros `Sync` e `Perf` são separados (D-044b)
 

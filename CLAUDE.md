@@ -101,7 +101,7 @@ src/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
     ├── mode.js           # isSupabaseMode(), getMode(), MODE — detecção centralizada de modo (etapa 18)
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
-    ├── activityLog.js    # Buffer circular sessionStorage (200 eventos) + dispatch rjnet:activity (D-044)
+    ├── activityLog.js    # Buffer circular localStorage por data (200/dia, 30 dias) + dispatch rjnet:activity (D-044, D-045)
     ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
@@ -236,7 +236,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
 | Leads | marketing | Visualização e filtros, export CSV, gráfico por evento |
 | Equipe | marketing | CRUD de vendedores, desempenho por evento |
-| Monitor | marketing | Diagnóstico ao vivo: cards por vendedor (sessão + total DB), feed 7 tipos, filtros Sync/Perf separados, descrições em linguagem de campo (D-044, D-044b) |
+| Monitor | marketing | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards, feed 7 tipos, filtros Sync/Perf, descrições de campo (D-044, D-044b, D-045) |
 
 ---
 
@@ -323,8 +323,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
 | `src/lib/dataService.js` | ~400 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b) |
-| `src/lib/activityLog.js` | ~28 | Buffer circular sessionStorage + dispatch rjnet:activity (D-044) |
-| `src/features/monitoring/MonitoringTab.jsx` | ~302 | Diagnóstico ao vivo: cards por vendedor + feed filtrado + descrições de campo (D-044, D-044b) |
+| `src/lib/activityLog.js` | ~70 | Buffer circular localStorage por data + getActivityDays/clearActivityDay (D-044, D-045) |
+| `src/features/monitoring/MonitoringTab.jsx` | ~330 | Diagnóstico ao vivo + histórico por dia: seletor de datas, feed, cards (D-044, D-044b, D-045) |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
