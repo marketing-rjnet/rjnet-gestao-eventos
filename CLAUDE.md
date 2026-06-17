@@ -81,10 +81,13 @@ src/
 │   ├── checkin/
 │   │   ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
 │   │   └── index.js          # Re-export de checkin (etapa 11)
-│   └── team/
-│       ├── EquipeTab.jsx     # Gestão de vendedores modo local (etapa 12)
-│       ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
-│       └── index.js          # Re-exports de team (etapa 12)
+│   ├── team/
+│   │   ├── EquipeTab.jsx     # Gestão de vendedores modo local (etapa 12)
+│   │   ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
+│   │   └── index.js          # Re-exports de team (etapa 12)
+│   └── monitoring/
+│       ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards por vendedor + feed de atividade (D-044)
+│       └── index.js          # Re-export de monitoring (D-044)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
@@ -98,6 +101,7 @@ src/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
     ├── mode.js           # isSupabaseMode(), getMode(), MODE — detecção centralizada de modo (etapa 18)
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
+    ├── activityLog.js    # Buffer circular sessionStorage (200 eventos) + dispatch rjnet:activity (D-044)
     ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
@@ -232,6 +236,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
 | Leads | marketing | Visualização e filtros, export CSV, gráfico por evento |
 | Equipe | marketing | CRUD de vendedores, desempenho por evento |
+| Monitor | marketing | Diagnóstico ao vivo: cards por vendedor, feed de atividade, erros de sync (D-044) |
 
 ---
 
@@ -317,7 +322,9 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
-| `src/lib/dataService.js` | ~394 | Queries Supabase, auth, realtime, retry |
+| `src/lib/dataService.js` | ~400 | Queries Supabase, auth, realtime, retry |
+| `src/lib/activityLog.js` | ~28 | Buffer circular sessionStorage + dispatch rjnet:activity (D-044) |
+| `src/features/monitoring/MonitoringTab.jsx` | ~185 | Diagnóstico ao vivo: cards por vendedor + feed filtrado (D-044) |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |

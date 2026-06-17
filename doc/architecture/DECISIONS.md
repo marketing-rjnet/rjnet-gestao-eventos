@@ -68,6 +68,42 @@ Riscos conhecidos.
 
 ---
 
+### [D-044] — Aba Monitor: diagnóstico ao vivo baseado em buffer de sessão
+
+**Data:** 2026-06-17  
+**Tipo:** Feature
+
+**Decisão:** Implementar aba "Monitor" no perfil marketing usando um buffer circular em `sessionStorage` (`src/lib/activityLog.js`) em vez de persistência no banco ou integração com serviço de logging externo.
+
+**Motivação:** O criador do sistema monitora eventos ao vivo pelo perfil marketing e precisava saber onde o app quebra para o vendedor (sync errors, leads offline, req. lentas) sem depender de DevTools ou logs de servidor.
+
+**Alternativas Avaliadas:**
+- **Banco de dados / tabela de audit_monitor:** rejeitada — LGPD concerns (dados de sessão não deveriam ir ao banco sem finalidade definida), latência de escrita, overhead de schema.
+- **Serviço externo (Sentry, LogRocket):** rejeitada — dependência externa, custo, escopo de dados desproporcionalmente amplo para a necessidade.
+- **localStorage permanente:** rejeitada — acumula dados entre sessões sem utilidade; `sessionStorage` é mais adequado (escopo da sessão = escopo do evento monitorado).
+- **Melhorias pontuais no SyncBadge:** considerada primeiro, mas o criador do sistema tem necessidade de diagnóstico mais amplo (por vendedor, por operação) que um popover de erro não cobre.
+
+**Impactos:**
+- `logActivity()` é chamado em 6 pontos de instrumentação: `trackPerf` (perf_warn), `exec` (sync_error), `addToQueue` (offline_queue), `addLead`, `updateLead`, `removeLead` (lead_add/update/remove com vendedorNome).
+- Correlação vendor → sync_error: heurística de janela temporal de 5 s (se houve sync_error dentro de 5 s da última ação de um vendedor, o card dele exibe `⚠ erro`). Imperfeita mas útil na prática.
+- Dados somem ao fechar a aba — comportamento intencional, logs de sessão não devem ser permanentes.
+- Funciona em ambos os modos (Supabase e local).
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` (novo)
+- `src/features/monitoring/MonitoringTab.jsx` (novo)
+- `src/features/monitoring/index.js` (novo)
+- `src/lib/dataService.js` — 3 chamadas adicionadas
+- `src/api/leadApi.js` — 3 chamadas adicionadas
+- `src/components/ui.jsx` — ícone `activity` adicionado
+- `src/apps/MarketingApp.jsx` — tab Monitor adicionada
+
+**Riscos:** Nenhum crítico. `sessionStorage.setItem` pode falhar silenciosamente em modo de navegação privada com storage cheio (tratado com try/catch). O overhead de serialização JSON para 200 entradas é negligenciável.
+
+**Status:** Ativa
+
+---
+
 ### [D-043] — Suspensão temporária do campo de consentimento LGPD na UI
 
 **Data:** 2026-06-17  

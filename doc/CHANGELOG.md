@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.0] — Aba Monitor: diagnóstico ao vivo no perfil marketing
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/lib/activityLog.js`** (novo): buffer circular de 200 eventos em `sessionStorage`. Persiste entre reloads na mesma aba. Exporta `logActivity()`, `getActivityLogs()` e `clearActivityLogs()`. Despacha `CustomEvent('rjnet:activity')` a cada novo registro para atualização em tempo real.
+- **`src/features/monitoring/MonitoringTab.jsx`** (novo): aba de diagnóstico para o perfil marketing com três seções — (1) barra de stats rápidos (leads / erros / offline desta sessão), (2) cards por vendedor com iniciais, total de leads, status ok/erro e tempo desde última ação, (3) feed de atividade filtrado (Todos / Erros / Leads) com marcadores coloridos e timestamp `HH:MM:SS`.
+- **`src/features/monitoring/index.js`** (novo): re-export do `MonitoringTab`.
+- **`src/lib/dataService.js`**: `trackPerf` chama `logActivity({ type: 'perf_warn' })` em requisições >1 s; `exec` chama `logActivity({ type: 'sync_error' })` ao despachar `rjnet:sync-error`; `addToQueue` chama `logActivity({ type: 'offline_queue' })` ao enfileirar lead offline.
+- **`src/api/leadApi.js`**: `addLead`, `updateLead` e `removeLead` chamam `logActivity` com `vendedorNome` e `eventoId` — permite correlacionar ação do vendedor com erros no feed.
+- **`src/components/ui.jsx`**: ícone `activity` (pulso/heartbeat) adicionado ao sistema de ícones SVG.
+- **`src/apps/MarketingApp.jsx`**: tab "Monitor" com ícone `activity` adicionada como sexta tab.
+
+**Por que mudou**
+- O criador do sistema monitora eventos ao vivo pelo perfil marketing e precisava de visibilidade sobre ações dos vendedores em campo, erros de sync e leads na fila offline — informações que antes existiam apenas no console do browser.
+
+**Ações manuais necessárias**
+- Nenhuma — sem alteração de schema ou migrations. Dados do Monitor ficam apenas no `sessionStorage` (sem persistência no banco).
+
+---
+
 ## [v3.9] — Correção do Check-in por Nome (leads não encontrados)
 **Data:** 2026-06-17
 
