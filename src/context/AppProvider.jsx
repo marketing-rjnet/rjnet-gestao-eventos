@@ -22,12 +22,15 @@ export function AppProvider({ children }) {
   const abortRef = useRef(null);
   const carregar = async () => {
     abortRef.current?.abort();
+    // QW-003: timeout de 15s para evitar loading infinito em conexão instável
     const controller = new AbortController();
+    const timeoutSignal = AbortSignal.timeout(15_000);
+    const signal = AbortSignal.any([controller.signal, timeoutSignal]);
     abortRef.current = controller;
 
     setSyncStatus(SYNC_STATUS.SYNCING);
     await flushPendingQueue();
-    const dados = await fetchAll(controller.signal);
+    const dados = await fetchAll(signal);
     if (controller.signal.aborted) return;
     if (!dados) { setSyncStatus(SYNC_STATUS.ERROR); return; }
     setMateriais(dados.materiais);
