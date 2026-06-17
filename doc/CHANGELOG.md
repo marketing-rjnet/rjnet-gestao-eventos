@@ -4,6 +4,23 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.6] — Login de vendedor no modo local + correções de documentação
+**Data:** 2026-06-17
+
+**O que mudou**
+- **Fix: login de vendedor habilitado no modo local** (`src/auth/Login.jsx`): tela de login legado agora exibe toggle Marketing / Vendedor. No modo Vendedor, o usuário seleciona o próprio nome na lista de vendedores ativos (sem senha — apenas para ambiente dev/local sem Supabase). Sessão criada com `{ role: "vendedor", vendedorNome, userId }`, compatível com o contrato esperado pelo `VendedorApp`
+- **Docs: CheckinTab corrigida** (`doc/architecture/SYSTEM_MAP.md`): referências a "busca por CPF" atualizadas para "busca por nome" — reflete implementação real em `CheckinTab.jsx` (busca parcial, case-insensitive, com resultado único ou lista de candidatos)
+- **Docs: fluxo de auth local atualizado** (`doc/architecture/SYSTEM_MAP.md`): descrição do `RootLegacy` atualizada para refletir o toggle na tela de login
+
+**Por que mudou**
+- Vendedores não conseguiam acessar o sistema em ambiente local (sem Supabase): `Login.jsx` só aceitava credenciais de marketing e não havia path para `role: "vendedor"`. O campo `vendedores` já era importado via `useApp()` mas nunca utilizado — evidência de que a funcionalidade estava incompleta
+- CheckinTab busca por nome desde a implementação atual; a documentação permanecia desatualizada referenciando CPF
+
+**Ações manuais necessárias**
+- Nenhuma — mudança exclusivamente no frontend e na documentação
+
+---
+
 ## [v3.5] — Correção de bug: exclusão de leads por vendedor
 **Data:** 2026-06-17
 

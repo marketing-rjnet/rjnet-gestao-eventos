@@ -123,7 +123,7 @@ src/
 │   │   ├── LeadsTab.jsx        # Filtros, gráfico, export CSV
 │   │   └── index.js
 │   ├── checkin/
-│   │   ├── CheckinTab.jsx      # Busca de lead por CPF
+│   │   ├── CheckinTab.jsx      # Busca de lead por nome
 │   │   └── index.js
 │   └── team/
 │       ├── EquipeTab.jsx       # Vendedores (modo local)
@@ -157,7 +157,7 @@ src/
 Ponto de entrada após `main.jsx`. Detecta modo (`supabaseEnabled`) e gerencia tema via `localStorage`.
 
 - `supabaseEnabled` → `RootAuth` → Supabase session → papel do usuário → `MarketingApp` ou `VendedorApp`
-- `!supabaseEnabled` → `RootLegacy` → credenciais de env → `MarketingApp` ou `VendedorApp`
+- `!supabaseEnabled` → `RootLegacy` → toggle Marketing/Vendedor na tela de login → `MarketingApp` ou `VendedorApp`
 
 ### `MarketingApp.jsx`
 
@@ -169,7 +169,7 @@ Shell do time de marketing. Navegação por 5 tabs:
 | Estoque | `EstoqueTab` | Gestão de materiais com nível de disponibilidade |
 | Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico |
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
-| Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
+| Check-in | `CheckinTab` | Busca de lead por nome em evento ativo |
 
 ### `VendedorApp.jsx`
 
@@ -198,7 +198,7 @@ Capturados por vendedores em campo, vinculados a `eventoId` e `vendedorNome`. T�
 Materiais promocionais com `quantidade` e `nivel` derivado (`crit` / `warn` / `ok`). Alocados a eventos via `evento.materiais[]`.
 
 ### Check-in
-Busca de lead por CPF dentro de um evento. Registra presença sem criar novo lead.
+Busca de lead por nome (parcial, case-insensitive) dentro de um evento. Retorna match único com ficha completa ou lista de candidatos quando há múltiplos resultados. Não cria novo lead.
 
 ### Equipe
 - Modo local: tabela `vendedores` (CRUD simples, `ativo` flag)
