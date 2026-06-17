@@ -68,16 +68,19 @@ Riscos conhecidos.
 
 ---
 
-### [D-035] — PA-08: Remoção do CPF (Opção A) em vez de pseudonimização ou criptografia
+### [D-035] — PA-08: CPF endereçado — remoção do check-in por CPF + reintrodução como campo opcional com finalidade declarada
 
 **Data:** 2026-06-16  
 **Contexto:** PA-08 exige endereçar CPF em texto plano na tabela `leads`. O plano oferecia 3 opções: remover, criptografar (pgcrypto) ou hash (SHA-256). O check-in usava CPF como identificador.  
-**Decisão:** Opção A — remoção total do CPF. Check-in migrado para busca por **nome** dentro do evento selecionado.  
-**Justificativa:** CPF não tem finalidade obrigatória no fluxo de negócio (o evento filtra os leads; o nome é suficiente para identificar); coletar CPF sem necessidade clara viola o princípio da minimização (art. 6°, III da LGPD). Não coletar é sempre mais seguro que criptografar.  
-**Alternativas rejeitadas:**
+**Decisão em duas partes:**
+1. **Check-in migrado** para busca por substring de **nome** dentro do evento — CPF removido do fluxo de identificação.
+2. **CPF reintroduzido como campo opcional** no formulário de captura com finalidade declarada no label: *"opcional — para visita técnica e contrato"*. Ver D-042 para a decisão detalhada de reintrodução.
+
+**Justificativa da remoção do check-in por CPF:** O evento filtra os leads; o nome é suficiente para identificar presença no contexto de check-in. Coletar CPF sem finalidade obrigatória violaria o princípio da minimização (art. 6°, III da LGPD).  
+**Alternativas rejeitadas (para o check-in):**
 - Hash SHA-256 — perde a busca por prefixo parcial; CPF ainda seria coletado (risco na transmissão)
 - pgcrypto — chave precisa ser acessível ao app; não elimina risco de coleta  
-**Consequências:** `CheckinTab` reescrito com busca por substring de nome (permanente). CPF reintroduzido como campo **opcional** com finalidade declarada no label ("para visita técnica e contrato") — necessário para o fluxo de negócio de agendamento e conversão. Campo oculto no modo rápido. Exibido na lista de leads apenas quando preenchido. Coluna CPF de volta no CSV exportado para equipe técnica. Risco residual (texto plano) aceito e documentado.
+**Consequências:** `CheckinTab` reescrito com busca por substring de nome (permanente). CPF como campo opcional no formulário de captura e edição inline — ver D-042. Risco residual (texto plano) aceito e documentado.
 
 ---
 
@@ -461,14 +464,16 @@ Conexões instáveis em eventos (3G/4G, Wi-Fi de feira) causam falhas transitór
 
 ---
 
-### [D-008] — Realtime via subscriptions Supabase com debounce de 400ms
+### [D-008] — Realtime via subscriptions Supabase com debounce
 
 **Data:** Pré-15/06/2026
 
 **Tipo:** Arquitetura / Performance
 
 **Decisão:**
-Mudanças no banco são recebidas via canais realtime do Supabase. As atualizações de estado React são debounced em 400ms para evitar re-renders excessivos em bursts de eventos.
+Mudanças no banco são recebidas via canais realtime do Supabase. As atualizações de estado React são debounced para evitar re-renders excessivos em bursts de eventos.
+
+> **Atualização (D-038, 2026-06-17):** O valor de `REALTIME_DEBOUNCE_MS` foi aumentado de 400ms para **1500ms**. O valor atual vigente é 1500ms. Ver D-038 para a justificativa completa.
 
 **Motivação:**
 Sem debounce, múltiplas inserções em sequência (ex: vários vendedores registrando leads simultaneamente) causariam re-renders encadeados, degradando a performance do painel do marketing.
@@ -480,16 +485,16 @@ Sem debounce, múltiplas inserções em sequência (ex: vários vendedores regis
 
 **Impactos:**
 - Positivo: UI atualizada em tempo real com custo de re-render controlado
-- Negativo: delay de até 400ms para exibir mudanças externas
+- Negativo: delay de até 1500ms para exibir mudanças externas (era 400ms — ver D-038)
 
 **Arquivos Afetados:**
 - `src/lib/dataService.js`
-- `src/lib/constants.js` (`REALTIME_DEBOUNCE_MS = 400`)
+- `src/lib/constants.js` (`REALTIME_DEBOUNCE_MS` — valor atual: 1500, definido em D-038)
 
 **Riscos:**
 - Subscriptions não canceladas no unmount causam memory leak (mitigado por cleanup no `useEffect`)
 
-**Status:** Ativa
+**Status:** Ativa — valor do debounce atualizado por D-038
 
 ---
 
@@ -579,13 +584,13 @@ Os dados de pacotes estão diretamente acoplados ao JSX de renderização (inlin
 - Negativo: dado de configuração ainda no arquivo monolítico; será extraído junto com o componente na Etapa 13
 
 **Arquivos Afetados:**
-- `src/main.jsx` (dados permanecem aqui até Etapa 13)
+- `src/apps/VendedorApp.jsx` (dados migrados aqui na Etapa 13 — tab "Pacotes" hardcoded no JSX)
 - `src/utils/mockData.js` (não alterado)
 
 **Riscos:**
 - Nenhum — decisão conservadora
 
-**Status:** Ativa
+**Status:** Ativa — dados movidos para `VendedorApp.jsx` na Etapa 13 (referência original a `main.jsx` é histórica)
 
 ---
 
@@ -988,40 +993,6 @@ Os dois componentes representavam o último bloco de UI em `main.jsx`. Com a ext
 
 ---
 
-### [D-025] — SYSTEM_MAP.md como documento de arquitetura viva
-
-**Data:** 16/06/2026
-
-**Tipo:** Infraestrutura / Documentação
-
-**Decisão:**
-Criação de `SYSTEM_MAP.md` como fonte única de verdade sobre a arquitetura atual do sistema. O documento cobre: visão geral funcional, arquitetura por camada, estrutura de diretórios, apps principais, domínios de negócio, fluxo de dados, regras técnicas, dependências e restrições arquiteturais. É atualizado a cada mudança estrutural relevante.
-
-**Motivação:**
-À medida que a refatoração progressiva avança (17 de 18 etapas), o sistema ganhou estrutura modular significativa. Sem um mapa centralizado, cada nova sessão de IA ou desenvolvedor precisa reconstituir o entendimento da arquitetura lendo múltiplos arquivos. O `SYSTEM_MAP.md` resolve isso em 30 segundos de leitura.
-
-**Alternativas Avaliadas:**
-- Manter arquitetura apenas no `CLAUDE.md` (descartada — CLAUDE.md já é longo e mistura operacional com arquitetural)
-- Diagrama Mermaid/C4 (descartada — não reflete código real; fica desatualizado rapidamente)
-- README.md (descartada — README é para usuários/ops, não para IA/devs)
-
-**Impactos:**
-- Positivo: onboarding de nova sessão de IA em < 1 min; restrições arquiteturais explícitas evitam violações involuntárias
-- Positivo: `CLAUDE.md` pode ser simplificado progressivamente — detalhes arquiteturais migram para `SYSTEM_MAP.md`
-- Negativo: requer manutenção ativa — deve ser atualizado a cada mudança estrutural (nova etapa, nova camada, nova regra)
-
-**Arquivos Afetados:**
-- `SYSTEM_MAP.md` (criado)
-- `CLAUDE.md` (adicionada seção "Documentação de Referência" apontando para SYSTEM_MAP.md)
-- `DECISIONS.md` (este registro)
-
-**Riscos:**
-- Divergência entre `SYSTEM_MAP.md` e o código real se não for atualizado após mudanças estruturais
-
-**Status:** Ativa
-
----
-
 ### [D-024] — Módulos de API por domínio via factory functions (Etapa 17)
 
 **Data:** 16/06/2026
@@ -1054,6 +1025,40 @@ O `AppProvider` acumulava ~100 linhas de lógica CRUD junto com a orquestração
 **Riscos:**
 - `useMemo` captura as funções das factories corretamente porque suas deps (`eventos`, `leads`, etc.) fazem parte do array de dependências — comportamento preservado
 - Nenhum import circular: `api/` importa apenas de `lib/dataService`; não importa de `context/`
+
+**Status:** Ativa
+
+---
+
+### [D-025] — SYSTEM_MAP.md como documento de arquitetura viva
+
+**Data:** 16/06/2026
+
+**Tipo:** Infraestrutura / Documentação
+
+**Decisão:**
+Criação de `SYSTEM_MAP.md` como fonte única de verdade sobre a arquitetura atual do sistema. O documento cobre: visão geral funcional, arquitetura por camada, estrutura de diretórios, apps principais, domínios de negócio, fluxo de dados, regras técnicas, dependências e restrições arquiteturais. É atualizado a cada mudança estrutural relevante.
+
+**Motivação:**
+À medida que a refatoração progressiva avança (17 de 18 etapas), o sistema ganhou estrutura modular significativa. Sem um mapa centralizado, cada nova sessão de IA ou desenvolvedor precisa reconstituir o entendimento da arquitetura lendo múltiplos arquivos. O `SYSTEM_MAP.md` resolve isso em 30 segundos de leitura.
+
+**Alternativas Avaliadas:**
+- Manter arquitetura apenas no `CLAUDE.md` (descartada — CLAUDE.md já é longo e mistura operacional com arquitetural)
+- Diagrama Mermaid/C4 (descartada — não reflete código real; fica desatualizado rapidamente)
+- README.md (descartada — README é para usuários/ops, não para IA/devs)
+
+**Impactos:**
+- Positivo: onboarding de nova sessão de IA em < 1 min; restrições arquiteturais explícitas evitam violações involuntárias
+- Positivo: `CLAUDE.md` pode ser simplificado progressivamente — detalhes arquiteturais migram para `SYSTEM_MAP.md`
+- Negativo: requer manutenção ativa — deve ser atualizado a cada mudança estrutural (nova etapa, nova camada, nova regra)
+
+**Arquivos Afetados:**
+- `SYSTEM_MAP.md` (criado)
+- `CLAUDE.md` (adicionada seção "Documentação de Referência" apontando para SYSTEM_MAP.md)
+- `DECISIONS.md` (este registro)
+
+**Riscos:**
+- Divergência entre `SYSTEM_MAP.md` e o código real se não for atualizado após mudanças estruturais
 
 **Status:** Ativa
 
@@ -1448,6 +1453,37 @@ Eventos com `status = "ativo"` não exibem o botão de exclusão. Isso impede qu
 **Riscos:**
 - Médio: exclusão é irreversível. Mitigado pelo `confirm()` explícito e pela proteção de eventos ativos.
 - Sem impacto no modo local (a operação `removeEvento` já funcionava nos dois modos)
+
+**Status:** Ativa
+
+---
+
+### [D-042] — PA-08b: Reintrodução do CPF como campo opcional com finalidade declarada
+
+**Data:** 2026-06-16  
+**Tipo:** Feature / LGPD  
+
+**Contexto:**
+D-035 removeu o CPF do fluxo de check-in e do banco. Após implementação, identificou-se que o CPF é necessário para o fluxo de negócio de agendamento de visita técnica e assinatura de contrato — etapas que ocorrem após a conversão do lead.
+
+**Decisão:**
+Reintroduzir CPF como campo **opcional** no formulário de captura de leads, com label que declara a finalidade: *"opcional — para visita técnica e contrato"*. A coluna `cpf` foi readicionada ao banco como nullable.
+
+**Justificativa:**
+A não conformidade original (L-03 da auditoria LGPD) era sobre coleta sem finalidade declarada. Com a finalidade explicitada no label do campo e no formulário, a coleta passa a ter base legal no legítimo interesse do controlador (art. 7°, IX da LGPD) para execução do serviço contratado. O campo não é exibido no modo rápido de captura nem em check-in.
+
+**Alternativas avaliadas:**
+- Manter sem CPF — descartada: inviabiliza o fluxo pós-conversão (visita técnica e contrato exigem identificação)
+- CPF obrigatório — descartada: viola minimização para leads que não chegam à fase de conversão
+
+**Arquivos Afetados:**
+- `supabase/migracao-readd-cpf.sql` (criado — `ADD COLUMN IF NOT EXISTS cpf text`)
+- `src/lib/dataService.js` — `leadFromDb` e `leadToDb` com campo `cpf`
+- `src/apps/VendedorApp.jsx` — campo CPF opcional no formulário e edição inline; exibido na lista apenas quando preenchido
+- `src/utils/csv.js` — coluna CPF de volta na exportação para equipe técnica
+
+**Risco residual aceito:**
+CPF armazenado em texto plano (sem criptografia). O risco é menor do que na situação pré-PA-08 pois: (a) o campo agora é opcional, reduzindo o volume de CPFs armazenados; (b) a finalidade está declarada; (c) o check-in não utiliza mais CPF. A criptografia de CPF em repouso é registrada no backlog para avaliação futura.
 
 **Status:** Ativa
 

@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.4] — Quick wins de performance + carregamento on-demand + melhorias de UX
+**Data:** 2026-06-17
+
+**O que mudou**
+- **D-036 — QW-003: AbortSignal.timeout(15s) em `fetchAll`** (`src/context/AppProvider.jsx`): timeout automático de 15s via `AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)])` — elimina loading infinito em conexões instáveis; estado `syncStatus = ERROR` exibido ao invés de spinner eterno
+- **D-037 — QW-004: Column pruning no `fetchAll`** (`src/lib/dataService.js`): substituído `select('*')` por seleção explícita de colunas nas 4 queries do `fetchAll` — redução de 10–30% no payload transferido por carregamento
+- **D-038 — QW-005: REALTIME_DEBOUNCE_MS 400ms → 1500ms** (`src/lib/constants.js`): debounce do canal realtime aumentado para coalescimento de bursts de captura de leads; fix secundário: `subscribeChanges` em `dataService.js` passou a usar a constante (estava hardcoded em 400ms)
+- **D-039 — TB-004: Carregamento de leads on-demand por evento** (`src/lib/dataService.js`, `src/context/AppProvider.jsx`, `src/api/leadApi.js`, `src/features/events/EventDetail.jsx`, `src/apps/VendedorApp.jsx`): `fetchAll` não carrega mais leads no boot; leads carregados via `carregarLeadsEvento(eventoId)` ao abrir detalhe do evento (marketing) ou ao selecionar evento ativo (vendedor); novas funções `fetchLeadsEvento` e `fetchLeadsEventos` para exportação
+- **D-040 — Filtro padrão "Ativo" no painel de eventos** (`src/features/events/EventosTab.jsx`): painel inicia com chip "Ativo" selecionado em vez de "Todos" — reduz scroll e foco imediato nos eventos em andamento
+- **D-041 — Exclusão permanente de evento pelo marketing** (`src/features/events/EventDetail.jsx`): botão "Excluir Evento" adicionado no detalhe do evento, disponível apenas para marketing e apenas em eventos não-ativos; confirmação explícita obrigatória
+
+**Por que mudou**
+- Série de quick wins de performance identificados na auditoria estática (`QUICK_WINS.md`) e no backlog técnico (`TECHNICAL_BACKLOG.md`), implementados como melhorias de baixo risco e zero downtime
+- Carregamento on-demand resolve o principal gargalo de escalabilidade: `fetchAll` buscava todos os leads de todos os eventos no boot, impactando tempo de carga proporcional ao histórico total
+
+**Ações manuais necessárias**
+- Nenhuma — todas as mudanças são no frontend; sem alteração de schema ou migrations
+
+---
+
 ## [v3.3] — Encerramento da implementação técnica LGPD
 **Data:** 2026-06-16
 

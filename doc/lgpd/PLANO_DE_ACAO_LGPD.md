@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 15 de 21 ações concluídas (Fase 1 e 2 completas; PA-10 a PA-15 concluídas na Fase 3)
+> **Status geral:** 🟡 EM PROGRESSO — 16 de 21 ações concluídas. Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
 
 ---
 
