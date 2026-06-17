@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-17 (D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-06-17 (D-036, D-037, D-038 — quick wins de performance; v3.6 — login de vendedor + modos de operação documentados)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 
 ---
@@ -12,7 +12,7 @@
 SPA React para gerenciamento de eventos de campo da RJNet. Permite que o time de marketing crie e gerencie eventos, estoque e equipe, enquanto vendedores em campo capturam leads e acompanham desempenho em tempo real.
 
 Dois perfis de acesso: **marketing** (gestão completa) e **vendedor** (captura de leads + ranking).  
-Dois modos de operação: **Supabase** (produção, com auth e realtime) e **local** (localStorage, sem backend).
+Dois modos de operação: **Supabase** (produção, com auth e realtime) e **local** (localStorage, sem backend — exclusivo para desenvolvimento e testes).
 
 ---
 
@@ -158,6 +158,19 @@ Ponto de entrada após `main.jsx`. Detecta modo (`supabaseEnabled`) e gerencia t
 
 - `supabaseEnabled` → `RootAuth` → Supabase session → papel do usuário → `MarketingApp` ou `VendedorApp`
 - `!supabaseEnabled` → `RootLegacy` → toggle Marketing/Vendedor na tela de login → `MarketingApp` ou `VendedorApp`
+
+#### Modos de operação — referência rápida
+
+| | Modo Supabase (produção) | Modo local (desenvolvimento) |
+|---|---|---|
+| **Quando usar** | Sempre em produção — vendedores reais, eventos reais | Apenas para desenvolvimento e testes locais |
+| **Banco de dados** | PostgreSQL via Supabase | `localStorage` do navegador (dados mock) |
+| **Login marketing** | Email + senha (Supabase Auth) | `VITE_MARKETING_USER` + `VITE_MARKETING_PASS` no `.env.local` |
+| **Login vendedor** | Email + senha individuais criados pelo marketing | Seleciona nome na lista + `VITE_VENDEDOR_PASS` no `.env.local` |
+| **Criação de conta vendedor** | Marketing cria via painel Equipe (Edge Function) | Não se aplica — lista vem do `MOCK_VENDEDORES` |
+| **Troca de senha vendedor** | Vendedor troca pelo próprio sistema (Supabase Auth) | Não se aplica |
+| **Sem internet no campo** | Vendedor já autenticado permanece logado; fila offline sincroniza ao reconectar | Não se aplica (sem backend real) |
+| **Realtime** | Subscriptions Supabase com debounce de 1500ms | Não disponível |
 
 ### `MarketingApp.jsx`
 

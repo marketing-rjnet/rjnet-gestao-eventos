@@ -8,16 +8,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Data:** 2026-06-17
 
 **O que mudou**
-- **Fix: login de vendedor habilitado no modo local** (`src/auth/Login.jsx`): tela de login legado agora exibe toggle Marketing / Vendedor. No modo Vendedor, o usuário seleciona o próprio nome na lista de vendedores ativos (sem senha — apenas para ambiente dev/local sem Supabase). Sessão criada com `{ role: "vendedor", vendedorNome, userId }`, compatível com o contrato esperado pelo `VendedorApp`
-- **Docs: CheckinTab corrigida** (`doc/architecture/SYSTEM_MAP.md`): referências a "busca por CPF" atualizadas para "busca por nome" — reflete implementação real em `CheckinTab.jsx` (busca parcial, case-insensitive, com resultado único ou lista de candidatos)
-- **Docs: fluxo de auth local atualizado** (`doc/architecture/SYSTEM_MAP.md`): descrição do `RootLegacy` atualizada para refletir o toggle na tela de login
+- **Fix: login de vendedor habilitado no modo local** (`src/auth/Login.jsx`): tela de login legado agora exibe toggle Marketing / Vendedor. No modo Vendedor, o usuário seleciona o nome na lista de vendedores ativos e informa a senha configurada em `VITE_VENDEDOR_PASS`. Sessão criada com `{ role: "vendedor", vendedorNome, userId }`, compatível com o contrato esperado pelo `VendedorApp`. Guard PA-01 estendido para alertar sobre `VITE_VENDEDOR_PASS` exposta em produção
+- **Fix: senha obrigatória para vendedor no modo local** (`src/auth/Login.jsx`): versão anterior sem senha revertida — seleção de nome sem autenticação foi considerada insuficiente
+- **Docs: modos de operação documentados** (`doc/architecture/SYSTEM_MAP.md`): tabela comparativa adicionada distinguindo modo Supabase (produção) de modo local (desenvolvimento): login, banco, offline, criação de contas e realtime
+- **Docs: CheckinTab corrigida** (`doc/architecture/SYSTEM_MAP.md`): referências a "busca por CPF" atualizadas para "busca por nome"
+- **`.env.example` atualizado**: `VITE_VENDEDOR_PASS` adicionada com comentário explicativo
+
+**Distinção de modos — resumo**
+- **Modo Supabase (produção):** vendedores usam email + senha individuais criados pelo marketing via painel Equipe. Sem internet, a sessão persiste no `localStorage` e a fila offline sincroniza ao reconectar. Vendedor nunca perde acesso por falta de conectividade
+- **Modo local (desenvolvimento):** exclusivo para testes — sem banco real, dados mock, senha compartilhada via env var. Nenhum vendedor real usa este modo
 
 **Por que mudou**
-- Vendedores não conseguiam acessar o sistema em ambiente local (sem Supabase): `Login.jsx` só aceitava credenciais de marketing e não havia path para `role: "vendedor"`. O campo `vendedores` já era importado via `useApp()` mas nunca utilizado — evidência de que a funcionalidade estava incompleta
-- CheckinTab busca por nome desde a implementação atual; a documentação permanecia desatualizada referenciando CPF
+- Vendedores não conseguiam acessar o sistema em ambiente local: `Login.jsx` só aceitava credenciais de marketing
+- O campo `vendedores` já era importado via `useApp()` mas nunca utilizado — funcionalidade estava incompleta desde a implementação original
 
 **Ações manuais necessárias**
-- Nenhuma — mudança exclusivamente no frontend e na documentação
+- Definir `VITE_VENDEDOR_PASS` no `.env.local` para habilitar login de vendedor em ambiente de desenvolvimento
 
 ---
 
