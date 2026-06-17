@@ -233,6 +233,18 @@
       .stock-row .sr-num { text-align: center; font-size: 12px; color: var(--text-3); min-width: 56px; }
       .stock-row .sr-num b { display: block; font-size: 16px; color: var(--text); font-family: "DM Mono", monospace; }
 
+      /* ---------- Equipe sections ---------- */
+      .equipe-section { margin-bottom: 32px; }
+      .equipe-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+      .equipe-section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text); }
+      .equipe-section-icon { font-size: 16px; line-height: 1; }
+      .equipe-section-count { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: var(--border); color: var(--text-3); }
+      .equipe-section-desc { font-size: 12px; color: var(--text-3); margin: 0 0 12px; }
+      .equipe-section--admin { border-left: 3px solid var(--rj-yellow); padding-left: 14px; }
+      .equipe-section--vendas { border-left: 3px solid var(--border); padding-left: 14px; }
+      .equipe-section--admin .equipe-section-title { color: var(--rj-yellow); }
+      .empty-state { color: var(--text-3); font-size: 13px; padding: 12px 0; }
+
       /* ---------- Vendor cards ---------- */
       .vendor-grid { display: flex; flex-direction: column; gap: 12px; }
       .vendor-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--border); padding: 16px 18px; display: grid; grid-template-columns: 48px 1fr auto; grid-template-rows: auto auto auto; column-gap: 14px; row-gap: 4px; align-items: center; }
