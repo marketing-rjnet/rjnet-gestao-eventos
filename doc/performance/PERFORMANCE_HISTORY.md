@@ -41,6 +41,23 @@
 
 ---
 
+### [PERF-002] — 2026-06-17 | Quick Wins QW-001 a QW-005 | Produção
+
+**Cenário:** Implementação de melhorias (sem execução de testes de carga)  
+**Resultado:** INFORMATIVO — melhorias aplicadas  
+**Métricas:** N/A — aguarda execução do Cenário A  
+**Melhorias implementadas:**
+- QW-001: `ranking_evento` corrigido para filtrar `deletado = false` — bug de integridade eliminado (D-036)
+- QW-002: 3 índices compostos criados em `leads` — 11 índices totais confirmados no Supabase Dashboard
+- QW-003: `AbortSignal.timeout(15s)` em `carregar()` — elimina loading infinito (D-036)
+- QW-004: Column pruning em `fetchAll` — `select('*')` → colunas explícitas (D-037)
+- QW-005: `REALTIME_DEBOUNCE_MS` 400ms → 1500ms — reduz fetchAll em bursts (D-038)
+
+**Impacto esperado:** ranking correto imediatamente; latência de queries reduzida; menos fetchAll por realtime  
+**Próximos passos:** Criar ambiente de homologação e executar Cenário A para validar hipóteses H-001 a H-007
+
+---
+
 <!-- Adicionar entradas abaixo conforme os testes forem executados -->
 
 ### [PERF-002] — [DATA] | [VERSÃO] | Supabase Homologação

@@ -24,7 +24,7 @@
 **Impacto:** Bug de integridade — dados incorretos exibidos para vendedores e marketing  
 **Complexidade:** Baixa — 1 linha SQL na função  
 **Dependências:** Nenhuma  
-**Status:** ✅ Migration `supabase/fix-ranking-deletado.sql` criada — **aguarda aplicação em homologação e produção**
+**Status:** ✅ **Aplicado em produção** em 2026-06-17 — `supabase/fix-ranking-deletado.sql` executada no Supabase Dashboard (Primary Database)
 
 ---
 
@@ -37,7 +37,7 @@
 **Impacto:** Redução de 10x–100x na latência de ranking e fetchAll com > 1.000 leads  
 **Complexidade:** Baixa — SQL puro, aditivo  
 **Dependências:** TB-001 (pode ser aplicado independentemente)  
-**Status:** ✅ Migration `supabase/perf-indices-compostos.sql` criada — **aguarda aplicação em homologação e produção**
+**Status:** ✅ **Aplicado em produção** em 2026-06-17 — `supabase/perf-indices-compostos.sql` executada no Supabase Dashboard (11 índices confirmados na tabela `leads`)
 
 ---
 
@@ -156,8 +156,8 @@
 
 ```
 Fase 1 — Imediata (sem testes, zero risco):
-  TB-001  fix ranking_evento (aplicar migration)
-  TB-002  índices compostos (aplicar migration)
+  TB-001  fix ranking_evento ✅ aplicado em produção (2026-06-17)
+  TB-002  índices compostos ✅ aplicado em produção (2026-06-17)
   TB-003  timeout fetchAll ✅ implementado
   TB-006  pruning colunas ✅ implementado
   TB-007  debounce 1500ms ✅ implementado

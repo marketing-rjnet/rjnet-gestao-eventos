@@ -12,6 +12,7 @@
 | Item | Status |
 |------|--------|
 | Ambiente de produção configurado | ✅ (Vercel + Supabase) |
+| Migrations QW-001 e QW-002 aplicadas em produção | ✅ Aplicado em 2026-06-17 |
 | Ambiente de homologação separado | ❌ Não existe — criar conforme este documento |
 | Scripts de teste k6 prontos | ✅ (`tests/load/`) |
 | Scripts de cleanup prontos | ✅ (`tests/load/cleanup.js`) |
@@ -41,8 +42,8 @@ Execute cada script no **SQL Editor** do projeto de homologação:
 | 5 | `supabase/migracao-audit-exportacoes.sql` | ⬜ Pendente |
 | 6 | `supabase/migracao-soft-delete-audit.sql` | ⬜ Pendente |
 | 7 | `supabase/migracao-readd-cpf.sql` | ⬜ Pendente |
-| 8 | **`supabase/fix-ranking-deletado.sql`** (QW-001) | ⬜ Pendente |
-| 9 | **`supabase/perf-indices-compostos.sql`** (QW-002) | ⬜ Pendente |
+| 8 | **`supabase/fix-ranking-deletado.sql`** (QW-001) | ✅ Aplicado em produção (2026-06-17) |
+| 9 | **`supabase/perf-indices-compostos.sql`** (QW-002) | ✅ Aplicado em produção (2026-06-17) |
 
 ### 1.3 Verificar estado do banco
 
