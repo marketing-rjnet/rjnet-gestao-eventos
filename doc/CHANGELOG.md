@@ -4,6 +4,36 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.3] — Monitor: cobertura entre dispositivos via Supabase Realtime
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/lib/activityLog.js`**: ao chamar `logActivity()`, além de gravar em localStorage e disparar o CustomEvent local, transmite o registro para o canal Supabase Realtime `rjnet-monitor` via broadcast (fire-and-forget, assíncrono). Canal iniciado no carregamento do módulo com fila de envio até a subscrição ser confirmada. Novo export `receiveActivityLog(record)` — persiste evento recebido externamente no localStorage local com dedup por ID.
+- **`src/features/monitoring/MonitoringTab.jsx`**: adicionado terceiro listener no `useEffect` de tempo real — assina `rjnet-monitor` via Supabase Realtime Broadcast e chama `receiveActivityLog()` para cada evento recebido. Remove botão "Limpar" (histórico preservado por padrão, auto-purge 30 dias).
+
+**Por que mudou**
+- `CustomEvent` e `storage` event são isolados por dispositivo. Vendedores nos próprios celulares em campo não apareciam no Monitor do marketing em outro dispositivo. O Broadcast do Supabase Realtime transmite cada `logActivity()` para todos os assinantes do canal, sem schema, sem banco, sem persistência no servidor.
+
+**Cobertura após mudança**
+
+| Cenário | Canal |
+|---|---|
+| Mesma aba | `rjnet:activity` CustomEvent |
+| Outra aba/janela, mesmo dispositivo | `storage` event |
+| Outro dispositivo (celular do vendedor → celular do marketing) | Supabase Realtime Broadcast |
+
+**Ações manuais necessárias**
+- Nenhuma — sem migration, sem schema, sem RLS. Broadcast Realtime usa conexão WebSocket já existente (multiplexado).
+
+**Impacto de performance**
+- Zero perceptível: broadcast é fire-and-forget, não bloqueia o fluxo de cadastro de lead. Canal multiplexa na WebSocket já aberta pelo Realtime de dados. Sem nova conexão TCP.
+
+**Contraindicações conhecidas**
+- Canal `rjnet-monitor` usa chave anon — sem autenticação por perfil. Qualquer assinante com a URL + anon key pode receber os broadcasts. Aceitável para equipe interna pequena; revisar se o sistema escalar para múltiplos clientes.
+- Sem garantia de entrega se vendedor estiver offline no momento do evento — lead é salvo localmente (fila offline) mas o broadcast do `lead_add` não retransmite ao reconectar. O `lead_sync_ok` aparece quando a fila processa.
+
+---
+
 ## [v4.2] — Monitor: histórico persistente por dia de evento
 **Data:** 2026-06-17
 

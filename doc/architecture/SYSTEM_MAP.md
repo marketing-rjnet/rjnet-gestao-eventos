@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-17 (D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-06-17 (D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 
 ---
@@ -145,7 +145,7 @@ src/
 └── lib/
     ├── supabase.js             # Cliente Supabase + supabaseEnabled (feature flag de modo)
     ├── dataService.js          # Queries, auth, realtime, retry, fila offline
-    ├── activityLog.js          # Buffer circular localStorage por data (200/dia, 30 dias) + dispatch rjnet:activity (D-044, D-045)
+    ├── activityLog.js          # Buffer circular localStorage + Supabase Realtime broadcast (D-044, D-045, D-046)
     ├── crypto.js               # PA-05/LGPD: AES-GCM 256 + PBKDF2 para fila offline no localStorage
     ├── security.js             # sanitizeText() — sanitização de inputs
     ├── cache.js                # Cache em memória com TTL
@@ -235,7 +235,7 @@ AppProvider re-sincroniza estado com dados do banco
 
 **Erros de sync** são despachados via `window.dispatchEvent(new CustomEvent('rjnet:sync-error'))` e capturados pelo `SyncBadge` e pelo `activityLog`.
 
-**Log de atividade** — `src/lib/activityLog.js` instrumenta 7 pontos do fluxo e despacha `CustomEvent('rjnet:activity')` que o `MonitoringTab` escuta para atualização em tempo real (D-044, D-044b):
+**Log de atividade** — `src/lib/activityLog.js` instrumenta 7 pontos do fluxo, despacha `CustomEvent('rjnet:activity')` e transmite via Supabase Realtime Broadcast (canal `rjnet-monitor`) para cobertura entre dispositivos (D-044, D-044b, D-046). `MonitoringTab` escuta 3 canais: CustomEvent (mesma aba), `storage` event (outra aba/janela) e Realtime Broadcast (outro dispositivo):
 - `dataService.trackPerf` → `perf_warn` quando req > 1 s
 - `dataService.exec` → `sync_error` junto ao dispatch de `rjnet:sync-error`
 - `dataService.addToQueue` → `offline_queue` ao enfileirar lead
@@ -268,6 +268,7 @@ AppProvider re-sincroniza estado com dados do banco
 - **Log de atividade em localStorage por data**: `activityLog.js` mantém buffer circular de 200 entradas por dia em chave `rjnet_activity_YYYY-MM-DD`; persiste entre fechamentos de aba; auto-purge após 30 dias; sem persistência no banco (D-044, D-045)
 - **`exec(promise, acao, onFail, onSuccess)`**: 4º parâmetro opcional — chamado após escrita bem-sucedida no Supabase (1ª tentativa ou retry) e imediatamente no modo local; usado por `db.saveLead` para acionar `lead_sync_ok` no feed do Monitor (D-044b)
 - **7 tipos de evento no Monitor**: `lead_add`, `lead_update`, `lead_remove`, `lead_sync_ok`, `sync_error`, `perf_warn`, `offline_queue` — cada tipo tem marca visual, cor e descrição em linguagem de campo; filtros `Sync` e `Perf` são separados (D-044b)
+- **Realtime Broadcast do Monitor**: `activityLog.js` abre canal `rjnet-monitor` no carregamento e faz broadcast de cada `logActivity()` (fire-and-forget, fila até subscrição confirmar). `MonitoringTab` assina o mesmo canal apenas no modo "Hoje". Canal público (anon key) — aceitável para equipe interna pequena. Multiplexa na WebSocket já existente, sem nova conexão TCP (D-046)
 
 ---
 

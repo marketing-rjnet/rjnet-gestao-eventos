@@ -68,6 +68,41 @@ Riscos conhecidos.
 
 ---
 
+### [D-046] — Monitor: Supabase Realtime Broadcast para cobertura entre dispositivos
+
+**Data:** 2026-06-17
+**Tipo:** Feature (incremento sobre D-045)
+
+**Decisão:** Adicionar broadcast Supabase Realtime em cada `logActivity()` para transmitir eventos de atividade entre dispositivos diferentes, cobrindo o cenário principal de uso: marketing monitorando pelo celular enquanto vendedores cadastram nos próprios celulares em campo.
+
+**Motivação:** `CustomEvent` e `storage` event são isolados por dispositivo/browser. Sem comunicação entre dispositivos, o Monitor só funcionava no cenário de duas abas no mesmo aparelho. O caso de uso real é um dispositivo por pessoa em campo.
+
+**Alternativas Avaliadas:**
+- **Tabela `activity_log` no Supabase + Realtime de DB:** rejeitada — requer migration, RLS, dados de sessão no banco, implicações de LGPD.
+- **Polling periódico de uma tabela:** rejeitada — latência alta, overhead de queries, complexidade de schema.
+- **WebSocket próprio / servidor intermediário:** rejeitada — infraestrutura extra desnecessária dado que o Supabase Realtime já está no projeto.
+- **Supabase Realtime Broadcast (escolhida):** sem schema, sem banco, transiente (não persiste no servidor), multiplexa na WebSocket já existente — zero custo de infraestrutura adicional.
+
+**Impactos:**
+- `activityLog.js` agora importa `supabase` — quebra o princípio original de zero dependências do módulo (D-044). Aceito: `supabase.js` não cria dependência circular.
+- Canal `rjnet-monitor` aberto no carregamento do módulo em qualquer perfil (inclusive VendedorApp). O vendedor transmite mas nunca recebe — WebSocket multiplexado, sem custo extra perceptível.
+- `receiveActivityLog(record)` persiste evento externo no localStorage do marketing com dedup por ID — histórico acumulado mesmo de outros dispositivos.
+- `MonitoringTab` assina `rjnet-monitor` apenas quando visualizando "Hoje" — subscription limpa no unmount.
+- Cobertura completa: 3 camadas (CustomEvent → storage → Realtime) cobrem todos os cenários de acesso.
+
+**Riscos e Limitações:**
+- Canal público (anon key): sem controle de quem assina. Aceitável para equipe interna; revisar em escala multi-cliente.
+- Sem garantia de entrega em queda de rede — broadcast não é retransmitido. `lead_sync_ok` cobre a confirmação posterior quando a fila offline processa.
+- Limite Supabase Free: 200 conexões simultâneas — muito acima do uso esperado (5–15 vendedores).
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` — broadcast em `logActivity()`, novo export `receiveActivityLog()`
+- `src/features/monitoring/MonitoringTab.jsx` — terceiro listener Realtime, remoção do botão Limpar
+
+**Status:** Ativa
+
+---
+
 ### [D-045] — Monitor: persistência por dia via localStorage com chave por data
 
 **Data:** 2026-06-17  

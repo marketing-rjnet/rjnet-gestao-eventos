@@ -101,7 +101,7 @@ src/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
     ├── mode.js           # isSupabaseMode(), getMode(), MODE — detecção centralizada de modo (etapa 18)
     ├── dataService.js    # Camada de dados (queries, auth, realtime, retry)
-    ├── activityLog.js    # Buffer circular localStorage por data (200/dia, 30 dias) + dispatch rjnet:activity (D-044, D-045)
+    ├── activityLog.js    # Buffer localStorage + Supabase Realtime broadcast canal rjnet-monitor (D-044, D-045, D-046)
     ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
@@ -236,7 +236,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
 | Leads | marketing | Visualização e filtros, export CSV, gráfico por evento |
 | Equipe | marketing | CRUD de vendedores, desempenho por evento |
-| Monitor | marketing | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards, feed 7 tipos, filtros Sync/Perf, descrições de campo (D-044, D-044b, D-045) |
+| Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046) |
 
 ---
 
@@ -323,8 +323,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
 | `src/lib/dataService.js` | ~400 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b) |
-| `src/lib/activityLog.js` | ~70 | Buffer circular localStorage por data + getActivityDays/clearActivityDay (D-044, D-045) |
-| `src/features/monitoring/MonitoringTab.jsx` | ~330 | Diagnóstico ao vivo + histórico por dia: seletor de datas, feed, cards (D-044, D-044b, D-045) |
+| `src/lib/activityLog.js` | ~100 | Buffer localStorage + Supabase Realtime broadcast + receiveActivityLog (D-044, D-045, D-046) |
+| `src/features/monitoring/MonitoringTab.jsx` | ~345 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards, feed (D-044–D-046) |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
