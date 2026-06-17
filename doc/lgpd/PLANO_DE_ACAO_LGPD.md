@@ -3,7 +3,7 @@
 
 > **Versão:** 1.0.0  
 > **Criado em:** 2026-06-16  
-> **Origem:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
+> **Origem:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
 > **Status geral:** 🟡 EM PROGRESSO — 15 de 21 ações concluídas (Fase 1 e 2 completas; PA-10 a PA-15 concluídas na Fase 3)
 
@@ -13,9 +13,9 @@
 
 - Cada ação tem um **ID único** (ex: `PA-01`) referenciado na auditoria
 - Ao concluir uma ação, atualize o **Status**, **Data de conclusão** e **Evidência**
-- Registre decisões técnicas relevantes em `doc/DECISIONS.md`
+- Registre decisões técnicas relevantes em `doc/architecture/DECISIONS.md`
 - Registre mudanças de código em `doc/CHANGELOG.md`
-- Atualize `doc/LGPD_AUDIT_AND_COMPLIANCE.md` quando a não conformidade for sanada
+- Atualize `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` quando a não conformidade for sanada
 - Atualize `supabase/migracao-auth.sql` ou criar novo SQL quando houver mudança de schema
 
 ---
@@ -70,16 +70,16 @@
 - `src/lib/mode.js`
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/DECISIONS.md` — registrar decisão sobre modo legado (D-032)
+- [x] `doc/architecture/DECISIONS.md` — registrar decisão sobre modo legado (D-032)
 - [x] `doc/CHANGELOG.md` — registrar a mudança (v1.7)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — S-01 marcado como resolvido (seção 12.2 e 12.6)
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — S-01 marcado como resolvido (seção 12.2 e 12.6)
 
 **Evidência de conclusão:**
 - `vite.config.js`: plugin `lgpdCredentialGuard` — aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida; emite `console.warn` em dev
 - `src/auth/Login.jsx`: guard de runtime com `import.meta.env.PROD`; objeto `AUTH` removido; credenciais lidas dentro do handler `submit()` (não exportadas)
 - `src/auth/index.js`: re-export de `AUTH` removido
 - `.env.example`: aviso explícito adicionado — `VITE_MARKETING_PASS` é variável de desenvolvimento exclusivamente
-- Decisão D-032 registrada em `doc/DECISIONS.md`
+- Decisão D-032 registrada em `doc/architecture/DECISIONS.md`
 
 ---
 
@@ -128,7 +128,7 @@
 
 **Documentação a atualizar após conclusão:**
 - [x] Este documento — evidência preenchida
-- [x] `doc/SUPABASE.md` — seção "Verificação de estado das migrações (PA-02)" adicionada
+- [x] `doc/architecture/SUPABASE.md` — seção "Verificação de estado das migrações (PA-02)" adicionada
 
 **Evidência de conclusão — verificação executada em produção em 2026-06-16:**
 
@@ -203,7 +203,7 @@
 
 **Documentação a atualizar após conclusão:**
 - [x] `doc/CHANGELOG.md` (v1.9)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — S-04 e S-05 marcados como resolvidos
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — S-04 e S-05 marcados como resolvidos
 
 **Evidência de conclusão:**
 - `supabase/functions/atualizar-email-usuario/index.ts` reescrito:
@@ -282,10 +282,10 @@
 - `src/lib/dataService.js` (mapeador `leadToDb`/`leadFromDb`)
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/DECISIONS.md` — decisão D-033: Opção A (ficha física) escolhida
+- [x] `doc/architecture/DECISIONS.md` — decisão D-033: Opção A (ficha física) escolhida
 - [x] `doc/CHANGELOG.md` (v2.0)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — L-01, L-02 marcados como resolvidos
-- [ ] `doc/POLITICA_DE_PRIVACIDADE.md` — pendente (PA-16, Fase 4)
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — L-01, L-02 marcados como resolvidos
+- [ ] `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` — pendente (PA-16, Fase 4)
 
 **Evidência de conclusão:**
 - `supabase/migracao-consentimento.sql`: migração idempotente com `ADD COLUMN IF NOT EXISTS` para `consentimento_coletado` (bool, default false), `consentimento_em` (timestamptz) e `versao_termo` (text); índice de auditoria criado
@@ -327,10 +327,10 @@
 - Novo: `src/lib/crypto.js`
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/SYSTEM_MAP.md` — `src/lib/crypto.js` adicionado na estrutura
+- [x] `doc/architecture/SYSTEM_MAP.md` — `src/lib/crypto.js` adicionado na estrutura
 - [x] `doc/CHANGELOG.md` (v2.1)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — S-02 marcado como resolvido
-- [x] `doc/DECISIONS.md` — D-034 (estratégia de derivação de chave PBKDF2)
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — S-02 marcado como resolvido
+- [x] `doc/architecture/DECISIONS.md` — D-034 (estratégia de derivação de chave PBKDF2)
 
 **Evidência de conclusão:**
 - `src/lib/crypto.js` (novo): utilitário de criptografia AES-GCM 256 bits usando Web Crypto API nativa
@@ -398,9 +398,9 @@
 - `src/lib/dataService.js` (novo método `db.registrarExportacao()`)
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/SUPABASE.md` — nova tabela `audit_exportacoes` documentada na tabela de migrações
+- [x] `doc/architecture/SUPABASE.md` — nova tabela `audit_exportacoes` documentada na tabela de migrações
 - [x] `doc/CHANGELOG.md` (v2.2)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — A-01, L-08 marcados como resolvidos
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — A-01, L-08 marcados como resolvidos
 
 **Evidência de conclusão:**
 - `supabase/migracao-audit-exportacoes.sql` (novo): cria tabela `audit_exportacoes` com RLS — apenas papel `marketing` pode inserir e consultar; índices por `usuario_id` e `exportado_em`; totalmente idempotente
@@ -456,9 +456,9 @@
 - `src/features/events/EventDetail.jsx`
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/SUPABASE.md` — migração PA-07 adicionada na tabela de ordem
+- [x] `doc/architecture/SUPABASE.md` — migração PA-07 adicionada na tabela de ordem
 - [x] `doc/CHANGELOG.md` (v2.3)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — BD-06, A-03 marcados como resolvidos
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — BD-06, A-03 marcados como resolvidos
 
 **Evidência de conclusão:**
 - `supabase/migracao-soft-delete-audit.sql` (novo): `ADD COLUMN IF NOT EXISTS deletado_em timestamptz` e `deletado_por uuid REFERENCES auth.users(id) ON DELETE SET NULL` na tabela `leads`; índices parciais (`WHERE deletado = true`) para consultas de auditoria eficientes
@@ -503,10 +503,10 @@
 - `supabase/schema.sql` ou novo SQL de migração
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/DECISIONS.md` — D-035: Opção A (remoção do CPF) escolhida via migração para check-in por nome
-- [x] `doc/SUPABASE.md` — migração PA-08 adicionada na tabela de ordem
+- [x] `doc/architecture/DECISIONS.md` — D-035: Opção A (remoção do CPF) escolhida via migração para check-in por nome
+- [x] `doc/architecture/SUPABASE.md` — migração PA-08 adicionada na tabela de ordem
 - [x] `doc/CHANGELOG.md` (v2.4)
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — BD-02, L-03 marcados como resolvidos
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — BD-02, L-03 marcados como resolvidos
 
 **Evidência de conclusão:**
 - `supabase/migracao-remove-cpf.sql` (novo): `DROP COLUMN IF EXISTS cpf` — remove coluna e todos os valores existentes da tabela `leads`
@@ -589,8 +589,8 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 **Documentação a atualizar após conclusão:**
 - [x] Novo: `doc/POLITICA_RETENCAO.md`
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md`
-- [x] `doc/SUPABASE.md`
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`
+- [x] `doc/architecture/SUPABASE.md`
 - [x] `doc/CHANGELOG.md`
 
 **Evidência de conclusão:**
@@ -638,9 +638,9 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 **Documentação a atualizar após conclusão:**
 - [x] `supabase/migracao-auth.sql` ou novo SQL
-- [x] `doc/SUPABASE.md`
+- [x] `doc/architecture/SUPABASE.md`
 - [x] `doc/CHANGELOG.md`
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md`
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`
 
 **Evidência de conclusão:**
 - `supabase/migracao-rls-vendedor-leads.sql` (novo): recria `leads_select` policy — vendedor recebe do banco apenas `vendedor_id = auth.uid()` (antes recebia todos os leads e o frontend filtrava); marketing mantém acesso total
@@ -666,7 +666,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 1. Habilitar TOTP MFA no Supabase Dashboard → Authentication → Multi-Factor Auth
 2. Adaptar `src/auth/LoginAuth.jsx` para tratar o fluxo de desafio MFA quando o usuário tiver o fator configurado
 3. Tornar MFA obrigatório apenas para usuários `marketing` (que têm acesso a todos os dados)
-4. Documentar o processo de configuração para os usuários de marketing em `doc/SUPABASE.md`
+4. Documentar o processo de configuração para os usuários de marketing em `doc/architecture/SUPABASE.md`
 
 **Evidência de conclusão:**
 - `src/lib/dataService.js`: `auth.signIn()` detecta desafio MFA (`session === null && user === null`) — cria challenge TOTP e retorna `{ mfaRequired: true, factorId, challengeId }`; novo método `auth.verifyMfa(factorId, challengeId, codigo)` verifica o código e estabelece sessão completa
@@ -744,9 +744,9 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 3. Criar view de auditoria para o painel de marketing
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/SUPABASE.md`
+- [x] `doc/architecture/SUPABASE.md`
 - [x] `doc/CHANGELOG.md`
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar A-02, A-04, A-05, BD-04
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar A-02, A-04, A-05, BD-04
 
 **Evidência de conclusão:**
 - `supabase/migracao-audit-log.sql` (novo): tabela `audit_log` com RLS (select restrito a marketing, insert permitido a authenticated); índices por usuário, registro e data; trigger `audit_leads` registra automaticamente INSERT/UPDATE/DELETE na tabela `leads` com dados antes/depois em JSONB; função `log_lead_change()` com SECURITY DEFINER
@@ -778,15 +778,15 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
    - Base legal: art. 33, II LGPD (garantias contratuais) ou art. 33, VII (legítimo interesse)
    - Evidência: número/data do DPA assinado
 
-5. Criar seção em `doc/LGPD_AUDIT_AND_COMPLIANCE.md` documentando o DPA
+5. Criar seção em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` documentando o DPA
 
 **Documentação a atualizar após conclusão:**
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-07, I-01
-- [x] Novo: `doc/DPA_FORNECEDORES.md` — registro de todos os DPAs
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-07, I-01
+- [x] Novo: `doc/lgpd/DPA_FORNECEDORES.md` — registro de todos os DPAs
 
 **Evidência de conclusão:**
-- `doc/DPA_FORNECEDORES.md` (novo): registro de fornecedores com acesso a dados pessoais — Supabase Inc. (EUA, SOC 2/ISO 27001) e Vercel Inc. (sem dados pessoais)
-- **Ação manual necessária (jurídico):** assinar DPA com Supabase em https://supabase.com/privacy e preencher data/número em `doc/DPA_FORNECEDORES.md`
+- `doc/lgpd/DPA_FORNECEDORES.md` (novo): registro de fornecedores com acesso a dados pessoais — Supabase Inc. (EUA, SOC 2/ISO 27001) e Vercel Inc. (sem dados pessoais)
+- **Ação manual necessária (jurídico):** assinar DPA com Supabase em https://supabase.com/privacy e preencher data/número em `doc/lgpd/DPA_FORNECEDORES.md`
 
 ---
 
@@ -814,16 +814,16 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
    **Direito de portabilidade (art. 18, V):** Exportação individual dos dados do titular em JSON/CSV
    **Direito de revogação de consentimento (art. 18, IX):** Exclusão do registro + bloqueio de recontato
 
-3. Criar queries SQL padrão para cada operação e documentar em `doc/ROTEIRO_DSAR.md`
+3. Criar queries SQL padrão para cada operação e documentar em `doc/lgpd/ROTEIRO_DSAR.md`
 
 4. Definir prazo de resposta: 15 dias (recomendado) conforme boas práticas ANPD
 
 **Documentação a atualizar após conclusão:**
-- [x] Novo: `doc/ROTEIRO_DSAR.md`
-- [x] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-05
+- [x] Novo: `doc/lgpd/ROTEIRO_DSAR.md`
+- [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar L-05
 
 **Evidência de conclusão:**
-- `doc/ROTEIRO_DSAR.md` (novo): roteiro completo com queries SQL para acesso, correção, exclusão (hard delete), portabilidade e revogação de consentimento; prazo de resposta 15 dias; modelo de registro de atendimentos
+- `doc/lgpd/ROTEIRO_DSAR.md` (novo): roteiro completo com queries SQL para acesso, correção, exclusão (hard delete), portabilidade e revogação de consentimento; prazo de resposta 15 dias; modelo de registro de atendimentos
 - **Ação manual necessária:** criar canal de contato `privacidade@rjnet.com.br` para receber solicitações de titulares
 
 ---
@@ -858,16 +858,16 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
    - Contato do DPO/responsável
    - Vigência e atualizações
 
-2. Versionar a política (v1.0, v1.1 etc.) e armazenar em `doc/POLITICA_DE_PRIVACIDADE.md`
+2. Versionar a política (v1.0, v1.1 etc.) e armazenar em `doc/lgpd/POLITICA_DE_PRIVACIDADE.md`
 
 3. Referenciar a versão vigente no campo `versao_termo` ao coletar consentimento (ver PA-04)
 
 **Documentação a atualizar após conclusão:**
-- [ ] Novo: `doc/POLITICA_DE_PRIVACIDADE.md`
-- [ ] `doc/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar G-01, L-02
+- [ ] Novo: `doc/lgpd/POLITICA_DE_PRIVACIDADE.md`
+- [ ] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — marcar G-01, L-02
 
 **Evidência de conclusão:**
-- `doc/POLITICA_DE_PRIVACIDADE.md` (novo): política v1.0 cobrindo controlador, dados coletados, finalidades, bases legais, compartilhamento (Supabase/Vercel), retenção, direitos dos titulares, medidas de segurança, transferência internacional e canal de contato
+- `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` (novo): política v1.0 cobrindo controlador, dados coletados, finalidades, bases legais, compartilhamento (Supabase/Vercel), retenção, direitos dos titulares, medidas de segurança, transferência internacional e canal de contato
 - Versão do termo referenciada como `v1.0` — já usada em `versao_termo` no consentimento (PA-04)
 
 ---
@@ -884,7 +884,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | **Data de conclusão** | — |
 
 **Evidência de conclusão:**
-- `doc/RIPD.md` (novo): RIPD v1.0 cobrindo descrição do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de riscos com 8 riscos identificados, medidas de mitigação adotadas e pendentes
+- `doc/lgpd/RIPD.md` (novo): RIPD v1.0 cobrindo descrição do tratamento, avaliação de necessidade/proporcionalidade por campo, matriz de riscos com 8 riscos identificados, medidas de mitigação adotadas e pendentes
 - ⚠️ Pendente: aprovação formal pelo DPO após nomeação (PA-19)
 
 ---
@@ -901,7 +901,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | **Data de conclusão** | — |
 
 **Evidência de conclusão:**
-- `doc/ROPA.md` (novo): 4 operações de tratamento documentadas — captação de leads, exportação CSV, autenticação de usuários internos e auditoria de operações; bases legais, destinatários, transferências internacionais, retenção e medidas de segurança
+- `doc/lgpd/ROPA.md` (novo): 4 operações de tratamento documentadas — captação de leads, exportação CSV, autenticação de usuários internos e auditoria de operações; bases legais, destinatários, transferências internacionais, retenção e medidas de segurança
 - ⚠️ Pendente: validação pelo DPO após nomeação (PA-19); prazo de retenção do audit_log a definir
 
 ---
@@ -940,7 +940,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | **Data de conclusão** | — |
 
 **Evidência de conclusão:**
-- `doc/PLANO_INCIDENTES.md` (novo): classificação de severidade (4 níveis), procedimento em 6 fases (detecção → contenção → avaliação → notificação → correção → lições aprendidas), queries SQL para investigação via audit_log, prazos ANPD (72h), modelo de registro de incidentes
+- `doc/lgpd/PLANO_INCIDENTES.md` (novo): classificação de severidade (4 níveis), procedimento em 6 fases (detecção → contenção → avaliação → notificação → correção → lições aprendidas), queries SQL para investigação via audit_log, prazos ANPD (72h), modelo de registro de incidentes
 - ⚠️ Pendente: aprovação pelo DPO (PA-19); simulação de tabletop exercise; preenchimento de contatos de emergência
 
 ---
@@ -970,7 +970,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 2. Para cada campo decidido como desnecessário: criar migração SQL para remover a coluna
 
-3. Registrar a decisão em `doc/DECISIONS.md`
+3. Registrar a decisão em `doc/architecture/DECISIONS.md`
 
 **Evidência de conclusão:** _Decisão registrada em DECISIONS.md + campos removidos se aplicável_
 
@@ -1008,13 +1008,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 | Documento | Criado por | PA Responsável | Status |
 |-----------|-----------|---------------|--------|
-| `doc/POLITICA_DE_PRIVACIDADE.md` | Jurídico | PA-16 | 🟢 |
+| `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` | Jurídico | PA-16 | 🟢 |
 | `doc/POLITICA_RETENCAO.md` | DPO + Técnico | PA-10 | 🟢 |
-| `doc/ROTEIRO_DSAR.md` | DPO | PA-15 | 🟢 |
-| `doc/RIPD.md` | DPO + Técnico | PA-17 | 🟡 |
-| `doc/ROPA.md` | DPO | PA-18 | 🟡 |
-| `doc/DPA_FORNECEDORES.md` | Jurídico | PA-14 | 🟡 |
-| `doc/PLANO_INCIDENTES.md` | DPO + Técnico | PA-20 | 🟡 |
+| `doc/lgpd/ROTEIRO_DSAR.md` | DPO | PA-15 | 🟢 |
+| `doc/lgpd/RIPD.md` | DPO + Técnico | PA-17 | 🟡 |
+| `doc/lgpd/ROPA.md` | DPO | PA-18 | 🟡 |
+| `doc/lgpd/DPA_FORNECEDORES.md` | Jurídico | PA-14 | 🟡 |
+| `doc/lgpd/PLANO_INCIDENTES.md` | DPO + Técnico | PA-20 | 🟡 |
 
 ---
 
@@ -1051,5 +1051,5 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 ---
 
 
-> **Referência de auditoria:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md`  
+> **Referência de auditoria:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`  
 > **Histórico de mudanças:** `doc/CHANGELOG.md`

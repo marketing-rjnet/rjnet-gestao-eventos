@@ -146,7 +146,7 @@ O `SYSTEM_MAP.md` foi atualizado em D-025 (16/06/2026) mas a nota incorreta sobr
 - Compromete a confiabilidade do documento D-025 como "arquitetura viva".
 
 **Módulos afetados:**
-- `doc/SYSTEM_MAP.md`
+- `doc/architecture/SYSTEM_MAP.md`
 
 ---
 
@@ -443,7 +443,7 @@ const { ... } = createLeadApi({ leads, setLeads }); // genId não injetado
 Substituir o bloco incorreto na Seção 2 do `SYSTEM_MAP.md` pela descrição real do módulo `src/lib/mode.js`.
 
 **Onde será alterado:**
-- `doc/SYSTEM_MAP.md` — Seção 2 (Detecção de Modo)
+- `doc/architecture/SYSTEM_MAP.md` — Seção 2 (Detecção de Modo)
 
 **Bloco atual (incorreto):**
 ```
@@ -585,7 +585,7 @@ As correções são ordenadas por: (1) risco de segurança, (2) violação de co
 
 **Por que segundo:** Qualquer sessão nova lendo o mapa antes das correções vai tomar decisões erradas sobre `mode.js`. Corrigir antes de qualquer outra mudança estrutural garante que o documento reflita o estado real durante as etapas seguintes.
 
-**Arquivo:** `doc/SYSTEM_MAP.md` — Seção 2
+**Arquivo:** `doc/architecture/SYSTEM_MAP.md` — Seção 2
 
 **Esforço:** < 5 min
 
@@ -646,4 +646,4 @@ As correções são ordenadas por: (1) risco de segurança, (2) violação de co
 
 ---
 
-> **Nota de rastreabilidade:** Cada correção deve gerar uma entrada em `doc/DECISIONS.md` (D-030+) e uma atualização em `doc/CHANGELOG.md`. Após C-2, `doc/SYSTEM_MAP.md` deve ser revisado integralmente para verificar outros pontos desatualizados antes de iniciar as etapas seguintes.
+> **Nota de rastreabilidade:** Cada correção deve gerar uma entrada em `doc/architecture/DECISIONS.md` (D-030+) e uma atualização em `doc/CHANGELOG.md`. Após C-2, `doc/architecture/SYSTEM_MAP.md` deve ser revisado integralmente para verificar outros pontos desatualizados antes de iniciar as etapas seguintes.

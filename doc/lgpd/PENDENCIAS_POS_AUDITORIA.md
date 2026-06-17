@@ -3,7 +3,7 @@
 
 > **Gerado em:** 2026-06-16  
 > **Origem:** Auditoria de validação pós-implementação (Claude Code)  
-> **Referência completa:** `doc/LGPD_AUDIT_AND_COMPLIANCE.md` + `doc/PLANO_DE_ACAO_LGPD.md`  
+> **Referência completa:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` + `doc/lgpd/PLANO_DE_ACAO_LGPD.md`  
 > **Nota atual:** 6,2 / 10 — Nível Intermediário  
 > **Nota esperada após conclusão:** 9,1 / 10 — Nível Avançado
 
@@ -126,9 +126,9 @@ supabase functions deploy atualizar-email-usuario
 ### 2.1 Criar e-mail privacidade@rjnet.com.br
 
 **Responsável:** TI  
-**Por que é necessário:** É o canal pelo qual titulares (leads captados em eventos) exercem os direitos da LGPD: pedir acesso aos dados, solicitar correção, pedir exclusão. O roteiro de atendimento já existe em `doc/ROTEIRO_DSAR.md`. Falta o canal.
+**Por que é necessário:** É o canal pelo qual titulares (leads captados em eventos) exercem os direitos da LGPD: pedir acesso aos dados, solicitar correção, pedir exclusão. O roteiro de atendimento já existe em `doc/lgpd/ROTEIRO_DSAR.md`. Falta o canal.
 
-**O que fazer:** Criar a caixa de e-mail e definir responsável por monitorá-la. Prazo de resposta: 15 dias (conforme `doc/ROTEIRO_DSAR.md`).
+**O que fazer:** Criar a caixa de e-mail e definir responsável por monitorá-la. Prazo de resposta: 15 dias (conforme `doc/lgpd/ROTEIRO_DSAR.md`).
 
 ---
 
@@ -141,7 +141,7 @@ supabase functions deploy atualizar-email-usuario
 1. Fazer upgrade para o plano pago da Supabase (o DPA está disponível para clientes pagos)
 2. Acessar https://supabase.com/privacy → Data Processing Agreement
 3. Assinar o DPA
-4. Preencher data e número do contrato em `doc/DPA_FORNECEDORES.md`
+4. Preencher data e número do contrato em `doc/lgpd/DPA_FORNECEDORES.md`
 
 ---
 
@@ -149,14 +149,14 @@ supabase functions deploy atualizar-email-usuario
 
 **Responsável:** Diretoria  
 **Por que é necessário:** A LGPD (art. 41) exige a designação de um Encarregado. Sem DPO nomeado:
-- Os documentos RIPD (`doc/RIPD.md`), ROPA (`doc/ROPA.md`) e Plano de Incidentes (`doc/PLANO_INCIDENTES.md`) não têm aprovação formal
+- Os documentos RIPD (`doc/lgpd/RIPD.md`), ROPA (`doc/lgpd/ROPA.md`) e Plano de Incidentes (`doc/lgpd/PLANO_INCIDENTES.md`) não têm aprovação formal
 - A empresa não tem ponto de contato para a ANPD em caso de fiscalização
 - O canal de privacidade fica sem responsável definido
 
 **O que fazer:**
 1. Nomear formalmente (pode ser interno ou externo)
 2. Publicar nome e e-mail de contato do DPO
-3. Atualizar PA-19 em `doc/PLANO_DE_ACAO_LGPD.md` com o nome e contato
+3. Atualizar PA-19 em `doc/lgpd/PLANO_DE_ACAO_LGPD.md` com o nome e contato
 4. O DPO deve revisar e aprovar RIPD, ROPA e Plano de Incidentes
 
 ---
@@ -164,12 +164,12 @@ supabase functions deploy atualizar-email-usuario
 ### 2.4 Publicar a Política de Privacidade externamente
 
 **Responsável:** Marketing / TI  
-**Por que é necessário:** A `doc/POLITICA_DE_PRIVACIDADE.md` existe como documento interno, mas os titulares (leads captados em eventos) não têm como acessá-la. A LGPD (art. 9º) exige que o titular seja informado sobre o tratamento.
+**Por que é necessário:** A `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` existe como documento interno, mas os titulares (leads captados em eventos) não têm como acessá-la. A LGPD (art. 9º) exige que o titular seja informado sobre o tratamento.
 
 **O que fazer:**
 1. Publicar a política no site da RJNet em URL fixa (ex: `rjnet.com.br/privacidade`)
 2. Incluir o link nas fichas físicas de consentimento entregues nos eventos
-3. Atualizar `doc/POLITICA_DE_PRIVACIDADE.md` com a URL pública
+3. Atualizar `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` com a URL pública
 
 ---
 
@@ -185,7 +185,7 @@ supabase functions deploy atualizar-email-usuario
 | `endereço` | O endereço é verificado no momento da captação para checar cobertura, ou apenas depois? A coleta é proporcional à finalidade? | Manter com justificativa formal **ou** remover e verificar cobertura de outra forma |
 | `observação` (texto livre) | Existe necessidade de campo sem estrutura? Dados sensíveis não planejados são inseridos? | Manter **ou** substituir por campos estruturados **ou** adicionar orientação explícita ao vendedor |
 
-Registrar a decisão em `doc/DECISIONS.md` e atualizar PA-21 em `doc/PLANO_DE_ACAO_LGPD.md`.
+Registrar a decisão em `doc/architecture/DECISIONS.md` e atualizar PA-21 em `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
 
 ---
 
@@ -203,7 +203,7 @@ Os **70 leads em produção** (coletados antes de 2026-06-16) têm `consentiment
 | **B) Excluir fisicamente todos os leads históricos** | Elimina o risco, mas perde dados comerciais | Baixa (1 query SQL) |
 | **C) Coletar consentimento retroativo** | Impraticável para dados já captados em eventos passados | Alta / impraticável |
 
-**Recomendação:** Definir com jurídico qual opção seguir e registrar em `doc/DECISIONS.md`.
+**Recomendação:** Definir com jurídico qual opção seguir e registrar em `doc/architecture/DECISIONS.md`.
 
 ---
 
@@ -247,18 +247,18 @@ BLOCO 3 — DECISÃO ESPECIAL
 
 | Documento | Conteúdo |
 |---|---|
-| `doc/PLANO_DE_ACAO_LGPD.md` | Plano de ação completo com todas as 21 ações (PA-01 a PA-21) |
-| `doc/LGPD_AUDIT_AND_COMPLIANCE.md` | Auditoria completa com não conformidades e histórico de implementações |
-| `doc/ROTEIRO_DSAR.md` | Queries SQL e processo para atender direitos de titulares |
-| `doc/SUPABASE.md` | Ordem das migrações, checklist de segurança pré-produção e configuração MFA |
-| `doc/DPA_FORNECEDORES.md` | Registro de fornecedores — preencher com data/número do DPA após assinatura |
-| `doc/RIPD.md` | Relatório de Impacto — pendente aprovação do DPO |
-| `doc/ROPA.md` | Registro de Operações — pendente validação do DPO |
-| `doc/PLANO_INCIDENTES.md` | Plano de Resposta a Incidentes — pendente aprovação do DPO |
-| `doc/POLITICA_DE_PRIVACIDADE.md` | Política de Privacidade v1.0 — pendente publicação externa |
+| `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | Plano de ação completo com todas as 21 ações (PA-01 a PA-21) |
+| `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | Auditoria completa com não conformidades e histórico de implementações |
+| `doc/lgpd/ROTEIRO_DSAR.md` | Queries SQL e processo para atender direitos de titulares |
+| `doc/architecture/SUPABASE.md` | Ordem das migrações, checklist de segurança pré-produção e configuração MFA |
+| `doc/lgpd/DPA_FORNECEDORES.md` | Registro de fornecedores — preencher com data/número do DPA após assinatura |
+| `doc/lgpd/RIPD.md` | Relatório de Impacto — pendente aprovação do DPO |
+| `doc/lgpd/ROPA.md` | Registro de Operações — pendente validação do DPO |
+| `doc/lgpd/PLANO_INCIDENTES.md` | Plano de Resposta a Incidentes — pendente aprovação do DPO |
+| `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` | Política de Privacidade v1.0 — pendente publicação externa |
 
 ---
 
 > **Este documento deve ser atualizado** à medida que cada item for concluído.  
 > Ao concluir uma ação, marque o checkbox correspondente e registre a data.  
-> Qualquer dúvida técnica: consultar `doc/PLANO_DE_ACAO_LGPD.md` para o detalhamento completo da ação.
+> Qualquer dúvida técnica: consultar `doc/lgpd/PLANO_DE_ACAO_LGPD.md` para o detalhamento completo da ação.

@@ -93,7 +93,7 @@ O titular tem os seguintes direitos, exercidos pelo canal **privacidade@rjnet.co
 | **Revogação de consentimento** (art. 18, IX) | Revogar o consentimento e ter os dados excluídos |
 | **Informação** (art. 18, VII) | Saber com quais entidades os dados foram compartilhados |
 
-Ver procedimentos detalhados em `doc/ROTEIRO_DSAR.md`.
+Ver procedimentos detalhados em `doc/lgpd/ROTEIRO_DSAR.md`.
 
 ---
 
@@ -125,7 +125,7 @@ O DPO ainda está em processo de nomeação formal (PA-19). Até lá, solicitaç
 
 ## 11. Atualizações desta política
 
-Esta política pode ser atualizada periodicamente. A versão vigente estará sempre disponível em `doc/POLITICA_DE_PRIVACIDADE.md` e referenciada no termo de consentimento do sistema. Alterações relevantes serão comunicadas aos titulares.
+Esta política pode ser atualizada periodicamente. A versão vigente estará sempre disponível em `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` e referenciada no termo de consentimento do sistema. Alterações relevantes serão comunicadas aos titulares.
 
 | Versão | Data | Alterações |
 |--------|------|-----------|
@@ -134,4 +134,4 @@ Esta política pode ser atualizada periodicamente. A versão vigente estará sem
 ---
 
 > Documento elaborado em 2026-06-16 como parte do PA-16 do Plano de Ação LGPD.  
-> Referência: `doc/PLANO_DE_ACAO_LGPD.md` — PA-16.
+> Referência: `doc/lgpd/PLANO_DE_ACAO_LGPD.md` — PA-16.
