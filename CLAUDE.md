@@ -21,6 +21,12 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
 | `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
 | `doc/architecture/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
+| `doc/performance/TECHNICAL_BACKLOG.md` | **Backlog técnico de performance** — TB-001 a TB-012 priorizados (Crítico/Alto/Médio/Baixo) | Antes de qualquer sprint de performance |
+| `doc/performance/PERFORMANCE_AUDIT.md` | Auditoria estática de performance — findings PA-001 a PA-NEW-001 | Referência histórica de findings |
+| `doc/performance/QUICK_WINS.md` | Quick wins de performance — QW-001 a QW-006 com status de implementação | Antes de implementar melhorias de performance |
+| `doc/performance/HOMOLOGATION_CHECKLIST.md` | Checklist de preparação do ambiente de homologação para testes de carga | Antes de executar qualquer cenário de teste |
+| `doc/performance/LOAD_TEST_PLAN.md` | Plano de testes de carga — 4 cenários k6 (Normal, Pico, Crítico, Estresse) | Antes de executar testes |
+| `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A |
 
 ---
 

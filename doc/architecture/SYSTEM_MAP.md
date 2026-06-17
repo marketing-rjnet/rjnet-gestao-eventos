@@ -3,6 +3,7 @@
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
 > Atualizado em: 2026-06-17 (D-036, D-037, D-038 — quick wins de performance)
+> Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 
 ---
 

@@ -155,4 +155,4 @@ WHERE observacao = 'Lead gerado automaticamente por teste de carga k6';
 
 ## Próximos Passos
 
-Após análise dos resultados, registrar em `docs/PERFORMANCE_AUDIT.md` qualquer gargalo identificado e em `docs/PERFORMANCE_HISTORY.md` o histórico desta execução.
+Após análise dos resultados, registrar em `doc/performance/PERFORMANCE_AUDIT.md` qualquer gargalo identificado e em `doc/performance/PERFORMANCE_HISTORY.md` o histórico desta execução.

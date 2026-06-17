@@ -74,12 +74,12 @@ k6 run tests/load/cleanup.js
 
 ## Documentação Relacionada
 
-- `docs/ARCHITECTURE_TEST_SUMMARY.md` — análise arquitetural e fluxos críticos
-- `docs/LOAD_TEST_COST_ESTIMATE.md` — estimativa de impacto e custo
-- `docs/LOAD_TEST_PLAN.md` — plano detalhado de execução
-- `docs/LOAD_TEST_REPORT.md` — template de relatório (preencher após execução)
-- `docs/PERFORMANCE_AUDIT.md` — auditoria de gargalos identificados
-- `docs/PERFORMANCE_HISTORY.md` — histórico de execuções
+- `doc/performance/ARCHITECTURE_TEST_SUMMARY.md` — análise arquitetural e fluxos críticos
+- `doc/performance/LOAD_TEST_COST_ESTIMATE.md` — estimativa de impacto e custo
+- `doc/performance/LOAD_TEST_PLAN.md` — plano detalhado de execução
+- `doc/performance/LOAD_TEST_REPORT.md` — template de relatório (preencher após execução)
+- `doc/performance/PERFORMANCE_AUDIT.md` — auditoria de gargalos identificados
+- `doc/performance/PERFORMANCE_HISTORY.md` — histórico de execuções
 
 ## Critérios de Aprovação
 
