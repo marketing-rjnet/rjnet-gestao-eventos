@@ -5,6 +5,7 @@ import { supabase, supabaseConfig } from './supabase';
 import { isSupabaseMode } from './mode';
 import { cache } from './cache';
 import { encryptQueue, decryptQueue, clearCryptoKey, cryptoSupported } from './crypto';
+import { REALTIME_DEBOUNCE_MS } from './constants';
 
 /* ─── Fila offline — PA-05/LGPD: dados criptografados em repouso ─── */
 
@@ -197,8 +198,11 @@ const perfilFromDb = (r) => ({
 
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
-// Busca as tabelas em paralelo. Cancela via AbortController quando o
-// componente desmonta. Retorna null se o Supabase estiver indisponível.
+// Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
+const LEADS_COLS = 'id,evento_id,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo';
+
+// TB-004: busca apenas materiais, eventos e perfis no boot.
+// Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
 export async function fetchAll(signal) {
   if (!isSupabaseMode()) return null;
   return trackPerf('fetchAll', () =>
@@ -206,16 +210,13 @@ export async function fetchAll(signal) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
-      // reduz payload transferido e memória usada no cliente
-      const [materiais, perfis, eventos, leads] = await Promise.all([
+      const [materiais, perfis, eventos] = await Promise.all([
         supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
         supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
         supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
-        // Exclui leads marcados como deletados (soft delete via protecao-dados.sql)
-        supabase.from('leads').select('id,evento_id,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo').eq('deletado', false).order('criado_em').abortSignal(signal),
       ]);
 
-      const erro = materiais.error || eventos.error || leads.error;
+      const erro = materiais.error || eventos.error;
       if (erro) throw erro;
 
       // Antes da migração de auth a tabela perfis não existe — cai para a
@@ -233,12 +234,60 @@ export async function fetchAll(signal) {
         materiais: materiais.data.map(materialFromDb),
         vendedores,
         eventos: eventos.data.map(eventoFromDb),
-        leads: leads.data.map(leadFromDb),
+        leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao carregar dados do Supabase:', err.message || err);
+    return null;
+  });
+}
+
+// TB-004: leads de um único evento — usado pelo vendedor e pelo EventDetail.
+export async function fetchLeadsEvento(eventoId, signal) {
+  if (!isSupabaseMode() || !eventoId) return null;
+  return trackPerf('fetchLeadsEvento', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .eq('evento_id', eventoId)
+        .eq('deletado', false)
+        .order('criado_em')
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads do evento:', err.message || err);
+    return null;
+  });
+}
+
+// TB-004: leads de múltiplos eventos — usado pela exportação consolidada do marketing.
+// Retorna leads ordenados por evento_id depois por criado_em (blocos por evento).
+export async function fetchLeadsEventos(eventoIds, signal) {
+  if (!isSupabaseMode() || !eventoIds?.length) return null;
+  return trackPerf('fetchLeadsEventos', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .in('evento_id', eventoIds)
+        .eq('deletado', false)
+        .order('evento_id')
+        .order('criado_em')
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads consolidados:', err.message || err);
     return null;
   });
 }
@@ -482,9 +531,9 @@ export function subscribeChanges(onChange) {
   const channel = supabase
     .channel('rjnet-sync')
     .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-      // debounce: várias mudanças seguidas geram um único refetch
+      // debounce: várias mudanças seguidas geram um único refetch (D-038/QW-005)
       clearTimeout(timer);
-      timer = setTimeout(onChange, 400);
+      timer = setTimeout(onChange, REALTIME_DEBOUNCE_MS);
     })
     .subscribe();
   return () => {

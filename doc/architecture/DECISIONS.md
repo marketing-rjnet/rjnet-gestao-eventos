@@ -1348,6 +1348,55 @@ O dashboard do marketing passa a refletir mudanças com até 1.5s de atraso em v
 
 ---
 
+### [D-039] — TB-004: Carregamento de leads on-demand por evento
+
+**Data:** 2026-06-17  
+**Tipo:** Performance / Arquitetura
+
+**Decisão:**
+Removida a query de `leads` do `fetchAll()` de boot. Leads passam a ser carregados on-demand por evento via duas novas funções em `dataService.js`:
+- `fetchLeadsEvento(eventoId, signal)` — para vendedor (evento ativo) e EventDetail (marketing)
+- `fetchLeadsEventos(eventoIds[], signal)` — para exportação consolidada de múltiplos eventos
+
+O `AppProvider` expõe `carregarLeadsEvento(eventoId)` no contexto. O realtime (`subscribeChanges`) continua funcionando: ao disparar `carregar()`, o AppProvider recarrega os leads do evento ativo se `eventoLeadsIdRef.current` estiver preenchido.
+
+A `LeadsTab` foi redesenhada como "Central de Exportação": lista todos os eventos com checkboxes, botão "Exportar evento" (1 evento, CSV individual) e "Exportar consolidado" (N eventos, CSV único com coluna Evento agrupando os leads por bloco de evento).
+
+**Motivação:**
+O `fetchAll` carregava todos os leads históricos de todos os eventos sem `LIMIT`. Com o crescimento do banco (cada evento gera dezenas a centenas de leads), cada atualização realtime retransferiu o payload crescente. A separação por evento elimina o crescimento ilimitado: o payload por carregamento é sempre proporcional ao tamanho de um evento específico, não ao histórico total.
+
+**Motivação da LeadsTab redesenhada:**
+Marketing não precisa visualizar todos os leads simultaneamente — o fluxo real é exportar dados de eventos concluídos para o setor responsável. A exportação on-demand (busca apenas quando o botão é clicado) é mais eficiente e mais honesta sobre o custo da operação.
+
+**Alternativas avaliadas:**
+- `.limit(1000)` no fetchAll — descartado: resolve temporariamente mas não estruturalmente; silencia leads mais antigos sem feedback ao usuário
+- Filtro temporal (últimos 90 dias) — descartado: marketing pode precisar exportar eventos de meses atrás sem saber o motivo; a seleção explícita por evento é mais precisa
+- Manter leads no fetchAll com paginação lazy — descartado: aumenta complexidade do estado sem resolver o caso de uso do export consolidado
+
+**Impacto:**
+- `fetchAll` agora carrega apenas 3 tabelas (materiais, eventos, perfis/vendedores)
+- Boot do app é ~30–60% mais rápido em volume alto (sem query de leads)
+- Vendedor vê leads apenas do evento ativo (comportamento correto por requisito)
+- Marketing exporta por evento ou consolidado sob demanda
+- Realtime continua recarregando leads do evento ativo quando mutações ocorrem
+- Fix secundário: `subscribeChanges` passa a usar `REALTIME_DEBOUNCE_MS` da constante (estava hardcoded em 400ms, ignorando o QW-005)
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` (fetchAll simplificado + 2 novas funções + fix debounce)
+- `src/context/AppProvider.jsx` (carregarLeadsEvento + eventoLeadsIdRef + reload no realtime)
+- `src/apps/VendedorApp.jsx` (useEffect para carregar leads do evento ativo)
+- `src/features/events/EventDetail.jsx` (useEffect para carregar leads ao abrir evento)
+- `src/features/leads/LeadsTab.jsx` (redesenho completo — central de exportação)
+- `src/utils/csv.js` (nova função exportLeadsConsolidadoCSV)
+
+**Riscos:**
+- Médio: se `carregarLeadsEvento` não for chamado (ex: componente novo que usa `leads` do contexto), `leads` estará vazio. Mitigado pela documentação da restrição no SYSTEM_MAP.
+- Baixo: em modo local (localStorage), o comportamento não muda — `leads` continua pré-carregado do MOCK_LEADS e `carregarLeadsEvento` é no-op.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

@@ -103,7 +103,7 @@ function LeadEditInline({ lead, onSave, onCancel }) {
 }
 
 export default function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos } = useApp();
+  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento } = useApp();
   const ativos = getEventosAtivos();
   const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
 
@@ -112,6 +112,10 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       setEventoId(ativos[0]?.id || "");
     }
   }, [ativos, eventoId]);
+
+  useEffect(() => {
+    if (eventoId) carregarLeadsEvento(eventoId);
+  }, [eventoId]);
 
   const [aba, setAba] = useState("registrar");
   const FORM_VAZIO = { nome: "", telefone: "", cpf: "", endereco: "", servicoInteresse: ["internet_residencial"], temperatura: "morno", observacao: "", jaClienteRjnet: false, consentimentoColetado: false };

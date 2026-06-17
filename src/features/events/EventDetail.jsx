@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, StatusBadge, TipoBadge, ChartView } from '../../components/ui';
 import { EventModal } from '../../components/modals';
@@ -12,7 +12,11 @@ const darkScale = {
 
 export default function EventDetail({ eventoId, onBack }) {
   const { eventos, materiais, getLeadsEvento, getMateriaisDisponiveis,
-          addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento } = useApp();
+          addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento, updateEvento, carregarLeadsEvento } = useApp();
+  useEffect(() => {
+    carregarLeadsEvento(eventoId);
+  }, [eventoId]);
+
   const ev = eventos.find((e) => e.id === eventoId);
   if (!ev) return null;
 

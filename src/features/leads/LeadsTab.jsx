@@ -1,134 +1,139 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { Kpi, ChartView } from '../../components/ui';
-import { SERVICO_LABEL, servicoLabel } from '../../utils/format';
-import { exportLeadsCSV } from '../../utils/csv';
-import { db } from '../../lib/dataService';
-
-const darkScale = {
-  x: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" } },
-  y: { grid: { color: "#2e2e2e" }, ticks: { color: "#666" }, beginAtZero: true },
-};
+import { servicoLabel, fmtDateLong } from '../../utils/format';
+import { exportLeadsCSV, exportLeadsConsolidadoCSV } from '../../utils/csv';
+import { fetchLeadsEvento, fetchLeadsEventos, db } from '../../lib/dataService';
 
 export function LeadsTab({ session }) {
-  const { leads, eventos } = useApp();
-  const [fEvento, setFEvento] = useState("");
-  const [fVend, setFVend] = useState("");
-  const [fServ, setFServ] = useState("");
+  const { eventos } = useApp();
+  const [selecionados, setSelecionados] = useState([]);
+  const [carregando, setCarregando] = useState(false);
+
   const evName = (id) => eventos.find((e) => e.id === id)?.nome || id;
 
-  const hasServico = (l, s) => Array.isArray(l.servicoInteresse) ? l.servicoInteresse.includes(s) : l.servicoInteresse === s;
-
-  const filtered = leads.filter((l) =>
-    (!fEvento || l.eventoId === fEvento) &&
-    (!fVend || l.vendedorNome === fVend) &&
-    (!fServ || hasServico(l, fServ))
+  const toggle = (id) => setSelecionados((prev) =>
+    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
   );
 
-  const byService = (s) => leads.filter((l) => hasServico(l, s)).length;
+  const toggleTodos = () =>
+    setSelecionados(selecionados.length === eventos.length ? [] : eventos.map((e) => e.id));
 
-  const exportarCSV = () => {
-    const dados = filtered.length > 0 ? filtered : leads;
-    const sufixo = fEvento ? evName(fEvento).replace(/\s+/g, "_") : "todos_eventos";
-    const filtros = {
-      evento: fEvento || null,
-      vendedor: fVend || null,
-      servico: fServ || null,
-    };
-    exportLeadsCSV(dados, sufixo, servicoLabel, evName, ({ totalRegistros }) => {
+  const exportarEvento = async () => {
+    if (selecionados.length !== 1) return;
+    setCarregando(true);
+    const eventoId = selecionados[0];
+    const leads = await fetchLeadsEvento(eventoId);
+    setCarregando(false);
+    if (!leads?.length) { alert('Nenhum lead encontrado para este evento.'); return; }
+    const sufixo = evName(eventoId).replace(/\s+/g, '_');
+    exportLeadsCSV(leads, sufixo, servicoLabel, evName, ({ totalRegistros }) => {
       db.registrarExportacao({
-        usuarioId:    session?.userId   || null,
-        usuarioNome:  session?.nome     || null,
-        usuarioEmail: session?.email    || null,
-        filtros,
+        usuarioId: session?.userId || null,
+        usuarioNome: session?.nome || null,
+        usuarioEmail: session?.email || null,
+        filtros: { evento: eventoId },
         totalRegistros,
       });
     });
   };
 
-  const porEvento = useMemo(() => {
-    const c = {};
-    leads.forEach((l) => { c[l.eventoId] = (c[l.eventoId] || 0) + 1; });
-    return c;
-  }, [leads]);
-
-  const barData = {
-    labels: Object.keys(porEvento).map(evName),
-    datasets: [{ label: "Leads", data: Object.values(porEvento), backgroundColor: "#f5c000", borderRadius: 6 }],
+  const exportarConsolidado = async () => {
+    if (selecionados.length === 0) return;
+    setCarregando(true);
+    const leads = await fetchLeadsEventos(selecionados);
+    setCarregando(false);
+    if (!leads?.length) { alert('Nenhum lead encontrado nos eventos selecionados.'); return; }
+    exportLeadsConsolidadoCSV(leads, evName, servicoLabel, ({ totalRegistros, totalEventos }) => {
+      db.registrarExportacao({
+        usuarioId: session?.userId || null,
+        usuarioNome: session?.nome || null,
+        usuarioEmail: session?.email || null,
+        filtros: { eventos: selecionados },
+        totalRegistros,
+      });
+    });
   };
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-title">Leads</div>
-          <p className="tab-desc">Todos os leads captados pela equipe comercial.</p>
+          <div className="page-title">Exportar Leads</div>
+          <p className="tab-desc">Selecione um ou mais eventos para exportar os leads.</p>
         </div>
-        <button
-          className="btn-primary"
-          style={{ display:"flex", alignItems:"center", gap:6, fontSize:13 }}
-          onClick={exportarCSV}
-          disabled={leads.length === 0}
-        >
-          ↓ Exportar CSV {fEvento ? `(${evName(fEvento)})` : "(todos)"}
-        </button>
-      </div>
-
-      <div className="grid-kpi">
-        <Kpi label="Total" value={leads.length} icon="users" />
-        <Kpi label="Fibra Res" value={byService("fibra_residencial")} icon="🏠" />
-        <Kpi label="Fibra Emp" value={byService("fibra_empresarial")} icon="🏢" />
-        <Kpi label="Hotspot" value={byService("hotspot")} icon="📶" />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 13 }}
+            onClick={exportarEvento}
+            disabled={selecionados.length !== 1 || carregando}
+            title="Exporta apenas o evento selecionado"
+          >
+            {carregando ? 'Carregando...' : '↓ Exportar evento'}
+          </button>
+          <button
+            className="btn-primary"
+            style={{ fontSize: 13 }}
+            onClick={exportarConsolidado}
+            disabled={selecionados.length === 0 || carregando}
+            title="Exporta todos os eventos selecionados em um único CSV com coluna Evento"
+          >
+            {carregando ? 'Carregando...' : `↓ Exportar consolidado${selecionados.length > 0 ? ` (${selecionados.length})` : ''}`}
+          </button>
+        </div>
       </div>
 
       <div className="card" style={{ marginTop: 18 }}>
-        <div className="section-title">Leads por Evento</div>
-        {leads.length === 0 ? <div className="empty">Sem dados.</div> : (
-          <div className="chart-box">
-            <ChartView type="bar" data={barData} options={{
-              indexAxis: "y",
-              plugins: { legend: { display: false } },
-              scales: darkScale,
-            }} />
-          </div>
-        )}
-      </div>
-
-      <div className="section">
-        <div className="filter-row">
-          <select value={fEvento} onChange={(e) => setFEvento(e.target.value)}>
-            <option value="">Todos os eventos</option>
-            {eventos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-          </select>
-          <select value={fVend} onChange={(e) => setFVend(e.target.value)}>
-            <option value="">Todos os vendedores</option>
-            {[...new Set(leads.map((l) => l.vendedorNome).filter(Boolean))].sort().map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <select value={fServ} onChange={(e) => setFServ(e.target.value)}>
-            <option value="">Todos os serviços</option>
-            {Object.keys(SERVICO_LABEL).map((s) => <option key={s} value={s}>{SERVICO_LABEL[s]}</option>)}
-          </select>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span className="section-title" style={{ marginBottom: 0 }}>Eventos</span>
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodos}>
+            {selecionados.length === eventos.length ? 'Desmarcar todos' : 'Selecionar todos'}
+          </button>
         </div>
-
-        {filtered.length === 0 ? <div className="empty">Nenhum lead encontrado.</div> : (
+        {eventos.length === 0 ? (
+          <div className="empty">Nenhum evento cadastrado.</div>
+        ) : (
           <div className="tbl-wrap">
             <table>
-              <thead><tr><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Serviço</th><th>Evento</th><th>Vendedor</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ width: 40 }}></th>
+                  <th>Evento</th>
+                  <th>Status</th>
+                  <th>Início</th>
+                  <th>Fim</th>
+                </tr>
+              </thead>
               <tbody>
-                {filtered.map((l) => (
-                  <tr key={l.id}>
-                    <td className="strong">{l.nome}</td>
-                    <td className="mono">{l.telefone}</td>
-                    <td>{l.endereco}</td>
-                    <td><span className="badge badge-tipo">{servicoLabel(l.servicoInteresse)}</span></td>
-                    <td>{evName(l.eventoId)}</td>
-                    <td>{l.vendedorNome}</td>
+                {eventos.map((ev) => (
+                  <tr
+                    key={ev.id}
+                    onClick={() => toggle(ev.id)}
+                    style={{ cursor: 'pointer', background: selecionados.includes(ev.id) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
+                  >
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selecionados.includes(ev.id)}
+                        onChange={() => toggle(ev.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td className="strong">{ev.nome}</td>
+                    <td><span className={`badge badge-${ev.status}`}>{ev.status}</span></td>
+                    <td>{fmtDateLong(ev.dataInicio)}</td>
+                    <td>{fmtDateLong(ev.dataFim)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {selecionados.length > 0 && (
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
+            {selecionados.length} evento{selecionados.length > 1 ? 's' : ''} selecionado{selecionados.length > 1 ? 's' : ''}.
+            {selecionados.length === 1 ? ' Use "Exportar evento" para CSV individual.' : ' Use "Exportar consolidado" para CSV único com coluna Evento.'}
           </div>
         )}
       </div>

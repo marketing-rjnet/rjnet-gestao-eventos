@@ -52,14 +52,14 @@
 
 ---
 
-### TB-004 — Paginação ou filtro temporal em `fetchAll` de leads
+### TB-004 — Carregamento de leads on-demand por evento *(D-039)*
 
-**Descrição:** `fetchAll` busca TODOS os leads não-deletados de TODOS os eventos históricos sem `LIMIT`. Com crescimento do banco, o payload cresce indefinidamente. Solução mínima: `.limit(1000)`. Solução completa: filtrar por evento ativo ou eventos dos últimos 30 dias.
+**Descrição:** `fetchAll` busca TODOS os leads não-deletados de TODOS os eventos históricos sem `LIMIT`. Com crescimento do banco, o payload cresce indefinidamente.
 
 **Impacto:** Alto — cada `fetchAll` (disparado por realtime) transfere dados crescentes  
-**Complexidade:** Média — requer análise de impacto na tab Leads do marketing (precisa de todos os leads históricos para filtro e exportação CSV)  
-**Dependências:** Definir requisito: o marketing precisa ver leads de eventos encerrados no mesmo load inicial?  
-**Recomendação:** Implementar como dois fetchs separados: leads do evento ativo (realtime) + leads históricos (on-demand / lazy)
+**Complexidade:** Média  
+**Dependências:** Nenhuma  
+**Status:** ✅ **Implementado** em 2026-06-17 — leads removidos do `fetchAll`; carregados on-demand via `fetchLeadsEvento` (vendedor/EventDetail) e `fetchLeadsEventos` (export consolidado marketing). `LeadsTab` redesenhada como central de exportação com checkboxes e dois botões de export. Fix secundário: `subscribeChanges` passa a usar `REALTIME_DEBOUNCE_MS` da constante (estava hardcoded em 400ms).
 
 ---
 

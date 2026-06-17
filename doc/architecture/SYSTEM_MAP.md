@@ -239,7 +239,11 @@ AppProvider re-sincroniza estado com dados do banco
 - **Updates otimistas**: estado local muda antes da resposta do banco
 - **Retry com backoff**: `withRetry()` — base 800 ms, fator 2x, máx. 3 tentativas
 - **Timeout de fetch**: `carregar()` usa `AbortSignal.any([controller, AbortSignal.timeout(15s)])` — evita loading infinito (D-036)
-- **Realtime com debounce**: subscriptions Supabase com 1500 ms de debounce (`REALTIME_DEBOUNCE_MS` — D-038, era 400 ms)
+- **Realtime com debounce**: subscriptions Supabase com 1500 ms de debounce (`REALTIME_DEBOUNCE_MS` — D-038, era 400 ms; agora corretamente referenciado em `subscribeChanges`)
+- **Leads on-demand por evento**: `fetchAll` não carrega leads no boot. Leads são carregados via `carregarLeadsEvento(eventoId)` — D-039:
+  - Vendedor: ao selecionar evento ativo
+  - Marketing/EventDetail: ao abrir detalhe do evento
+  - Export: `fetchLeadsEvento` (1 evento) ou `fetchLeadsEventos` (N eventos, consolidado)
 - **Fila offline**: leads capturados offline são enfileirados e sincronizados ao reconectar
 - **Sanitização obrigatória**: `sanitizeText()` em todos os inputs antes de persistir
 - **Cache de ranking**: TTL de 30 s, invalidado a cada mutação de lead

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, fetchLeadsEvento, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -20,6 +20,9 @@ export function AppProvider({ children }) {
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
   const abortRef = useRef(null);
+  // TB-004: rastreia qual evento tem leads carregados — usado pelo realtime para recarregar
+  const eventoLeadsIdRef = useRef(null);
+
   const carregar = async () => {
     abortRef.current?.abort();
     // QW-003: timeout de 15s para evitar loading infinito em conexão instável
@@ -36,9 +39,21 @@ export function AppProvider({ children }) {
     setMateriais(dados.materiais);
     setVendedores(dados.vendedores);
     setEventos(dados.eventos);
-    setLeads(dados.leads);
+    // TB-004: recarrega leads do evento ativo quando realtime dispara
+    if (eventoLeadsIdRef.current) {
+      const leadsData = await fetchLeadsEvento(eventoLeadsIdRef.current, signal);
+      if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
+    }
     setSyncStatus(SYNC_STATUS.IDLE);
     setIsLoading(false);
+  };
+
+  // TB-004: carrega leads de um evento específico on-demand
+  const carregarLeadsEvento = async (eventoId) => {
+    if (!isSupabaseMode() || !eventoId) return;
+    eventoLeadsIdRef.current = eventoId;
+    const data = await fetchLeadsEvento(eventoId);
+    if (data !== null) setLeads(data);
   };
 
   useEffect(() => {
@@ -91,6 +106,7 @@ export function AppProvider({ children }) {
     criarUsuario, atualizarPerfil, excluirUsuario,
     obterRanking,
     recarregar: carregar,
+    carregarLeadsEvento,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
     getMateriaisDisponiveis: () =>
