@@ -167,16 +167,31 @@ export default function MonitoringTab() {
   const [filter, setFilter] = useState('all');
   const isToday = selectedDay === today;
 
-  /* real-time: só quando vendo hoje */
+  /* real-time: mesma aba (rjnet:activity) + outra aba (storage event) */
   useEffect(() => {
     if (!isToday) return;
-    const handler = (e) => {
+    const todayKey = 'rjnet_activity_' + today;
+
+    /* vendedor e marketing na mesma aba */
+    const localHandler = (e) => {
       setLogs(e.detail === null ? [] : getActivityLogs());
       setDays(getActivityDays());
     };
-    window.addEventListener('rjnet:activity', handler);
-    return () => window.removeEventListener('rjnet:activity', handler);
-  }, [isToday]);
+
+    /* vendedor em outra aba — storage só dispara em abas diferentes da que escreveu */
+    const storageHandler = (e) => {
+      if (e.key !== todayKey) return;
+      setLogs(e.newValue === null ? [] : getActivityLogs());
+      setDays(getActivityDays());
+    };
+
+    window.addEventListener('rjnet:activity', localHandler);
+    window.addEventListener('storage', storageHandler);
+    return () => {
+      window.removeEventListener('rjnet:activity', localHandler);
+      window.removeEventListener('storage', storageHandler);
+    };
+  }, [isToday, today]);
 
   /* troca de dia: carrega do localStorage */
   useEffect(() => {
