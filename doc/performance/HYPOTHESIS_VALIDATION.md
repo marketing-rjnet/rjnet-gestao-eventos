@@ -2,8 +2,9 @@
 # Comparação: Teoria (Auditoria Estática) vs. Realidade (Pós-Execução)
 
 > Versão inicial: 2026-06-17  
-> Status: **FASE PRÉ-EXECUÇÃO** — colunas de resultado a preencher após Cenário A  
-> As hipóteses foram derivadas da análise estática do código e das decisões arquiteturais.
+> Status: **⏸️ AGUARDANDO EXECUÇÃO** — testes de carga não executados; app em campo (evento ativo)  
+> As hipóteses foram derivadas da análise estática do código e das decisões arquiteturais.  
+> **Próxima ação:** executar Cenário A após encerramento do evento de campo em andamento. Ver `HOMOLOGATION_CHECKLIST.md` para setup do ambiente.
 
 ---
 
