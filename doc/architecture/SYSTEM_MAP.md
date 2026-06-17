@@ -203,6 +203,7 @@ Busca de lead por CPF dentro de um evento. Registra presença sem criar novo lea
 ### Equipe
 - Modo local: tabela `vendedores` (CRUD simples, `ativo` flag)
 - Modo Supabase: tabela `perfis` com `papel` e `ativo`; criação via Edge Function `atualizar-email-usuario`
+- **Troca de email:** `atualizarPerfil` chama a Edge Function (`atualizar-email`) para atualizar `auth.users` via Admin API e, em seguida, dispara automaticamente `resetPasswordForEmail()` para o novo endereço — o usuário recebe um link para definir a senha antes do primeiro login
 
 ### Materiais de Evento
 Sub-domínio de estoque. Array JSONB dentro de cada evento. Suporta `quantidade`, `retornado` (flag de devolução).

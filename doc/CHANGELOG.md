@@ -4,6 +4,20 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v3.8] — Envio automático de email de redefinição de senha ao trocar email de usuário
+**Data:** 2026-06-17
+
+**O que mudou**
+- **`src/lib/dataService.js` (`atualizarPerfil`)**: após atualizar o email via Edge Function `atualizar-email-usuario`, dispara automaticamente `supabase.auth.resetPasswordForEmail()` para o novo endereço. O usuário recebe um link para definir sua senha antes do primeiro login com o novo email.
+
+**Por que mudou**
+- Ao substituir o email de login de um usuário pela aba Equipe, o endereço era atualizado no banco mas nenhum email era enviado, deixando o usuário sem como acessar o sistema com as novas credenciais. O caso mais comum: reutilizar um perfil genérico (`teste.vendedor`) associando-o a um usuário real.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança apenas em `dataService.js`; sem alteração de schema ou migrations.
+
+---
+
 ## [v3.7] — Separação visual de administradores e equipe de vendas na tela Equipe
 **Data:** 2026-06-17
 
