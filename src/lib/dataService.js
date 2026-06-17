@@ -353,13 +353,10 @@ export const db = {
     );
   },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
-  // PA-07/LGPD: registra quem excluiu e quando (rastreabilidade BD-06, A-03)
+  // PA-07/LGPD: hard delete pelo vendedor (leads_delete policy, sem with_check).
+  // Auditoria registrada pelo trigger audit_leads (AFTER DELETE → audit_log).
   removeLead: (id, onFail) => exec(
-    supabase?.from('leads').update({
-      deletado:     true,
-      deletado_em:  new Date().toISOString(),
-      deletado_por: _queueUserId || null,
-    }).eq('id', id),
+    supabase?.from('leads').delete().eq('id', id),
     'remover lead',
     onFail,
   ),
