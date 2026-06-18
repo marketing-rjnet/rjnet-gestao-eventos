@@ -4,9 +4,8 @@ import {
   getActivityLogs,
   getActivityLogsForDay,
   getActivityDays,
-  receiveActivityLog,
+  subscribeToRemoteLogs,
 } from '../../lib/activityLog';
-import { supabase } from '../../lib/supabase';
 import { initials } from '../../utils/format';
 import { Icon } from '../../components/ui';
 
@@ -189,25 +188,16 @@ export default function MonitoringTab() {
     window.addEventListener('rjnet:activity', localHandler);
     window.addEventListener('storage', storageHandler);
 
-    /* 3. outro dispositivo (Supabase Realtime broadcast) */
-    let realtimeChannel = null;
-    if (supabase) {
-      realtimeChannel = supabase
-        .channel('rjnet-monitor')
-        .on('broadcast', { event: 'log' }, ({ payload }) => {
-          const isNew = receiveActivityLog(payload);
-          if (isNew) {
-            setLogs(getActivityLogs());
-            setDays(getActivityDays());
-          }
-        })
-        .subscribe();
-    }
+    /* 3. outro dispositivo (Supabase Realtime broadcast — canal gerenciado por activityLog.js) */
+    const unsubRemote = subscribeToRemoteLogs(() => {
+      setLogs(getActivityLogs());
+      setDays(getActivityDays());
+    });
 
     return () => {
       window.removeEventListener('rjnet:activity', localHandler);
       window.removeEventListener('storage', storageHandler);
-      if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+      unsubRemote();
     };
   }, [isToday, today]);
 

@@ -6,24 +6,29 @@ const MAX_DAYS = 30;
 
 let _pruned = false;
 
-/* ─── Canal Supabase Realtime para broadcast entre dispositivos ─── */
+/* ─── Canal único Supabase Realtime por cliente ─────────────────── */
 let _channel = null;
 let _subscribed = false;
 let _queue = [];
+let _listeners = [];   // callbacks do MonitoringTab
 
 function initChannel() {
   if (!supabase || _channel) return;
   _channel = supabase.channel('rjnet-monitor', {
     config: { broadcast: { self: false } },
   });
+  /* listener deve ser registrado ANTES de subscribe() */
+  _channel.on('broadcast', { event: 'log' }, ({ payload }) => {
+    const isNew = receiveActivityLog(payload);
+    if (isNew) _listeners.forEach((fn) => fn());
+  });
   _channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      _subscribed = true;
-      _queue.forEach((payload) =>
-        _channel.send({ type: 'broadcast', event: 'log', payload }).catch(() => {})
-      );
-      _queue = [];
-    }
+    if (status !== 'SUBSCRIBED') return;
+    _subscribed = true;
+    _queue.forEach((p) =>
+      _channel.send({ type: 'broadcast', event: 'log', payload: p }).catch(() => {})
+    );
+    _queue = [];
   });
 }
 
@@ -82,8 +87,7 @@ export function logActivity(entry) {
   return record;
 }
 
-/* Recebe evento de outro dispositivo via Realtime e persiste localmente.
-   Retorna true se era novo (UI deve atualizar), false se já existia. */
+/* Persiste evento recebido de outro dispositivo. Retorna true se era novo. */
 export function receiveActivityLog(record) {
   const date = (record.ts ?? new Date().toISOString()).slice(0, 10);
   const key = KEY_PREFIX + date;
@@ -93,6 +97,13 @@ export function receiveActivityLog(record) {
   if (all.length > MAX_LOGS_PER_DAY) all.splice(0, all.length - MAX_LOGS_PER_DAY);
   try { localStorage.setItem(key, JSON.stringify(all)); } catch {}
   return true;
+}
+
+/* MonitoringTab chama isso para ser notificado de eventos de outros dispositivos.
+   Retorna função de cleanup para cancelar a inscrição. */
+export function subscribeToRemoteLogs(callback) {
+  _listeners.push(callback);
+  return () => { _listeners = _listeners.filter((fn) => fn !== callback); };
 }
 
 export function getActivityLogs() {
