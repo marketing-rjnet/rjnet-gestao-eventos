@@ -5,7 +5,7 @@ import { Icon } from '../../components/ui';
 import { fmtDate } from '../../utils/format';
 import { STATUS_EVENTO, UPCOMING_EVENTS_LIMIT, CHART_CUTOUT } from '../../lib/constants';
 
-const CHART_COLORS = ["#f5c000", "#22c55e", "#ef4444", "#666666"];
+const CHART_COLORS = ["#ffcb00", "#22c55e", "#ef4444", "#666666"];
 
 export default function Dashboard() {
   const { eventos, leads, vendedores, getMateriaisDisponiveis } = useApp();

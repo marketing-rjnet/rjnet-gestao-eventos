@@ -7,6 +7,7 @@ import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
+import { SearchInput } from '../components/SearchInput';
 
 const TEMPERATURA_CONFIG = {
   frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
@@ -126,6 +127,8 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const toastTimer = useRef(null);
   const [editandoId, setEditandoId] = useState(null);
   const [confirmandoDelId, setConfirmandoDelId] = useState(null);
+  const [buscaLead, setBuscaLead] = useState("");
+  const [showPacotes, setShowPacotes] = useState(false);
 
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
@@ -137,6 +140,11 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const nivelMeta  = metaOuro ? "ouro" : metaPrata ? "prata" : metaBronze ? "bronze" : "";
 
   const { ranking, rankingLoading } = useRanking(eventoId, leads.length);
+  const meRef = useRef(null);
+
+  useEffect(() => {
+    if (meRef.current) meRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [ranking]);
 
   const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
   const maxRanking = ranking[0]?.total || 1;
@@ -354,8 +362,16 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               </div>
             ) : (
               <div className="meus-leads">
+                <SearchInput
+                  value={buscaLead}
+                  onChange={setBuscaLead}
+                  placeholder="Buscar por nome…"
+                  onClear={() => setBuscaLead("")}
+                />
                 <h3>{leadsDoEvento.length} lead{leadsDoEvento.length > 1 ? "s" : ""} neste evento</h3>
-                {leadsDoEvento.map((l) => {
+                {leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
+                  <div style={{ textAlign: "center", color: "var(--text-3)", fontSize: 13, padding: "24px 0" }}>Nenhum lead com esse nome.</div>
+                ) : leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).map((l) => {
                   const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
                   const editando = editandoId === l.id;
                   const tel = l.telefone.replace(/\D/g, "");
@@ -416,8 +432,8 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
           </div>
         )}
 
-        {/* ---- ABA PACOTES ---- */}
-        {aba === "pacotes" && (
+        {/* ---- PACOTES (acessível dentro da aba Evento) ---- */}
+        {aba === "evento" && showPacotes && (
           <div className="pacotes-wrap">
             {/* INTERNET FIBRA */}
             <div className="pacotes-section">
@@ -560,7 +576,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                     Placar da equipe
-                    {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#f5c000)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
+                    {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#ffcb00)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
                   </div>
                   {ranking.length === 0 && !rankingLoading ? (
                     <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
@@ -569,7 +585,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   ) : (
                     <div className="ranking-list">
                       {ranking.map((item, i) => (
-                        <div key={item.nome} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
+                        <div key={item.nome} ref={item.nome === session.vendedorNome ? meRef : null} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
                           <div className="ranking-header">
                             <span className={"ranking-pos" + (i < 3 ? " " + posColors[i] : "")}>{i + 1}º</span>
                             <span className="ranking-name">{item.nome}{item.nome === session.vendedorNome && <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>(você)</span>}</span>
@@ -586,6 +602,14 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ width: "100%", marginTop: 16, fontSize: 13 }}
+                  onClick={() => setShowPacotes((v) => !v)}
+                >
+                  {showPacotes ? "▲ Ocultar tabela de preços" : "▼ Ver tabela de preços"}
+                </button>
               </>
             )}
           </div>
@@ -595,21 +619,17 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       {/* Barra de navegação inferior */}
       <nav className="vend-bottom-nav">
         <button className={"vend-nav-btn" + (aba === "registrar" ? " active" : "")} onClick={() => setAba("registrar")}>
-          <Icon name="plus" size={22} stroke={aba === "registrar" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="plus" size={22} stroke={aba === "registrar" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Registrar
         </button>
         <button className={"vend-nav-btn" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); setConfirmandoDelId(null); }}>
-          <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Meus Leads
           {leadsDoEvento.length > 0 && <span className="vend-nav-badge">{leadsDoEvento.length}</span>}
         </button>
         <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
-          <Icon name="calendar" size={22} stroke={aba === "evento" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="calendar" size={22} stroke={aba === "evento" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Evento
-        </button>
-        <button className={"vend-nav-btn" + (aba === "pacotes" ? " active" : "")} onClick={() => setAba("pacotes")}>
-          <Icon name="box" size={22} stroke={aba === "pacotes" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
-          Pacotes
         </button>
       </nav>
 

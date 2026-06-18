@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, StatusBadge, TipoBadge, ChartView } from '../../components/ui';
+import { SearchInput } from '../../components/SearchInput';
 import { EventModal } from '../../components/modals';
 import { fmtDateLong, servicoLabel } from '../../utils/format';
 import { NIVEL_ESTOQUE } from '../../lib/constants';
@@ -30,6 +31,8 @@ export default function EventDetail({ eventoId, onBack }) {
   const [addMatQtd, setAddMatQtd] = useState(1);
   const [showAddMat, setShowAddMat] = useState(false);
   const [editEvento, setEditEvento] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [buscaLead, setBuscaLead] = useState("");
 
   const matsDisponiveis = materiais.filter(
     (m) => !ev.materiais.find((em) => em.materialId === m.id)
@@ -50,7 +53,7 @@ export default function EventDetail({ eventoId, onBack }) {
 
   const barData = {
     labels: Object.keys(porVendedor),
-    datasets: [{ label: "Leads", data: Object.values(porVendedor), backgroundColor: "#f5c000", borderRadius: 6 }],
+    datasets: [{ label: "Leads", data: Object.values(porVendedor), backgroundColor: "#ffcb00", borderRadius: 6 }],
   };
 
   return (
@@ -60,38 +63,35 @@ export default function EventDetail({ eventoId, onBack }) {
         <button className="back-btn" onClick={onBack} style={{ display:"flex", alignItems:"center", gap:6 }}>
           <Icon name="back" size={15} /> Voltar para Eventos
         </button>
-        <div style={{ display:"flex", gap:8 }}>
+        <div style={{ display:"flex", gap:8, position:"relative" }}>
           <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
             Editar Evento
           </button>
-          {ev.status !== "encerrado" && (
-            <button
-              className="btn-ghost"
-              style={{ fontSize:13, color:"var(--yellow)", borderColor:"var(--yellow)" }}
-              onClick={() => {
-                if (confirm(`Finalizar o evento "${ev.nome}"? O evento será marcado como encerrado e todos os dados serão preservados.`)) {
-                  updateEvento(eventoId, { status: "encerrado" });
-                  onBack();
-                }
-              }}
-            >
-              Finalizar Evento
-            </button>
-          )}
-          {ev.status !== "ativo" && (
-            <button
-              className="btn-ghost"
-              style={{ fontSize:13, color:"var(--red)", borderColor:"var(--red)" }}
-              onClick={() => {
-                if (confirm(`Excluir permanentemente o evento "${ev.nome}"?\n\nEsta ação não pode ser desfeita. Os leads associados também serão removidos.`)) {
-                  removeEvento(eventoId);
-                  onBack();
-                }
-              }}
-            >
-              Excluir Evento
-            </button>
-          )}
+          <div style={{ position:"relative" }}>
+            <button className="btn-ghost btn-menu-dots" style={{ fontSize:18, padding:"6px 10px" }} onClick={() => setShowMenu((v) => !v)} aria-label="Mais opções">⋯</button>
+            {showMenu && (
+              <div className="dropdown-menu" onMouseLeave={() => setShowMenu(false)}>
+                {ev.status !== "encerrado" && (
+                  <button className="dropdown-item dropdown-item-warn" onClick={() => {
+                    setShowMenu(false);
+                    if (confirm(`Finalizar o evento "${ev.nome}"? O evento será marcado como encerrado e todos os dados serão preservados.`)) {
+                      updateEvento(eventoId, { status: "encerrado" });
+                      onBack();
+                    }
+                  }}>Finalizar Evento</button>
+                )}
+                {ev.status !== "ativo" && (
+                  <button className="dropdown-item dropdown-item-danger" onClick={() => {
+                    setShowMenu(false);
+                    if (confirm(`Excluir permanentemente o evento "${ev.nome}"?\n\nEsta ação não pode ser desfeita. Os leads associados também serão removidos.`)) {
+                      removeEvento(eventoId);
+                      onBack();
+                    }
+                  }}>Excluir Evento</button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -226,11 +226,19 @@ export default function EventDetail({ eventoId, onBack }) {
                 }} />
               </div>
             </div>
+            <SearchInput
+              value={buscaLead}
+              onChange={setBuscaLead}
+              placeholder="Buscar lead por nome…"
+              onClear={() => setBuscaLead("")}
+            />
             <div className="tbl-wrap">
               <table>
                 <thead><tr><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Serviço</th><th>Vendedor</th></tr></thead>
                 <tbody>
-                  {evLeads.map((l) => (
+                  {evLeads
+                    .filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase()))
+                    .map((l) => (
                     <tr key={l.id}>
                       <td className="strong">{l.nome}</td>
                       <td className="mono">{l.telefone}</td>

@@ -18,6 +18,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/architecture/DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas | Antes de qualquer mudança arquitetural ou de padrão |
 | `doc/architecture/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) | Antes de qualquer alteração no banco ou schema |
 | `doc/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
+| `doc/BOAS_PRATICAS.md` | **Boas práticas e dicas do sistema** — fluxo de desenvolvimento, git, preview Vercel, commits atômicos, princípios de UX | Referência geral; ao iniciar qualquer sessão de desenvolvimento |
 | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
 | `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
 | `doc/architecture/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
@@ -28,6 +29,10 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/performance/HOMOLOGATION_CHECKLIST.md` | Checklist de preparação do ambiente de homologação para testes de carga | Antes de executar qualquer cenário de teste |
 | `doc/performance/LOAD_TEST_PLAN.md` | Plano de testes de carga — 4 cenários k6 (Normal, Pico, Crítico, Estresse) | Antes de executar testes |
 | `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A |
+| `doc/ui/UI_VERSIONS.md` | **Catálogo de versões de UI/UX** — paleta, navegação, telas, componentes, padrões de UX por versão | Antes de qualquer mudança de interface; ao iniciar nova versão de UI |
+| `doc/ui/UX_UI_V2_PROPOSAL.md` | **Proposta estratégica da V2** — auditoria, problemas, proposta por tela, design system, roadmap de implementação em 3 fases | Antes de implementar qualquer mudança de interface da V2; **não implementar sem aprovação** |
+| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | **Plano de implementação da V2** — 22 etapas em 3 fases (A: CSS, B: reorganização, C: componentes), cada uma atômica e reversível | Ao implementar qualquer etapa da V2 |
+| `doc/ui/UX_UI_V2_CHANGELOG.md` | **Changelog de implementação da V2** — cada etapa com hash git, arquivos alterados, status e comandos de rollback | Ao iniciar, concluir ou reverter qualquer etapa da V2 |
 
 ---
 

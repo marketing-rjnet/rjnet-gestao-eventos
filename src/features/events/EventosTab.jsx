@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { Icon, StatusBadge, TipoBadge } from '../../components/ui';
+import { StatusBadge, TipoBadge } from '../../components/ui';
+import { EmptyState } from '../../components/EmptyState';
+
 import { EventModal } from '../../components/modals';
 import { fmtDate, initials, STATUS_LABEL } from '../../utils/format';
 import { AVATARS_SHOWN } from '../../lib/constants';
-import Dashboard from './Dashboard';
 
 export default function EventosTab({ onOpen }) {
   const { eventos, getLeadsEvento } = useApp();
@@ -27,7 +28,13 @@ export default function EventosTab({ onOpen }) {
         <button className="btn-primary" onClick={() => setShowModal(true)}>+ Novo Evento</button>
       </div>
 
-      {filtered.length === 0 ? <div className="empty">Nenhum evento encontrado.</div> : (
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon="calendar"
+          title="Nenhum evento encontrado"
+          description={filter === "ativo" ? "Não há eventos ativos no momento. Mude o filtro ou crie um novo evento." : "Nenhum evento neste status."}
+        />
+      ) : (
         <div className="event-grid">
           {filtered.map((e) => {
             const vs = vendoresDoEvento(e.id);
@@ -42,6 +49,7 @@ export default function EventosTab({ onOpen }) {
                   <span className="ev-leads"><Icon name="users" size={13} stroke="var(--text-3)" /> <b>{getLeadsEvento(e.id).length}</b> leads</span>
                   <div className="avatars">
                     {vs.slice(0, AVATARS_SHOWN).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
+                    {vs.length > AVATARS_SHOWN && <div className="av av-overflow">+{vs.length - AVATARS_SHOWN}</div>}
                     {vs.length === 0 && <span style={{ fontSize: 12, color: "var(--text-3)" }}>—</span>}
                   </div>
                 </div>
@@ -51,7 +59,6 @@ export default function EventosTab({ onOpen }) {
         </div>
       )}
 
-      <Dashboard />
       {showModal && <EventModal onClose={() => setShowModal(false)} />}
     </div>
   );
