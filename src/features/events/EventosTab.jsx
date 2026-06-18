@@ -39,7 +39,7 @@ export default function EventosTab({ onOpen }) {
           {filtered.map((e) => {
             const vs = vendoresDoEvento(e.id);
             return (
-              <div key={e.id} className="event-card" onClick={() => onOpen(e.id)}>
+              <div key={e.id} className="event-card" onClick={() => onOpen(e.id)} style={{ borderLeft: `3px solid ${e.status === 'ativo' ? 'var(--yellow)' : e.status === 'planejado' ? 'var(--text-3)' : 'var(--border-2)'}` }}>
                 <span className="ev-status"><StatusBadge s={e.status} /></span>
                 <div className="ev-name">{e.nome}</div>
                 <div className="ev-meta"><Icon name="pin" size={13} stroke="var(--text-3)" /> {e.local}</div>

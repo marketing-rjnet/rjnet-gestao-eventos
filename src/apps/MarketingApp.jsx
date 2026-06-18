@@ -9,28 +9,53 @@ import { CheckinTab } from '../features/checkin';
 import { EquipeTab, EquipeAuthTab } from '../features/team';
 import { MonitoringTab } from '../features/monitoring';
 
+const MAIN_TABS = [
+  { id: "inicio",  label: "Início",   ico: "home" },
+  { id: "eventos", label: "Eventos",  ico: "calendar" },
+  { id: "equipe",  label: "Equipe",   ico: "briefcase" },
+  { id: "checkin", label: "Check-in", ico: "search" },
+];
+
+const MORE_TABS = [
+  { id: "estoque", label: "Estoque",    ico: "box" },
+  { id: "leads",   label: "Relatórios", ico: "users" },
+  { id: "monitor", label: "Monitor",    ico: "activity" },
+];
+
+const ALL_TABS = [
+  ...MAIN_TABS,
+  { id: "estoque", label: "Estoque",    ico: "box" },
+  { id: "leads",   label: "Relatórios", ico: "users" },
+  { id: "equipe",  label: "Equipe",     ico: "briefcase" },
+  { id: "checkin", label: "Check-in",   ico: "search" },
+  { id: "monitor", label: "Monitor",    ico: "activity" },
+];
+
 export default function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
   const [tab, setTab] = useState("inicio");
   const [detailId, setDetailId] = useState(null);
+  const [showMore, setShowMore] = useState(false);
 
-  const tabs = [
-    { id: "inicio", label: "Início", ico: "home" },
-    { id: "eventos", label: "Eventos", ico: "calendar" },
-    { id: "estoque", label: "Estoque", ico: "box" },
-    { id: "leads", label: "Relatórios", ico: "users" },
-    { id: "equipe", label: "Equipe", ico: "briefcase" },
-    { id: "checkin", label: "Check-in", ico: "search" },
-    { id: "monitor", label: "Monitor", ico: "activity" },
+  const allDesktopTabs = [
+    { id: "inicio",  label: "Início",    ico: "home" },
+    { id: "eventos", label: "Eventos",   ico: "calendar" },
+    { id: "estoque", label: "Estoque",   ico: "box" },
+    { id: "leads",   label: "Relatórios",ico: "users" },
+    { id: "equipe",  label: "Equipe",    ico: "briefcase" },
+    { id: "checkin", label: "Check-in",  ico: "search" },
+    { id: "monitor", label: "Monitor",   ico: "activity" },
   ];
 
-  const switchTab = (id) => { setTab(id); setDetailId(null); };
+  const switchTab = (id) => { setTab(id); setDetailId(null); setShowMore(false); };
+
+  const moreActive = MORE_TABS.some((t) => t.id === tab);
 
   return (
     <div>
       <header className="app-header">
         <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
         <nav className="header-nav">
-          {tabs.map((t) => (
+          {allDesktopTabs.map((t) => (
             <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
               <Icon name={t.ico} size={17} />{t.label}
             </button>
@@ -54,17 +79,38 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
       {tab === "checkin" && <CheckinTab />}
       {tab === "monitor" && <MonitoringTab />}
 
-      {/* Bottom nav — mobile only */}
+      {/* Bottom nav — mobile only (5 items + Mais) */}
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
-          {tabs.map((t) => (
+          {MAIN_TABS.map((t) => (
             <button key={t.id} className={"bn-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
               <span className="bn-ico"><Icon name={t.ico} size={22} /></span>
               {t.label}
             </button>
           ))}
+          <button className={"bn-tab" + (moreActive || showMore ? " active" : "")} onClick={() => setShowMore((v) => !v)}>
+            <span className="bn-ico"><Icon name="menu" size={22} /></span>
+            Mais
+          </button>
         </div>
       </nav>
+
+      {/* Bottom sheet "Mais" */}
+      {showMore && (
+        <>
+          <div className="more-overlay" onClick={() => setShowMore(false)} />
+          <div className="more-sheet">
+            <div className="more-sheet-handle" />
+            <div className="more-sheet-title">Mais opções</div>
+            {MORE_TABS.map((t) => (
+              <button key={t.id} className={"more-sheet-item" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
+                <Icon name={t.ico} size={20} stroke={tab === t.id ? "var(--yellow)" : "var(--text-2)"} />
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

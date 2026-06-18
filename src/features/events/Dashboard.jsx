@@ -1,20 +1,35 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { Kpi, ChartView, StatusBadge } from '../../components/ui';
+import { Kpi, StatusBadge } from '../../components/ui';
 import { Icon } from '../../components/ui';
 import { fmtDate } from '../../utils/format';
-import { STATUS_EVENTO, UPCOMING_EVENTS_LIMIT, CHART_CUTOUT } from '../../lib/constants';
+import { STATUS_EVENTO, UPCOMING_EVENTS_LIMIT } from '../../lib/constants';
 
-const CHART_COLORS = ["#ffcb00", "#22c55e", "#ef4444", "#666666"];
+const SERVICO_LABELS = {
+  internet_residencial: "Internet Residencial",
+  rjnet_movel: "Móvel",
+  internet_empresarial: "Empresarial",
+  streamings: "Streamings",
+  outro: "Outro",
+};
+
+const BAR_COLORS = ["#ffcb00", "#22c55e", "#60a5fa", "#fb923c", "#666666"];
 
 export default function Dashboard() {
   const { eventos, leads, vendedores, getMateriaisDisponiveis } = useApp();
-  const ativos = eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO).length;
+
+  const eventoAtivo = eventos.find((e) => e.status === STATUS_EVENTO.ATIVO);
+  const qtdAtivos = eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO).length;
   const criticos = getMateriaisDisponiveis().filter((m) => m.disponivel <= 0).length;
   const vendAtivos = vendedores.filter((v) => v.ativo).length;
 
+  const leadsAtivo = eventoAtivo ? leads.filter((l) => l.eventoId === eventoAtivo.id) : [];
+  const vendedoresAtivos = eventoAtivo
+    ? [...new Set(leadsAtivo.map((l) => l.vendedorNome))].length
+    : 0;
+
   const dist = useMemo(() => {
-    const c = { fibra_residencial: 0, fibra_empresarial: 0, hotspot: 0, outro: 0 };
+    const c = {};
     leads.forEach((l) => {
       const servicos = Array.isArray(l.servicoInteresse) ? l.servicoInteresse : (l.servicoInteresse ? [l.servicoInteresse] : []);
       servicos.forEach((s) => { c[s] = (c[s] || 0) + 1; });
@@ -22,37 +37,66 @@ export default function Dashboard() {
     return c;
   }, [leads]);
 
-  const doughData = {
-    labels: ["Fibra Res", "Fibra Emp", "Hotspot", "Outro"],
-    datasets: [{
-      data: [dist.fibra_residencial, dist.fibra_empresarial, dist.hotspot, dist.outro],
-      backgroundColor: CHART_COLORS,
-      borderColor: "#1a1a1a",
-      borderWidth: 2,
-    }],
-  };
+  const totalDist = Object.values(dist).reduce((a, b) => a + b, 0) || 1;
+  const barItems = Object.entries(dist)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, val], i) => ({ key, label: SERVICO_LABELS[key] || key, val, pct: Math.round((val / totalDist) * 100), color: BAR_COLORS[i % BAR_COLORS.length] }));
 
   const upcoming = [...eventos].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)).slice(0, UPCOMING_EVENTS_LIMIT);
 
   return (
     <div className="section">
-      <div className="grid-kpi">
-        <Kpi label="Eventos Ativos" value={ativos} icon="calendar" />
+      {/* Hero card — evento ativo */}
+      {eventoAtivo ? (
+        <div className="hero-card">
+          <div className="hero-label">EVENTO ATIVO</div>
+          <div className="hero-title">{eventoAtivo.nome}</div>
+          <div className="hero-meta">
+            <Icon name="pin" size={13} stroke="var(--text-3)" />
+            {eventoAtivo.local} · {fmtDate(eventoAtivo.dataInicio)} – {fmtDate(eventoAtivo.dataFim)}
+          </div>
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <span className="hero-stat-num">{leadsAtivo.length}</span>
+              <span className="hero-stat-label">leads</span>
+            </div>
+            <div className="hero-stat-div" />
+            <div className="hero-stat">
+              <span className="hero-stat-num">{vendedoresAtivos}</span>
+              <span className="hero-stat-label">vendedores</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="hero-card hero-card-empty">
+          <div className="hero-label">EVENTO ATIVO</div>
+          <div style={{ color: "var(--text-3)", fontSize: 14, marginTop: 4 }}>Nenhum evento ativo no momento.</div>
+        </div>
+      )}
+
+      <div className="grid-kpi" style={{ marginTop: 16 }}>
+        <Kpi label="Eventos Ativos" value={qtdAtivos} icon="calendar" />
         <Kpi label="Total Leads" value={leads.length} icon="users" />
         <Kpi label="Materiais Críticos" value={criticos} icon="box" alert={criticos > 0} />
         <Kpi label="Vendedores Ativos" value={vendAtivos} icon="briefcase" />
       </div>
+
       <div className="grid-2 dashboard-row" style={{ marginTop: 16 }}>
         <div className="card">
           <div className="section-title">Leads por Serviço</div>
           {leads.length === 0 ? (
             <div className="empty">Nenhum lead registrado.</div>
           ) : (
-            <div className="chart-box">
-              <ChartView type="doughnut" data={doughData} options={{
-                cutout: CHART_CUTOUT,
-                plugins: { legend: { position: "bottom", labels: { color: "#b0b0b0", padding: 14, usePointStyle: true } } },
-              }} />
+            <div className="service-bars">
+              {barItems.map((item) => (
+                <div key={item.key} className="service-bar-row">
+                  <div className="service-bar-label">{item.label}</div>
+                  <div className="service-bar-track">
+                    <div className="service-bar-fill" style={{ width: item.pct + "%", background: item.color }} />
+                  </div>
+                  <div className="service-bar-num">{item.val}</div>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -162,7 +162,11 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     setToast(null);
   };
 
+  const [etapa, setEtapa] = useState(1);
   const [formErro, setFormErro] = useState("");
+
+  const avancar = () => { setFormErro(""); setEtapa((v) => v + 1); };
+  const voltar  = () => { setFormErro(""); setEtapa((v) => v - 1); };
 
   const submit = (e) => {
     e.preventDefault();
@@ -188,6 +192,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     if (typeof navigator.vibrate === "function") navigator.vibrate(80);
     showToast(novo.id, nome);
     setF(FORM_VAZIO);
+    setEtapa(1);
   };
 
   const addObs = (txt) => set("observacao", f.observacao ? f.observacao + ". " + txt : txt);
@@ -278,76 +283,144 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 </div>
               </div>
             ) : (
-              <form onSubmit={submit}>
-                <div className="big-field">
-                  <label>Nome completo *</label>
-                  <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" />
+              <>
+                {/* Indicador de progresso */}
+                <div className="wizard-progress">
+                  {[1,2,3].map((n) => (
+                    <div key={n} className={"wizard-step" + (etapa === n ? " current" : etapa > n ? " done" : "")} />
+                  ))}
                 </div>
-                <div className="big-field">
-                  <label>Telefone *</label>
-                  <input required maxLength={15} value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
-                </div>
-                {!modoRapido && (
-                  <>
+                <div className="wizard-step-label">{etapa === 1 ? "Identificação" : etapa === 2 ? "Serviço" : "Detalhes"} — {etapa} de {modoRapido ? 2 : 3}</div>
+
+                {/* Etapa 1 — Nome + Telefone */}
+                {etapa === 1 && (
+                  <div className="wizard-slide">
                     <div className="big-field">
-                      <label>CPF <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional — para visita técnica e contrato)</span></label>
+                      <label>Nome completo *</label>
+                      <input required maxLength={120} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoComplete="off" autoFocus />
+                    </div>
+                    <div className="big-field">
+                      <label>Telefone *</label>
+                      <input required maxLength={15} value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
+                    </div>
+                    {formErro && <div className="form-erro">{formErro}</div>}
+                    <button type="button" className="btn-primary btn-full lead-submit"
+                      disabled={!f.nome.trim() || !f.telefone.trim()}
+                      onClick={() => {
+                        if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
+                        avancar();
+                      }}>
+                      Próximo →
+                    </button>
+                  </div>
+                )}
+
+                {/* Etapa 2 — Serviço visual */}
+                {etapa === 2 && (
+                  <div className="wizard-slide">
+                    <div className="big-field">
+                      <label>Serviço de interesse * (selecione um ou mais)</label>
+                      <div className="servico-grid">
+                        {[
+                          { key: "internet_residencial", ico: "🌐", label: "Internet Residencial" },
+                          { key: "rjnet_movel",           ico: "📶", label: "Móvel" },
+                          { key: "internet_empresarial", ico: "💼", label: "Empresarial" },
+                          { key: "outro",                ico: "📦", label: "Outro" },
+                        ].map(({ key, ico, label }) => (
+                          <button type="button" key={key}
+                            className={"servico-btn" + (f.servicoInteresse.includes(key) ? " active" : "")}
+                            onClick={() => {
+                              const arr = f.servicoInteresse.includes(key)
+                                ? f.servicoInteresse.filter((x) => x !== key)
+                                : [...f.servicoInteresse, key];
+                              set("servicoInteresse", arr);
+                            }}>
+                            <span className="servico-ico">{ico}</span>
+                            <span>{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {formErro && <div className="form-erro">{formErro}</div>}
+                    <div className="wizard-actions">
+                      <button type="button" className="btn-ghost" onClick={voltar}>← Voltar</button>
+                      {modoRapido ? (
+                        <button type="button" className="btn-primary" style={{ flex: 1 }}
+                          disabled={!f.servicoInteresse.length}
+                          onClick={() => {
+                            if (!f.servicoInteresse.length) { setFormErro("Selecione ao menos um serviço."); return; }
+                            const evt = eventos.find((ev) => ev.id === eventoId);
+                            if (!eventoId) { setFormErro("Selecione um evento."); return; }
+                            if (!evt || evt.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Evento encerrado."); return; }
+                            const nome = sanitizeText(f.nome, 120);
+                            const novo = addLead({ ...f, nome, cpf: sanitizeText(f.cpf, 14), endereco: sanitizeText(f.endereco, 200), observacao: sanitizeText(f.observacao, 500), eventoId, vendedorNome: session.vendedorNome, vendedorId: session.userId || null });
+                            if (typeof navigator.vibrate === "function") navigator.vibrate(80);
+                            showToast(novo.id, nome);
+                            setF(FORM_VAZIO);
+                            setEtapa(1);
+                          }}>
+                          ✓ Registrar
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-primary" style={{ flex: 1 }}
+                          disabled={!f.servicoInteresse.length}
+                          onClick={() => {
+                            if (!f.servicoInteresse.length) { setFormErro("Selecione ao menos um serviço."); return; }
+                            avancar();
+                          }}>
+                          Próximo →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Etapa 3 — Temperatura + opcionais */}
+                {etapa === 3 && (
+                  <form className="wizard-slide" onSubmit={submit}>
+                    <div className="big-field">
+                      <label>Temperatura do lead</label>
+                      <div className="temp-grid">
+                        {Object.entries(TEMPERATURA_CONFIG).map(([k, cfg]) => (
+                          <button type="button" key={k} className={"temp-btn " + cfg.cls + (f.temperatura === k ? " active" : "")} style={{ "--tc": cfg.cor }} onClick={() => set("temperatura", k)}>
+                            {cfg.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="big-field">
+                      <label>Já é cliente RJNet?</label>
+                      <div className="seg-control">
+                        <button type="button" className={"seg-btn" + (!f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", false)}>Não</button>
+                        <button type="button" className={"seg-btn" + (f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", true)}>Sim</button>
+                      </div>
+                    </div>
+                    <div className="big-field">
+                      <label>Observação</label>
+                      <div className="obs-chips">
+                        {OBS_ATALHOS.map((a) => (
+                          <button type="button" key={a} className="obs-chip" onClick={() => addObs(a)}>{a}</button>
+                        ))}
+                      </div>
+                      <textarea rows="2" maxLength={500} value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais..." />
+                    </div>
+                    <div className="big-field">
+                      <label>CPF <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional)</span></label>
                       <input maxLength={14} value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
                     </div>
                     <div className="big-field">
-                      <label>Endereço</label>
+                      <label>Endereço <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional)</span></label>
                       <input maxLength={200} value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
                     </div>
-                  </>
-                )}
-                <div className="big-field">
-                  <label>Serviços de interesse * (selecione um ou mais)</label>
-                  <div className="seg-control">
-                    {Object.keys(SERVICO_LABEL).map((s) => (
-                      <button type="button" key={s}
-                        className={"seg-btn" + (f.servicoInteresse.includes(s) ? " active" : "")}
-                        onClick={() => {
-                          const arr = f.servicoInteresse.includes(s)
-                            ? f.servicoInteresse.filter((x) => x !== s)
-                            : [...f.servicoInteresse, s];
-                          set("servicoInteresse", arr);
-                        }}>
-                        {SERVICO_LABEL[s]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="big-field">
-                  <label>Já é cliente RJNet?</label>
-                  <div className="seg-control">
-                    <button type="button" className={"seg-btn" + (!f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", false)}>Não</button>
-                    <button type="button" className={"seg-btn" + (f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", true)}>Sim</button>
-                  </div>
-                </div>
-                <div className="big-field">
-                  <label>Temperatura do lead</label>
-                  <div className="temp-grid">
-                    {Object.entries(TEMPERATURA_CONFIG).map(([k, cfg]) => (
-                      <button type="button" key={k} className={"temp-btn " + cfg.cls + (f.temperatura === k ? " active" : "")} style={{ "--tc": cfg.cor }} onClick={() => set("temperatura", k)}>
-                        {cfg.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {!modoRapido && (
-                  <div className="big-field">
-                    <label>Observação</label>
-                    <div className="obs-chips">
-                      {OBS_ATALHOS.map((a) => (
-                        <button type="button" key={a} className="obs-chip" onClick={() => addObs(a)}>{a}</button>
-                      ))}
+                    {/* D-043: campo de consentimento LGPD oculto até decisão externa */}
+                    {formErro && <div className="form-erro">{formErro}</div>}
+                    <div className="wizard-actions">
+                      <button type="button" className="btn-ghost" onClick={voltar}>← Voltar</button>
+                      <button type="submit" className="btn-primary lead-submit" style={{ flex: 1 }}>✓ Registrar</button>
                     </div>
-                    <textarea rows="2" maxLength={500} value={f.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Informações adicionais..." />
-                  </div>
+                  </form>
                 )}
-                {/* D-043: campo de consentimento LGPD oculto até decisão externa sobre processo/ficha */}
-                {formErro && <div style={{ color:"var(--red)", fontSize:13, padding:"8px 12px", background:"var(--red-bg)", borderRadius:8, marginBottom:4 }}>{formErro}</div>}
-                <button type="submit" className="btn-primary btn-full lead-submit">Registrar Lead</button>
-              </form>
+              </>
             )}
           </>
         )}
