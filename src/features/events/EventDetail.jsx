@@ -30,6 +30,7 @@ export default function EventDetail({ eventoId, onBack }) {
   const [addMatQtd, setAddMatQtd] = useState(1);
   const [showAddMat, setShowAddMat] = useState(false);
   const [editEvento, setEditEvento] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const matsDisponiveis = materiais.filter(
     (m) => !ev.materiais.find((em) => em.materialId === m.id)
@@ -60,38 +61,35 @@ export default function EventDetail({ eventoId, onBack }) {
         <button className="back-btn" onClick={onBack} style={{ display:"flex", alignItems:"center", gap:6 }}>
           <Icon name="back" size={15} /> Voltar para Eventos
         </button>
-        <div style={{ display:"flex", gap:8 }}>
+        <div style={{ display:"flex", gap:8, position:"relative" }}>
           <button className="btn-ghost" style={{ fontSize:13 }} onClick={() => setEditEvento(true)}>
             Editar Evento
           </button>
-          {ev.status !== "encerrado" && (
-            <button
-              className="btn-ghost"
-              style={{ fontSize:13, color:"var(--yellow)", borderColor:"var(--yellow)" }}
-              onClick={() => {
-                if (confirm(`Finalizar o evento "${ev.nome}"? O evento será marcado como encerrado e todos os dados serão preservados.`)) {
-                  updateEvento(eventoId, { status: "encerrado" });
-                  onBack();
-                }
-              }}
-            >
-              Finalizar Evento
-            </button>
-          )}
-          {ev.status !== "ativo" && (
-            <button
-              className="btn-ghost"
-              style={{ fontSize:13, color:"var(--red)", borderColor:"var(--red)" }}
-              onClick={() => {
-                if (confirm(`Excluir permanentemente o evento "${ev.nome}"?\n\nEsta ação não pode ser desfeita. Os leads associados também serão removidos.`)) {
-                  removeEvento(eventoId);
-                  onBack();
-                }
-              }}
-            >
-              Excluir Evento
-            </button>
-          )}
+          <div style={{ position:"relative" }}>
+            <button className="btn-ghost btn-menu-dots" style={{ fontSize:18, padding:"6px 10px" }} onClick={() => setShowMenu((v) => !v)} aria-label="Mais opções">⋯</button>
+            {showMenu && (
+              <div className="dropdown-menu" onMouseLeave={() => setShowMenu(false)}>
+                {ev.status !== "encerrado" && (
+                  <button className="dropdown-item dropdown-item-warn" onClick={() => {
+                    setShowMenu(false);
+                    if (confirm(`Finalizar o evento "${ev.nome}"? O evento será marcado como encerrado e todos os dados serão preservados.`)) {
+                      updateEvento(eventoId, { status: "encerrado" });
+                      onBack();
+                    }
+                  }}>Finalizar Evento</button>
+                )}
+                {ev.status !== "ativo" && (
+                  <button className="dropdown-item dropdown-item-danger" onClick={() => {
+                    setShowMenu(false);
+                    if (confirm(`Excluir permanentemente o evento "${ev.nome}"?\n\nEsta ação não pode ser desfeita. Os leads associados também serão removidos.`)) {
+                      removeEvento(eventoId);
+                      onBack();
+                    }
+                  }}>Excluir Evento</button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
