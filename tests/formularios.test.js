@@ -1,4 +1,8 @@
 // @ts-check
+/**
+ * Testes E2E de validação de formulários.
+ * V3: wizard do vendedor — lead em branco é bloqueado na etapa 1 (botão disabled).
+ */
 const { test, expect } = require('@playwright/test');
 const { loginComercial, loginMarketing } = require('./helpers/auth');
 
@@ -28,26 +32,28 @@ test.describe('Validação de Formulários', () => {
     expect(hasError || stayedOnLogin).toBeTruthy();
   });
 
-  test('lead em branco não é salvo', async ({ page }) => {
+  test('wizard etapa 1 — botão Próximo desabilitado com campos em branco', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('rjnet_leads', JSON.stringify([]));
     });
     await loginComercial(page);
-    await page.locator('.lead-submit').click();
-
-    // O required do HTML bloqueia e nenhum lead é criado
-    await expect(page.locator('.count-badge')).toContainText('0/15');
+    const btnProximo = page.locator('.wizard-slide button', { hasText: 'Próximo →' });
+    await expect(btnProximo).toBeDisabled();
+    // Nenhum lead criado — contador deve mostrar 0
+    await expect(page.locator('.count-badge')).toContainText('0');
     await expect(page.locator('.toast')).not.toBeVisible();
   });
 
   test('modal de novo evento abre ao clicar em Novo Evento', async ({ page }) => {
     await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     await page.locator('button', { hasText: /novo evento/i }).first().click();
     await expect(page.locator('.modal-box')).toBeVisible();
   });
 
   test('fechar modal sem salvar não cria evento', async ({ page }) => {
     await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     const countBefore = await page.locator('.event-card').count();
 
     await page.locator('button', { hasText: /novo evento/i }).first().click();
@@ -62,6 +68,7 @@ test.describe('Validação de Formulários', () => {
   test('preencher e salvar evento cria novo card', async ({ page }) => {
     test.slow();
     await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     const countBefore = await page.locator('.event-card').count();
 
     await page.locator('button', { hasText: /novo evento/i }).first().click();
@@ -85,15 +92,23 @@ test.describe('Validação de Formulários', () => {
   test('lead registrado pelo vendedor aparece para o marketing', async ({ page }) => {
     test.slow();
     await loginComercial(page);
+
+    // Wizard: etapa 1
     await page.getByPlaceholder('Nome do cliente').fill('Lead Salvo E2E');
     await page.getByPlaceholder('(24) 99999-9999').fill('24999887766');
-    await page.locator('.lead-submit').click();
+    await page.locator('.wizard-slide button', { hasText: 'Próximo →' }).click();
+    // Etapa 2
+    await page.locator('.servico-btn').first().click();
+    await page.locator('.wizard-actions button', { hasText: 'Próximo →' }).click();
+    // Etapa 3
+    await page.locator('button[type="submit"]', { hasText: 'Registrar' }).click();
+
     await expect(page.locator('.toast')).toContainText('Lead Salvo E2E');
 
     // Sai e entra como marketing — o lead deve constar na aba Leads
     await page.locator('.app-header button', { hasText: 'Sair' }).click();
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
     await expect(page.locator('.tbl-wrap table')).toContainText('Lead Salvo E2E');
   });
 
