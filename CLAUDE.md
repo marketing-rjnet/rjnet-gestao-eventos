@@ -18,6 +18,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/architecture/DECISIONS.md` | Histórico de decisões arquiteturais e técnicas com justificativas | Antes de qualquer mudança arquitetural ou de padrão |
 | `doc/architecture/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) | Antes de qualquer alteração no banco ou schema |
 | `doc/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
+| `doc/BOAS_PRATICAS.md` | **Boas práticas e dicas do sistema** — fluxo de desenvolvimento, git, preview Vercel, commits atômicos, princípios de UX | Referência geral; ao iniciar qualquer sessão de desenvolvimento |
 | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
 | `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
 | `doc/architecture/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
