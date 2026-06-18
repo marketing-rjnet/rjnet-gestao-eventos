@@ -68,6 +68,34 @@ Riscos conhecidos.
 
 ---
 
+### [D-047] — Monitor: canal Realtime único (fix do conflito de canais duplicados)
+
+**Data:** 2026-06-18
+**Tipo:** Bugfix Arquitetural (incremento sobre D-046)
+
+**Decisão:** Consolidar em um único canal Supabase Realtime por cliente. `activityLog.js` é o dono exclusivo do canal `rjnet-monitor` — tanto para envio quanto para recepção. `MonitoringTab` não cria canal próprio; registra callbacks via `subscribeToRemoteLogs(callback)`.
+
+**Motivação:** D-046 introduziu um bug sutil: tanto `activityLog.js` quanto `MonitoringTab.jsx` chamavam `supabase.channel('rjnet-monitor')`, criando dois objetos de canal distintos no mesmo cliente Supabase. Pelo design do Supabase JS v2, `.on('broadcast')` só recebe eventos se registrado **antes** de `.subscribe()` — em ambos os canais isso não estava sendo respeitado. Resultado observado: broadcasts chegavam ao servidor Supabase (a tela do marketing atualizava via DB Realtime) mas nunca eram entregues ao feed do Monitor.
+
+**Causa Raiz Detalhada:**
+1. `activityLog.js` channel: chamava `.subscribe()` sem `.on('broadcast')` — não recebia nada
+2. `MonitoringTab.jsx` channel: chamava `.subscribe()` sem `.on('broadcast')` antes — não recebia nada  
+3. Dois canais com mesmo nome no mesmo cliente = conflito interno no Supabase JS v2
+
+**Solução:**
+- `activityLog.js`: canal único com `.on('broadcast', { event: 'log' }, handler)` registrado ANTES de `.subscribe()`. Array `_listeners` para callbacks externos. `_queue` acumula envios até `SUBSCRIBED`.
+- `MonitoringTab.jsx`: usa `subscribeToRemoteLogs(callback)` — zero canais, apenas register/unregister de callback.
+
+**Regra Estabelecida:** Em Supabase JS v2, toda chamada `.on('broadcast')` DEVE preceder `.subscribe()`. Nunca criar dois canais com o mesmo nome no mesmo cliente.
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` — canal único, novo export `subscribeToRemoteLogs(callback)`, `_listeners`, `_queue`
+- `src/features/monitoring/MonitoringTab.jsx` — removido canal próprio, usa `subscribeToRemoteLogs()`; removidos imports `supabase` e `receiveActivityLog`
+
+**Status:** Ativa (substitui implementação parcial de D-046)
+
+---
+
 ### [D-046] — Monitor: Supabase Realtime Broadcast para cobertura entre dispositivos
 
 **Data:** 2026-06-17

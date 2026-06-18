@@ -4,6 +4,24 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.4] — Monitor: corrige Realtime entre dispositivos (canal único, sem conflito)
+**Data:** 2026-06-18
+
+**O que mudou**
+- **`src/lib/activityLog.js`**: reescrito para padrão de canal único (`_channel` singleton). Listener `.on('broadcast', { event: 'log' }, handler)` registrado **antes** de `.subscribe()` — requisito obrigatório do Supabase JS v2. Array `_listeners` com `subscribeToRemoteLogs(callback)` para que MonitoringTab registre callbacks sem criar um segundo canal. Fila `_queue` acumula mensagens até a subscrição confirmar (`SUBSCRIBED`). Novo export `subscribeToRemoteLogs(callback)` retorna função de unsubscribe.
+- **`src/features/monitoring/MonitoringTab.jsx`**: substituído bloco de canal Supabase próprio por `subscribeToRemoteLogs(() => { setLogs(…); setDays(…); })`. Removidos imports `supabase` e `receiveActivityLog`. Cleanup chama `unsubRemote()` em vez de `supabase.removeChannel()`.
+
+**Por que mudou**
+- Causa raiz do bug "vendedor cadastra lead no celular, nada aparece no Monitor do marketing no computador": MonitoringTab e activityLog.js criavam **dois** canais com o mesmo nome `rjnet-monitor` no mesmo cliente Supabase. O Supabase JS v2 trata isso como canais distintos — o canal do activityLog.js não tinha `.on('broadcast')` registrado antes do `.subscribe()`, então jamais recebia eventos; o canal do MonitoringTab não tinha listener registrado antes do `.subscribe()`, mesmo problema. Resultado: broadcast enviado pelo vendedor chegava ao servidor Supabase, mas nenhum dos dois canais do marketing conseguia recebê-lo.
+
+**Solução arquitetural**
+- Um único canal por cliente Supabase. `activityLog.js` é o dono do canal (envia + recebe). `MonitoringTab` apenas registra um callback via `subscribeToRemoteLogs()`. Zero canais duplicados.
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
 ## [v4.3] — Monitor: cobertura entre dispositivos via Supabase Realtime
 **Data:** 2026-06-17
 
