@@ -208,7 +208,7 @@
       .event-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-float); }
       .event-card .ev-name { font-size: 16px; font-weight: 700; padding-right: 80px; }
       .event-card .ev-status { position: absolute; top: 16px; right: 16px; }
-      .ev-meta { color: var(--text-2); font-size: 13px; display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+      .ev-meta { color: var(--text-3); font-size: 12px; display: flex; align-items: center; gap: 7px; margin-top: 8px; }
       .ev-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
       .ev-leads { font-size: 13px; color: var(--text-2); }
       .ev-leads b { color: var(--text); font-family: "DM Mono", monospace; }
