@@ -233,20 +233,22 @@
 ## Checklist de Progresso
 
 ### Fase D — Design System
-- [ ] D-01 — Nova paleta de cores e variáveis
-- [ ] D-02 — Cards com profundidade e sombra
-- [ ] D-03 — Tipografia com escala
-- [ ] D-04 — Micro-interações CSS
+- [x] D-01 — Nova paleta de cores e variáveis — `f6794d4`
+- [x] D-02 — Cards com profundidade e sombra — `08ccc2c`
+- [x] D-03 — Tipografia com escala — `448d54a`
+- [x] D-04 — Micro-interações CSS — `348e5ae`
 
 ### Fase E — Navegação
-- [ ] E-01 — Bottom nav do Marketing mobile
-- [ ] E-02 — Redesign visual dos bottom navs
-- [ ] E-03 — Cards de evento com borda por status
+- [x] E-01 — Bottom nav do Marketing mobile — `176ab94`
+- [x] E-02 — Redesign visual dos bottom navs — `7b4441a`
+- [x] E-03 — Cards de evento com borda por status — `3cb0048`
 
 ### Fase F — Telas Principais
-- [ ] F-01 — Dashboard redesenhado
-- [ ] F-02 — Wizard etapa 1 (Nome + Telefone)
-- [ ] F-03 — Wizard etapa 2 (Serviço visual)
-- [ ] F-04 — Wizard etapa 3 (Temperatura + opcionais)
-- [ ] F-05 — Animação barra de meta
-- [ ] F-06 — Toast redesenhado
+- [x] F-01 — Dashboard redesenhado — `8c55665`
+- [x] F-02 — Wizard etapa 1 (Nome + Telefone) — `da35758`
+- [x] F-03 — Wizard etapa 2 (Serviço visual) — `da35758`
+- [x] F-04 — Wizard etapa 3 (Temperatura + opcionais) — `da35758`
+- [x] F-05 — Animação barra de meta — `f04a3f9`
+- [x] F-06 — Toast redesenhado — `409bc28`
+
+**✅ V3 CONCLUÍDA — merge PR #45 em 2026-06-18**
