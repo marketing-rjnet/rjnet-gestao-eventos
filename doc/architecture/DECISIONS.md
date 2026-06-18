@@ -68,6 +68,42 @@ Riscos conhecidos.
 
 ---
 
+### [D-049] — Monitor: sync_ok para removeLead e severidade dinâmica de perf_warn
+
+**Data:** 2026-06-18
+**Tipo:** Feature / Bugfix
+
+**Decisão 1 — sync_ok para removeLead:** Estender `db.removeLead` com 3º param `onSuccess`, seguindo o padrão já estabelecido em `db.saveLead`. `leadApi.removeLead` passa callback que dispara `lead_sync_ok` após confirmação do Supabase.
+
+**Decisão 2 — severidade dinâmica de perf_warn:** Substituir label/cor estáticos de `perf_warn` por função `getPerfCfg(ms)` que retorna tiers visuais distintos conforme a gravidade do atraso.
+
+**Motivação:**
+- `lead_remove` era o único dos 3 tipos de mutação sem confirmação do servidor — loop incompleto, a mensagem "aguardando confirmação" ficava sem resposta.
+- `perf_warn` com 236160ms (4 min, provável timeout) aparecia idêntico a 1053ms (leve lentidão) — sem distinção de gravidade.
+
+**Tiers de perf_warn:**
+
+| ms | Label | Cor |
+|---|---|---|
+| ≥ 60 000 | timeout de rede (✗) | var(--red) |
+| ≥ 30 000 | possível timeout (⚡) | var(--red) |
+| ≥ 5 000 | req. muito lenta (⚡) | #f97316 |
+| ≥ 1 000 | req. lenta (⚡) | var(--yellow) |
+
+**Regras mantidas:**
+- `onFail` de `removeLead` (rollback de estado) preservado sem alteração.
+- Padrão `exec(promise, acao, onFail, onSuccess)` não foi alterado.
+- Tiers de perf_warn são puramente visuais (MonitoringTab) — não afetam o dado gravado em `logActivity`.
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` — `db.removeLead` aceita 3º param `onSuccess`
+- `src/api/leadApi.js` — `removeLead` passa `onSuccess` para `db.removeLead`
+- `src/features/monitoring/MonitoringTab.jsx` — `getPerfCfg(ms)`, FeedEntry com cfg dinâmico
+
+**Status:** Ativa
+
+---
+
 ### [D-048] — Monitor: marcadores de sessão de evento e limpeza de log
 
 **Data:** 2026-06-18

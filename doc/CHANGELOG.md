@@ -4,6 +4,23 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.6] — Monitor: sync_ok para remoção de lead + severidade dinâmica em req. lenta
+**Data:** 2026-06-18
+
+**O que mudou**
+- **`src/lib/dataService.js`**: `db.removeLead(id, onFail, onSuccess)` — adicionado 3º parâmetro `onSuccess` repassado para `exec()`. Segue o mesmo padrão já existente em `db.saveLead`.
+- **`src/api/leadApi.js`**: `removeLead` agora passa callback `onSuccess` para `db.removeLead` que dispara `logActivity({ type: 'lead_sync_ok' })` após o Supabase confirmar a exclusão. O `onFail` (rollback de estado) foi preservado sem alteração.
+- **`src/features/monitoring/MonitoringTab.jsx`**: `perf_warn` com 4 tiers de severidade calculados dinamicamente de `log.ms` — `getPerfCfg(ms)` retorna label, mark e color diferentes conforme a gravidade. `getDesc` adiciona prefixo de contexto para ms ≥ 30 s.
+
+**Por que mudou**
+- `lead_remove` ficava sem confirmação do servidor — a mensagem "aguardando confirmação" nunca recebia o `lead_sync_ok` correspondente. Agora o ciclo está completo para os 3 tipos de mutação de lead (add, update, remove).
+- `perf_warn` com 236160ms aparecia com o mesmo visual amarelo de um atraso de 1,1s, sem indicar gravidade. Os tiers permitem distinguir lentidão normal de timeout de rede.
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
 ## [v4.5] — Monitor: marcadores de sessão de evento + limpar log de hoje
 **Data:** 2026-06-18
 
