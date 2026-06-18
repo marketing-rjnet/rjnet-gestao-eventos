@@ -28,6 +28,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/performance/HOMOLOGATION_CHECKLIST.md` | Checklist de preparação do ambiente de homologação para testes de carga | Antes de executar qualquer cenário de teste |
 | `doc/performance/LOAD_TEST_PLAN.md` | Plano de testes de carga — 4 cenários k6 (Normal, Pico, Crítico, Estresse) | Antes de executar testes |
 | `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A |
+| `doc/ui/UI_VERSIONS.md` | **Catálogo de versões de UI/UX** — paleta, navegação, telas, componentes, padrões de UX por versão | Antes de qualquer mudança de interface; ao iniciar nova versão de UI |
 
 ---
 

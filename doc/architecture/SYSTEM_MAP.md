@@ -4,6 +4,7 @@
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
 > Atualizado em: 2026-06-18 (D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
+> Documentação de UI/UX: `doc/ui/UI_VERSIONS.md` — catálogo de versões da interface (v1.0 baseline catalogado em 2026-06-18)
 
 ---
 
