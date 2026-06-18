@@ -33,7 +33,11 @@ export function Login({ onLogin, darkMode, toggleDark }) {
   };
 
   return (
-    <div className="login-bg">
+    <div className="login-bg" style={{ position: "relative" }}>
+      <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" aria-label="Alternar tema"
+        style={{ position: "absolute", top: 16, right: 16 }}>
+        <Icon name={darkMode ? "sun" : "moon"} size={17} />
+      </button>
       <div className="login-card">
         <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
         <p className="login-tag">Gestão de Eventos</p>
@@ -51,11 +55,6 @@ export function Login({ onLogin, darkMode, toggleDark }) {
           <button type="submit" className="login-btn">Entrar</button>
         </form>
         <p className="login-hint">Angra dos Reis · RJ</p>
-        <div style={{ textAlign: "center", marginTop: 14 }}>
-          <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" style={{ margin: "0 auto" }}>
-            <Icon name={darkMode ? "sun" : "moon"} size={17} />
-          </button>
-        </div>
       </div>
     </div>
   );
