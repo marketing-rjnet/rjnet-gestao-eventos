@@ -10,6 +10,7 @@
 | Versão | Status | Data | Resumo |
 |--------|--------|------|--------|
 | [v1.0](#v10--baseline) | **atual** | 2026-06-18 | Interface baseline — dark mode, 2 perfis, 6 tabs marketing |
+| v2.0 | **proposta** | — | Ver `doc/ui/UX_UI_V2_PROPOSAL.md` — aguardando aprovação |
 
 ---
 
@@ -293,7 +294,7 @@ Tabela de preços hardcoded, dividida em seções:
 
 | Versão | Status | Planejado para | Escopo previsto |
 |--------|--------|----------------|-----------------|
-| v1.1 | `planejada` | — | — |
+| v2.0 | `proposta` | Após aprovação | Ver `doc/ui/UX_UI_V2_PROPOSAL.md` |
 
 ---
 
