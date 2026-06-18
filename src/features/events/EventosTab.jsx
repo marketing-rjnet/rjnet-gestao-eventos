@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { Icon, StatusBadge, TipoBadge } from '../../components/ui';
+import { StatusBadge, TipoBadge } from '../../components/ui';
+import { EmptyState } from '../../components/EmptyState';
 
 import { EventModal } from '../../components/modals';
 import { fmtDate, initials, STATUS_LABEL } from '../../utils/format';
@@ -28,13 +29,11 @@ export default function EventosTab({ onOpen }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="empty-state">
-          <Icon name="calendar" size={40} stroke="var(--text-3)" />
-          <div className="empty-state-title">Nenhum evento encontrado</div>
-          <div className="empty-state-sub">
-            {filter === "ativo" ? "Não há eventos ativos no momento. Mude o filtro ou crie um novo evento." : "Nenhum evento neste status."}
-          </div>
-        </div>
+        <EmptyState
+          icon="calendar"
+          title="Nenhum evento encontrado"
+          description={filter === "ativo" ? "Não há eventos ativos no momento. Mude o filtro ou crie um novo evento." : "Nenhum evento neste status."}
+        />
       ) : (
         <div className="event-grid">
           {filtered.map((e) => {
