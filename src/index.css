@@ -421,6 +421,10 @@
       .light .btn-ghost { background: #f0f0f0; }
       .light .btn-ghost:hover { background: #e4e4e4; }
       .light .bottom-nav { background: #ffffff; border-top-color: #e0e0e0; }
+      .light .event-card,
+      .light .kpi,
+      .light .vendor-card,
+      .light .card { box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px var(--border); }
 
       /* ---------- Theme toggle button ---------- */
       .theme-toggle {
