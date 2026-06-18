@@ -530,9 +530,10 @@
         /* Segment control: 2x2 */
         .seg-control { grid-template-columns: 1fr 1fr; }
 
-        /* Modal full screen on mobile */
+        /* Modal bottom sheet em mobile */
         .modal-overlay { padding: 0; align-items: flex-end; }
-        .modal-box { max-width: 100%; border-radius: 16px 16px 0 0; max-height: 92vh; }
+        .modal-box { max-width: 100%; border-radius: 20px 20px 0 0; max-height: 92vh; animation: slideUp .22s ease; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       }
 
       @media (max-width: 400px) {
