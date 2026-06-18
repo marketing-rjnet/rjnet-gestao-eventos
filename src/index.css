@@ -244,7 +244,9 @@
       .equipe-section--admin { border-left: 3px solid var(--rj-yellow); padding-left: 14px; }
       .equipe-section--vendas { border-left: 3px solid var(--border); padding-left: 14px; }
       .equipe-section--admin .equipe-section-title { color: var(--rj-yellow); }
-      .empty-state { color: var(--text-3); font-size: 13px; padding: 12px 0; }
+      .empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 56px 20px; text-align: center; }
+      .empty-state-title { font-size: 15px; font-weight: 600; color: var(--text-2); }
+      .empty-state-sub { font-size: 13px; color: var(--text-3); max-width: 280px; line-height: 1.6; }
 
       /* ---------- Vendor cards ---------- */
       .vendor-grid { display: flex; flex-direction: column; gap: 12px; }

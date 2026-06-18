@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, StatusBadge, TipoBadge } from '../../components/ui';
+
 import { EventModal } from '../../components/modals';
 import { fmtDate, initials, STATUS_LABEL } from '../../utils/format';
 import { AVATARS_SHOWN } from '../../lib/constants';
@@ -26,7 +27,15 @@ export default function EventosTab({ onOpen }) {
         <button className="btn-primary" onClick={() => setShowModal(true)}>+ Novo Evento</button>
       </div>
 
-      {filtered.length === 0 ? <div className="empty">Nenhum evento encontrado.</div> : (
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <Icon name="calendar" size={40} stroke="var(--text-3)" />
+          <div className="empty-state-title">Nenhum evento encontrado</div>
+          <div className="empty-state-sub">
+            {filter === "ativo" ? "Não há eventos ativos no momento. Mude o filtro ou crie um novo evento." : "Nenhum evento neste status."}
+          </div>
+        </div>
+      ) : (
         <div className="event-grid">
           {filtered.map((e) => {
             const vs = vendoresDoEvento(e.id);
