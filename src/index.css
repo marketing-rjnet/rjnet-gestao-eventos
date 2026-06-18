@@ -151,7 +151,7 @@
         box-shadow: 0 0 0 1px var(--border); padding: 16px 18px;
         transition: box-shadow .15s ease;
       }
-      .kpi:hover { box-shadow: 0 0 0 1px var(--rj-blue); }
+      .kpi:hover { box-shadow: 0 0 0 1px var(--rj-blue); background: rgba(255,203,0,0.04); }
       .kpi-label { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
       .kpi-value { font-size: 28px; font-weight: 700; margin-top: 6px; font-family: "DM Mono", monospace; }
       .kpi.alert .kpi-value { color: var(--red); }
@@ -187,7 +187,7 @@
         transition: box-shadow .15s ease, transform .05s ease;
         position: relative;
       }
-      .event-card:hover { box-shadow: 0 0 0 1px var(--rj-blue); }
+      .event-card:hover { box-shadow: 0 0 0 1px var(--rj-blue); background: rgba(255,203,0,0.04); }
       .event-card .ev-name { font-size: 16px; font-weight: 700; padding-right: 80px; }
       .event-card .ev-status { position: absolute; top: 16px; right: 16px; }
       .ev-meta { color: var(--text-2); font-size: 13px; display: flex; align-items: center; gap: 7px; margin-top: 8px; }
