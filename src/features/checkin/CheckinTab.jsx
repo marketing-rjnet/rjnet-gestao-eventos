@@ -58,6 +58,8 @@ export function CheckinTab() {
   };
 
   const eventoSelecionado = eventos.find((e) => e.id === eventoId);
+  const [verTodos, setVerTodos] = useState(false);
+  const eventosVisiveis = verTodos ? eventos : eventos.filter((e) => e.status === "ativo");
 
   return (
     <div className="page">
@@ -79,10 +81,14 @@ export function CheckinTab() {
               disabled={carregando}
             >
               <option value="">Selecione o evento…</option>
-              {eventos.map((ev) => (
+              {eventosVisiveis.map((ev) => (
                 <option key={ev.id} value={ev.id}>{ev.nome}</option>
               ))}
             </select>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: 12, color: "var(--text-3)", cursor: "pointer" }}>
+              <input type="checkbox" checked={verTodos} onChange={(e) => setVerTodos(e.target.checked)} style={{ cursor: "pointer" }} />
+              Ver todos os eventos (incluindo encerrados)
+            </label>
           </div>
 
           <div className="form-group">
@@ -177,7 +183,7 @@ export function CheckinTab() {
             </div>
           ) : (
             <div className="card" style={{ borderLeft: "4px solid #ef4444" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <Icon name="x_circle" size={26} stroke="#ef4444" />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#ef4444" }}>Nenhum lead encontrado</div>
@@ -186,6 +192,19 @@ export function CheckinTab() {
                   </div>
                 </div>
               </div>
+              <div style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 8 }}>Deseja cadastrar este visitante como lead?</div>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ fontSize: 13, width: "100%" }}
+                onClick={() => {
+                  if (eventoSelecionado) {
+                    alert(`Acesse a aba "Eventos" → "${eventoSelecionado.nome}" para registrar o lead neste evento.`);
+                  }
+                }}
+              >
+                + Cadastrar como lead
+              </button>
             </div>
           )}
         </div>
