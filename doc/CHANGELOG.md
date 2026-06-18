@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.1] — Testes E2E atualizados para V3
+**Data:** 2026-06-18
+**PR:** #47 — merge `claude/v3-visual-redesign` → `main`
+
+**O que mudou**
+- `tests/helpers/auth.js`: adiciona `loginComercial` (fazia falta — importado mas nunca definido)
+- `tests/comercial.test.js`: reescrito para wizard 3 etapas — helper `registrarLead`, modo rápido, botão Voltar, validação de telefone, ranking, encerramento sem eventos
+- `tests/navegacao.test.js`: 7 tabs no desktop, aba padrão "Início", hero card, bottom nav do vendedor com 3 botões
+- `tests/formularios.test.js`: botão Próximo disabled na etapa 1, tab "Relatórios", fluxo wizard no teste lead→marketing
+
+**Por que mudou**
+- Os testes E2E foram escritos para a UI anterior (formulário único). Após o wizard V3, todos os testes de fluxo comercial precisavam reflectir as 3 etapas.
+
+**Arquivos alterados**
+- `tests/helpers/auth.js`, `tests/comercial.test.js`, `tests/navegacao.test.js`, `tests/formularios.test.js`
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
 ## [v5.0] — UX/UI V3: redesign visual completo (Fases D, E e F)
 **Data:** 2026-06-18
 **PR:** #45 — merge `claude/v3-visual-redesign` → `main`

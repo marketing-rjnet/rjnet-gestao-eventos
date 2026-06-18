@@ -162,6 +162,26 @@
 
 ---
 
+## Testes E2E — Pós-V3
+
+### T-01 — Atualização dos testes E2E para V3
+| Campo | Valor |
+|-------|-------|
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `1ebec43` (squash → `d98e85f`) |
+| **Data** | 2026-06-18 |
+| **PR** | #47 |
+| **Arquivos** | `tests/helpers/auth.js`, `tests/comercial.test.js`, `tests/navegacao.test.js`, `tests/formularios.test.js` |
+| **Rollback** | `git revert d98e85f --no-edit && git push` |
+
+**Mudanças:**
+- `loginComercial` adicionado ao helper de auth (era importado mas não existia)
+- `comercial.test.js`: reescrito para wizard 3 etapas; 13 testes cobrindo modo rápido, voltar, validação, ranking, eventos sem ativo
+- `navegacao.test.js`: 7 tabs desktop, "Início" como padrão, hero card, vendedor bottom nav 3 botões
+- `formularios.test.js`: botão Próximo disabled etapa 1, tab "Relatórios", wizard no fluxo lead→marketing
+
+---
+
 ## Checklist Geral
 
 ### Fase D
@@ -182,3 +202,6 @@
 - [x] F-04 — Wizard etapa 3
 - [x] F-05 — Barra de meta
 - [x] F-06 — Toast
+
+### Testes E2E
+- [x] T-01 — Testes E2E atualizados para V3 (#47)
