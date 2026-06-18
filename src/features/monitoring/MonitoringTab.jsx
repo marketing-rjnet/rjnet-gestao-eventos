@@ -5,6 +5,8 @@ import {
   getActivityLogsForDay,
   getActivityDays,
   subscribeToRemoteLogs,
+  logActivity,
+  clearActivityDay,
 } from '../../lib/activityLog';
 import { initials } from '../../utils/format';
 import { Icon } from '../../components/ui';
@@ -18,6 +20,8 @@ const TYPE_CFG = {
   sync_error:    { label: 'erro de sync',      mark: '✗',  color: 'var(--red)' },
   perf_warn:     { label: 'req. lenta',        mark: '⚡', color: 'var(--yellow)' },
   offline_queue: { label: 'salvo offline',     mark: '◉',  color: 'var(--yellow)' },
+  session_start: { label: 'sessão iniciada',   mark: '▶',  color: '#7c3aed' },
+  session_end:   { label: 'sessão encerrada',  mark: '■',  color: '#7c3aed' },
 };
 
 /* ─── Descrições em linguagem de campo ──────────────────────────── */
@@ -107,8 +111,31 @@ function VendedorCard({ nome, sessionLeads, totalLeads, removes, lastTs, hasErro
   );
 }
 
+/* ─── Marcador de sessão ────────────────────────────────────────── */
+function SessionMarker({ log, eventoNome }) {
+  const isStart = log.type === 'session_start';
+  const evento = eventoNome(log.eventoId);
+  return (
+    <div style={{
+      padding: '8px 16px', borderBottom: '1px solid var(--border)',
+      background: 'rgba(124,58,237,.06)', display: 'flex', alignItems: 'center', gap: 10,
+    }}>
+      <span style={{ color: '#7c3aed', fontWeight: 700, fontSize: 13 }}>{isStart ? '▶' : '■'}</span>
+      <span style={{ color: '#7c3aed', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', flex: 1 }}>
+        {isStart ? 'Sessão iniciada' : 'Sessão encerrada'}
+        {evento && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 8 }}>· {evento}</span>}
+        {!isStart && log.detail && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 8 }}>· {log.detail}</span>}
+      </span>
+      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{fmtTime(log.ts)}</span>
+    </div>
+  );
+}
+
 /* ─── Entrada do feed ───────────────────────────────────────────── */
 function FeedEntry({ log, eventoNome }) {
+  if (log.type === 'session_start' || log.type === 'session_end') {
+    return <SessionMarker log={log} eventoNome={eventoNome} />;
+  }
   const cfg = TYPE_CFG[log.type] || { label: log.type, mark: '·', color: 'var(--text-3)' };
   const desc = getDesc(log);
   const evento = eventoNome(log.eventoId);
@@ -165,6 +192,7 @@ export default function MonitoringTab() {
   const [selectedDay, setSelectedDay] = useState(today);
   const [logs, setLogs] = useState(() => getActivityLogs());
   const [filter, setFilter] = useState('all');
+  const [confirmClear, setConfirmClear] = useState(false);
   const isToday = selectedDay === today;
 
   /* real-time: 3 canais cobrindo todos os cenários */
@@ -201,13 +229,40 @@ export default function MonitoringTab() {
     };
   }, [isToday, today]);
 
-  /* troca de dia: carrega do localStorage */
+  /* troca de dia: carrega do localStorage e reseta estados de ação */
   useEffect(() => {
     setLogs(isToday ? getActivityLogs() : getActivityLogsForDay(selectedDay));
     setFilter('all');
+    setConfirmClear(false);
   }, [selectedDay, isToday]);
 
   const eventoNome = (id) => id ? (eventos.find((e) => e.id === id)?.nome ?? id.slice(-6)) : null;
+
+  const activeEvento = useMemo(() => eventos.find((e) => e.status === 'ativo') ?? null, [eventos]);
+
+  const hasActiveSession = useMemo(() => {
+    const markers = logs.filter((l) => l.type === 'session_start' || l.type === 'session_end');
+    return markers.length > 0 && markers[markers.length - 1].type === 'session_start';
+  }, [logs]);
+
+  function handleIniciarSessao() {
+    logActivity({ type: 'session_start', eventoId: activeEvento?.id ?? null, detail: activeEvento?.nome ?? null });
+  }
+
+  function handleEncerrarSessao() {
+    const count = logs.filter((l) => l.type === 'lead_add').length;
+    logActivity({
+      type: 'session_end',
+      eventoId: activeEvento?.id ?? null,
+      detail: `${count} lead${count !== 1 ? 's' : ''} no log`,
+    });
+  }
+
+  function handleLimpar() {
+    if (!confirmClear) { setConfirmClear(true); return; }
+    clearActivityDay(null);
+    setConfirmClear(false);
+  }
 
   const stats = useMemo(() => ({
     leads:   logs.filter((l) => l.type === 'lead_add').length,
@@ -316,6 +371,69 @@ export default function MonitoringTab() {
           </div>
         </div>
       </div>
+
+      {/* Toolbar de sessão — só no modo Hoje */}
+      {isToday && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          <button
+            onClick={handleIniciarSessao}
+            style={{
+              padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              background: !hasActiveSession ? '#7c3aed' : 'var(--surface2)',
+              color: !hasActiveSession ? '#fff' : 'var(--text-2)',
+              border: `1px solid ${!hasActiveSession ? '#7c3aed' : 'var(--border)'}`,
+            }}
+          >
+            ▶ Iniciar sessão
+          </button>
+          <button
+            onClick={handleEncerrarSessao}
+            disabled={!hasActiveSession}
+            style={{
+              padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+              cursor: hasActiveSession ? 'pointer' : 'default',
+              background: 'var(--surface2)', color: hasActiveSession ? 'var(--text-1)' : 'var(--text-3)',
+              border: '1px solid var(--border)', opacity: hasActiveSession ? 1 : 0.5,
+            }}
+          >
+            ■ Encerrar sessão
+          </button>
+          <div style={{ flex: 1 }} />
+          {!confirmClear ? (
+            <button
+              onClick={handleLimpar}
+              style={{
+                padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: 'var(--surface2)', color: 'var(--text-3)', border: '1px solid var(--border)',
+              }}
+            >
+              Limpar log de hoje
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Apagar tudo?</span>
+              <button
+                onClick={handleLimpar}
+                style={{
+                  padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: 'var(--red)', color: '#fff', border: '1px solid var(--red)',
+                }}
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                style={{
+                  padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  background: 'var(--surface2)', color: 'var(--text-2)', border: '1px solid var(--border)',
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Banner de modo histórico */}
       {!isToday && (
