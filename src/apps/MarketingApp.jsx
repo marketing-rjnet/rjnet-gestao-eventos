@@ -37,7 +37,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         </nav>
         <div className="header-right">
           <SyncBadge />
-          <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
+          <button className="theme-toggle" onClick={toggleDark} title="Alternar tema" aria-label="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
           <span className="user-badge"><span className="dot"></span><span className="ub-name">Marketing</span></span>
         </div>
         <button className="btn-ghost" style={{ marginLeft: "auto" }} onClick={onLogout}>Sair</button>

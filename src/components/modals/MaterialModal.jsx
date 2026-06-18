@@ -21,7 +21,7 @@ export function MaterialModal({ onClose }) {
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Adicionar Material</h2>
-          <button className="modal-close" onClick={onClose}><Icon name="x" size={18} /></button>
+          <button className="modal-close" onClick={onClose} aria-label="Fechar"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={submit} className="modal-form">
           <div className="field-group">

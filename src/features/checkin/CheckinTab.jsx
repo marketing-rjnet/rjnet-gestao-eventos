@@ -98,7 +98,7 @@ export function CheckinTab() {
                 autoComplete="off"
               />
               {nomeInput && (
-                <button type="button" className="btn-ghost" onClick={limpar} title="Limpar">
+                <button type="button" className="btn-ghost" onClick={limpar} title="Limpar" aria-label="Limpar busca">
                   <Icon name="x" size={16} />
                 </button>
               )}
