@@ -234,9 +234,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `6c4c880` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/apps/MarketingApp.jsx`, `src/features/events/EventosTab.jsx` |
 | **O que vai mudar** | Adicionar tab `"inicio"` como primeira na navegação usando `Dashboard.jsx`. Remover `<Dashboard />` do rodapé de `EventosTab`. Definir `"inicio"` como tab padrão ao abrir o app. |
 | **Por quê** | KPIs e visão geral estão enterrados via scroll no tab Eventos. Devem ser o primeiro ponto de contato. |
@@ -248,9 +248,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `ccc2ece` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/features/events/EventosTab.jsx` |
 | **O que vai mudar** | Exibir no máximo 3 avatares + `+N` quando houver mais. Ex: com 8 vendedores → 3 avatares + "+5". |
 | **Por quê** | Eventos com muitos vendedores transbordavam o card sem indicação do total real. |
@@ -262,9 +262,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `db4392f` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/features/events/EventosTab.jsx`, `src/features/leads/LeadsTab.jsx`, `src/apps/VendedorApp.jsx` |
 | **O que vai mudar** | Bloco condicional com mensagem contextual quando lista está vazia. Usa classe `.empty` já existente no CSS. |
 | **Por quê** | Tela em branco sem feedback confunde o usuário — não sabe se é bug ou se de fato não há dados. |
@@ -276,9 +276,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `366f06c` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/apps/VendedorApp.jsx` |
 | **O que vai mudar** | `useState` de busca + input acima da lista + `filter()` local no array de leads. Sem nova lógica de negócio. |
 | **Por quê** | Com 20+ leads a lista sem filtro é impraticável em campo. |
@@ -290,9 +290,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `6c4c880` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/apps/MarketingApp.jsx` |
 | **O que vai mudar** | Label `"Leads"` → `"Relatórios"` no array de tabs e no bottom nav. |
 | **Por quê** | A tab entrega exportação CSV, não visão de leads. Nome atual cria expectativa errada. |
@@ -304,10 +304,10 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `6c4c880` |
 | **Depende de** | B-01 (tab Início criada) |
-| **Data** | — |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/apps/MarketingApp.jsx` |
 | **O que vai mudar** | Nova ordem: Início / Eventos / Estoque / Equipe / Check-in |
 | **Por quê** | Com Dashboard como primeira tab, a ordem de navegação precisa refletir a nova hierarquia. |
@@ -319,9 +319,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `8d6d699` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/features/team/EquipeTab.jsx` |
 | **O que vai mudar** | Substituir o gráfico `<Bar>` do Chart.js por números diretos dos últimos 3 eventos (ex: `12 / 8 / 15`) em fonte mono. |
 | **Por quê** | Mini gráfico é pequeno demais para ser legível. Números diretos ocupam menos espaço e comunicam melhor. |
@@ -333,9 +333,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `9dfeb4e` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/features/events/EventDetail.jsx`, `src/features/team/EquipeAuthTab.jsx` |
 | **O que vai mudar** | Botões "Excluir" saem do nível principal e vão para dropdown `⋯`. "Excluir" em vermelho. "Finalizar" (se aplicável) em amarelo. |
 | **Por quê** | Ações de impactos muito diferentes (editar vs. excluir) no mesmo nível visual aumentam risco de clique acidental. |
@@ -347,9 +347,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `23f1ea2` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/features/checkin/CheckinTab.jsx` |
 | **O que vai mudar** | Select de eventos filtra `status === "ativo"` por padrão. Checkbox "Ver todos os eventos" remove o filtro. |
 | **Por quê** | Usuários selecionavam eventos encerrados e ficavam confusos sem feedback claro. |
@@ -361,9 +361,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `23f1ea2` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/features/checkin/CheckinTab.jsx` |
 | **O que vai mudar** | Abaixo do card "sem resultado", botão ghost "Registrar como novo lead" que navega para o tab Registrar. Nenhuma lógica nova — apenas navegação existente. |
 | **Por quê** | Sem match, o sistema só mostra erro. Sugere o próximo passo natural. |
@@ -375,9 +375,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `6c4c880` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/apps/MarketingApp.jsx` |
 | **O que vai mudar** | Tab Monitor movida para última posição no array de tabs. |
 | **Por quê** | Monitor é ferramenta de diagnóstico avançado — não deve competir visualmente com Eventos, Estoque ou Equipe na navegação principal. |
@@ -389,9 +389,9 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `fbe3319` |
+| **Data** | 2026-06-18 |
 | **Arquivos a alterar** | `src/apps/VendedorApp.jsx` |
 | **O que vai mudar** | Tab `"pacotes"` removida do bottom nav. Na tab `"evento"`, botão ghost "Ver tabela de preços" que faz toggle do conteúdo de Pacotes inline. O componente `PacotesTab` não é deletado. |
 | **Por quê** | Pacotes usa um slot permanente do nav com conteúdo raramente consultado após treinamento. Libera o nav para as 3 ações reais de campo. |
@@ -535,18 +535,18 @@ git reset --hard b250c6827d433b0133f766a025c00115508708bc && git push --force
 - [x] A-12 — Ellipsis no ranking — `550c442`
 
 ### Fase B — Reorganização de Componentes
-- [ ] B-01 — Dashboard como tab "Início"
-- [ ] B-02 — Avatares limitados a 3 + "+N"
-- [ ] B-03 — Empty states nos tabs
-- [ ] B-04 — Busca em Meus Leads
-- [ ] B-05 — Tab Leads → "Relatórios"
-- [ ] B-06 — Reordenar bottom nav marketing
-- [ ] B-07 — Mini gráfico → números diretos
-- [ ] B-08 — Menu "⋯" para ações destrutivas
-- [ ] B-09 — Check-in filtrado a eventos ativos
-- [ ] B-10 — Check-in CTA "Cadastrar como lead"
-- [ ] B-11 — Monitor como última tab
-- [ ] B-12 — Pacotes → modal dentro de Evento
+- [x] B-01 — Dashboard como tab "Início"
+- [x] B-02 — Avatares limitados a 3 + "+N"
+- [x] B-03 — Empty states nos tabs
+- [x] B-04 — Busca em Meus Leads
+- [x] B-05 — Tab Leads → "Relatórios"
+- [x] B-06 — Reordenar bottom nav marketing
+- [x] B-07 — Mini gráfico → números diretos
+- [x] B-08 — Menu "⋯" para ações destrutivas
+- [x] B-09 — Check-in filtrado a eventos ativos
+- [x] B-10 — Check-in CTA "Cadastrar como lead"
+- [x] B-11 — Monitor como última tab
+- [x] B-12 — Pacotes → modal dentro de Evento
 
 ### Fase C — Componentes Novos
 - [ ] C-01 — `EmptyState` como componente
