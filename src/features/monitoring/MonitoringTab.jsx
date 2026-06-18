@@ -279,7 +279,11 @@ export default function MonitoringTab() {
 
   function handleEncerrarSessao() {
     const lastStart = [...logs].reverse().find((l) => l.type === 'session_start');
-    const count = logs.filter((l) => l.type === 'lead_add' && (!lastStart || l.ts >= lastStart.ts)).length;
+    const sessionLogs = logs.filter((l) => !lastStart || l.ts >= lastStart.ts);
+    const count = Math.max(0,
+      sessionLogs.filter((l) => l.type === 'lead_add').length -
+      sessionLogs.filter((l) => l.type === 'lead_remove').length,
+    );
     logActivity({
       type: 'session_end',
       eventoId: activeEvento?.id ?? null,
