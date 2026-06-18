@@ -278,11 +278,12 @@ export default function MonitoringTab() {
   }
 
   function handleEncerrarSessao() {
-    const count = logs.filter((l) => l.type === 'lead_add').length;
+    const lastStart = [...logs].reverse().find((l) => l.type === 'session_start');
+    const count = logs.filter((l) => l.type === 'lead_add' && (!lastStart || l.ts >= lastStart.ts)).length;
     logActivity({
       type: 'session_end',
       eventoId: activeEvento?.id ?? null,
-      detail: `${count} lead${count !== 1 ? 's' : ''} no log`,
+      detail: `${count} lead${count !== 1 ? 's' : ''} nesta sessão`,
     });
   }
 
