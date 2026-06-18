@@ -30,6 +30,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A |
 | `doc/ui/UI_VERSIONS.md` | **Catálogo de versões de UI/UX** — paleta, navegação, telas, componentes, padrões de UX por versão | Antes de qualquer mudança de interface; ao iniciar nova versão de UI |
 | `doc/ui/UX_UI_V2_PROPOSAL.md` | **Proposta estratégica da V2** — auditoria, problemas, proposta por tela, design system, roadmap de implementação em 3 fases | Antes de implementar qualquer mudança de interface da V2; **não implementar sem aprovação** |
+| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | **Plano de implementação da V2** — 22 etapas em 3 fases (A: CSS, B: reorganização, C: componentes), cada uma atômica e reversível | Ao implementar qualquer etapa da V2 |
 
 ---
 

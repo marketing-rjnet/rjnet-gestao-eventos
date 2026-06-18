@@ -560,7 +560,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                     Placar da equipe
-                    {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#f5c000)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
+                    {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#ffcb00)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
                   </div>
                   {ranking.length === 0 && !rankingLoading ? (
                     <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
@@ -595,20 +595,20 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       {/* Barra de navegação inferior */}
       <nav className="vend-bottom-nav">
         <button className={"vend-nav-btn" + (aba === "registrar" ? " active" : "")} onClick={() => setAba("registrar")}>
-          <Icon name="plus" size={22} stroke={aba === "registrar" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="plus" size={22} stroke={aba === "registrar" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Registrar
         </button>
         <button className={"vend-nav-btn" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); setConfirmandoDelId(null); }}>
-          <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Meus Leads
           {leadsDoEvento.length > 0 && <span className="vend-nav-badge">{leadsDoEvento.length}</span>}
         </button>
         <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
-          <Icon name="calendar" size={22} stroke={aba === "evento" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="calendar" size={22} stroke={aba === "evento" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Evento
         </button>
         <button className={"vend-nav-btn" + (aba === "pacotes" ? " active" : "")} onClick={() => setAba("pacotes")}>
-          <Icon name="box" size={22} stroke={aba === "pacotes" ? "#f5c000" : "#5a7a9a"} strokeWidth={1.8} />
+          <Icon name="box" size={22} stroke={aba === "pacotes" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Pacotes
         </button>
       </nav>

@@ -20,7 +20,7 @@ export const Icon = ({ name, size = 16, stroke = "currentColor", strokeWidth = 1
     back: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
     plus: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
     dot_green: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#22c55e"/></svg>,
-    dot_yellow: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#f5c000"/></svg>,
+    dot_yellow: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#ffcb00"/></svg>,
     dot_red: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#ef4444"/></svg>,
     chart: <svg style={s} viewBox="0 0 24 24" {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
     person: <svg style={s} viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>,

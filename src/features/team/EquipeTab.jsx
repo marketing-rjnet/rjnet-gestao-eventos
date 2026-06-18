@@ -55,7 +55,7 @@ export default function EquipeTab() {
           const hasData = recent.some((r) => r.n > 0);
           const barData = {
             labels: recent.map((r) => fmtDate(r.ev.dataInicio)),
-            datasets: [{ data: recent.map((r) => r.n), backgroundColor: "#f5c000", borderRadius: 4 }],
+            datasets: [{ data: recent.map((r) => r.n), backgroundColor: "#ffcb00", borderRadius: 4 }],
           };
           return (
             <div key={v.id} className="vendor-card">

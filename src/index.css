@@ -6,11 +6,11 @@
         --text: #f0f0f0;
         --text-2: #b0b0b0;
         --text-3: #666666;
-        --rj-blue: #f5c000;
-        --rj-blue-light: #ffd740;
+        --rj-blue: #ffcb00;
+        --rj-blue-light: #ffe04d;
         --green: #22c55e;
         --green-bg: #052e16;
-        --yellow: #f5c000;
+        --yellow: #ffcb00;
         --red: #ef4444;
         --red-bg: #2d0b0b;
         --radius: 12px;
@@ -303,8 +303,8 @@
       /* Barra de navegação inferior */
       .vend-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #0d1117; border-top: 1px solid #1e2a3a; display: flex; justify-content: space-around; align-items: stretch; padding: 0; safe-area-inset-bottom: env(safe-area-inset-bottom); }
       .vend-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 4px 12px; font-size: 11px; font-weight: 600; color: #5a7a9a; background: none; border: none; cursor: pointer; transition: color .15s; position: relative; letter-spacing: .02em; }
-      .vend-nav-btn.active { color: #f5c000; }
-      .vend-nav-btn.active svg { stroke: #f5c000; }
+      .vend-nav-btn.active { color: #ffcb00; }
+      .vend-nav-btn.active svg { stroke: #ffcb00; }
       .vend-nav-btn svg { transition: stroke .15s; }
       .vend-nav-badge { position: absolute; top: 6px; right: calc(50% - 18px); background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 5px; min-width: 16px; text-align: center; line-height: 1.4; }
 
@@ -320,14 +320,14 @@
       .ranking-item.me { box-shadow: 0 0 0 2px var(--rj-blue); }
       .ranking-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
       .ranking-pos { font-size: 15px; font-weight: 800; color: var(--text-3); width: 22px; text-align: center; }
-      .ranking-pos.gold { color: #f5c000; }
+      .ranking-pos.gold { color: #ffcb00; }
       .ranking-pos.silver { color: #9ca3af; }
       .ranking-pos.bronze { color: #b45309; }
       .ranking-name { font-weight: 600; flex: 1; }
       .ranking-count { font-size: 14px; font-weight: 700; color: var(--rj-blue); }
       .ranking-bar-track { height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
       .ranking-bar-fill { height: 100%; border-radius: 999px; background: var(--rj-blue); transition: width .5s ease; }
-      .ranking-item.me .ranking-bar-fill { background: #f5c000; }
+      .ranking-item.me .ranking-bar-fill { background: #ffcb00; }
 
       /* Info do evento */
       .ev-info-card { background: var(--surface); border-radius: 12px; padding: 16px; box-shadow: 0 0 0 1px var(--border); margin-bottom: 16px; }
@@ -551,7 +551,7 @@
         border-radius: 12px; padding: 14px 12px;
         border: 1px solid var(--border);
       }
-      .pacotes-app-yellow { background: color-mix(in srgb, #f5c000 8%, var(--surface)); border-color: color-mix(in srgb, #f5c000 30%, transparent); }
+      .pacotes-app-yellow { background: color-mix(in srgb, #ffcb00 8%, var(--surface)); border-color: color-mix(in srgb, #ffcb00 30%, transparent); }
       .pacotes-app-black  { background: color-mix(in srgb, #8b8b8b 8%, var(--surface)); border-color: color-mix(in srgb, #8b8b8b 30%, transparent); }
 
       .pacotes-app-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }

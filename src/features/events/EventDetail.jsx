@@ -50,7 +50,7 @@ export default function EventDetail({ eventoId, onBack }) {
 
   const barData = {
     labels: Object.keys(porVendedor),
-    datasets: [{ label: "Leads", data: Object.values(porVendedor), backgroundColor: "#f5c000", borderRadius: 6 }],
+    datasets: [{ label: "Leads", data: Object.values(porVendedor), backgroundColor: "#ffcb00", borderRadius: 6 }],
   };
 
   return (
