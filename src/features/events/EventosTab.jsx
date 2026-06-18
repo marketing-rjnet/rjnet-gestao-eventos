@@ -41,6 +41,7 @@ export default function EventosTab({ onOpen }) {
                   <span className="ev-leads"><Icon name="users" size={13} stroke="var(--text-3)" /> <b>{getLeadsEvento(e.id).length}</b> leads</span>
                   <div className="avatars">
                     {vs.slice(0, AVATARS_SHOWN).map((n, i) => <div key={i} className="av">{initials(n)}</div>)}
+                    {vs.length > AVATARS_SHOWN && <div className="av av-overflow">+{vs.length - AVATARS_SHOWN}</div>}
                     {vs.length === 0 && <span style={{ fontSize: 12, color: "var(--text-3)" }}>—</span>}
                   </div>
                 </div>
