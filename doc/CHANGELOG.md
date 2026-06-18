@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.5] — Monitor: marcadores de sessão de evento + limpar log de hoje
+**Data:** 2026-06-18
+
+**O que mudou**
+- **`src/features/monitoring/MonitoringTab.jsx`**:
+  - Toolbar visível apenas em modo "Hoje" com três ações: Iniciar sessão, Encerrar sessão, Limpar log de hoje.
+  - **Iniciar sessão (▶)**: injeta entrada `session_start` no feed com o nome do evento ativo (detectado automaticamente por `status === 'ativo'`). Aparece como separador visual em roxo. Pode ser acionado múltiplas vezes (ex: pausas entre turnos).
+  - **Encerrar sessão (■)**: injeta `session_end` com contagem de `lead_add` no log. Fica desabilitado até que haja uma sessão aberta (último marcador = `session_start`).
+  - **Limpar log de hoje**: dois cliques para confirmar (exibe "Apagar tudo? / Confirmar / Cancelar"). Chama `clearActivityDay(null)` que já despacha `CustomEvent('rjnet:activity', { detail: null })` — o feed limpa via listener existente, sem lógica nova.
+  - `SessionMarker`: componente separado que renderiza os dois novos tipos. `FeedEntry` delega para ele antes do fluxo normal.
+  - Dois novos tipos `session_start` / `session_end` em `TYPE_CFG`. Não aparecem nos filtros Leads/Sync/Perf nem afetam stats ou cards de vendedor.
+  - `confirmClear` reseta ao trocar de dia.
+
+**Por que mudou**
+- Necessidade de demarcar visivelmente o início e fim de cada evento no log para análise pós-evento. Antes era impossível saber onde um evento terminava e o próximo começava no histórico. A limpeza permite descartar dados de testes antes do evento real.
+
+**Ações manuais necessárias**
+- Nenhuma — sem migration, sem schema, sem nova dependência.
+
+---
+
 ## [v4.4] — Monitor: corrige Realtime entre dispositivos (canal único, sem conflito)
 **Data:** 2026-06-18
 

@@ -86,7 +86,7 @@ src/
 │   │   ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
 │   │   └── index.js          # Re-exports de team (etapa 12)
 │   └── monitoring/
-│       ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards por vendedor + feed com descrições de campo (D-044, D-044b)
+│       ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards, feed 9 tipos, toolbar sessão ▶/■, limpar log (D-044–D-048)
 │       └── index.js          # Re-export de monitoring (D-044)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
@@ -324,7 +324,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
 | `src/lib/dataService.js` | ~400 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b) |
 | `src/lib/activityLog.js` | ~100 | Buffer localStorage + Supabase Realtime broadcast + receiveActivityLog (D-044, D-045, D-046) |
-| `src/features/monitoring/MonitoringTab.jsx` | ~345 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards, feed (D-044–D-046) |
+| `src/features/monitoring/MonitoringTab.jsx` | ~430 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards, feed 9 tipos, toolbar sessão, limpar log (D-044–D-048) |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |

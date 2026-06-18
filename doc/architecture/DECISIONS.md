@@ -68,6 +68,39 @@ Riscos conhecidos.
 
 ---
 
+### [D-048] — Monitor: marcadores de sessão de evento e limpeza de log
+
+**Data:** 2026-06-18
+**Tipo:** Feature
+
+**Decisão:** Adicionar marcadores visuais de início/fim de sessão de evento no feed do Monitor e botão de limpeza do log do dia corrente com confirmação em dois cliques.
+
+**Motivação:** O log persiste 30 dias, mas sem delimitadores não é possível saber onde um evento começa e termina no histórico. O operador de marketing precisa: (1) demarcar o início do monitoramento para separá-lo de dados de teste, (2) encerrar o registro formalmente com resumo de leads, (3) limpar dados fictícios antes do evento real.
+
+**Alternativas Avaliadas:**
+- **Filtro por horário:** exigiria UI de seleção de intervalo — complexidade desproporcional.
+- **Log por evento (eventoId como chave de storage):** quebraria o modelo de chave por data (D-045); misturaria com o Realtime que já usa a chave diária.
+- **Marcadores de sessão como tipo de entrada no log (escolhida):** reutiliza toda a infraestrutura existente — `logActivity()`, buffer localStorage, Realtime broadcast, feed. Zero mudança de schema.
+
+**Impactos:**
+- Dois novos tipos no `TYPE_CFG` do MonitoringTab: `session_start` e `session_end`. São ignorados automaticamente pelos filtros Leads/Sync/Perf (não batem em nenhum padrão existente), pelos stats e pelos cards de vendedor.
+- `clearActivityDay(null)` já existia e já disparava o `CustomEvent` — o botão de limpeza apenas chama essa função com confirmação de dois cliques.
+- `hasActiveSession` é derivado do estado `logs` em memória — sem nova chamada ao localStorage.
+- `activeEvento` detectado por `eventos.find(e => e.status === 'ativo')` — sem nova query ao Supabase; usa o contexto já carregado pelo AppProvider.
+- Toolbar visível apenas em modo "Hoje" — histórico é somente leitura (invariante existente mantida).
+
+**Regras mantidas:**
+- Sem acesso direto ao `dataService` — `logActivity()` é a API pública de `activityLog.js`.
+- Sem estado novo no `AppContext`.
+- `confirmClear` reseta ao trocar de dia, evitando estado fantasma.
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — toolbar, SessionMarker, novos tipos, handlers
+
+**Status:** Ativa
+
+---
+
 ### [D-047] — Monitor: canal Realtime único (fix do conflito de canais duplicados)
 
 **Data:** 2026-06-18

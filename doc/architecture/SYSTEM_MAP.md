@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-18 (D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-06-18 (D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 
 ---
@@ -174,7 +174,7 @@ Shell do time de marketing. Navegação por 6 tabs:
 | Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico |
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
 | Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
-| Monitor | `MonitoringTab` | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards por vendedor, feed 7 tipos, filtros Sync/Perf, descrições de campo (D-044, D-044b, D-045) |
+| Monitor | `MonitoringTab` | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards por vendedor, feed 9 tipos, filtros Sync/Perf, descrições de campo, toolbar de sessão (▶/■) + limpar log (D-044–D-048) |
 
 ### `VendedorApp.jsx`
 
@@ -267,7 +267,7 @@ AppProvider re-sincroniza estado com dados do banco
 - **Metas em 3 níveis**: `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` em `constants.js`; `META_DIARIA` é alias de `META_OURO` (D-027)
 - **Log de atividade em localStorage por data**: `activityLog.js` mantém buffer circular de 200 entradas por dia em chave `rjnet_activity_YYYY-MM-DD`; persiste entre fechamentos de aba; auto-purge após 30 dias; sem persistência no banco (D-044, D-045)
 - **`exec(promise, acao, onFail, onSuccess)`**: 4º parâmetro opcional — chamado após escrita bem-sucedida no Supabase (1ª tentativa ou retry) e imediatamente no modo local; usado por `db.saveLead` para acionar `lead_sync_ok` no feed do Monitor (D-044b)
-- **7 tipos de evento no Monitor**: `lead_add`, `lead_update`, `lead_remove`, `lead_sync_ok`, `sync_error`, `perf_warn`, `offline_queue` — cada tipo tem marca visual, cor e descrição em linguagem de campo; filtros `Sync` e `Perf` são separados (D-044b)
+- **9 tipos de evento no Monitor**: `lead_add`, `lead_update`, `lead_remove`, `lead_sync_ok`, `sync_error`, `perf_warn`, `offline_queue`, `session_start`, `session_end` — cada tipo tem marca visual e cor; `session_start`/`session_end` rendem como separadores roxos no feed e não aparecem nos filtros Leads/Sync/Perf nem nos stats; filtros `Sync` e `Perf` são separados (D-044b, D-048)
 - **Realtime Broadcast do Monitor (canal único)**: `activityLog.js` é o único dono do canal `rjnet-monitor` — registra `.on('broadcast', { event: 'log' }, handler)` ANTES de `.subscribe()` (requisito do Supabase JS v2). `MonitoringTab` registra callbacks via `subscribeToRemoteLogs(callback)` — nunca abre canal próprio. Fila `_queue` garante entrega de mensagens enviadas antes de `SUBSCRIBED`. Canal público (anon key), multiplexado na WebSocket existente (D-046, D-047)
 
 ---
