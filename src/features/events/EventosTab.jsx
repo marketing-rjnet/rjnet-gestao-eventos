@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { StatusBadge, TipoBadge } from '../../components/ui';
+import { Icon, StatusBadge, TipoBadge } from '../../components/ui';
 import { EmptyState } from '../../components/EmptyState';
 
 import { EventModal } from '../../components/modals';
