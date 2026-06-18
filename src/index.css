@@ -425,6 +425,10 @@
       .light .kpi,
       .light .vendor-card,
       .light .card { box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px var(--border); }
+      .light .btn-primary { background: #111111; color: #ffffff; }
+      .light .btn-primary:hover { background: #222222; }
+      .light .login-btn { background: #111111; color: #ffffff; }
+      .light .login-btn:hover { background: #222222; }
 
       /* ---------- Theme toggle button ---------- */
       .theme-toggle {
