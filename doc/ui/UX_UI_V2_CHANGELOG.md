@@ -72,13 +72,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `de2f3b912ab056bfe0f39c4a81b243906735484f` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | `--text-3: #666666` → `--text-3: #777777` |
 | **Por quê** | `#666666` em fundo `#111111` tem contraste 3.0:1 — falha WCAG AA para texto < 18px. `#777777` atinge 3.5:1. Afeta labels de tabela, captions e textos terciários. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert de2f3b912ab056bfe0f39c4a81b243906735484f --no-edit && git push` |
 
 ---
 
@@ -86,13 +86,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `df0dc9ed74d2d740b2f0aad2c6b75cf2b4cb561e` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | `--bg: #0f0f0f` → `--bg: #111111` |
 | **Por quê** | `#111111` é padrão Material Design para dark mode e renderiza melhor em LCD. `#0f0f0f` pode parecer "sujo" em telas não-OLED. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert df0dc9ed74d2d740b2f0aad2c6b75cf2b4cb561e --no-edit && git push` |
 
 ---
 
@@ -100,13 +100,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `bf55cd9775c0744c3371c89fae88482f2692248d` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | `--border: #2e2e2e` → `--border: #333333` |
 | **Por quê** | Contraste de `#2e2e2e` sobre `#1a1a1a` é ~1.3:1 — bordas quase invisíveis. `#333333` melhora para ~1.5:1. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert bf55cd9775c0744c3371c89fae88482f2692248d --no-edit && git push` |
 
 ---
 
@@ -114,13 +114,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `0d62300ded4cfcb252f8823bfa29ff8746353c4d` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | `.event-card:hover` e `.kpi:hover` ganham `background: rgba(255,203,0,0.04)` além do box-shadow existente |
 | **Por quê** | Hover com apenas borda colorida é sutil demais. O tint torna a interatividade óbvia sem poluir visualmente. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 0d62300ded4cfcb252f8823bfa29ff8746353c4d --no-edit && git push` |
 
 ---
 
@@ -128,13 +128,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `05cb72850f01a2dd226a9916c3d8ad6a574ddd50` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | `.big-field` e `.seg-btn` dentro de `.vend-shell` recebem `min-height: 48px` |
 | **Por quê** | Área de toque mínima recomendada é 44–48px. Em campo com uma mão, inputs pequenos causam erros de toque. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 05cb72850f01a2dd226a9916c3d8ad6a574ddd50 --no-edit && git push` |
 
 ---
 
@@ -142,13 +142,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css`, `src/apps/VendedorApp.jsx` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `81ef0b527aa9884f45b1b3895c85f03cf3410a71` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | Criar classe `.btn-submit-lead` com `min-height: 56px; font-size: 16px; font-weight: 700; width: 100%`. Adicionar a classe no botão de submit do VendedorApp. |
 | **Por quê** | É a ação principal do app do vendedor — merece o maior alvo de toque da tela. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 81ef0b527aa9884f45b1b3895c85f03cf3410a71 --no-edit && git push` |
 
 ---
 
@@ -156,13 +156,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/components/modals/EventModal.jsx`, `src/components/modals/MaterialModal.jsx`, `src/features/checkin/CheckinTab.jsx`, `src/apps/MarketingApp.jsx` (toggle tema) |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `3b9d213aee743d425d315633716fc26f78203e16` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/components/modals/EventModal.jsx`, `src/components/modals/MaterialModal.jsx`, `src/features/checkin/CheckinTab.jsx`, `src/apps/MarketingApp.jsx` |
 | **O que vai mudar** | Adicionar `aria-label="Fechar"` nos botões X dos modais; `aria-label="Limpar busca"` no botão clear do check-in; `aria-label="Alternar tema"` no toggle de tema |
 | **Por quê** | Botões sem texto visível são invisíveis para leitores de tela. Requisito básico de acessibilidade. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 3b9d213aee743d425d315633716fc26f78203e16 --no-edit && git push` |
 
 ---
 
@@ -170,13 +170,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `2847bc3dd0e8ee087a7406221a4c651d01b3fe1d` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | Dentro de `:root.light`: `.event-card`, `.kpi`, `.vendor-card` recebem `box-shadow: 0 1px 3px rgba(0,0,0,0.08)` |
 | **Por quê** | Em light mode os cards se dissolvem no fundo claro sem elevação visual. Sombra sutil define estrutura. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 2847bc3dd0e8ee087a7406221a4c651d01b3fe1d --no-edit && git push` |
 
 ---
 
@@ -184,13 +184,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `e121834a2704e55965abce82c739542452549848` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | Dentro de `:root.light`: `.btn-primary { background: #111111; color: #ffffff }` e `.btn-primary:hover { background: #222222 }` |
 | **Por quê** | `.btn-primary` amarelo em fundo claro perde força visual. Escuro com texto branco tem mais contraste e aparência profissional. O amarelo `#ffcb00` permanece como acento/hover/bordas. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert e121834a2704e55965abce82c739542452549848 --no-edit && git push` |
 
 ---
 
@@ -198,13 +198,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/auth/LoginAuth.jsx`, `src/auth/Login.jsx` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `414d7f8010cd2e14660332df2c58f2c9182f797b` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/auth/LoginAuth.jsx`, `src/auth/Login.jsx` |
 | **O que vai mudar** | Mover o botão de toggle de tema para fora do card, posicionado com `position: absolute; top: 16px; right: 16px` no container da tela de login |
 | **Por quê** | No canto inferior direito do card é pouco descobrível. No topo é consistente com a posição no app logado. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 414d7f8010cd2e14660332df2c58f2c9182f797b --no-edit && git push` |
 
 ---
 
@@ -212,13 +212,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
+| **Status** | ✅ CONCLUÍDO |
+| **Hash** | `550c4426a1ea465c999dad875fd2c61cbe0dba2f` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
 | **O que vai mudar** | `.ranking-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }` |
 | **Por quê** | Nomes longos quebram o layout do ranking em telas pequenas. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 550c4426a1ea465c999dad875fd2c61cbe0dba2f --no-edit && git push` |
 
 ---
 
@@ -515,6 +515,46 @@ git revert 0a7e4b2..HEAD --no-edit && git push
 # Voltar completamente à V1 estável (DESTRUTIVO — apaga commits)
 git reset --hard b250c6827d433b0133f766a025c00115508708bc && git push --force
 ```
+
+---
+
+## Checklist de Status
+
+### Fase A — Correções CSS
+- [x] A-01 — Cor de marca `#ffcb00` — `de2f3b9` (incluído no commit `0a7e4b2`)
+- [x] A-02 — Contraste `--text-3` → `#777777` — `de2f3b9`
+- [x] A-03 — Fundo dark → `#111111` — `df0dc9e`
+- [x] A-04 — Bordas dark → `#333333` — `bf55cd9`
+- [x] A-05 — Hover de card com tint — `0d62300`
+- [x] A-06 — Inputs Vendedor min-height 52px — `05cb728`
+- [x] A-07 — Botão Registrar Lead 56px bold — `81ef0b5`
+- [x] A-08 — `aria-label` em botões de ícone — `3b9d213`
+- [x] A-09 — Light mode: sombra nos cards — `2847bc3`
+- [x] A-10 — Light mode: botão primário escuro — `e121834`
+- [x] A-11 — Toggle tema no login: topo direito — `414d7f8`
+- [x] A-12 — Ellipsis no ranking — `550c442`
+
+### Fase B — Reorganização de Componentes
+- [ ] B-01 — Dashboard como tab "Início"
+- [ ] B-02 — Avatares limitados a 3 + "+N"
+- [ ] B-03 — Empty states nos tabs
+- [ ] B-04 — Busca em Meus Leads
+- [ ] B-05 — Tab Leads → "Relatórios"
+- [ ] B-06 — Reordenar bottom nav marketing
+- [ ] B-07 — Mini gráfico → números diretos
+- [ ] B-08 — Menu "⋯" para ações destrutivas
+- [ ] B-09 — Check-in filtrado a eventos ativos
+- [ ] B-10 — Check-in CTA "Cadastrar como lead"
+- [ ] B-11 — Monitor como última tab
+- [ ] B-12 — Pacotes → modal dentro de Evento
+
+### Fase C — Componentes Novos
+- [ ] C-01 — `EmptyState` como componente
+- [ ] C-02 — `SearchInput` padronizado
+- [ ] C-03 — Busca de leads no EventDetail
+- [ ] C-04 — TableScrollHint (CSS)
+- [ ] C-05 — Destaque da posição no ranking
+- [ ] C-06 — Bottom sheet para modais mobile
 
 ---
 
