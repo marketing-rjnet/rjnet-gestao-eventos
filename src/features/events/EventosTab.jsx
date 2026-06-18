@@ -4,7 +4,6 @@ import { Icon, StatusBadge, TipoBadge } from '../../components/ui';
 import { EventModal } from '../../components/modals';
 import { fmtDate, initials, STATUS_LABEL } from '../../utils/format';
 import { AVATARS_SHOWN } from '../../lib/constants';
-import Dashboard from './Dashboard';
 
 export default function EventosTab({ onOpen }) {
   const { eventos, getLeadsEvento } = useApp();
@@ -51,7 +50,6 @@ export default function EventosTab({ onOpen }) {
         </div>
       )}
 
-      <Dashboard />
       {showModal && <EventModal onClose={() => setShowModal(false)} />}
     </div>
   );

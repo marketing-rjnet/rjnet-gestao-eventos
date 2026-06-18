@@ -10,13 +10,14 @@ import { EquipeTab, EquipeAuthTab } from '../features/team';
 import { MonitoringTab } from '../features/monitoring';
 
 export default function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
-  const [tab, setTab] = useState("eventos");
+  const [tab, setTab] = useState("inicio");
   const [detailId, setDetailId] = useState(null);
 
   const tabs = [
+    { id: "inicio", label: "Início", ico: "home" },
     { id: "eventos", label: "Eventos", ico: "calendar" },
     { id: "estoque", label: "Estoque", ico: "box" },
-    { id: "leads", label: "Leads", ico: "users" },
+    { id: "leads", label: "Relatórios", ico: "users" },
     { id: "equipe", label: "Equipe", ico: "briefcase" },
     { id: "checkin", label: "Check-in", ico: "search" },
     { id: "monitor", label: "Monitor", ico: "activity" },
@@ -43,6 +44,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         <button className="btn-ghost" style={{ marginLeft: "auto" }} onClick={onLogout}>Sair</button>
       </header>
 
+      {tab === "inicio" && <Dashboard />}
       {tab === "eventos" && (detailId
         ? <EventDetail eventoId={detailId} onBack={() => setDetailId(null)} />
         : <EventosTab onOpen={setDetailId} />)}
