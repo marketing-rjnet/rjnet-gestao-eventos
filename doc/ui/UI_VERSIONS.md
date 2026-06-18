@@ -9,8 +9,107 @@
 
 | Versão | Status | Data | Resumo |
 |--------|--------|------|--------|
-| [v1.0](#v10--baseline) | **atual** | 2026-06-18 | Interface baseline — dark mode, 2 perfis, 6 tabs marketing |
-| v2.0 | **proposta** | — | Ver `doc/ui/UX_UI_V2_PROPOSAL.md` — aguardando aprovação |
+| [v3.0](#v30--redesign-visual-v3) | **atual** | 2026-06-18 | Redesign visual completo — identidade forte, wizard vendedor, bottom nav mobile |
+| [v2.0](#v20--refinamentos-v2) | anterior | 2026-06-18 | Refinamentos técnicos — 22 itens CSS/JSX (Fases A, B, C) |
+| [v1.0](#v10--baseline) | anterior | 2026-06-18 | Interface baseline — dark mode, 2 perfis, 6 tabs marketing |
+
+---
+
+## v3.0 — Redesign Visual V3
+
+**Status:** `atual`
+**Data:** 2026-06-18
+**PR:** #45 — `claude/v3-visual-redesign` → `main`
+**Documentação:** `doc/ui/UX_UI_V3_PROPOSAL.md` | `doc/ui/UX_UI_V3_IMPLEMENTATION_PLAN.md` | `doc/ui/UX_UI_V3_CHANGELOG.md`
+
+### Visão Geral
+
+Redesign visual real — sem alteração de lógica de negócio. Objetivo: interface moderna, mobile-first, com identidade de marca forte (preto profundo + amarelo RJNet como protagonista). Inspiração: Linear.app, Vercel dashboard, Raycast.
+
+### Identidade Visual
+
+| Propriedade | Valor |
+|-------------|-------|
+| Fundo base | `#090909` (`--bg`) |
+| Superfície card | `#111111` (`--surface`) |
+| Superfície interna | `#1a1a1a` (`--surface2`) |
+| Hover/selecionado | `#222222` (`--surface3`) |
+| Borda padrão | `#2a2a2a` (`--border`) |
+| Borda visível | `#333333` (`--border-2`) |
+| Amarelo RJNet | `#ffcb00` (`--yellow`) |
+| Amarelo dim | `rgba(255,203,0,0.10)` (`--yellow-dim`) |
+| Amarelo glow | `rgba(255,203,0,0.20)` (`--yellow-glow`) |
+| Texto primário | `#f4f4f4` |
+| Texto secundário | `#aaaaaa` |
+| Texto terciário | `#666666` |
+| Sombra card | `0 1px 3px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.3)` |
+| Sombra float | `0 8px 32px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.4)` |
+| Border radius padrão | `14px` (era 10px) |
+| Border radius sm | `8px` (novo) |
+| Border radius lg | `20px` (novo) |
+
+### O que mudou em relação à V2
+
+#### Design System
+- Fundos mais escuros (`#090909` vs `#111111`) — mais profundidade
+- Cards com `box-shadow` real (elevação) em vez de borda `0 0 0 1px`
+- Hover eleva cards com `translateY(-2px)` + sombra maior
+- KPIs: números 40px/800 (era 28px)
+- Section titles: uppercase menor, `var(--text-3)` (era text-2)
+- Micro-interações em todos os botões: `transition: all .15s ease`
+- `.btn-primary:active`: `scale(.97)` (era .98)
+- Toast: `slideFromBottom` animation + `border-left: 3px solid var(--green)`
+
+#### Navegação — Marketing (mobile)
+- Bottom nav reestruturado: 4 itens principais + "Mais ⋯"
+- "Mais" abre bottom sheet com Estoque, Relatórios e Monitor
+- Altura: 72px (era 62px)
+- Item ativo: pill amarela `::after` embaixo (era `border-top`)
+- Toque mínimo: 64px por item
+
+#### Navegação — Vendedor (mobile)
+- Mesmo redesign: 72px, pill amarela, fundo `var(--surface)`
+
+#### Cards de evento
+- Borda esquerda colorida por status: `var(--yellow)` ativo, `var(--text-3)` planejado, `var(--border-2)` encerrado
+
+#### Dashboard
+- Hero card no topo: evento ativo com nome, local, período, leads e vendedores
+- Barras horizontais CSS substituem gráfico donut (Chart.js não é mais usado no Dashboard)
+- KPIs mantidos
+
+#### Formulário do Vendedor — Wizard 3 etapas
+- **Etapa 1:** Nome + Telefone + indicador de progresso
+- **Etapa 2:** Grade 2×2 visual de serviços com emoji + label; selecionado: `yellow-dim + border yellow`
+- **Etapa 3:** Temperatura, Já é cliente, Observação, CPF, Endereço
+- Modo rápido: pula etapa 3, submete direto após etapa 2
+- `addLead()` inalterado — mesmos campos, mesma lógica
+
+#### Barra de meta
+- `transition: width .6s cubic-bezier(.34,1.56,.64,1)` (spring)
+- Bronze: `#cd7f32` | Prata: `#c0c0c0` | Ouro: `var(--yellow)`
+
+#### Toast
+- `border-left: 3px solid var(--green)`
+- Botão Desfazer: `border: 1px solid var(--yellow)`
+
+### Responsividade
+
+| Breakpoint | Comportamento |
+|------------|---------------|
+| > 760px (desktop) | Header nav completo (7 tabs), bottom nav oculto |
+| ≤ 760px (mobile) | Bottom nav 72px, 4 itens + "Mais", grids 1 coluna |
+
+---
+
+## v2.0 — Refinamentos V2
+
+**Status:** `anterior`
+**Data:** 2026-06-18
+**PR:** #44 — `claude/v2-ux-ui` → `main`
+**Documentação:** `doc/ui/UX_UI_V2_PROPOSAL.md` | `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | `doc/ui/UX_UI_V2_CHANGELOG.md`
+
+22 itens em 3 fases (A: CSS foundation, B: reorganização UX, C: componentes). Melhorias técnicas corretas, sem impacto visual percebido pelo usuário final — motivou a criação da V3.
 
 ---
 

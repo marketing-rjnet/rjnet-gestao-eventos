@@ -4,6 +4,49 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.0] — UX/UI V3: redesign visual completo (Fases D, E e F)
+**Data:** 2026-06-18
+**PR:** #45 — merge `claude/v3-visual-redesign` → `main`
+
+**O que mudou**
+
+### Fase D — Design System (apenas CSS)
+- **D-01** — Nova paleta de cores: fundo `#090909`, superfícies `#111`/`#1a1a1a`/`#222`, bordas mais sutis, variáveis novas `--yellow-dim`, `--yellow-glow`, `--shadow-card`, `--shadow-float`, `--shadow-glow`, `--radius-sm`, `--radius-lg`
+- **D-02** — Cards com elevação real: `box-shadow: var(--shadow-card)` em `.card`, `.kpi`, `.event-card`, `.vendor-card`; hover eleva com `translateY(-2px) + shadow-float`
+- **D-03** — Tipografia com hierarquia: KPIs passam de 28px para 40px/800; page-title 22px/800; section-title uppercase 11px; `.ms-v` (mini-stat) 36px/800
+- **D-04** — Micro-interações: `transition: all .15s ease` em todos os botões; `.btn-primary:active` escala para `.97`; toast com `@keyframes slideFromBottom`; nav tabs com `transition: color .15s, background .15s`
+
+### Fase E — Navegação
+- **E-01** — `MarketingApp.jsx`: bottom nav reestruturado para 4 itens principais (Início, Eventos, Equipe, Check-in) + botão "Mais" que abre bottom sheet com Estoque, Relatórios e Monitor; desktop mantém nav horizontal completo
+- **E-02** — Bottom navs (Marketing + Vendedor): altura 72px, pill amarela `::after` embaixo do item ativo, toque mínimo 64px, fundo `var(--surface)` com borda topo `var(--border)`
+- **E-03** — `EventosTab.jsx`: `borderLeft` dinâmico por status (amarelo=ativo, cinza=planejado, escuro=encerrado); `.ev-meta` atualizado para 12px/`var(--text-3)`
+
+### Fase F — Telas Principais
+- **F-01** — `Dashboard.jsx`: hero card no topo com evento ativo (nome, local, período, leads, vendedores); barras horizontais CSS substituem o gráfico donut Chart.js (sem dependência externa); KPIs permanecem
+- **F-02/03/04** — `VendedorApp.jsx`: formulário de registro de lead convertido em wizard 3 etapas com indicador de progresso; etapa 1 (Nome+Telefone), etapa 2 (grade 2×2 visual de serviços com emoji), etapa 3 (temperatura, Já é cliente, observação, CPF, endereço); modo rápido pula etapa 3 e submete direto; `addLead()` inalterado
+- **F-05** — `.meta-bar-fill`: `transition: width .6s cubic-bezier(.34,1.56,.64,1)` (spring); cores reais por nível: bronze `#cd7f32`, prata `#c0c0c0`, ouro `var(--yellow)`
+- **F-06** — Toast: `border-left: 3px solid var(--green)`; botão "Desfazer" com `border: 1px solid var(--yellow)`
+
+**Por que mudou**
+- V2 entregou melhorias técnicas corretas mas sem impacto visual percebido pelo usuário.
+- V3 é um redesign visual real com identidade forte: preto profundo + amarelo RJNet como protagonista.
+- Formulário de lead do Vendedor era uma lista de 8 campos — wizard reduz carga cognitiva no campo.
+
+**Arquivos alterados**
+- `src/index.css` — todas as fases D, E-02, E-03 (parcial), F-05, F-06
+- `src/apps/MarketingApp.jsx` — E-01
+- `src/apps/VendedorApp.jsx` — F-02, F-03, F-04
+- `src/features/events/Dashboard.jsx` — F-01
+- `src/features/events/EventosTab.jsx` — E-03
+
+**Ações manuais necessárias**
+- Nenhuma. Nenhum schema de banco foi alterado.
+
+**Rollback por item**
+Ver `doc/ui/UX_UI_V3_CHANGELOG.md` — cada item tem `git revert <hash> --no-edit && git push`.
+
+---
+
 ## [v4.8] — Monitor: corrige contagem de leads na sessão encerrada
 **Data:** 2026-06-18
 
