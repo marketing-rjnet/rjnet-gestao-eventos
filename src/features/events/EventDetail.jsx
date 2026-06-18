@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, StatusBadge, TipoBadge, ChartView } from '../../components/ui';
+import { SearchInput } from '../../components/SearchInput';
 import { EventModal } from '../../components/modals';
 import { fmtDateLong, servicoLabel } from '../../utils/format';
 import { NIVEL_ESTOQUE } from '../../lib/constants';
@@ -31,6 +32,7 @@ export default function EventDetail({ eventoId, onBack }) {
   const [showAddMat, setShowAddMat] = useState(false);
   const [editEvento, setEditEvento] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [buscaLead, setBuscaLead] = useState("");
 
   const matsDisponiveis = materiais.filter(
     (m) => !ev.materiais.find((em) => em.materialId === m.id)
@@ -224,11 +226,19 @@ export default function EventDetail({ eventoId, onBack }) {
                 }} />
               </div>
             </div>
+            <SearchInput
+              value={buscaLead}
+              onChange={setBuscaLead}
+              placeholder="Buscar lead por nome…"
+              onClear={() => setBuscaLead("")}
+            />
             <div className="tbl-wrap">
               <table>
                 <thead><tr><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Serviço</th><th>Vendedor</th></tr></thead>
                 <tbody>
-                  {evLeads.map((l) => (
+                  {evLeads
+                    .filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase()))
+                    .map((l) => (
                     <tr key={l.id}>
                       <td className="strong">{l.nome}</td>
                       <td className="mono">{l.telefone}</td>
