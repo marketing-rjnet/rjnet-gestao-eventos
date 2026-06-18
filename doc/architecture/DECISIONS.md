@@ -68,6 +68,36 @@ Riscos conhecidos.
 
 ---
 
+### [D-051] — Monitor: correção da contagem de leads ao encerrar sessão
+
+**Data:** 2026-06-18
+**Tipo:** Bugfix
+
+**Decisão:** `handleEncerrarSessao` deve contar `lead_add - lead_remove` apenas dentro do escopo temporal da sessão atual (desde o último `session_start`), com `Math.max(0, ...)` como guarda.
+
+**Causa raiz:** A implementação original usava `logs.filter(l => l.type === 'lead_add').length` — sem escopo de sessão e sem subtrair remoções. Dois bugs independentes:
+1. Contava leads de sessões anteriores ou do histórico do dia.
+2. Não descontava leads excluídos pelo vendedor durante a sessão.
+
+**Solução:**
+```js
+const lastStart = [...logs].reverse().find(l => l.type === 'session_start');
+const sessionLogs = logs.filter(l => !lastStart || l.ts >= lastStart.ts);
+const count = Math.max(0,
+  sessionLogs.filter(l => l.type === 'lead_add').length -
+  sessionLogs.filter(l => l.type === 'lead_remove').length,
+);
+```
+
+**Invariante:** `Math.max(0, ...)` evita contagem negativa quando um lead adicionado antes da sessão (em outra sessão do mesmo dia) é removido dentro dela.
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — `handleEncerrarSessao`
+
+**Status:** Ativa (substitui implementação incorreta de D-048)
+
+---
+
 ### [D-050] — Monitor: status de atividade do vendedor nos cards
 
 **Data:** 2026-06-18

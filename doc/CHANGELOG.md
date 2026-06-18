@@ -4,6 +4,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.8] — Monitor: corrige contagem de leads na sessão encerrada
+**Data:** 2026-06-18
+
+**O que mudou**
+- **`src/features/monitoring/MonitoringTab.jsx`** — `handleEncerrarSessao` reescrita em duas correções sucessivas:
+  1. **Escopo por sessão:** antes contava todos os `lead_add` do dia inteiro. Agora filtra apenas eventos com `ts >= lastStart.ts` (timestamp do último `session_start`). Se não houver `session_start` no log, conta tudo como fallback seguro.
+  2. **Desconta remoções:** `lead_add - lead_remove` dentro do escopo da sessão. `Math.max(0, ...)` protege contra resultado negativo quando um lead adicionado antes da sessão é removido dentro dela.
+
+**Por que mudou**
+- Ao iniciar sessão, adicionar 3 leads e excluir os 3, o marcador `■ SESSÃO ENCERRADA` mostrava "3 leads nesta sessão" em vez de "0 leads nesta sessão". A contagem deve refletir o saldo real de leads ativos ao encerrar.
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
 ## [v4.7] — Monitor: indicador de status (ativo/inativo) nos cards de vendedor
 **Data:** 2026-06-18
 
