@@ -272,10 +272,10 @@
       .vend-shell { max-width: 480px; margin: 0 auto; padding: 18px 16px 90px; }
       .vend-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
       .count-badge { background: var(--rj-blue); color: #fff; font-weight: 700; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
-      .big-field input, .big-field textarea, .big-select select { padding: 14px; font-size: 16px; border-radius: 10px; }
+      .big-field input, .big-field textarea, .big-select select { padding: 14px; font-size: 16px; border-radius: 10px; min-height: 52px; box-sizing: border-box; }
       .big-field { margin-bottom: 16px; }
+      .seg-btn { padding: 13px 10px; border-radius: 10px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border); transition: all .15s ease; min-height: 48px; }
       .seg-control { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .seg-btn { padding: 13px 10px; border-radius: 10px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border); transition: all .15s ease; }
       .seg-btn.active { background: var(--rj-blue); color: #fff; box-shadow: none; }
       .lead-submit { height: 56px; font-size: 16px; }
       .meus-leads { margin-top: 4px; }
