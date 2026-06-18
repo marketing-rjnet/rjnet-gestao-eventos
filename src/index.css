@@ -386,6 +386,30 @@
       .meta-stage { font-size: 11px; color: var(--text-3); }
       .meta-stage.achieved { color: var(--text); font-weight: 700; }
 
+      /* Wizard de registro de lead */
+      .wizard-progress { display: flex; gap: 6px; margin-bottom: 6px; }
+      .wizard-step { flex: 1; height: 4px; border-radius: 999px; background: var(--border); transition: background .3s ease; }
+      .wizard-step.current { background: var(--yellow); }
+      .wizard-step.done { background: var(--green); }
+      .wizard-step-label { font-size: 12px; color: var(--text-3); margin-bottom: 16px; }
+      .wizard-slide { animation: wSlide .2s ease; }
+      @keyframes wSlide { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+      .wizard-actions { display: flex; gap: 10px; margin-top: 4px; }
+      .wizard-actions .btn-ghost { flex: 0 0 auto; }
+      .form-erro { color: var(--red); font-size: 13px; padding: 8px 12px; background: var(--red-bg); border-radius: 8px; margin-bottom: 8px; }
+
+      /* Serviço grid (2×2 visual) */
+      .servico-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .servico-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 8px; padding: 18px 12px; border-radius: var(--radius); font-size: 13px; font-weight: 600;
+        background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border);
+        min-height: 88px; transition: all .15s ease;
+      }
+      .servico-btn:active { transform: scale(.97); }
+      .servico-ico { font-size: 26px; line-height: 1; }
+      .servico-btn.active { background: var(--yellow-dim); box-shadow: 0 0 0 2px var(--yellow); color: var(--text); }
+
       /* Modo rápido toggle */
       .modo-rapido-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
       .toggle-switch { width: 36px; height: 20px; border-radius: 999px; background: var(--border); position: relative; transition: background .2s; flex-shrink: 0; }
