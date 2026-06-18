@@ -127,6 +127,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const [editandoId, setEditandoId] = useState(null);
   const [confirmandoDelId, setConfirmandoDelId] = useState(null);
   const [buscaLead, setBuscaLead] = useState("");
+  const [showPacotes, setShowPacotes] = useState(false);
 
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
@@ -428,8 +429,8 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
           </div>
         )}
 
-        {/* ---- ABA PACOTES ---- */}
-        {aba === "pacotes" && (
+        {/* ---- PACOTES (acessível dentro da aba Evento) ---- */}
+        {aba === "evento" && showPacotes && (
           <div className="pacotes-wrap">
             {/* INTERNET FIBRA */}
             <div className="pacotes-section">
@@ -598,6 +599,14 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ width: "100%", marginTop: 16, fontSize: 13 }}
+                  onClick={() => setShowPacotes((v) => !v)}
+                >
+                  {showPacotes ? "▲ Ocultar tabela de preços" : "▼ Ver tabela de preços"}
+                </button>
               </>
             )}
           </div>
@@ -618,10 +627,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
         <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
           <Icon name="calendar" size={22} stroke={aba === "evento" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Evento
-        </button>
-        <button className={"vend-nav-btn" + (aba === "pacotes" ? " active" : "")} onClick={() => setAba("pacotes")}>
-          <Icon name="box" size={22} stroke={aba === "pacotes" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
-          Pacotes
         </button>
       </nav>
 
