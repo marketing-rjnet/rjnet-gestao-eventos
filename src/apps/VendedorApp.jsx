@@ -140,6 +140,11 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const nivelMeta  = metaOuro ? "ouro" : metaPrata ? "prata" : metaBronze ? "bronze" : "";
 
   const { ranking, rankingLoading } = useRanking(eventoId, leads.length);
+  const meRef = useRef(null);
+
+  useEffect(() => {
+    if (meRef.current) meRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [ranking]);
 
   const totalLeadsEvento = ranking.reduce((a, r) => a + r.total, 0);
   const maxRanking = ranking[0]?.total || 1;
@@ -580,7 +585,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   ) : (
                     <div className="ranking-list">
                       {ranking.map((item, i) => (
-                        <div key={item.nome} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
+                        <div key={item.nome} ref={item.nome === session.vendedorNome ? meRef : null} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
                           <div className="ranking-header">
                             <span className={"ranking-pos" + (i < 3 ? " " + posColors[i] : "")}>{i + 1}º</span>
                             <span className="ranking-name">{item.nome}{item.nome === session.vendedorNome && <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>(você)</span>}</span>
