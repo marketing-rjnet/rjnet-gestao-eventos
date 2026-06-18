@@ -7,6 +7,7 @@ import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
+import { SearchInput } from '../components/SearchInput';
 
 const TEMPERATURA_CONFIG = {
   frio:       { label: "Frio",       cor: "#60a5fa", cls: "temp-frio" },
@@ -356,15 +357,12 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               </div>
             ) : (
               <div className="meus-leads">
-                <div className="leads-search-wrap">
-                  <input
-                    className="leads-search"
-                    type="search"
-                    placeholder="Buscar por nome…"
-                    value={buscaLead}
-                    onChange={(e) => setBuscaLead(e.target.value)}
-                  />
-                </div>
+                <SearchInput
+                  value={buscaLead}
+                  onChange={setBuscaLead}
+                  placeholder="Buscar por nome…"
+                  onClear={() => setBuscaLead("")}
+                />
                 <h3>{leadsDoEvento.length} lead{leadsDoEvento.length > 1 ? "s" : ""} neste evento</h3>
                 {leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
                   <div style={{ textAlign: "center", color: "var(--text-3)", fontSize: 13, padding: "24px 0" }}>Nenhum lead com esse nome.</div>
