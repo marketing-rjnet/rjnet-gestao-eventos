@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { ChartView } from '../../components/ui';
 import { sanitizeText } from '../../lib/security';
 import { RECENT_EVENTS_SHOWN } from '../../lib/constants';
 import { fmtDate, initials } from '../../utils/format';
@@ -52,11 +51,6 @@ export default function EquipeTab() {
             .sort((a, b) => a.dataInicio.localeCompare(b.dataInicio))
             .slice(-RECENT_EVENTS_SHOWN)
             .map((ev) => ({ ev, n: vl.filter((l) => l.eventoId === ev.id).length }));
-          const hasData = recent.some((r) => r.n > 0);
-          const barData = {
-            labels: recent.map((r) => fmtDate(r.ev.dataInicio)),
-            datasets: [{ data: recent.map((r) => r.n), backgroundColor: "#ffcb00", borderRadius: 4 }],
-          };
           return (
             <div key={v.id} className="vendor-card">
               <div className="v-av">{initials(v.nome)}</div>
@@ -66,12 +60,14 @@ export default function EquipeTab() {
               </div>
               <div className="v-cap">leads captados</div>
               <div className="v-big">{vl.length}</div>
-              {hasData && (
-                <div className="v-chart">
-                  <ChartView type="bar" data={barData} options={{
-                    plugins: { legend: { display: false }, tooltip: { enabled: true } },
-                    scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
-                  }} />
+              {recent.some((r) => r.n > 0) && (
+                <div className="v-recent-events">
+                  {recent.map((r) => (
+                    <span key={r.ev.id} className="v-event-stat" title={r.ev.nome}>
+                      <span className="v-event-date">{fmtDate(r.ev.dataInicio)}</span>
+                      <span className="v-event-count">{r.n}</span>
+                    </span>
+                  ))}
                 </div>
               )}
               <div className="v-actions">
