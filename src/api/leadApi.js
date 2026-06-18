@@ -30,9 +30,11 @@ export function createLeadApi({ leads, setLeads }) {
     removeLead: (id) => {
       const atual = leads.find((l) => l.id === id);
       setLeads((p) => p.filter((l) => l.id !== id));
-      db.removeLead(id, () => {
-        if (atual) setLeads((p) => [...p, atual]);
-      });
+      db.removeLead(
+        id,
+        () => { if (atual) setLeads((p) => [...p, atual]); },
+        () => { if (atual) logActivity({ type: 'lead_sync_ok', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome }); },
+      );
       if (atual?.eventoId) invalidarRanking(atual.eventoId);
       if (atual) logActivity({ type: 'lead_remove', level: 'warn', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome });
     },

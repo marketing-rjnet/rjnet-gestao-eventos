@@ -368,10 +368,11 @@ export const db = {
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
   // PA-07/LGPD: hard delete pelo vendedor (leads_delete policy, sem with_check).
   // Auditoria registrada pelo trigger audit_leads (AFTER DELETE → audit_log).
-  removeLead: (id, onFail) => exec(
+  removeLead: (id, onFail, onSuccess) => exec(
     supabase?.from('leads').delete().eq('id', id),
     'remover lead',
     onFail,
+    onSuccess,
   ),
 
   // PA-06/LGPD: registra exportação CSV na tabela de auditoria (fire-and-forget; nunca bloqueia o download)

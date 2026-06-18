@@ -41,10 +41,19 @@ const TYPE_DESC = {
   offline_queue: 'sem internet · lead salvo localmente e será enviado ao reconectar',
 };
 
+function getPerfCfg(ms) {
+  if (ms >= 60000) return { label: 'timeout de rede',   mark: '✗', color: 'var(--red)' };
+  if (ms >= 30000) return { label: 'possível timeout',  mark: '⚡', color: 'var(--red)' };
+  if (ms >= 5000)  return { label: 'req. muito lenta',  mark: '⚡', color: '#f97316' };
+  return                   { label: 'req. lenta',       mark: '⚡', color: 'var(--yellow)' };
+}
+
 function getDesc(log) {
   if (log.type === 'perf_warn') {
     const key = (log.detail || '').split('(')[0].trim();
-    return PERF_DESC[key] || `operação ${log.detail} demorou mais que o esperado`;
+    const base = PERF_DESC[key] || `operação ${log.detail} demorou mais que o esperado`;
+    if ((log.ms || 0) >= 30000) return `possível falha de rede ou timeout — ${base}`;
+    return base;
   }
   return TYPE_DESC[log.type] || null;
 }
@@ -136,7 +145,9 @@ function FeedEntry({ log, eventoNome }) {
   if (log.type === 'session_start' || log.type === 'session_end') {
     return <SessionMarker log={log} eventoNome={eventoNome} />;
   }
-  const cfg = TYPE_CFG[log.type] || { label: log.type, mark: '·', color: 'var(--text-3)' };
+  const cfg = log.type === 'perf_warn'
+    ? getPerfCfg(log.ms || 0)
+    : (TYPE_CFG[log.type] || { label: log.type, mark: '·', color: 'var(--text-3)' });
   const desc = getDesc(log);
   const evento = eventoNome(log.eventoId);
   const isSyncOk = log.type === 'lead_sync_ok';
