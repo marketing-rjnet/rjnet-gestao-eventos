@@ -334,11 +334,12 @@
       .lm-del-confirm-no { flex: 1; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--surface2); border: none; cursor: pointer; }
 
       /* Barra de navegação inferior */
-      .vend-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #0d1117; border-top: 1px solid #1e2a3a; display: flex; justify-content: space-around; align-items: stretch; padding: 0; safe-area-inset-bottom: env(safe-area-inset-bottom); }
-      .vend-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 4px 12px; font-size: 11px; font-weight: 600; color: #5a7a9a; background: none; border: none; cursor: pointer; transition: color .15s; position: relative; letter-spacing: .02em; }
-      .vend-nav-btn.active { color: #ffcb00; }
-      .vend-nav-btn.active svg { stroke: #ffcb00; }
+      .vend-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: var(--surface); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: stretch; padding: 0; padding-bottom: env(safe-area-inset-bottom, 0); height: 72px; }
+      .vend-nav-btn { flex: 1; min-width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 4px; font-size: 10px; font-weight: 600; color: var(--text-3); background: none; border: none; cursor: pointer; transition: color .15s, background .15s; position: relative; letter-spacing: .02em; }
+      .vend-nav-btn.active { color: var(--yellow); }
+      .vend-nav-btn.active svg { stroke: var(--yellow); }
       .vend-nav-btn svg { transition: stroke .15s; }
+      .vend-nav-btn.active::after { content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 3px; border-radius: 3px 3px 0 0; background: var(--yellow); }
       .vend-nav-badge { position: absolute; top: 6px; right: calc(50% - 18px); background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 5px; min-width: 16px; text-align: center; line-height: 1.4; }
 
       /* Edição inline de lead */
@@ -494,18 +495,23 @@
       .bottom-nav {
         display: none;
         position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-        height: 62px; background: var(--surface); border-top: 1px solid var(--border);
-        padding: 0 8px; padding-bottom: env(safe-area-inset-bottom, 0);
+        height: 72px; background: var(--surface); border-top: 1px solid var(--border);
+        padding: 0; padding-bottom: env(safe-area-inset-bottom, 0);
       }
-      .bottom-nav-inner { display: flex; height: 62px; align-items: stretch; }
+      .bottom-nav-inner { display: flex; height: 72px; align-items: stretch; }
       .bn-tab {
-        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 3px; font-size: 10px; font-weight: 600; color: var(--text-3);
+        flex: 1; min-width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 4px; font-size: 10px; font-weight: 600; color: var(--text-3);
         border-top: 2px solid transparent; transition: color .15s, background .15s;
-        padding: 0 4px;
+        padding: 0 4px; position: relative;
       }
       .bn-tab .bn-ico { font-size: 20px; line-height: 1; }
-      .bn-tab.active { color: var(--rj-blue); border-top-color: var(--rj-blue); }
+      .bn-tab.active { color: var(--yellow); border-top-color: transparent; }
+      .bn-tab.active::after {
+        content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+        width: 32px; height: 3px; border-radius: 3px 3px 0 0;
+        background: var(--yellow);
+      }
 
       @media (max-width: 760px) {
         .grid-kpi { grid-template-columns: repeat(2, 1fr); }
@@ -522,8 +528,8 @@
         .bottom-nav { display: block; }
 
         /* Add bottom padding so content isn't hidden behind bottom nav */
-        .page { padding: 18px 14px 80px; }
-        .vend-shell { padding: 16px 14px 80px; }
+        .page { padding: 18px 14px 88px; }
+        .vend-shell { padding: 16px 14px 88px; }
 
         /* Chips: scroll horizontal */
         .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
