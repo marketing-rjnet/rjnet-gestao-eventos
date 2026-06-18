@@ -126,6 +126,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const toastTimer = useRef(null);
   const [editandoId, setEditandoId] = useState(null);
   const [confirmandoDelId, setConfirmandoDelId] = useState(null);
+  const [buscaLead, setBuscaLead] = useState("");
 
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
@@ -354,8 +355,19 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               </div>
             ) : (
               <div className="meus-leads">
+                <div className="leads-search-wrap">
+                  <input
+                    className="leads-search"
+                    type="search"
+                    placeholder="Buscar por nome…"
+                    value={buscaLead}
+                    onChange={(e) => setBuscaLead(e.target.value)}
+                  />
+                </div>
                 <h3>{leadsDoEvento.length} lead{leadsDoEvento.length > 1 ? "s" : ""} neste evento</h3>
-                {leadsDoEvento.map((l) => {
+                {leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
+                  <div style={{ textAlign: "center", color: "var(--text-3)", fontSize: 13, padding: "24px 0" }}>Nenhum lead com esse nome.</div>
+                ) : leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).map((l) => {
                   const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
                   const editando = editandoId === l.id;
                   const tel = l.telefone.replace(/\D/g, "");

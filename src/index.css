@@ -281,6 +281,9 @@
       .seg-control { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
       .seg-btn.active { background: var(--rj-blue); color: #fff; box-shadow: none; }
       .lead-submit { height: 56px; font-size: 16px; font-weight: 700; letter-spacing: .02em; }
+      .leads-search-wrap { margin-bottom: 12px; }
+      .leads-search { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px; outline: none; }
+      .leads-search:focus { border-color: var(--rj-blue); }
       .meus-leads { margin-top: 4px; }
       .meus-leads h3 { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
       .lead-mini { background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--border); padding: 12px 14px; margin-bottom: 8px; }
