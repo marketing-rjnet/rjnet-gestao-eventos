@@ -292,7 +292,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 </div>
                 <div className="wizard-step-label">{etapa === 1 ? "Identificação" : etapa === 2 ? "Serviço" : "Detalhes"} — {etapa} de {modoRapido ? 2 : 3}</div>
 
-                {/* Etapa 1 — Nome + Telefone */}
+                {/* Etapa 1 — Nome + Telefone + Endereço */}
                 {etapa === 1 && (
                   <div className="wizard-slide">
                     <div className="big-field">
@@ -302,6 +302,10 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                     <div className="big-field">
                       <label>Telefone *</label>
                       <input required maxLength={15} value={f.telefone} onChange={(e) => set("telefone", maskTel(e.target.value))} placeholder="(24) 99999-9999" inputMode="tel" autoComplete="off" />
+                    </div>
+                    <div className="big-field">
+                      <label>Endereço <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional)</span></label>
+                      <input maxLength={200} value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
                     </div>
                     {formErro && <div className="form-erro">{formErro}</div>}
                     <button type="button" className="btn-primary btn-full lead-submit"
@@ -407,10 +411,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                     <div className="big-field">
                       <label>CPF <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional)</span></label>
                       <input maxLength={14} value={f.cpf} onChange={(e) => set("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" />
-                    </div>
-                    <div className="big-field">
-                      <label>Endereço <span style={{ fontWeight: 400, fontSize: 11, color: "var(--text-3)" }}>(opcional)</span></label>
-                      <input maxLength={200} value={f.endereco} onChange={(e) => set("endereco", e.target.value)} placeholder="Rua, número, bairro" />
                     </div>
                     {/* D-043: campo de consentimento LGPD oculto até decisão externa */}
                     {formErro && <div className="form-erro">{formErro}</div>}
