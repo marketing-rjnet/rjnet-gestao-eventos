@@ -4,6 +4,28 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.7] — Monitor: indicador de status (ativo/inativo) nos cards de vendedor
+**Data:** 2026-06-18
+
+**O que mudou**
+- **`src/features/monitoring/MonitoringTab.jsx`**:
+  - `vendorStatus(lastTs)` — helper que converte o timestamp da última ação em 4 estados: `ativo agora` (< 5min, verde), `há Xmin` (< 30min, amarelo), `há Xh` (< 24h, cinza), `inativo` (≥ 24h, cinza).
+  - Ponto colorido sobreposto ao avatar do vendedor (posição `absolute bottom-right`) — indicador visual imediato sem texto.
+  - Label de status substitui "há X" anterior com cor dinâmica; texto em negrito quando verde.
+  - Tick de 30s (`setInterval`) interno ao `VendedorCard` via `useEffect` — transições de estado automáticas a cada 30 segundos sem depender de novo evento no log.
+  - `timeAgo` removido (sem outros usos após a troca).
+
+**Por que mudou**
+- O card mostrava apenas "há X" como texto cinza discreto. Sem distinção visual entre um vendedor que registrou um lead há 2 minutos e outro que parou de usar o app há 3 horas.
+
+**Limitação conhecida (documentada para o usuário):**
+- O status é inferido da última *ação* registrada no log (último lead, sync, etc.) — não é uma presença WebSocket real. Um vendedor "ativo agora" significa que fez algo nos últimos 5 minutos, não que o app está aberto neste segundo. Para presença real seria necessário Supabase Realtime Presence, com limitações de background em celular.
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
 ## [v4.6] — Monitor: sync_ok para remoção de lead + severidade dinâmica em req. lenta
 **Data:** 2026-06-18
 

@@ -68,6 +68,40 @@ Riscos conhecidos.
 
 ---
 
+### [D-050] — Monitor: status de atividade do vendedor nos cards
+
+**Data:** 2026-06-18
+**Tipo:** Feature
+
+**Decisão:** Inferir status de atividade do vendedor a partir do `lastTs` (timestamp da última entrada no log) em vez de implementar presença WebSocket via Supabase Realtime Presence.
+
+**Motivação:** O marketing precisa saber, em campo, quais vendedores estão ativos e quais pararam de usar o app. Os dados necessários já existem no log (timestamp da última ação por vendedor).
+
+**Alternativas Avaliadas:**
+- **Supabase Realtime Presence:** estado "online" real baseado na conexão WebSocket ativa. Rejeitado: celulares suspendem WebSockets em segundo plano (iOS/Android background limits) — geraria falsos negativos constantes (vendedor "offline" por ter minimizado o app para tirar uma foto).
+- **Status inferido do log (escolhida):** usa `lastTs` já calculado no `vendedores` useMemo. 4 tiers por elapsed time. Sem novo dado, sem nova conexão, sem false alarms por background.
+
+**Tiers de status:**
+
+| Elapsed | Label | Cor |
+|---|---|---|
+| < 5 min | ativo agora | #22c55e (verde) |
+| < 30 min | há Xmin | #eab308 (amarelo) |
+| < 24h | há Xh | cinza |
+| ≥ 24h | inativo | cinza |
+
+**Impactos:**
+- `VendedorCard` ganha tick de 30s via `setInterval` interno — cada card atualiza seu próprio status independentemente sem re-executar o `vendedores` useMemo.
+- Sem novo estado no contexto, sem nova query ao Supabase.
+- `timeAgo` removido (único uso era no card).
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — `vendorStatus()`, VendedorCard com tick e ponto de status
+
+**Status:** Ativa
+
+---
+
 ### [D-049] — Monitor: sync_ok para removeLead e severidade dinâmica de perf_warn
 
 **Data:** 2026-06-18
