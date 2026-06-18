@@ -4,6 +4,36 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v4.7.2] — Monitor: contagem de leads na sessão desconta remoções
+**Data:** 2026-06-18
+**Commits:** `a32858b`
+
+**O que mudou**
+- **`src/features/monitoring/MonitoringTab.jsx`**: `handleEncerrarSessao` agora calcula `count = Math.max(0, lead_add − lead_remove)` desde o último `session_start`. `Math.max(0, …)` protege contra contagem negativa quando um lead removido foi adicionado em sessão anterior ao filtro.
+
+**Por que mudou**
+- A contagem exibida no `session_end` (`"X leads nesta sessão"`) podia ser maior que o real se o operador removesse leads durante a sessão — `lead_remove` não era descontado.
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
+## [v4.7.1] — Monitor: contagem de sessão parte do session_start mais recente
+**Data:** 2026-06-18
+**Commits:** `7a79046`
+
+**O que mudou**
+- **`src/features/monitoring/MonitoringTab.jsx`**: `handleEncerrarSessao` filtra `sessionLogs` pelo timestamp do `session_start` mais recente (`logs.filter(l => !lastStart || l.ts >= lastStart.ts)`). Antes contava todos os `lead_add` do dia independentemente de sessão.
+
+**Por que mudou**
+- Se o operador iniciava uma segunda sessão no mesmo dia (após pausa), o `session_end` contava leads de sessões anteriores. Agora conta apenas os leads desde o `▶ sessão iniciada` mais recente.
+
+**Ações manuais necessárias**
+- Nenhuma.
+
+---
+
 ## [v4.7] — Monitor: indicador de status (ativo/inativo) nos cards de vendedor
 **Data:** 2026-06-18
 

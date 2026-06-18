@@ -95,8 +95,51 @@ Riscos conhecidos.
 - Sem novo estado no contexto, sem nova query ao Supabase.
 - `timeAgo` removido (único uso era no card).
 
+**Mecanismo do tick (setInterval):**
+- `VendedorCard` registra `setInterval(forceUpdate, 30_000)` em `useEffect` com cleanup no unmount (`clearInterval`).
+- Cada card atualiza seu próprio status de forma independente — sem re-executar o `vendedores` useMemo do componente pai.
+- `forceUpdate` é implementado via `useState` de contador (`n => n + 1`) — sem estado semântico novo.
+
 **Arquivos Afetados:**
 - `src/features/monitoring/MonitoringTab.jsx` — `vendorStatus()`, VendedorCard com tick e ponto de status
+
+**Status:** Ativa
+
+---
+
+### [D-051] — Monitor: correção da contagem de leads por sessão
+
+**Data:** 2026-06-18
+**Tipo:** Bugfix
+**Commits:** `7a79046`, `a32858b`
+
+**Decisão 1 — Contagem parte do session_start mais recente:** `handleEncerrarSessao` filtra o conjunto de logs pelo timestamp do `session_start` mais recente antes de contar `lead_add`. Sem `session_start` no dia, usa todos os logs (comportamento anterior).
+
+**Decisão 2 — Descontar remoções da contagem:** `count = Math.max(0, lead_add − lead_remove)` dentro do mesmo filtro de sessão. `Math.max(0, …)` protege contra negativo quando o lead removido foi adicionado antes da sessão atual.
+
+**Motivação:**
+- **Bug 1:** Operador iniciava segunda sessão no mesmo dia; `session_end` exibia o total do dia inteiro em vez dos leads da sessão corrente.
+- **Bug 2:** Remoção de lead durante a sessão não era refletida na contagem do `session_end` — o número ficava acima da realidade.
+
+**Fórmula final:**
+```
+sessionLogs = logs.filter(l => !lastStart || l.ts >= lastStart.ts)
+count = Math.max(0,
+  sessionLogs.filter(l => l.type === 'lead_add').length -
+  sessionLogs.filter(l => l.type === 'lead_remove').length
+)
+```
+
+**Regras mantidas:**
+- Sem alteração no formato de entrada do `logActivity()`.
+- `stats` (barra de stats do topo) continua contando todos os `lead_add` do dia — escopo diferente do card de sessão.
+- `vendedores` useMemo mantém `sessionLeads` acumulado sem filtro de sessão — exibe total de leads por vendedor no dia, não por sessão.
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — `handleEncerrarSessao`
+
+**Riscos:**
+- Nenhum identificado. Lógica puramente derivada do estado `logs` já em memória.
 
 **Status:** Ativa
 

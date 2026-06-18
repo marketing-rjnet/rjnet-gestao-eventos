@@ -43,7 +43,8 @@ src/
 │   ├── eventoApi.js      # Factory createEventoApi — CRUD de eventos (etapa 17)
 │   ├── leadApi.js        # Factory createLeadApi — CRUD de leads (etapa 17)
 │   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
-│   └── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+│   ├── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+│   └── equipeApi.js      # Factory createEquipeApi — gestão de usuários Auth (D-030)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -96,6 +97,7 @@ src/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
 │   ├── csv.js            # exportLeadsCSV (etapa 3)
+│   ├── ids.js            # genId(prefix) — gerador de IDs temporários para modo local (D-030)
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
@@ -296,9 +298,10 @@ node tests/lead.unit.test.js       # validação de leads
 |---------|--------|-----------|
 | `src/main.jsx` | ~35 | ErrorBoundary + ponto de entrada React |
 | `src/api/eventoApi.js` | ~22 | Factory CRUD de eventos (etapa 17) |
-| `src/api/leadApi.js` | ~20 | Factory CRUD de leads (etapa 17) |
+| `src/api/leadApi.js` | ~20 | Factory CRUD de leads + lead_sync_ok (etapa 17, D-049) |
 | `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |
 | `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
+| `src/api/equipeApi.js` | ~30 | Factory gestão de usuários Auth — criarUsuario, atualizarPerfil, excluirUsuario (D-030) |
 | `src/context/AppProvider.jsx` | ~100 | Provider: orquestra estado, efeitos e factories de API (etapas 16–17) |
 | `src/apps/VendedorApp.jsx` | ~345 | Shell completo do vendedor + LeadEditInline (etapa 13) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
@@ -319,6 +322,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/format.js` | ~21 | Formatação de datas, labels e iniciais (etapa 1) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
 | `src/utils/csv.js` | ~20 | Exportação CSV de leads (etapa 3) |
+| `src/utils/ids.js` | ~5 | genId(prefix) — gerador de IDs temporários para modo local (D-030) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
