@@ -377,11 +377,11 @@
       .meta-bar-label { color: var(--text-2); }
       .meta-bar-count { font-weight: 700; color: var(--text); }
       .meta-bar-track { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-      .meta-bar-fill { height: 100%; border-radius: 999px; background: var(--rj-blue); transition: width .4s ease; }
+      .meta-bar-fill { height: 100%; border-radius: 999px; background: var(--text-3); transition: width .6s cubic-bezier(.34,1.56,.64,1); }
       .meta-bar-fill.done { background: var(--green); }
-      .meta-bar-fill.bronze { background: #b45309; }
-      .meta-bar-fill.prata  { background: #9ca3af; }
-      .meta-bar-fill.ouro   { background: var(--green); }
+      .meta-bar-fill.bronze { background: #cd7f32; }
+      .meta-bar-fill.prata  { background: #c0c0c0; }
+      .meta-bar-fill.ouro   { background: var(--yellow); }
       .meta-bar-stages { display: flex; justify-content: space-between; margin-top: 6px; }
       .meta-stage { font-size: 11px; color: var(--text-3); }
       .meta-stage.achieved { color: var(--text); font-weight: 700; }
