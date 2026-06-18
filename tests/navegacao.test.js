@@ -1,24 +1,29 @@
 // @ts-check
+/**
+ * Testes E2E de navegação entre abas.
+ * V3: Marketing tem bottom nav mobile (5 itens + Mais) e header desktop com 7 tabs.
+ *     Aba padrão do Marketing é "Início" (Dashboard). Vendedor tem 3 botões no bottom nav.
+ */
 const { test, expect } = require('@playwright/test');
 const { loginMarketing, loginComercial } = require('./helpers/auth');
 
 test.describe('Navegação entre abas', () => {
 
-  test('todas as abas estão visíveis após login Marketing', async ({ page }) => {
+  test('header desktop do Marketing exibe 7 tabs', async ({ page }) => {
     await loginMarketing(page);
     await expect(page.locator('.header-nav')).toBeVisible();
     const tabs = page.locator('.header-nav .nav-tab');
-    await expect(tabs).toHaveCount(5);
-    await expect(tabs.nth(0)).toContainText('Eventos');
-    await expect(tabs.nth(1)).toContainText('Estoque');
-    await expect(tabs.nth(2)).toContainText('Leads');
-    await expect(tabs.nth(3)).toContainText('Equipe');
-    await expect(tabs.nth(4)).toContainText('Check-in');
+    await expect(tabs).toHaveCount(7);
   });
 
-  test('aba Eventos está ativa por padrão', async ({ page }) => {
+  test('aba Início (Dashboard) está ativa por padrão', async ({ page }) => {
     await loginMarketing(page);
-    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Eventos');
+    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Início');
+  });
+
+  test('Dashboard exibe hero card ou KPIs', async ({ page }) => {
+    await loginMarketing(page);
+    await expect(page.locator('.hero-card, .grid-kpi').first()).toBeVisible();
   });
 
   test('clicando em Estoque exibe seção de estoque', async ({ page }) => {
@@ -28,10 +33,10 @@ test.describe('Navegação entre abas', () => {
     await expect(page.locator('.page-title')).toHaveText('Estoque');
   });
 
-  test('clicando em Leads exibe seção de leads', async ({ page }) => {
+  test('clicando em Relatórios exibe seção de leads', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
-    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Leads');
+    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
+    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Relatórios');
     await expect(page.locator('.page-title')).toHaveText('Leads');
   });
 
@@ -42,22 +47,30 @@ test.describe('Navegação entre abas', () => {
     await expect(page.locator('.vendor-card').first()).toBeVisible();
   });
 
-  test('clicando em Check-in exibe busca por CPF', async ({ page }) => {
+  test('clicando em Check-in exibe busca por nome', async ({ page }) => {
     await loginMarketing(page);
     await page.locator('.header-nav .nav-tab', { hasText: 'Check-in' }).click();
     await expect(page.locator('.page-title')).toContainText('Check-in');
   });
 
-  test('clicando em Eventos retorna à seção de eventos', async ({ page }) => {
+  test('clicando em Eventos exibe grid de eventos', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
     await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Eventos');
     await expect(page.locator('.event-grid, .event-card, .empty').first()).toBeVisible();
   });
 
+  test('clicando em Início retorna ao Dashboard', async ({ page }) => {
+    await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Início' }).click();
+    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Início');
+    await expect(page.locator('.hero-card, .grid-kpi').first()).toBeVisible();
+  });
+
   test('botão Voltar no detalhe de evento retorna à lista', async ({ page }) => {
     await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     await page.locator('.event-card').first().click();
     await expect(page.locator('.detail-hero')).toBeVisible();
     await page.locator('.back-btn').first().click();
@@ -71,6 +84,12 @@ test.describe('Navegação entre abas', () => {
     await expect(tabs.nth(0)).toContainText('Registrar');
     await expect(tabs.nth(1)).toContainText('Meus Leads');
     await expect(tabs.nth(2)).toContainText('Evento');
+  });
+
+  test('Comercial inicia na aba Registrar com wizard visível', async ({ page }) => {
+    await loginComercial(page);
+    await expect(page.locator('.wizard-progress')).toBeVisible();
+    await expect(page.locator('.vend-nav-btn.active')).toContainText('Registrar');
   });
 
 });
