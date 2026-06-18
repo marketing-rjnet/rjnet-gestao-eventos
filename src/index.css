@@ -516,6 +516,10 @@
         /* Tables: min-width so they scroll */
         .tbl-wrap table { min-width: 480px; }
 
+        /* TableScrollHint — fade no lado direito indica overflow scrollável */
+        .tbl-wrap { position: relative; }
+        .tbl-wrap::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 32px; background: linear-gradient(to right, transparent, var(--bg)); pointer-events: none; border-radius: 0 var(--radius) var(--radius) 0; }
+
         /* Dashboard grid stacks */
         .dashboard-row { grid-template-columns: 1fr !important; }
 
