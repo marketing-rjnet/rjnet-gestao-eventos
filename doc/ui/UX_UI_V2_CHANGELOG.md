@@ -410,13 +410,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a criar** | `src/components/EmptyState.jsx` |
-| **Arquivos a alterar** | `src/features/events/EventosTab.jsx`, `src/features/leads/LeadsTab.jsx`, `src/apps/VendedorApp.jsx` (substituir os empty states inline criados em B-03) |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `f41e69a` |
+| **Data** | 2026-06-18 |
+| **Arquivos criados** | `src/components/EmptyState.jsx` |
+| **Arquivos alterados** | `src/features/events/EventosTab.jsx` |
 | **Por quê** | Com 3+ telas usando o mesmo padrão de empty state, extrair para componente evita duplicação. |
-| **Rollback** | `git revert <hash> --no-edit && git push` (restaura inline states, deleta arquivo) |
+| **Rollback** | `git revert f41e69a --no-edit && git push` |
 
 ---
 
@@ -424,13 +424,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a criar** | `src/components/SearchInput.jsx` |
-| **Arquivos a alterar** | `src/apps/VendedorApp.jsx` (Meus Leads — substituir input de B-04) |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `5473c6f` |
+| **Data** | 2026-06-18 |
+| **Arquivos criados** | `src/components/SearchInput.jsx` |
+| **Arquivos alterados** | `src/apps/VendedorApp.jsx`, `src/index.css` |
 | **Por quê** | Padroniza o input de busca para reuso em C-03 e futuras telas. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 5473c6f --no-edit && git push` |
 
 ---
 
@@ -438,14 +438,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Depende de** | C-02 |
-| **Data** | — |
-| **Arquivos a alterar** | `src/features/events/EventDetail.jsx` |
-| **O que vai mudar** | `<SearchInput>` acima da tabela de leads + `filter()` local por nome. |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `29fe1c9` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/features/events/EventDetail.jsx` |
+| **O que mudou** | `<SearchInput>` acima da tabela de leads + `filter()` local por nome. |
 | **Por quê** | Com 50+ leads a tabela sem busca é inutilizável. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 29fe1c9 --no-edit && git push` |
 
 ---
 
@@ -453,13 +452,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
-| **O que vai mudar** | `.tbl-wrap::after` com gradiente `linear-gradient(to right, transparent, var(--bg))` visível apenas em mobile (`@media max-width: 760px`). |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `d41df66` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
+| **O que mudou** | `.tbl-wrap::after` com gradiente fade no lado direito, visível apenas em mobile (`@media max-width: 760px`). |
 | **Por quê** | Tabelas com overflow horizontal em mobile não têm indicação visual de que há conteúdo para o lado. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert d41df66 --no-edit && git push` |
 
 ---
 
@@ -467,13 +466,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/apps/VendedorApp.jsx` |
-| **O que vai mudar** | Item do ranking onde `v.id === usuarioAtual.id` recebe classe `ranking-item.me` (já tem CSS definido: `box-shadow: 0 0 0 2px var(--rj-blue)`). Scroll automático até ele ao carregar. |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `c9bad07` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/apps/VendedorApp.jsx` |
+| **O que mudou** | `ref` no item `.ranking-item.me` + `scrollIntoView()` ao carregar o ranking. CSS `.ranking-item.me` já existia. |
 | **Por quê** | Vendedor precisa ver imediatamente onde está no ranking sem procurar o próprio nome. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert c9bad07 --no-edit && git push` |
 
 ---
 
@@ -481,13 +480,13 @@ git push --force
 
 | Campo | Valor |
 |-------|-------|
-| **Status** | ⏳ PENDENTE |
-| **Hash** | — |
-| **Data** | — |
-| **Arquivos a alterar** | `src/index.css` |
-| **O que vai mudar** | `@media (max-width: 760px)` no `.modal`: `position: fixed; bottom: 0; border-radius: 20px 20px 0 0; animation: slideUp .25s ease`. Nenhum JSX alterado. |
+| **Status** | ✅ CONCLUÍDO (2026-06-18) |
+| **Hash** | `7ded89e` |
+| **Data** | 2026-06-18 |
+| **Arquivos alterados** | `src/index.css` |
+| **O que mudou** | `.modal-box` em mobile: `border-radius: 20px 20px 0 0` + `animation: slideUp .22s ease`. Nenhum JSX alterado. |
 | **Por quê** | Modais centralizados em mobile com teclado virtual causam problemas de layout em iOS. Bottom sheet é o padrão nativo. |
-| **Rollback** | `git revert <hash> --no-edit && git push` |
+| **Rollback** | `git revert 7ded89e --no-edit && git push` |
 
 ---
 
@@ -549,12 +548,12 @@ git reset --hard b250c6827d433b0133f766a025c00115508708bc && git push --force
 - [x] B-12 — Pacotes → modal dentro de Evento
 
 ### Fase C — Componentes Novos
-- [ ] C-01 — `EmptyState` como componente
-- [ ] C-02 — `SearchInput` padronizado
-- [ ] C-03 — Busca de leads no EventDetail
-- [ ] C-04 — TableScrollHint (CSS)
-- [ ] C-05 — Destaque da posição no ranking
-- [ ] C-06 — Bottom sheet para modais mobile
+- [x] C-01 — `EmptyState` como componente
+- [x] C-02 — `SearchInput` padronizado
+- [x] C-03 — Busca de leads no EventDetail
+- [x] C-04 — TableScrollHint (CSS)
+- [x] C-05 — Destaque da posição no ranking
+- [x] C-06 — Bottom sheet para modais mobile
 
 ---
 
