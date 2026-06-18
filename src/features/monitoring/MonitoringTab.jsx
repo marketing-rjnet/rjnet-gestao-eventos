@@ -59,11 +59,12 @@ function getDesc(log) {
 }
 
 /* ─── Utilitários ───────────────────────────────────────────────── */
-function timeAgo(ts) {
-  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}min`;
-  return `${Math.floor(s / 3600)}h`;
+function vendorStatus(lastTs) {
+  const s = Math.floor((Date.now() - new Date(lastTs)) / 1000);
+  if (s < 300)   return { label: 'ativo agora',              color: '#22c55e', dot: '#22c55e' };
+  if (s < 1800)  return { label: `há ${Math.floor(s / 60)}min`, color: '#eab308', dot: '#eab308' };
+  if (s < 86400) return { label: `há ${Math.floor(s / 3600)}h`, color: 'var(--text-3)', dot: '#6b7280' };
+  return                 { label: 'inativo',                  color: 'var(--text-3)', dot: '#6b7280' };
 }
 
 function fmtTime(ts) {
@@ -81,7 +82,14 @@ function fmtDay(dateStr) {
 
 /* ─── Card por vendedor ─────────────────────────────────────────── */
 function VendedorCard({ nome, sessionLeads, totalLeads, removes, lastTs, hasError }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const ini = initials(nome);
+  const status = vendorStatus(lastTs);
   const mostrarTotal = totalLeads > sessionLeads;
   return (
     <div style={{
@@ -90,14 +98,23 @@ function VendedorCard({ nome, sessionLeads, totalLeads, removes, lastTs, hasErro
       display: 'flex', flexDirection: 'column', gap: 8,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: '50%', background: 'var(--surface2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 700, fontSize: 12, flexShrink: 0, color: 'var(--rj-blue)',
-        }}>{ini}</div>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: '50%', background: 'var(--surface2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: 12, color: 'var(--rj-blue)',
+          }}>{ini}</div>
+          <span style={{
+            position: 'absolute', bottom: 0, right: 0,
+            width: 9, height: 9, borderRadius: '50%',
+            background: status.dot, border: '2px solid var(--surface)',
+          }} />
+        </div>
         <div>
           <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.2 }}>{nome}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>há {timeAgo(lastTs)}</div>
+          <div style={{ fontSize: 11, color: status.color, fontWeight: status.dot === '#22c55e' ? 600 : 400 }}>
+            {status.label}
+          </div>
         </div>
       </div>
       <div style={{ fontSize: 13 }}>
