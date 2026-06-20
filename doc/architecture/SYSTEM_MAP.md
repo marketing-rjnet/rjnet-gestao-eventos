@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-18 (D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 > Documentação de UI/UX: `doc/ui/UI_VERSIONS.md` — catálogo de versões da interface (v1.0 baseline catalogado em 2026-06-18)
 > Proposta V2 aprovada: `doc/ui/UX_UI_V2_PROPOSAL.md` | Plano de implementação: `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md`
@@ -239,13 +239,14 @@ AppProvider re-sincroniza estado com dados do banco
 
 **Log de atividade** — `src/lib/activityLog.js` instrumenta 7 pontos do fluxo, despacha `CustomEvent('rjnet:activity')` e transmite via Supabase Realtime Broadcast (canal `rjnet-monitor`) para cobertura entre dispositivos (D-044, D-044b, D-046). `MonitoringTab` escuta 3 canais: CustomEvent (mesma aba), `storage` event (outra aba/janela) e Realtime Broadcast (outro dispositivo):
 - `dataService.trackPerf` → `perf_warn` quando req > 1 s
-- `dataService.exec` → `sync_error` junto ao dispatch de `rjnet:sync-error`
+- `dataService.exec` → `sync_error` junto ao dispatch de `rjnet:sync-error`; carrega `vendedor`/`eventoId` via parâmetro `meta` quando originado de mutação de lead (D-052)
 - `dataService.addToQueue` → `offline_queue` ao enfileirar lead
 - `leadApi.addLead` → `lead_add` com vendedorNome + eventoId
 - `leadApi.addLead` onSuccess → `lead_sync_ok` após confirmação do Supabase (D-044b)
 - `leadApi.updateLead` → `lead_update` com vendedorNome + eventoId
 - `leadApi.updateLead` onSuccess → `lead_sync_ok` após confirmação do Supabase (D-044b)
 - `leadApi.removeLead` → `lead_remove` com vendedorNome + eventoId
+- `leadApi.removeLead` onSuccess → `lead_sync_ok` após confirmação do Supabase (D-049)
 
 ---
 
@@ -268,13 +269,13 @@ AppProvider re-sincroniza estado com dados do banco
 - **`servicoInteresse` é sempre array no frontend**: `leadFromDb` normaliza strings legadas; `leadToDb` serializa como JSON string na coluna TEXT existente (D-026)
 - **Metas em 3 níveis**: `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` em `constants.js`; `META_DIARIA` é alias de `META_OURO` (D-027)
 - **Log de atividade em localStorage por data**: `activityLog.js` mantém buffer circular de 200 entradas por dia em chave `rjnet_activity_YYYY-MM-DD`; persiste entre fechamentos de aba; auto-purge após 30 dias; sem persistência no banco (D-044, D-045)
-- **`exec(promise, acao, onFail, onSuccess)`**: 4º parâmetro opcional — chamado após escrita bem-sucedida no Supabase (1ª tentativa ou retry) e imediatamente no modo local; usado por `db.saveLead` para acionar `lead_sync_ok` no feed do Monitor (D-044b)
-- **9 tipos de evento no Monitor**: `lead_add`, `lead_update`, `lead_remove`, `lead_sync_ok`, `sync_error`, `perf_warn`, `offline_queue`, `session_start`, `session_end` — cada tipo tem marca visual e cor; `session_start`/`session_end` rendem como separadores roxos no feed e não aparecem nos filtros Leads/Sync/Perf nem nos stats; filtros `Sync` e `Perf` são separados (D-044b, D-048)
+- **`exec(promise, acao, onFail, onSuccess, meta = {})`**: 4º parâmetro `onSuccess` — chamado após escrita bem-sucedida no Supabase (1ª tentativa ou retry) e imediatamente no modo local; 5º parâmetro `meta` — spread no `logActivity` do `sync_error`, permitindo atribuição direta ao vendedor/evento sem heurística de timestamp; timeout de 15 s por tentativa via `Promise.race` — escrivas travadas viram `sync_error` visível em vez de penderem silenciosamente; `db.saveLead` e `db.removeLead` passam `{ vendedor: l.vendedorNome, eventoId: l.eventoId }` como meta (D-044b, D-052)
+- **9 tipos de evento no Monitor**: `lead_add`, `lead_update`, `lead_remove`, `lead_sync_ok`, `sync_error`, `perf_warn`, `offline_queue`, `session_start`, `session_end` — cada tipo tem marca visual e cor; `session_start`/`session_end` rendem como separadores roxos no feed e não aparecem nos filtros Leads/Sync/Perf nem nos stats; filtro `Perf` é separado; filtro `Sync` inclui tanto `sync_error` quanto `lead_sync_ok` — botão verde com contagem de oks quando sem erros, vermelho com contagem de erros quando há falha; `stats.leads` é líquido (`lead_add − lead_remove`, `Math.max(0)`); header exibe stat `syncOks` condicionalmente em verde quando há confirmações (D-044b, D-048, D-052)
 - **Contagem de leads ao encerrar sessão**: `lead_add - lead_remove` desde o `ts` do último `session_start`; `Math.max(0)` protege contra negativo; fallback conta tudo se não houver session_start (D-051)
 - **Status de atividade do vendedor nos cards**: `vendorStatus(lastTs)` — 4 tiers por elapsed time (< 5min verde, < 30min amarelo, < 24h cinza, ≥ 24h inativo); ponto colorido sobreposto ao avatar; tick de 30s interno ao VendedorCard (D-050)
 - **perf_warn com severidade dinâmica**: `getPerfCfg(ms)` — 4 tiers (lenta/muito lenta/possível timeout/timeout de rede) com cor e label distintos; `getDesc` adiciona prefixo de contexto para ms ≥ 30s (D-049)
-- **sync_ok para todos os tipos de mutação de lead**: `lead_add`, `lead_update` e `lead_remove` disparam `lead_sync_ok` após confirmação do Supabase via `onSuccess` em `exec()`; `db.removeLead` aceita 3º param `onSuccess` (D-049)
-- **Realtime Broadcast do Monitor (canal único)**: `activityLog.js` é o único dono do canal `rjnet-monitor` — registra `.on('broadcast', { event: 'log' }, handler)` ANTES de `.subscribe()` (requisito do Supabase JS v2). `MonitoringTab` registra callbacks via `subscribeToRemoteLogs(callback)` — nunca abre canal próprio. Fila `_queue` garante entrega de mensagens enviadas antes de `SUBSCRIBED`. Canal público (anon key), multiplexado na WebSocket existente (D-046, D-047)
+- **sync_ok para todos os tipos de mutação de lead**: `lead_add`, `lead_update` e `lead_remove` disparam `lead_sync_ok` após confirmação do Supabase via `onSuccess` em `exec()`; `db.removeLead` aceita 3º param `onSuccess` e 4º param `meta`; `leadApi.removeLead` passa `{ vendedor, eventoId }` como meta (D-049, D-052)
+- **Realtime Broadcast do Monitor (canal único)**: `activityLog.js` é o único dono do canal `rjnet-monitor` — registra `.on('broadcast', { event: 'log' }, handler)` ANTES de `.subscribe()` (requisito do Supabase JS v2). `MonitoringTab` registra callbacks via `subscribeToRemoteLogs(callback)` — nunca abre canal próprio. Fila `_queue` garante entrega de mensagens enviadas antes de `SUBSCRIBED`. Canal público (anon key), multiplexado na WebSocket existente. **Limitação conhecida (D-052)**: Realtime Broadcast não tem replay/history — eventos emitidos enquanto o MonitoringTab não está subscrito são perdidos irrecuperávelmente; `lead_sync_ok` pode não aparecer no log do marketing se a aba estava fechada no momento da confirmação pelo vendedor. Alternativa estrutural: persistir `activity_log` no Supabase para garantir consistência cross-device sem depender de presença ativa do canal (D-046, D-047)
 
 ---
 

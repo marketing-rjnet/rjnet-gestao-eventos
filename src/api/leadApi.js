@@ -34,6 +34,7 @@ export function createLeadApi({ leads, setLeads }) {
         id,
         () => { if (atual) setLeads((p) => [...p, atual]); },
         () => { if (atual) logActivity({ type: 'lead_sync_ok', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome }); },
+        { vendedor: atual?.vendedorNome, eventoId: atual?.eventoId },
       );
       if (atual?.eventoId) invalidarRanking(atual.eventoId);
       if (atual) logActivity({ type: 'lead_remove', level: 'warn', vendedor: atual.vendedorNome, eventoId: atual.eventoId, detail: atual.nome });

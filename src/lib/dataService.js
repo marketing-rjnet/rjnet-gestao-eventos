@@ -328,15 +328,16 @@ export function invalidarRanking(eventoId) {
 
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
-function exec(promise, acao, onFail, onSuccess) {
+function exec(promise, acao, onFail, onSuccess, meta = {}) {
   if (!isSupabaseMode()) {
     if (onSuccess) onSuccess();
     return;
   }
-  // Retry uma vez após 1 s em caso de falha transitória
-  const tentativa = (p) => p.then(({ error }) => {
-    if (error) throw error;
-  });
+  // Retry uma vez após 1 s em caso de falha transitória; timeout de 15 s por tentativa
+  const tentativa = (p) => Promise.race([
+    p.then(({ error }) => { if (error) throw error; }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout após 15s')), 15000)),
+  ]);
   tentativa(promise)
     .then(() => { if (onSuccess) onSuccess(); })
     .catch(() =>
@@ -346,7 +347,7 @@ function exec(promise, acao, onFail, onSuccess) {
         .catch((err) => {
           console.error(`[rjnet] Supabase: falha ao ${acao}:`, err.message);
           window.dispatchEvent(new CustomEvent('rjnet:sync-error', { detail: { acao, message: err.message } }));
-          logActivity({ type: 'sync_error', level: 'error', detail: `${acao}: ${err.message}` });
+          logActivity({ type: 'sync_error', level: 'error', detail: `${acao}: ${err.message}`, ...meta });
           if (onFail) onFail();
         })
     );
@@ -363,16 +364,18 @@ export const db = {
       'salvar lead',
       () => addToQueue({ type: 'saveLead', data: dbData }),
       onSuccess,
+      { vendedor: l.vendedorNome, eventoId: l.eventoId },
     );
   },
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
   // PA-07/LGPD: hard delete pelo vendedor (leads_delete policy, sem with_check).
   // Auditoria registrada pelo trigger audit_leads (AFTER DELETE → audit_log).
-  removeLead: (id, onFail, onSuccess) => exec(
+  removeLead: (id, onFail, onSuccess, meta) => exec(
     supabase?.from('leads').delete().eq('id', id),
     'remover lead',
     onFail,
     onSuccess,
+    meta,
   ),
 
   // PA-06/LGPD: registra exportação CSV na tabela de auditoria (fire-and-forget; nunca bloqueia o download)

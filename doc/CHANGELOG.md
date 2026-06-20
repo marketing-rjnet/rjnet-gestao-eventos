@@ -4,6 +4,37 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.1] — Monitor: timeout de escrita, atribuição de erros, stats líquidos e filtro Sync completo
+**Data:** 2026-06-20
+**Branch:** `claude/log-appearances-analysis-3j1b69`
+
+**O que mudou**
+
+- **`src/lib/dataService.js`** — `exec()` recebe 5º parâmetro opcional `meta = {}`; timeout de 15 s por tentativa via `Promise.race` — escrivas travadas no Supabase agora viram `sync_error` visível após 31 s (15s + 1s + 15s) em vez de penderem indefinidamente; `meta` é propagado para `logActivity` ao registrar `sync_error`, tornando o erro rastreável ao vendedor e evento corretos sem heurística de timestamp. `db.saveLead` passa `{ vendedor: l.vendedorNome, eventoId: l.eventoId }` como meta. `db.removeLead` aceita 4º parâmetro `meta` e o repassa ao `exec()`.
+
+- **`src/api/leadApi.js`** — `removeLead` passa `{ vendedor: atual?.vendedorNome, eventoId: atual?.eventoId }` como meta ao `db.removeLead`, completando a atribuição de erros para remoções.
+
+- **`src/features/monitoring/MonitoringTab.jsx`**:
+  - `stats.leads` passa a ser líquido: `Math.max(0, lead_add.length − lead_remove.length)` — evita contagem inflada quando leads são removidos no mesmo dia
+  - `stats.syncOks` adicionado: conta entradas `lead_sync_ok` do dia
+  - Filtro `Sync` no feed agora inclui `lead_sync_ok` além de `sync_error` — ciclo completo `add → confirmação` (ou erro) visível em um único filtro
+  - Botão Sync: verde com contagem de oks quando não há erros; vermelho com contagem de erros quando há falha
+  - Header: label "sync" substituído por "erros" (para clareza); stat "N ok" aparece condicionalmente em verde quando há confirmações registradas
+
+**Por que mudou**
+- Análise de log real de campo revelou que `lead_sync_ok` não aparecia no filtro Sync (filtro só exibia erros). O ciclo de confirmação era invisível para o time de marketing.
+- `sync_error` atribuía falha por proximidade de timestamp (±5s), podendo marcar o vendedor errado ou nenhum.
+- Escrivas Supabase travadas (rede instável) não geravam nenhum sinal — app permanecia em estado de "aguardando" sem aviso.
+- Contagem de leads no header não descontava remoções.
+
+**Limitação conhecida (documentada em D-052)**
+- `lead_sync_ok` pode não chegar ao Monitor de marketing se a aba estava fechada no momento exato da confirmação (Realtime Broadcast sem replay). Alternativa estrutural (persistência no Supabase) documentada no SYSTEM_MAP para decisão futura.
+
+**Ações manuais necessárias**
+- Nenhuma. Nenhum schema de banco foi alterado.
+
+---
+
 ## [v5.0] — UX/UI V3: redesign visual completo (Fases D, E e F)
 **Data:** 2026-06-18
 **PR:** #45 — merge `claude/v3-visual-redesign` → `main`

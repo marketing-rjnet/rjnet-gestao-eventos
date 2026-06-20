@@ -298,8 +298,12 @@ export default function MonitoringTab() {
   }
 
   const stats = useMemo(() => ({
-    leads:   logs.filter((l) => l.type === 'lead_add').length,
+    leads:   Math.max(0,
+      logs.filter((l) => l.type === 'lead_add').length -
+      logs.filter((l) => l.type === 'lead_remove').length
+    ),
     syncs:   logs.filter((l) => l.type === 'sync_error').length,
+    syncOks: logs.filter((l) => l.type === 'lead_sync_ok').length,
     perf:    logs.filter((l) => l.type === 'perf_warn').length,
     offline: logs.filter((l) => l.type === 'offline_queue').length,
   }), [logs]);
@@ -333,7 +337,7 @@ export default function MonitoringTab() {
   const feed = useMemo(() => {
     const reversed = [...logs].reverse();
     if (filter === 'leads') return reversed.filter((l) => l.type.startsWith('lead_'));
-    if (filter === 'sync')  return reversed.filter((l) => l.type === 'sync_error');
+    if (filter === 'sync')  return reversed.filter((l) => l.type === 'sync_error' || l.type === 'lead_sync_ok');
     if (filter === 'perf')  return reversed.filter((l) => l.type === 'perf_warn' || l.type === 'offline_queue');
     return reversed;
   }, [logs, filter]);
@@ -389,8 +393,14 @@ export default function MonitoringTab() {
             </span>
             <span style={{ fontSize: 12 }}>
               <span style={{ fontWeight: 700, color: stats.syncs > 0 ? 'var(--red)' : 'var(--text-3)' }}>{stats.syncs}</span>
-              <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>sync</span>
+              <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>erros</span>
             </span>
+            {stats.syncOks > 0 && (
+              <span style={{ fontSize: 12 }}>
+                <span style={{ fontWeight: 700, color: '#16a34a' }}>{stats.syncOks}</span>
+                <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>ok</span>
+              </span>
+            )}
             <span style={{ fontSize: 12 }}>
               <span style={{ fontWeight: 700, color: stats.perf > 0 ? 'var(--yellow)' : 'var(--text-3)' }}>{stats.perf}</span>
               <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>perf</span>
@@ -504,7 +514,10 @@ export default function MonitoringTab() {
           <div style={{ display: 'flex', gap: 6 }}>
             {filterBtn('all',   'Todos',  logs.length)}
             {filterBtn('leads', 'Leads',  stats.leads)}
-            {filterBtn('sync',  'Sync',   stats.syncs,   stats.syncs > 0 ? 'var(--red)' : undefined)}
+            {filterBtn('sync',  'Sync',
+              stats.syncs > 0 ? stats.syncs : stats.syncOks,
+              stats.syncs > 0 ? 'var(--red)' : stats.syncOks > 0 ? '#16a34a' : undefined
+            )}
             {filterBtn('perf',  'Perf',   stats.perf,    stats.perf  > 0 ? 'var(--yellow)' : undefined)}
           </div>
         </div>
