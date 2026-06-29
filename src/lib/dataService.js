@@ -333,11 +333,16 @@ function exec(promise, acao, onFail, onSuccess, meta = {}) {
     if (onSuccess) onSuccess();
     return;
   }
-  // Retry uma vez após 1 s em caso de falha transitória; timeout de 15 s por tentativa
-  const tentativa = (p) => Promise.race([
-    p.then(({ error }) => { if (error) throw error; }),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout após 15s')), 15000)),
-  ]);
+  // Retry uma vez após 1 s em caso de falha transitória; timeout de 15 s por tentativa.
+  // O timer é cancelado explicitamente quando a operação resolve para não vazar.
+  const tentativa = (p) => {
+    let timerId;
+    const timeout = new Promise((_, rej) => { timerId = setTimeout(() => rej(new Error('timeout após 15s')), 15000); });
+    return Promise.race([
+      p.then(({ error }) => { clearTimeout(timerId); if (error) throw error; }),
+      timeout,
+    ]);
+  };
   tentativa(promise)
     .then(() => { if (onSuccess) onSuccess(); })
     .catch(() =>
@@ -486,7 +491,7 @@ export const auth = {
   },
 
   async getPerfil(userId) {
-    const { data, error } = await supabase.from('perfis').select('*').eq('id', userId).maybeSingle();
+    const { data, error } = await supabase.from('perfis').select('id,email,nome,papel,ativo').eq('id', userId).maybeSingle();
     if (error || !data) return null;
     return perfilFromDb(data);
   },
