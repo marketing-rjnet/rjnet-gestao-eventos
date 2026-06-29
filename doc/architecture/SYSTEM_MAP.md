@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 > Documentação de UI/UX: `doc/ui/UI_VERSIONS.md` — catálogo de versões da interface (v1.0 baseline catalogado em 2026-06-18)
 > Proposta V2 aprovada: `doc/ui/UX_UI_V2_PROPOSAL.md` | Plano de implementação: `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md`
@@ -43,7 +43,7 @@ Padrão **factory function** — cada domínio tem uma factory que recebe estado
 |---|---|
 | `createEventoApi` | `addEvento`, `updateEvento`, `removeEvento`, `patchEvento` |
 | `createLeadApi` | `addLead`, `updateLead`, `removeLead`, `obterRanking` |
-| `createMaterialApi` | `addMaterial`, `updateMaterial`, `addMaterialEvento`, `removeMaterialEvento`, `toggleRetornadoEvento` |
+| `createMaterialApi` | `removeMaterial`, `addMaterial`, `updateMaterial`, `addMaterialEvento`, `removeMaterialEvento`, `toggleRetornadoEvento` |
 | `createVendedorApi` | `addVendedor`, `updateVendedor`, `toggleVendedor` |
 | `createEquipeApi` | `criarUsuario`, `atualizarPerfil`, `excluirUsuario` |
 
@@ -111,6 +111,7 @@ src/
 │   └── modals/
 │       ├── EventModal.jsx
 │       ├── MaterialModal.jsx
+│       ├── MaterialChecklistModal.jsx  # Importação em lote: 14 itens pré-definidos, seleção e ajuste de quantidade (D-053, marketing only)
 │       └── index.js
 ├── features/
 │   ├── events/
@@ -172,7 +173,7 @@ Shell do time de marketing. Navegação por 6 tabs:
 | Tab | Componente | Função |
 |---|---|---|
 | Eventos | `EventosTab` / `EventDetail` | CRUD de eventos, materiais alocados, leads por vendedor |
-| Estoque | `EstoqueTab` | Gestão de materiais com nível de disponibilidade |
+| Estoque | `EstoqueTab` | Gestão de materiais com nível de disponibilidade; importação em lote via checklist (`MaterialChecklistModal`) com 14 itens pré-definidos do inventário físico; exclusão de material por linha com confirmação inline em dois passos (D-053) |
 | Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico |
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
 | Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
@@ -275,6 +276,7 @@ AppProvider re-sincroniza estado com dados do banco
 - **Status de atividade do vendedor nos cards**: `vendorStatus(lastTs)` — 4 tiers por elapsed time (< 5min verde, < 30min amarelo, < 24h cinza, ≥ 24h inativo); ponto colorido sobreposto ao avatar; tick de 30s interno ao VendedorCard (D-050)
 - **perf_warn com severidade dinâmica**: `getPerfCfg(ms)` — 4 tiers (lenta/muito lenta/possível timeout/timeout de rede) com cor e label distintos; `getDesc` adiciona prefixo de contexto para ms ≥ 30s (D-049)
 - **sync_ok para todos os tipos de mutação de lead**: `lead_add`, `lead_update` e `lead_remove` disparam `lead_sync_ok` após confirmação do Supabase via `onSuccess` em `exec()`; `db.removeLead` aceita 3º param `onSuccess` e 4º param `meta`; `leadApi.removeLead` passa `{ vendedor, eventoId }` como meta (D-049, D-052)
+- **Gestão de estoque exclusiva do marketing (D-053)**: `removeMaterial` e `MaterialChecklistModal` são operações de `EstoqueTab`, que só renderiza em `MarketingApp`. A proteção é dupla: UI (tab inexistente no `VendedorApp`) e RLS (política `marketing` tem acesso total a `materiais`; `vendedor` não tem permissão de INSERT/DELETE na tabela). `removeMaterial` em `materialApi.js` faz atualização otimista local + `db.removeMaterial()` assíncrono. Importação em lote via `MaterialChecklistModal` itera sobre os selecionados chamando `addMaterial()` sequencialmente — sem endpoint especial.
 - **Realtime Broadcast do Monitor (canal único)**: `activityLog.js` é o único dono do canal `rjnet-monitor` — registra `.on('broadcast', { event: 'log' }, handler)` ANTES de `.subscribe()` (requisito do Supabase JS v2). `MonitoringTab` registra callbacks via `subscribeToRemoteLogs(callback)` — nunca abre canal próprio. Fila `_queue` garante entrega de mensagens enviadas antes de `SUBSCRIBED`. Canal público (anon key), multiplexado na WebSocket existente. **Limitação conhecida (D-052)**: Realtime Broadcast não tem replay/history — eventos emitidos enquanto o MonitoringTab não está subscrito são perdidos irrecuperávelmente; `lead_sync_ok` pode não aparecer no log do marketing se a aba estava fechada no momento da confirmação pelo vendedor. Alternativa estrutural: persistir `activity_log` no Supabase para garantir consistência cross-device sem depender de presença ativa do canal (D-046, D-047)
 
 ---
