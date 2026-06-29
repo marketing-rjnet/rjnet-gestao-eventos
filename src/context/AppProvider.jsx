@@ -86,7 +86,7 @@ export function AppProvider({ children }) {
   const { addLead, updateLead, removeLead, obterRanking } =
     createLeadApi({ leads, setLeads });
 
-  const { addMaterial, updateMaterial, addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento } =
+  const { removeMaterial, addMaterial, updateMaterial, addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento } =
     createMaterialApi({ materiais, setMateriais, eventos, patchEvento });
 
   const { addVendedor, updateVendedor, toggleVendedor } =
@@ -100,7 +100,7 @@ export function AppProvider({ children }) {
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
-    addMaterial, updateMaterial,
+    removeMaterial, addMaterial, updateMaterial,
     addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento,
     addVendedor, updateVendedor, toggleVendedor,
     criarUsuario, atualizarPerfil, excluirUsuario,

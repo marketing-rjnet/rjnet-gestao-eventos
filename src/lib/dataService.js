@@ -367,6 +367,7 @@ export const db = {
       { vendedor: l.vendedorNome, eventoId: l.eventoId },
     );
   },
+  removeMaterial: (id) => exec(supabase?.from('materiais').delete().eq('id', id), 'remover material'),
   removeEvento: (id) => exec(supabase?.from('eventos').delete().eq('id', id), 'remover evento'),
   // PA-07/LGPD: hard delete pelo vendedor (leads_delete policy, sem with_check).
   // Auditoria registrada pelo trigger audit_leads (AFTER DELETE → audit_log).

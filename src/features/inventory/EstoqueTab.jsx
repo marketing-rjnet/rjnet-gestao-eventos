@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, Kpi } from '../../components/ui';
-import { MaterialModal } from '../../components/modals';
+import { MaterialModal, MaterialChecklistModal } from '../../components/modals';
 import { NIVEL_ESTOQUE } from '../../lib/constants';
 
 export function EstoqueTab() {
-  const { getMateriaisDisponiveis } = useApp();
+  const { getMateriaisDisponiveis, removeMaterial } = useApp();
   const [showModal, setShowModal] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const list = getMateriaisDisponiveis();
   const totalItens = list.reduce((a, m) => a + m.material.quantidade, 0);
   const emCampo = list.reduce((a, m) => a + m.emCampo, 0);
   const crit = list.filter((m) => m.disponivel <= 0);
   const warn = list.filter((m) => m.disponivel >= 1 && m.disponivel <= 3);
   const ok = list.filter((m) => m.disponivel >= 4);
+
+  const handleDelete = (id) => {
+    removeMaterial(id);
+    setConfirmDelete(null);
+  };
 
   const Group = ({ title, dot, cls, rows }) => rows.length === 0 ? null : (
     <div className="stock-group">
@@ -28,6 +35,35 @@ export function EstoqueTab() {
           <div className="sr-num">
             <span className={"badge badge-" + (cls === NIVEL_ESTOQUE.CRIT ? NIVEL_ESTOQUE.CRIT : cls === NIVEL_ESTOQUE.WARN ? NIVEL_ESTOQUE.WARN : NIVEL_ESTOQUE.OK)}>{m.disponivel} disp.</span>
           </div>
+          <div className="sr-num" style={{ minWidth: 0 }}>
+            {confirmDelete === m.material.id ? (
+              <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 11, padding: '2px 6px', color: 'var(--red)' }}
+                  onClick={() => handleDelete(m.material.id)}
+                >
+                  Confirmar
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 11, padding: '2px 6px' }}
+                  onClick={() => setConfirmDelete(null)}
+                >
+                  Cancelar
+                </button>
+              </span>
+            ) : (
+              <button
+                className="btn-ghost"
+                style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-3)' }}
+                title="Excluir material"
+                onClick={() => setConfirmDelete(m.material.id)}
+              >
+                <Icon name="trash" size={14} />
+              </button>
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -40,7 +76,10 @@ export function EstoqueTab() {
           <div className="page-title">Estoque</div>
           <p className="tab-desc">Controle de materiais e disponibilidade em tempo real.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>+ Adicionar Material</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-ghost" onClick={() => setShowChecklist(true)}>+ Importar lista</button>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>+ Adicionar Material</button>
+        </div>
       </div>
 
       <div className="grid-kpi-3">
@@ -53,7 +92,14 @@ export function EstoqueTab() {
       <Group title="ATENÇÃO" dot="dot_yellow" cls={NIVEL_ESTOQUE.WARN} rows={warn} />
       <Group title="OK" dot="dot_green" cls={NIVEL_ESTOQUE.OK} rows={ok} />
 
+      {list.length === 0 && (
+        <p style={{ color: 'var(--text-3)', textAlign: 'center', marginTop: 48 }}>
+          Nenhum material cadastrado. Clique em "Importar lista" para começar.
+        </p>
+      )}
+
       {showModal && <MaterialModal onClose={() => setShowModal(false)} />}
+      {showChecklist && <MaterialChecklistModal onClose={() => setShowChecklist(false)} />}
     </div>
   );
 }
