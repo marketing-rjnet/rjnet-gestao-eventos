@@ -4,6 +4,38 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.2] — Estoque: importação em checklist e exclusão de material (marketing only)
+**Data:** 2026-06-29
+**Branch:** `claude/inventory-materials-checklist-ar5mcv`
+
+**O que mudou**
+
+- **`src/components/modals/MaterialChecklistModal.jsx`** (novo) — modal de importação em lote com 14 itens do inventário físico pré-definidos (caixas RJNet, windbanners, bancos, bases ferro, mochilas pirolito, minibanners, etc.). Cada item tem checkbox de seleção e campo de quantidade editável. Botões "Selecionar todos" / "Desmarcar todos". Ao confirmar, chama `addMaterial()` para cada item marcado.
+
+- **`src/features/inventory/EstoqueTab.jsx`** — botão "Importar lista" abre o `MaterialChecklistModal`; botão lixeira por linha com confirmação inline em dois passos (clique → "Confirmar" / "Cancelar") sem modal extra. Mensagem de estado vazio orienta o usuário a usar a importação.
+
+- **`src/api/materialApi.js`** — nova operação `removeMaterial(id)`: atualização otimista (filtra lista local) + `db.removeMaterial(id)` assíncrono.
+
+- **`src/lib/dataService.js`** — `db.removeMaterial(id)`: `exec(supabase.from('materiais').delete().eq('id', id), 'remover material')`.
+
+- **`src/context/AppProvider.jsx`** — `removeMaterial` exposto via `AppContext`.
+
+- **`src/components/ui.jsx`** — ícone `trash` adicionado ao sistema SVG.
+
+- **`src/components/modals/index.js`** — re-export de `MaterialChecklistModal`.
+
+**Por que mudou**
+- Ramon levantou o inventário físico via WhatsApp (29/06) com 14 tipos de materiais e precisava adicioná-los ao sistema sem abrir 14 modais individualmente.
+- Não havia forma de excluir um material cadastrado; apenas editar quantidade era possível.
+
+**Restrição de perfil**
+- Todas as operações são exclusivas do perfil **marketing**: `EstoqueTab` só renderiza em `MarketingApp` (nunca em `VendedorApp`); RLS do Supabase bloqueia INSERT/DELETE em `materiais` para o papel `vendedor`.
+
+**Ações manuais necessárias**
+- Nenhuma. Nenhum schema de banco foi alterado.
+
+---
+
 ## [v5.1] — Monitor: timeout de escrita, atribuição de erros, stats líquidos e filtro Sync completo
 **Data:** 2026-06-20
 **Branch:** `claude/log-appearances-analysis-3j1b69`

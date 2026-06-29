@@ -3,6 +3,10 @@ import { genId } from '../utils/ids';
 
 export function createMaterialApi({ materiais, setMateriais, eventos, patchEvento }) {
   return {
+    removeMaterial: (id) => {
+      setMateriais((p) => p.filter((m) => m.id !== id));
+      db.removeMaterial(id);
+    },
     addMaterial: (m) => {
       const novo = { ...m, id: genId('m') };
       setMateriais((p) => [...p, novo]);
