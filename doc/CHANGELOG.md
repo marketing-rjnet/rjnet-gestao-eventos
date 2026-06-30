@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.4] — Estoque: edição de material existente (nome e quantidade)
+**Data:** 2026-06-30
+**Branch:** `claude/inventory-materials-checklist-ar5mcv`
+
+**O que mudou**
+
+- **`src/components/modals/MaterialModal.jsx`** — agora aceita prop opcional `material`; quando presente, entra em modo edição: pré-preenche `nome`/`quantidade`/`descricao`, troca título e botão para "Editar Material"/"Salvar", e o submit chama `updateMaterial(id, patch)` (já existente em `materialApi.js`) em vez de `addMaterial()`.
+
+- **`src/features/inventory/EstoqueTab.jsx`** — adicionado botão de edição (ícone lápis) ao lado do botão de exclusão em cada linha de estoque; abre `MaterialModal` pré-preenchido com o material da linha via novo estado `editMaterial`.
+
+- **`src/components/ui.jsx`** — ícone `edit` (lápis) adicionado ao sistema SVG.
+
+**Por que mudou**
+- Ramon só conseguia adicionar ou excluir materiais — qualquer correção de nome/quantidade exigia excluir e recriar o item, perdendo o histórico de associação com eventos. Pediu controle direto de edição.
+
+**Ações manuais necessárias**
+- Nenhuma. Reaproveita a operação `updateMaterial` já existente na API/backend; nenhum schema de banco foi alterado.
+
+---
+
 ## [v5.3] — Estoque: checklist de importação persistente
 **Data:** 2026-06-30
 **Branch:** `claude/inventory-materials-checklist-ar5mcv`
