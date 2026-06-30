@@ -9,6 +9,9 @@ export function LeadsTab({ session }) {
   const [selecionados, setSelecionados] = useState([]);
   const [carregando, setCarregando] = useState(false);
 
+  const eventosMensais = eventos.filter((e) => e.tipo === 'dia_a_dia').sort((a, b) => (b.dataInicio || '').localeCompare(a.dataInicio || ''));
+  const eventosRegulares = eventos.filter((e) => e.tipo !== 'dia_a_dia');
+
   const evName = (id) => eventos.find((e) => e.id === id)?.nome || id;
 
   const toggle = (id) => setSelecionados((prev) =>
@@ -85,7 +88,7 @@ export function LeadsTab({ session }) {
 
       <div className="card" style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span className="section-title" style={{ marginBottom: 0 }}>Eventos</span>
+          <span className="section-title" style={{ marginBottom: 0 }}>Eventos e Captação Mensal</span>
           <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodos}>
             {selecionados.length === eventos.length ? 'Desmarcar todos' : 'Selecionar todos'}
           </button>
@@ -98,28 +101,39 @@ export function LeadsTab({ session }) {
               <thead>
                 <tr>
                   <th style={{ width: 40 }}></th>
-                  <th>Evento</th>
+                  <th>Nome</th>
                   <th>Status</th>
                   <th>Início</th>
                   <th>Fim</th>
                 </tr>
               </thead>
               <tbody>
-                {eventos.map((ev) => (
+                {eventosMensais.length > 0 && (
+                  <tr><td colSpan={5} style={{ padding: '10px 8px 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', background: 'var(--bg-2)' }}>📅 Captação Mensal</td></tr>
+                )}
+                {eventosMensais.map((ev) => (
                   <tr
                     key={ev.id}
                     onClick={() => toggle(ev.id)}
                     style={{ cursor: 'pointer', background: selecionados.includes(ev.id) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
                   >
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selecionados.includes(ev.id)}
-                        onChange={() => toggle(ev.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </td>
+                    <td><input type="checkbox" checked={selecionados.includes(ev.id)} onChange={() => toggle(ev.id)} onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} /></td>
+                    <td className="strong">{ev.nome}</td>
+                    <td><span className={`badge badge-${ev.status}`}>{ev.status}</span></td>
+                    <td>{fmtDateLong(ev.dataInicio)}</td>
+                    <td>{fmtDateLong(ev.dataFim)}</td>
+                  </tr>
+                ))}
+                {eventosRegulares.length > 0 && (
+                  <tr><td colSpan={5} style={{ padding: '10px 8px 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', background: 'var(--bg-2)' }}>🎯 Eventos</td></tr>
+                )}
+                {eventosRegulares.map((ev) => (
+                  <tr
+                    key={ev.id}
+                    onClick={() => toggle(ev.id)}
+                    style={{ cursor: 'pointer', background: selecionados.includes(ev.id) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
+                  >
+                    <td><input type="checkbox" checked={selecionados.includes(ev.id)} onChange={() => toggle(ev.id)} onClick={(e) => e.stopPropagation()} style={{ cursor: 'pointer' }} /></td>
                     <td className="strong">{ev.nome}</td>
                     <td><span className={`badge badge-${ev.status}`}>{ev.status}</span></td>
                     <td>{fmtDateLong(ev.dataInicio)}</td>

@@ -3,7 +3,7 @@ import { useApp } from '../hooks/useApp';
 import { useRanking } from '../hooks/useRanking';
 import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';
-import { SERVICO_LABEL, TIPO_LABEL, servicoLabel } from '../utils/format';
+import { SERVICO_LABEL, TIPO_LABEL, servicoLabel, fmtMes } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
@@ -104,9 +104,32 @@ function LeadEditInline({ lead, onSave, onCancel }) {
 }
 
 export default function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento } = useApp();
+  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento, getDiaDiaEvento, ensureDiaDiaEvento } = useApp();
   const ativos = getEventosAtivos();
   const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
+  const [modo, setModo] = useState("dia-a-dia");
+  const [mesSelecionado, setMesSelecionado] = useState(null);
+
+  const diaDiaEvento = getDiaDiaEvento();
+  const diaDiaId = diaDiaEvento?.id || null;
+
+  // todos os eventos mensais, do mais recente ao mais antigo
+  const eventosMensais = eventos
+    .filter((e) => e.tipo === 'dia_a_dia')
+    .sort((a, b) => (b.dataInicio || '').localeCompare(a.dataInicio || ''));
+
+  const mesSelecionadoId = mesSelecionado || diaDiaId;
+  const eventoMesSelecionado = eventos.find((e) => e.id === mesSelecionadoId);
+
+  // garante que o ciclo do mês existe ao entrar no modo dia-a-dia
+  useEffect(() => {
+    if (modo === 'dia-a-dia' && !diaDiaId) ensureDiaDiaEvento();
+  }, [modo, diaDiaId]);
+
+  // carrega leads ao mudar o mês selecionado no histórico
+  useEffect(() => {
+    if (mesSelecionadoId) carregarLeadsEvento(mesSelecionadoId);
+  }, [mesSelecionadoId]);
 
   useEffect(() => {
     if (!ativos.some((e) => e.id === eventoId)) {
@@ -132,11 +155,15 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
 
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoEvento = leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome);
+  const leadsDoMes = leads.filter((l) => l.eventoId === diaDiaId && l.vendedorNome === session.vendedorNome);
+  const leadsHistorico = leads.filter((l) => l.eventoId === mesSelecionadoId && l.vendedorNome === session.vendedorNome);
 
-  const pct = Math.min((leadsDoEvento.length / META_OURO) * 100, 100);
-  const metaBronze = leadsDoEvento.length >= META_BRONZE;
-  const metaPrata  = leadsDoEvento.length >= META_PRATA;
-  const metaOuro   = leadsDoEvento.length >= META_OURO;
+  const leadsAtivos = modo === 'dia-a-dia' ? leadsDoMes : leadsDoEvento;
+
+  const pct = Math.min((leadsAtivos.length / META_OURO) * 100, 100);
+  const metaBronze = leadsAtivos.length >= META_BRONZE;
+  const metaPrata  = leadsAtivos.length >= META_PRATA;
+  const metaOuro   = leadsAtivos.length >= META_OURO;
   const nivelMeta  = metaOuro ? "ouro" : metaPrata ? "prata" : metaBronze ? "bronze" : "";
 
   const { ranking, rankingLoading } = useRanking(eventoId, leads.length);
@@ -171,9 +198,13 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const submit = (e) => {
     e.preventDefault();
     setFormErro("");
-    if (!eventoId) { setFormErro("Selecione um evento antes de registrar."); return; }
-    const eventoSel = eventos.find((ev) => ev.id === eventoId);
-    if (!eventoSel || eventoSel.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Este evento está encerrado e não aceita novos leads."); return; }
+    const eventoIdAtivo = modo === 'dia-a-dia' ? diaDiaId : eventoId;
+    if (!eventoIdAtivo) {
+      setFormErro(modo === 'dia-a-dia' ? "Ciclo mensal ainda não disponível. Aguarde um instante." : "Selecione um evento antes de registrar.");
+      return;
+    }
+    const eventoSel = eventos.find((ev) => ev.id === eventoIdAtivo);
+    if (!eventoSel || eventoSel.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Este ciclo está encerrado e não aceita novos leads."); return; }
     const nome = sanitizeText(f.nome, 120);
     if (!nome) { setFormErro("Nome é obrigatório."); return; }
     if (!validarTelefone(f.telefone)) { setFormErro("Telefone inválido. Informe DDD + número (10 ou 11 dígitos)."); return; }
@@ -185,7 +216,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       cpf: sanitizeText(f.cpf, 14),
       endereco: sanitizeText(f.endereco, 200),
       observacao: sanitizeText(f.observacao, 500),
-      eventoId,
+      eventoId: eventoIdAtivo,
       vendedorNome: session.vendedorNome,
       vendedorId: session.userId || null,
     });
@@ -229,17 +260,53 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       </header>
 
       <div className="vend-shell">
-        {/* Seletor de evento compartilhado */}
-        <div className="big-field big-select" style={{ marginBottom: 20 }}>
-          <label>Evento</label>
-          {ativos.length === 0 ? (
-            <div className="empty" style={{ textAlign: "left", padding: "10px 0" }}>Nenhum evento ativo no momento.</div>
-          ) : (
-            <select value={eventoId} onChange={(e) => { setEventoId(e.target.value); setEditandoId(null); }}>
-              {ativos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-            </select>
-          )}
+        {/* Switch de modo */}
+        <div className="modo-switch" style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid var(--border)", marginBottom: 18, background: "var(--bg-2)" }}>
+          <button
+            type="button"
+            className={"modo-btn" + (modo === "dia-a-dia" ? " active" : "")}
+            style={{ flex: 1, padding: "10px 0", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", background: modo === "dia-a-dia" ? "var(--rj-blue)" : "transparent", color: modo === "dia-a-dia" ? "#fff" : "var(--text-2)", transition: "all .18s" }}
+            onClick={() => { setModo("dia-a-dia"); setAba("registrar"); setMesSelecionado(null); }}
+          >
+            📅 Dia a Dia
+          </button>
+          <button
+            type="button"
+            className={"modo-btn" + (modo === "eventos" ? " active" : "")}
+            style={{ flex: 1, padding: "10px 0", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", background: modo === "eventos" ? "var(--rj-blue)" : "transparent", color: modo === "eventos" ? "#fff" : "var(--text-2)", transition: "all .18s" }}
+            onClick={() => { setModo("eventos"); setAba("registrar"); }}
+          >
+            🎯 Eventos
+          </button>
         </div>
+
+        {/* Contexto Dia a Dia: label do mês */}
+        {modo === "dia-a-dia" && (
+          <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, color: "var(--text-2)" }}>
+              {diaDiaEvento ? (
+                <><span style={{ fontWeight: 700, color: "var(--text-1)" }}>{fmtMes(diaDiaEvento.dataInicio)}</span> — captação mensal</>
+              ) : (
+                <span style={{ color: "var(--text-3)" }}>Criando ciclo do mês…</span>
+              )}
+            </span>
+            {leadsDoMes.length > 0 && <span style={{ fontSize: 12, color: "var(--rj-blue)", fontWeight: 700 }}>{leadsDoMes.length} lead{leadsDoMes.length !== 1 ? "s" : ""} este mês</span>}
+          </div>
+        )}
+
+        {/* Seletor de evento (modo eventos) */}
+        {modo === "eventos" && (
+          <div className="big-field big-select" style={{ marginBottom: 20 }}>
+            <label>Evento</label>
+            {ativos.length === 0 ? (
+              <div className="empty" style={{ textAlign: "left", padding: "10px 0" }}>Nenhum evento ativo no momento.</div>
+            ) : (
+              <select value={eventoId} onChange={(e) => { setEventoId(e.target.value); setEditandoId(null); }}>
+                {ativos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+              </select>
+            )}
+          </div>
+        )}
 
         {/* ---- ABA REGISTRAR ---- */}
         {aba === "registrar" && (
@@ -251,7 +318,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 metaPrata ? { background: "#9ca3af", color: "#111" } :
                 metaBronze ? { background: "#b45309" } : {}
               }>
-                {metaOuro ? "🥇" : metaPrata ? "🥈" : metaBronze ? "🥉" : ""} {leadsDoEvento.length} leads
+                {metaOuro ? "🥇" : metaPrata ? "🥈" : metaBronze ? "🥉" : ""} {leadsAtivos.length} leads
               </span>
             </div>
             <div className="meta-bar-wrap">
@@ -274,12 +341,14 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               <span className={"toggle-switch" + (modoRapido ? " on" : "")} onClick={() => setModoRapido((v) => !v)} />
               Modo rápido — só essencial
             </label>
-            {ativos.length === 0 ? (
+            {(modo === 'dia-a-dia' ? !diaDiaId : ativos.length === 0) ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 16px", gap: 14 }}>
                 <Icon name="calendar" size={44} stroke="var(--text-3)" />
-                <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-2)" }}>Sem eventos ativos</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-2)" }}>
+                  {modo === 'dia-a-dia' ? "Preparando ciclo do mês…" : "Sem eventos ativos"}
+                </div>
                 <div style={{ fontSize: 14, color: "var(--text-3)", maxWidth: 280, lineHeight: 1.6 }}>
-                  Aguarde o marketing ativar um evento para começar a registrar leads.
+                  {modo === 'dia-a-dia' ? "O ciclo de captação mensal está sendo criado automaticamente." : "Aguarde o marketing ativar um evento para começar a registrar leads."}
                 </div>
               </div>
             ) : (
@@ -353,11 +422,12 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                           disabled={!f.servicoInteresse.length}
                           onClick={() => {
                             if (!f.servicoInteresse.length) { setFormErro("Selecione ao menos um serviço."); return; }
-                            const evt = eventos.find((ev) => ev.id === eventoId);
-                            if (!eventoId) { setFormErro("Selecione um evento."); return; }
-                            if (!evt || evt.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Evento encerrado."); return; }
+                            const eventoIdAtivo = modo === 'dia-a-dia' ? diaDiaId : eventoId;
+                            const evt = eventos.find((ev) => ev.id === eventoIdAtivo);
+                            if (!eventoIdAtivo) { setFormErro("Ciclo não disponível."); return; }
+                            if (!evt || evt.status === STATUS_EVENTO.ENCERRADO) { setFormErro("Ciclo encerrado."); return; }
                             const nome = sanitizeText(f.nome, 120);
-                            const novo = addLead({ ...f, nome, cpf: sanitizeText(f.cpf, 14), endereco: sanitizeText(f.endereco, 200), observacao: sanitizeText(f.observacao, 500), eventoId, vendedorNome: session.vendedorNome, vendedorId: session.userId || null });
+                            const novo = addLead({ ...f, nome, cpf: sanitizeText(f.cpf, 14), endereco: sanitizeText(f.endereco, 200), observacao: sanitizeText(f.observacao, 500), eventoId: eventoIdAtivo, vendedorNome: session.vendedorNome, vendedorId: session.userId || null });
                             if (typeof navigator.vibrate === "function") navigator.vibrate(80);
                             showToast(novo.id, nome);
                             setF(FORM_VAZIO);
@@ -428,10 +498,38 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
         {/* ---- ABA MEUS LEADS ---- */}
         {aba === "meus-leads" && (
           <div>
-            {leadsDoEvento.length === 0 ? (
+            {/* Histórico de meses (modo dia-a-dia) */}
+            {modo === 'dia-a-dia' && eventosMensais.length > 1 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>Mês</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {eventosMensais.map((ev) => (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => { setMesSelecionado(ev.id); setBuscaLead(""); }}
+                      style={{
+                        padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, border: "1px solid var(--border)", cursor: "pointer",
+                        background: (mesSelecionadoId === ev.id) ? "var(--rj-blue)" : "var(--bg-2)",
+                        color: (mesSelecionadoId === ev.id) ? "#fff" : "var(--text-2)",
+                      }}
+                    >
+                      {fmtMes(ev.dataInicio)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Lista de leads */}
+            {(() => {
+              const leadsExibidos = modo === 'dia-a-dia' ? leadsHistorico : leadsDoEvento;
+              const labelContexto = modo === 'dia-a-dia'
+                ? (eventoMesSelecionado ? fmtMes(eventoMesSelecionado.dataInicio) : 'este mês')
+                : 'neste evento';
+              return leadsExibidos.length === 0 ? (
               <div className="empty" style={{ padding: "48px 0", textAlign: "center" }}>
                 <Icon name="person" size={36} stroke="var(--text-3)" />
-                <div style={{ marginTop: 12, color: "var(--text-3)", fontSize: 14 }}>Nenhum lead registrado neste evento ainda.</div>
+                <div style={{ marginTop: 12, color: "var(--text-3)", fontSize: 14 }}>Nenhum lead registrado {labelContexto} ainda.</div>
               </div>
             ) : (
               <div className="meus-leads">
@@ -441,10 +539,10 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   placeholder="Buscar por nome…"
                   onClear={() => setBuscaLead("")}
                 />
-                <h3>{leadsDoEvento.length} lead{leadsDoEvento.length > 1 ? "s" : ""} neste evento</h3>
-                {leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
+                <h3>{leadsExibidos.length} lead{leadsExibidos.length > 1 ? "s" : ""} {labelContexto}</h3>
+                {leadsExibidos.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
                   <div style={{ textAlign: "center", color: "var(--text-3)", fontSize: 13, padding: "24px 0" }}>Nenhum lead com esse nome.</div>
-                ) : leadsDoEvento.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).map((l) => {
+                ) : leadsExibidos.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).map((l) => {
                   const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
                   const editando = editandoId === l.id;
                   const tel = l.telefone.replace(/\D/g, "");
@@ -501,7 +599,8 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   );
                 })}
               </div>
-            )}
+            );
+          })()}
           </div>
         )}
 
@@ -698,12 +797,14 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
         <button className={"vend-nav-btn" + (aba === "meus-leads" ? " active" : "")} onClick={() => { setAba("meus-leads"); setEditandoId(null); setConfirmandoDelId(null); }}>
           <Icon name="person" size={22} stroke={aba === "meus-leads" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
           Meus Leads
-          {leadsDoEvento.length > 0 && <span className="vend-nav-badge">{leadsDoEvento.length}</span>}
+          {leadsAtivos.length > 0 && <span className="vend-nav-badge">{leadsAtivos.length}</span>}
         </button>
-        <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
-          <Icon name="calendar" size={22} stroke={aba === "evento" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
-          Evento
-        </button>
+        {modo === "eventos" && (
+          <button className={"vend-nav-btn" + (aba === "evento" ? " active" : "")} onClick={() => setAba("evento")}>
+            <Icon name="calendar" size={22} stroke={aba === "evento" ? "#ffcb00" : "#5a7a9a"} strokeWidth={1.8} />
+            Evento
+          </button>
+        )}
       </nav>
 
       {toast && (

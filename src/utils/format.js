@@ -10,6 +10,18 @@ export const TIPO_LABEL = {
   sinalizacao: "Sinalização",
   presenca_comercial: "Presença Comercial",
   ativacao_especial: "Ativação Especial",
+  dia_a_dia: "Dia a Dia",
+};
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+export const fmtMes = (d) => {
+  if (!d) return '';
+  const date = new Date(d + 'T12:00:00');
+  return `${MESES_PT[date.getMonth()]} ${date.getFullYear()}`;
+};
+export const mesRefAtual = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
 export const STATUS_LABEL = { ativo: "Ativo", planejado: "Planejado", encerrado: "Encerrado" };

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
 import { fetchAll, fetchLeadsEvento, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
+import { mesRefAtual, fmtMes } from '../utils/format';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
 import { AppContext } from './AppContext';
@@ -95,6 +96,29 @@ export function AppProvider({ children }) {
   const { criarUsuario, atualizarPerfil, excluirUsuario } =
     createEquipeApi({ recarregar: carregar });
 
+  const getDiaDiaEvento = () => {
+    const mes = mesRefAtual();
+    return eventos.find((e) => e.tipo === 'dia_a_dia' && e.dataInicio?.startsWith(mes)) || null;
+  };
+
+  const ensureDiaDiaEvento = () => {
+    const mes = mesRefAtual();
+    const existe = eventos.find((e) => e.tipo === 'dia_a_dia' && e.dataInicio?.startsWith(mes));
+    if (existe) return;
+    const now = new Date();
+    const dataFim = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    addEvento({
+      nome: `Dia a Dia — ${fmtMes(mes + '-01')}`,
+      tipo: 'dia_a_dia',
+      status: STATUS_EVENTO.ATIVO,
+      dataInicio: `${mes}-01`,
+      dataFim,
+      local: '',
+      materiais: [],
+      observacoes: '',
+    });
+  };
+
   const value = useMemo(() => ({
     materiais, eventos, leads, vendedores,
     isLoading, syncStatus,
@@ -108,7 +132,9 @@ export function AppProvider({ children }) {
     recarregar: carregar,
     carregarLeadsEvento,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
-    getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
+    getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO && e.tipo !== 'dia_a_dia'),
+    getDiaDiaEvento,
+    ensureDiaDiaEvento,
     getMateriaisDisponiveis: () =>
       materiais.map((mat) => {
         const emCampo = eventos
