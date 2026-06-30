@@ -3,9 +3,14 @@ import { Icon } from '../ui';
 import { useApp } from '../../hooks/useApp';
 import { sanitizeText } from '../../lib/security';
 
-export function MaterialModal({ onClose }) {
-  const { addMaterial } = useApp();
-  const [f, setF] = useState({ nome: "", quantidade: 1, descricao: "" });
+export function MaterialModal({ onClose, material }) {
+  const { addMaterial, updateMaterial } = useApp();
+  const isEdit = Boolean(material);
+  const [f, setF] = useState(() =>
+    isEdit
+      ? { nome: material.nome, quantidade: material.quantidade, descricao: material.descricao || '' }
+      : { nome: '', quantidade: 1, descricao: '' }
+  );
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const submit = (e) => {
     e.preventDefault();
@@ -13,14 +18,19 @@ export function MaterialModal({ onClose }) {
     const qtd = parseInt(f.quantidade, 10);
     if (!nome) return;
     if (!qtd || qtd < 1 || qtd > 9999) { alert("Quantidade inválida. Informe um número entre 1 e 9999."); return; }
-    addMaterial({ ...f, nome, descricao: sanitizeText(f.descricao || "", 300), quantidade: qtd });
+    const payload = { ...f, nome, descricao: sanitizeText(f.descricao || "", 300), quantidade: qtd };
+    if (isEdit) {
+      updateMaterial(material.id, payload);
+    } else {
+      addMaterial(payload);
+    }
     onClose();
   };
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Adicionar Material</h2>
+          <h2>{isEdit ? 'Editar Material' : 'Adicionar Material'}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Fechar"><Icon name="x" size={18} /></button>
         </div>
         <form onSubmit={submit} className="modal-form">
@@ -38,7 +48,7 @@ export function MaterialModal({ onClose }) {
           </div>
           <div className="modal-actions">
             <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn-primary">Adicionar</button>
+            <button type="submit" className="btn-primary">{isEdit ? 'Salvar' : 'Adicionar'}</button>
           </div>
         </form>
       </div>

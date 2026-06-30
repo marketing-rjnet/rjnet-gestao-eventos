@@ -69,7 +69,7 @@ src/
 │   ├── SyncBadge.jsx     # Indicador visual de sincronização (etapa 7)
 │   └── modals/
 │       ├── EventModal.jsx             # Modal de criação/edição de evento (etapa 9)
-│       ├── MaterialModal.jsx          # Modal de criação de material (etapa 9)
+│       ├── MaterialModal.jsx          # Modal de criação/edição de material — modo dual via prop `material` (etapa 9, D-056)
 │       ├── MaterialChecklistModal.jsx # Importação em lote: 14 itens pré-definidos, marketing only (D-053)
 │       └── index.js                   # Re-exports de modais (etapa 9)
 ├── features/
@@ -315,7 +315,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/components/ui.jsx` | ~80 | Componentes UI atômicos extraídos (etapa 6) |
 | `src/components/SyncBadge.jsx` | ~14 | Indicador de sincronização (etapa 7) |
 | `src/components/modals/EventModal.jsx` | ~90 | Modal de criação/edição de evento (etapa 9) |
-| `src/components/modals/MaterialModal.jsx` | ~50 | Modal de criação de material (etapa 9) |
+| `src/components/modals/MaterialModal.jsx` | ~55 | Modal de criação/edição de material — modo dual via prop `material` (etapa 9, D-056) |
 | `src/components/modals/MaterialChecklistModal.jsx` | ~100 | Importação em lote de materiais: 14 itens pré-definidos, seleção + ajuste de quantidade (D-053, marketing only) |
 | `src/features/events/Dashboard.jsx` | ~70 | KPIs, gráfico donut, próximos eventos (etapa 10) |
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |

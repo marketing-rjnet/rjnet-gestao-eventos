@@ -8,6 +8,7 @@ export function EstoqueTab() {
   const { getMateriaisDisponiveis, removeMaterial } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
+  const [editMaterial, setEditMaterial] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const list = getMateriaisDisponiveis();
   const totalItens = list.reduce((a, m) => a + m.material.quantidade, 0);
@@ -54,14 +55,24 @@ export function EstoqueTab() {
                 </button>
               </span>
             ) : (
-              <button
-                className="btn-ghost"
-                style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-3)' }}
-                title="Excluir material"
-                onClick={() => setConfirmDelete(m.material.id)}
-              >
-                <Icon name="trash" size={14} />
-              </button>
+              <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-3)' }}
+                  title="Editar material"
+                  onClick={() => setEditMaterial(m.material)}
+                >
+                  <Icon name="edit" size={14} />
+                </button>
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-3)' }}
+                  title="Excluir material"
+                  onClick={() => setConfirmDelete(m.material.id)}
+                >
+                  <Icon name="trash" size={14} />
+                </button>
+              </span>
             )}
           </div>
         </div>
@@ -99,6 +110,7 @@ export function EstoqueTab() {
       )}
 
       {showModal && <MaterialModal onClose={() => setShowModal(false)} />}
+      {editMaterial && <MaterialModal material={editMaterial} onClose={() => setEditMaterial(null)} />}
       {showChecklist && <MaterialChecklistModal onClose={() => setShowChecklist(false)} />}
     </div>
   );
