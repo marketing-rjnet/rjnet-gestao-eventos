@@ -4,6 +4,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.3] — Estoque: checklist de importação persistente
+**Data:** 2026-06-30
+**Branch:** `claude/inventory-materials-checklist-ar5mcv`
+
+**O que mudou**
+
+- **`src/components/modals/MaterialChecklistModal.jsx`** — lista do checklist agora usa `usePersisted('rjnet_checklist_estoque', ...)` em vez de `useState`: o rascunho sobrevive ao fechar o modal e a recarregar a página. Adicionado formulário inline (nome + quantidade) para incluir itens além dos 14 pré-definidos. Cada linha ganhou botão de remoção individual do rascunho (distinto de desmarcar). Ao confirmar a importação, só os itens selecionados são removidos do rascunho — os desmarcados continuam salvos para uma importação posterior.
+
+**Por que mudou**
+- Ramon levanta o inventário físico aos poucos, ao longo do dia (ver mensagens de WhatsApp espalhadas entre 13h e 16h em 29/06). Precisava poder ir adicionando itens à lista conforme conferia o estoque, sem perder o progresso, e só "bater o martelo" (inserir no estoque oficial) quando terminasse a conferência.
+
+**Ações manuais necessárias**
+- Nenhuma. Dado armazenado apenas em `localStorage` do navegador; nenhum schema de banco foi alterado.
+
+---
+
 ## [v5.2] — Estoque: importação em checklist e exclusão de material (marketing only)
 **Data:** 2026-06-29
 **Branch:** `claude/inventory-materials-checklist-ar5mcv`
