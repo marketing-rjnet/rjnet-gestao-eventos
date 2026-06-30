@@ -1109,14 +1109,16 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.3 Fase 2 — Privacidade e rastreabilidade (7–30 dias)
 
-**Status:** 🟢 Fase 2 completa (6/6 concluído)
+**Status:** 🟡 Fase 2 parcialmente regredida (5/6 concluído, 1 suspenso) — ver nota abaixo
+
+> **Atualização (2026-06-17, D-043):** o checkbox de consentimento implementado por PA-04 foi **ocultado da UI** e a validação de bloqueio **suspensa**, por decisão de aguardar definição externa do processo de coleta (ficha física vs. termo digital). O schema do banco (`consentimento_coletado`, `consentimento_em`, `versao_termo`) e o mapeamento em `dataService.js` permanecem intactos para reativação rápida assim que o processo for definido. Enquanto a UI estiver suspensa, **L-01/L-02 (ausência de consentimento) voltam a ser não conformidades ativas**, e a nota geral de LGPD não deve ser tratada como 8,7/10 até a reativação. Ver `doc/architecture/DECISIONS.md` (decisão de Suspensão do consentimento).
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
-| PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🟢 | 2026-06-16 | Migração SQL + checkbox obrigatório no VendedorApp + mapeamento dataService |
+| PA-04 | Consentimento LGPD no formulário de lead | L-01, L-02, L-03 | 🟡 Suspenso na UI (D-043, 2026-06-17) | 2026-06-16 | Migração SQL + checkbox implementado, depois ocultado; mapeamento dataService ativo, validação de bloqueio desativada |
 | PA-05 | Criptografar fila offline localStorage | S-02 | 🟢 | 2026-06-16 | `src/lib/crypto.js` (AES-GCM 256 + PBKDF2) + dataService async queue + RootAuth lifecycle |
 | PA-06 | Log de exportações CSV | A-01, L-08 | 🟢 | 2026-06-16 | `audit_exportacoes` (SQL) + `db.registrarExportacao()` + callback em `csv.js` |
-| PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🟢 | 2026-06-16 | `deletado_em` + `deletado_por` em `leads` + `db.removeLead()` atualizado |
+| PA-07 | Rastreabilidade do soft delete | BD-06, A-03 | 🟢 | 2026-06-16 | `deletado_em` + `deletado_por` em `leads` + `db.removeLead()` atualizado. **Nota (D-055, 2026-06-17):** exclusão de lead feita pelo próprio vendedor migrou de soft delete para DELETE físico (RLS bloqueava o UPDATE); rastreabilidade mantida via trigger `audit_leads` → `audit_log`. Soft delete continua valendo para exclusões feitas pelo marketing. |
 | PA-08 | Pseudonimizar/criptografar CPF | BD-02, L-03 | 🟢 | 2026-06-16 | CPF reintroduzido como opcional com finalidade declarada (visita técnica/contrato); check-in por nome |
 | PA-09 | Corrigir stack trace na Edge Function | S-05 | 🟢 | 2026-06-16 | Resolvido em PA-03 |
 
@@ -1255,6 +1257,8 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | Auditoria | 1,0 | 1,0 | 4,0 | 8,0 | 8,5 |
 | Integrações | 7,0 | 7,0 | 7,0 | 8,5 | 9,0 |
 | **GERAL** | **4,2** | **5,0** | **6,1** | **7,7** | **8,7** |
+
+> **Nota de validade da projeção (2026-06-30):** esta tabela assume PA-04 (consentimento) ativo na UI. Como o consentimento está suspenso desde 2026-06-17 (D-043, ver §12.3), a nota real de LGPD está abaixo da curva projetada até que o processo de coleta seja definido e a UI reativada. Tratar "8,7" como teto condicional, não como nota corrente.
 
 ---
 

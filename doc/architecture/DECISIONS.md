@@ -1798,7 +1798,9 @@ CPF armazenado em texto plano (sem criptografia). O risco é menor do que na sit
 
 ---
 
-### [D-043] — Exclusão de leads por vendedor: DELETE físico em vez de soft delete
+### [D-055] — Exclusão de leads por vendedor: DELETE físico em vez de soft delete
+
+> **Nota de renumeração (2026-06-30):** esta decisão foi registrada originalmente como "D-043", duplicando o ID já usado pela decisão de Suspensão do consentimento LGPD (linha ~365). Renumerada para D-055 (próximo ID livre após D-054) para eliminar a colisão. Conteúdo original preservado sem alteração de mérito.
 
 **Data:** 2026-06-17
 **Tipo:** Segurança / Bug Fix

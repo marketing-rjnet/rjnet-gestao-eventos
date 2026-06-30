@@ -29,10 +29,10 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/performance/HOMOLOGATION_CHECKLIST.md` | Checklist de preparação do ambiente de homologação para testes de carga | Antes de executar qualquer cenário de teste |
 | `doc/performance/LOAD_TEST_PLAN.md` | Plano de testes de carga — 4 cenários k6 (Normal, Pico, Crítico, Estresse) | Antes de executar testes |
 | `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A |
-| `doc/ui/UI_VERSIONS.md` | **Catálogo de versões de UI/UX** — paleta, navegação, telas, componentes, padrões de UX por versão | Antes de qualquer mudança de interface; ao iniciar nova versão de UI |
-| `doc/ui/UX_UI_V2_PROPOSAL.md` | **Proposta estratégica da V2** — auditoria, problemas, proposta por tela, design system, roadmap de implementação em 3 fases | Antes de implementar qualquer mudança de interface da V2; **não implementar sem aprovação** |
-| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | **Plano de implementação da V2** — 22 etapas em 3 fases (A: CSS, B: reorganização, C: componentes), cada uma atômica e reversível | Ao implementar qualquer etapa da V2 |
-| `doc/ui/UX_UI_V2_CHANGELOG.md` | **Changelog de implementação da V2** — cada etapa com hash git, arquivos alterados, status e comandos de rollback | Ao iniciar, concluir ou reverter qualquer etapa da V2 |
+| `doc/ui/UI_VERSIONS.md` | **Catálogo de versões de UI/UX** — paleta, navegação, telas, componentes, padrões de UX por versão. **V3 é a versão atual em produção** (redesign visual, 2026-06-18); V2 foi implementada por completo (22/22 etapas) e depois superada pela V3 no mesmo dia | Antes de qualquer mudança de interface; ao iniciar nova versão de UI |
+| `doc/ui/UX_UI_V2_PROPOSAL.md` | Proposta estratégica da V2 — auditoria, problemas, proposta por tela, design system, roadmap em 3 fases. **Histórico:** totalmente implementada e já superada pela V3; mantida como referência de diagnóstico de UX, não como pendência | Consulta histórica de diagnóstico de UX |
+| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | Plano de implementação da V2 — 22 etapas em 3 fases (A: CSS, B: reorganização, C: componentes). **Status: 22/22 concluídas** (ver changelog) | Consulta histórica |
+| `doc/ui/UX_UI_V2_CHANGELOG.md` | Changelog de implementação da V2 — cada etapa com hash git, arquivos alterados, status e comandos de rollback. **22/22 etapas concluídas em 2026-06-18**, nenhuma revertida | Consulta histórica / rollback pontual de um item específico da V2 |
 
 ---
 

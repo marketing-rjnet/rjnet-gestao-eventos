@@ -115,7 +115,7 @@ Redesign visual real — sem alteração de lógica de negócio. Objetivo: inter
 
 ## v1.0 — Baseline
 
-**Status:** `atual`
+**Status:** `anterior`
 **Data de catalogação:** 2026-06-18
 **Branch de referência:** `main`
 
