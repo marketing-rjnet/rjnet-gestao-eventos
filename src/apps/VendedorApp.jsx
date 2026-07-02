@@ -520,17 +520,25 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                         <>
                           <div className="lm-row">
                             <div className="lm-name">{l.nome}</div>
-                            <button
-                              type="button"
-                              className="temp-btn"
-                              style={{ "--tc": tc.cor, fontSize: 11, padding: "3px 10px", borderRadius: 999, color: tc.cor, background: "color-mix(in srgb," + tc.cor + " 12%, transparent)", boxShadow: "0 0 0 1px " + tc.cor }}
-                              onClick={() => {
-                                const ordem = Object.keys(TEMPERATURA_CONFIG);
-                                const idx = ordem.indexOf(l.temperatura || "morno");
-                                updateLead(l.id, { temperatura: ordem[(idx + 1) % ordem.length] });
-                              }}
-                              title="Toque para alterar temperatura"
-                            >{tc.label}</button>
+                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                              <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: "2px 6px", color: "var(--text-3)" }} title="Editar dados" onClick={() => { setEditandoId(l.id); setConfirmandoDelId(null); }}>
+                                <Icon name="edit" size={14} />
+                              </button>
+                              <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: "2px 6px", color: "var(--text-3)" }} title="Excluir lead" onClick={() => { setConfirmandoDelId(l.id); setEditandoId(null); }}>
+                                <Icon name="trash" size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="temp-btn"
+                                style={{ "--tc": tc.cor, fontSize: 11, padding: "3px 10px", borderRadius: 999, color: tc.cor, background: "color-mix(in srgb," + tc.cor + " 12%, transparent)", boxShadow: "0 0 0 1px " + tc.cor }}
+                                onClick={() => {
+                                  const ordem = Object.keys(TEMPERATURA_CONFIG);
+                                  const idx = ordem.indexOf(l.temperatura || "morno");
+                                  updateLead(l.id, { temperatura: ordem[(idx + 1) % ordem.length] });
+                                }}
+                                title="Toque para alterar temperatura"
+                              >{tc.label}</button>
+                            </div>
                           </div>
                           <div className="lm-sub" style={{ marginTop: 4 }}>
                             {l.cpf && <span className="mono" style={{ marginRight: 6 }}>{l.cpf}</span>}
@@ -556,8 +564,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                               onClose={() => setOfertaPickerLeadId(null)}
                             />
                           )}
-                          <button type="button" className="lm-edit-btn" onClick={() => { setEditandoId(l.id); setConfirmandoDelId(null); }}>Editar dados</button>
-                          {confirmandoDelId === l.id ? (
+                          {confirmandoDelId === l.id && (
                             <div className="lm-del-confirm">
                               <span>Confirmar exclusão do lead?</span>
                               <div style={{ display: "flex", gap: 6 }}>
@@ -565,8 +572,6 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                                 <button type="button" className="lm-del-confirm-no" onClick={() => setConfirmandoDelId(null)}>Cancelar</button>
                               </div>
                             </div>
-                          ) : (
-                            <button type="button" className="lm-del-btn" onClick={() => { setConfirmandoDelId(l.id); setEditandoId(null); }}>Excluir lead</button>
                           )}
                         </>
                       )}
