@@ -19,20 +19,29 @@ export default function EventDetail({ eventoId, onBack }) {
     carregarLeadsEvento(eventoId);
   }, [eventoId]);
 
-  const ev = eventos.find((e) => e.id === eventoId);
-  if (!ev) return null;
-
-  const evLeads = getLeadsEvento(eventoId);
-  const disp = getMateriaisDisponiveis();
-  const matName = (id) => materiais.find((m) => m.id === id)?.nome || id;
-  const emCampo = ev.materiais.filter((m) => !m.retornado).reduce((a, m) => a + m.quantidade, 0);
-
   const [addMatId, setAddMatId] = useState("");
   const [addMatQtd, setAddMatQtd] = useState(1);
   const [showAddMat, setShowAddMat] = useState(false);
   const [editEvento, setEditEvento] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [buscaLead, setBuscaLead] = useState("");
+
+  const ev = eventos.find((e) => e.id === eventoId);
+  const evLeads = getLeadsEvento(eventoId);
+
+  const porVendedor = useMemo(() => {
+    const c = {};
+    evLeads.forEach((l) => { c[l.vendedorNome] = (c[l.vendedorNome] || 0) + 1; });
+    return c;
+  }, [evLeads]);
+
+  // Hooks acima devem rodar sempre, na mesma ordem — o retorno condicional
+  // fica só depois de todos declarados (Rules of Hooks).
+  if (!ev) return null;
+
+  const disp = getMateriaisDisponiveis();
+  const matName = (id) => materiais.find((m) => m.id === id)?.nome || id;
+  const emCampo = ev.materiais.filter((m) => !m.retornado).reduce((a, m) => a + m.quantidade, 0);
 
   const matsDisponiveis = materiais.filter(
     (m) => !ev.materiais.find((em) => em.materialId === m.id)
@@ -44,12 +53,6 @@ export default function EventDetail({ eventoId, onBack }) {
     addMaterialEvento(eventoId, addMatId, addMatQtd);
     setAddMatId(""); setAddMatQtd(1); setShowAddMat(false);
   };
-
-  const porVendedor = useMemo(() => {
-    const c = {};
-    evLeads.forEach((l) => { c[l.vendedorNome] = (c[l.vendedorNome] || 0) + 1; });
-    return c;
-  }, [evLeads]);
 
   const barData = {
     labels: Object.keys(porVendedor),

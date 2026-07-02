@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  checks:
+    name: Lint, testes unitários e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Testes unitários (security + lead)
+        run: npm run test:unit
+
+      # Roda por último e isolado do passo de lint/testes: VITE_MARKETING_PASS
+      # não pode estar definida aqui — o build aborta de propósito nesse caso
+      # (guarda PA-01/LGPD em vite.config.js), e nenhum passo anterior a define.
+      - name: Build de produção
+        run: npm run build
+
+  e2e:
+    name: Testes E2E (Playwright)
+    runs-on: ubuntu-latest
+    # NÃO bloqueia o merge por enquanto: a suíte hoje tem falhas pré-existentes
+    # não relacionadas a este workflow — o helper loginComercial() (tests/helpers/auth.js)
+    # espera uma tela de seleção de vendedor (.vendedor-list/.vendedor-btn) que não é
+    # mais renderizada por nenhum componente (só sobra CSS órfão em src/index.css);
+    # ~20 testes em 5 arquivos dependem dele. Job continua rodando a cada push para dar
+    # visibilidade, mas não falha o pipeline até a suíte ser corrigida. Remover
+    # `continue-on-error` quando isso for resolvido.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache de browsers do Playwright
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Instalar Chromium (Playwright)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Cache hit: o browser já está no cache, mas as dependências de SO da
+      # imagem do runner não são persistidas pelo cache — precisam ser
+      # reinstaladas mesmo assim.
+      - name: Instalar dependências de SO do Chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Rodar suíte E2E completa
+        run: npm test
+        env:
+          # Credenciais de modo local (não-produção) — necessárias para o
+          # servidor de dev na porta 3000 (modo legado, ver playwright.config.js).
+          # O modo Supabase simulado (porta 3001) já tem suas próprias env vars
+          # mockadas dentro do webServer do playwright.config.js.
+          VITE_MARKETING_USER: marketing
+          VITE_MARKETING_PASS: mkt2025
+          TEST_MARKETING_USER: marketing
+          TEST_MARKETING_PASS: mkt2025
+
+      - name: Publicar relatório do Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

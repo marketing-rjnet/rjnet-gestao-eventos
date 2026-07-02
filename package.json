@@ -10,11 +10,17 @@
     "test:unit": "node tests/security.unit.test.js && node tests/lead.unit.test.js",
     "test:all": "node tests/security.unit.test.js && node tests/lead.unit.test.js && playwright test",
     "test:ui": "playwright test --ui",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.44.0",
     "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
     "vite": "^8.0.16"
   },
   "dependencies": {
