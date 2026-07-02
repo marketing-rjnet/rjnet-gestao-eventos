@@ -103,6 +103,25 @@ function LeadEditInline({ lead, onSave, onCancel }) {
   );
 }
 
+// D-057: baixa a imagem via blob — o atributo download do <a> é ignorado pelo
+// navegador em links de outra origem (imagem fica no domínio do Supabase)
+async function baixarOfertaImagem(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    window.open(url, '_blank');
+  }
+}
+
 // D-057: 1 modal por lead listando as ofertas disponíveis pros serviços de interesse dele
 function OfertaPickerModal({ lead, tel, ofertasDoLead, eventoId, session, ofertaJaEnviada, registrarOfertaEnviada, onClose }) {
   return (
@@ -124,7 +143,14 @@ function OfertaPickerModal({ lead, tel, ofertasDoLead, eventoId, session, oferta
                 {SERVICO_LABEL[oferta.servico]}
               </a>
               {oferta.imagemUrl && (
-                <a href={oferta.imagemUrl} target="_blank" rel="noreferrer" className="btn-ghost" style={{ flex: "0 0 auto" }}>🖼️ Imagem</a>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ flex: "0 0 auto" }}
+                  onClick={() => baixarOfertaImagem(oferta.imagemUrl, oferta.imagemPath || `oferta-${oferta.servico}.jpg`)}
+                >
+                  ⬇️ Baixar
+                </button>
               )}
               {ofertaJaEnviada(lead.id, oferta.servico) && (
                 <span style={{ fontSize: 11, color: "var(--green)", alignSelf: "center" }}>✓</span>
