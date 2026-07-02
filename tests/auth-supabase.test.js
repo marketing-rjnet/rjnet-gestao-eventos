@@ -3,10 +3,10 @@
  * Login/logout do vendedor via Supabase Auth simulado (porta 3001).
  * O modo legado não tem mais nenhum caminho de UI para autenticar como
  * vendedor — a tela de seleção de vendedor foi removida do app (só restava
- * CSS órfão em index.css, já limpo). Ver tests/helpers/supabase-mock.js.
+ * CSS órfão em index.css, já limpo). Ver tests/helpers/backend-mock.js.
  */
 const { test, expect } = require('@playwright/test');
-const { mockSupabase, loginPorEmail } = require('./helpers/supabase-mock');
+const { mockSupabase, loginPorEmail } = require('./helpers/backend-mock');
 
 test.describe('Autenticação — Comercial (Supabase)', () => {
 

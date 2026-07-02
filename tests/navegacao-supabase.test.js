@@ -2,10 +2,10 @@
 /**
  * Navegação da tela do vendedor (bottom nav), via Supabase Auth simulado.
  * O modo legado não tem mais caminho de UI para autenticar como vendedor —
- * ver tests/helpers/supabase-mock.js.
+ * ver tests/helpers/backend-mock.js.
  */
 const { test, expect } = require('@playwright/test');
-const { mockSupabase, loginPorEmail } = require('./helpers/supabase-mock');
+const { mockSupabase, loginPorEmail } = require('./helpers/backend-mock');
 
 test.describe('Navegação — Comercial (Supabase)', () => {
 

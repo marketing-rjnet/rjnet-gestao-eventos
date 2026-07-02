@@ -2,10 +2,10 @@
 /**
  * Testes de segurança que precisam de uma sessão de vendedor real —
  * migrados do modo legado (removido) para o Supabase Auth simulado.
- * Ver tests/helpers/supabase-mock.js.
+ * Ver tests/helpers/backend-mock.js.
  */
 const { test, expect } = require('@playwright/test');
-const { mockSupabase, loginPorEmail } = require('./helpers/supabase-mock');
+const { mockSupabase, loginPorEmail } = require('./helpers/backend-mock');
 
 test.describe('XSS — Formulário de Lead (Supabase)', () => {
 

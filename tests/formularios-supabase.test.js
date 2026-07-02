@@ -2,11 +2,11 @@
 /**
  * Validação de formulários que precisam de sessão de vendedor real, via
  * Supabase Auth simulado. O modo legado não tem mais caminho de UI para
- * autenticar como vendedor — ver tests/helpers/supabase-mock.js.
+ * autenticar como vendedor — ver tests/helpers/backend-mock.js.
  */
 const fs = require('fs');
 const { test, expect } = require('@playwright/test');
-const { mockSupabase, loginPorEmail } = require('./helpers/supabase-mock');
+const { mockSupabase, loginPorEmail } = require('./helpers/backend-mock');
 
 test.describe('Validação de Formulários — Comercial (Supabase)', () => {
 

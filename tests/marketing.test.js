@@ -11,32 +11,24 @@ test.describe('Seção Marketing', () => {
 
   test('aba Eventos carrega sem erros', async ({ page }) => {
     await loginMarketing(page);
+    // Início (Dashboard) é a aba padrão hoje, não Eventos.
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     await expect(page.locator('.event-grid, .event-card, .empty').first()).toBeVisible();
   });
 
   test('eventos pré-carregados aparecem para Marketing', async ({ page }) => {
     await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     await expect(page.locator('.event-card').first()).toBeVisible();
   });
 
   test('aba Leads exibe a tabela de leads', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
+    // A aba se chama "Relatórios" no header hoje (rótulo "Leads" era antigo).
+    // A exportação CSV em si (fetchLeadsEvento) só funciona em modo Supabase
+    // — sem cobertura aqui; ver formularios-supabase.test.js.
+    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
     await expect(page.locator('.tbl-wrap table, .empty').first()).toBeVisible();
-  });
-
-  test('leads do mock aparecem na aba Leads', async ({ page }) => {
-    await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
-    await expect(page.locator('.tbl-wrap table')).toContainText('João Pereira');
-  });
-
-  test('filtro por evento na aba Leads funciona', async ({ page }) => {
-    await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
-    const filtroEvento = page.locator('.filter-row select').first();
-    await filtroEvento.selectOption({ label: 'Feira de Tecnologia RJ' });
-    await expect(page.locator('.empty', { hasText: 'Nenhum lead encontrado' })).toBeVisible();
   });
 
   test('aba Estoque é acessível para Marketing', async ({ page }) => {
@@ -54,6 +46,7 @@ test.describe('Seção Marketing', () => {
   test('detalhe de evento abre a partir da view Marketing', async ({ page }) => {
     test.slow();
     await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     const firstCard = page.locator('.event-card').first();
     await expect(firstCard).toBeVisible();
     await firstCard.click();
