@@ -40,7 +40,7 @@ Para fins desta política, o sistema **RJNet Gestão de Eventos** é a plataform
 
 Os dados são coletados:
 
-- **Presencialmente**, em eventos de campo, por vendedores da RJNet. O titular assina uma ficha de consentimento antes da coleta.
+- **Presencialmente**, em eventos de campo ou na atividade comercial do dia a dia dos vendedores (D-058), por vendedores da RJNet. O titular assina uma ficha de consentimento antes da coleta.
 - **Digitalmente**, mediante preenchimento de formulário no sistema interno, sempre com apresentação do termo de consentimento e confirmação do titular.
 
 ---
@@ -74,6 +74,7 @@ Não vendemos, alugamos nem cedemos dados pessoais a terceiros para fins comerci
 | Lead ativo (contato em andamento) | Enquanto houver interesse comercial |
 | Lead excluído pelo vendedor (soft delete) | 90 dias, depois exclusão definitiva automática |
 | Lead de evento encerrado | 365 dias após encerramento do evento, depois exclusão definitiva |
+| Lead do dia a dia sem evento (D-058) | 365 dias após o fim do mês de referência, depois exclusão definitiva |
 | Dados de usuários internos (ex-colaboradores) | Até revogação de acesso pelo administrador |
 
 A exclusão definitiva é realizada automaticamente pelo sistema via rotina agendada diária.

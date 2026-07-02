@@ -284,16 +284,18 @@ Nenhuma funcionalidade planejada formalmente documentada foi identificada no rep
 
 **Finalidade:** Armazenar informações de potenciais clientes captados presencialmente em eventos.
 
+> **Atualização (2026-07-02, D-058):** o vendedor passou a poder registrar leads também fora de eventos, no dia a dia (atividade comercial contínua), associados a um mês de referência (`mes_referencia`) em vez de um evento (`evento_id`) — os dois campos são mutuamente exclusivos via constraint de banco. Finalidade, base legal e categorias de dados coletados são as mesmas; muda apenas o contexto de origem e o cálculo do prazo de retenção (ver campo `mes_referencia` na tabela abaixo e a nota de retenção logo a seguir).
+
 **Dados armazenados:** Dados pessoais identificáveis de cidadãos (titulares externos). **Tabela de maior sensibilidade LGPD do sistema.**
 
-**Origem dos dados:** Preenchimento manual por vendedores durante eventos. Os titulares NÃO interagem diretamente com o sistema.
+**Origem dos dados:** Preenchimento manual por vendedores durante eventos ou na atividade comercial do dia a dia (D-058). Os titulares NÃO interagem diretamente com o sistema.
 
 **Usuários com acesso:**
 - Marketing: CRUD completo (todos os leads)
 - Vendedor: Insere e edita apenas próprios leads; lê placar agregado da equipe
 - Anônimo: CRUD completo se apenas `schema.sql` aplicado ⚠️ CRÍTICO
 
-**Tempo de retenção:** **NÃO DEFINIDO.** Nenhuma política de retenção implementada. Leads são retidos indefinidamente após soft delete.
+**Tempo de retenção:** **NÃO DEFINIDO** na redação original desta seção (auditoria histórica). **Atualização (PA-10, D-058):** política implementada — 90 dias após soft delete; 365 dias após encerramento do evento (leads de evento) ou após o fim do mês de referência (leads do dia a dia, D-058); exclusão física automática diária via `limpar_leads_expirados()`. Ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md` (PA-10) e `supabase/migracao-retencao.sql`/`supabase/migracao-leads-mensais.sql`.
 
 **Necessidade operacional:** Alta — razão de existência do sistema.
 
@@ -303,6 +305,7 @@ Nenhuma funcionalidade planejada formalmente documentada foi identificada no rep
 |-------|------|-------------|-------------------|---------------|-------------|------------|
 | `id` | text (PK) | Sim | Dado interno | Baixa | Alta | N/A |
 | `evento_id` | text (FK → eventos) | Não | Dado operacional | Baixa | Alta | N/A |
+| `mes_referencia` | date | Não | Dado operacional | Baixa | Alta | N/A — mutuamente exclusivo com `evento_id` (D-058) |
 | `vendedor_nome` | text | Não | **Dado pessoal** | Média | Alta | Legítimo interesse / Execução de contrato |
 | `vendedor_id` | uuid (FK → auth.users) | Não | **Dado pessoal** | Média | Alta | Execução de contrato |
 | `nome` | text | **Sim** | **Dado pessoal** | **Alta** | Alta | Consentimento ausente ⚠️ |
@@ -327,11 +330,13 @@ Nenhuma funcionalidade planejada formalmente documentada foi identificada no rep
 **Relacionamentos:**
 - `leads.evento_id` → `eventos.id` (CASCADE DELETE — se evento deletado, leads são apagados)
 - `leads.vendedor_id` → `auth.users.id` (SET NULL ao deletar usuário)
+- `leads.mes_referencia` não referencia nenhuma tabela — é um valor calculado no frontend (`mesesDoAno`), sem cadastro próprio (D-058)
 
 **Índices:**
 - `idx_leads_evento` em `(evento_id)`
 - `idx_leads_criado_em` em `(criado_em)`
 - `idx_leads_vendedor` em `(vendedor_id)` (adicionado em `migracao-auth.sql`)
+- `idx_leads_mes_referencia`, `(mes_referencia, deletado)`, `(mes_referencia, deletado, vendedor_nome)` (adicionados em `migracao-leads-mensais.sql`, D-058)
 - `idx_leads_deletado` em `(deletado)` (adicionado em `protecao-dados.sql`)
 
 ---
@@ -816,6 +821,8 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | `temperatura` | leads | Classificação pelo vendedor | Priorização interna | Legítimo interesse operacional | Alta | Dado operacional interno | Indefinida | Supabase (EUA) | **BAIXO** |
 | `criado_em` | leads | Sistema (automático) | Rastreabilidade | Legítimo interesse operacional | Alta | Dado operacional | Indefinida | Supabase (EUA) | **BAIXO** |
 | `vendedor_nome` | leads | Sistema (sessão do vendedor) | Atribuição de lead | Execução de contrato (funcionário) | Alta | Dado pessoal (funcionário) | Indefinida | Supabase (EUA) | **BAIXO** |
+
+> **Atualização (2026-07-02, D-058):** a coluna "Origem" desta tabela ("Vendedor coleta presencialmente") passa a cobrir também a coleta no dia a dia fora de eventos (`mes_referencia`), não só em eventos de campo. A coluna "Retenção" ("Indefinida") reflete o estado da auditoria original; o prazo efetivamente implementado (PA-10) está descrito na seção 2.5 e em `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
 
 ### 7.2 Dados pessoais de usuários do sistema (funcionários)
 

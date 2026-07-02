@@ -8,20 +8,22 @@
 
 ---
 
-## Operação 1 — Captação de Leads em Eventos
+## Operação 1 — Captação de Leads em Eventos e no Dia a Dia
+
+> **Atualização 2026-07-02 (D-058):** além dos leads capturados presencialmente em eventos de campo, o vendedor passou a poder registrar leads no dia a dia (atividade comercial contínua, fora de evento), associados a um mês de referência em vez de um evento. A finalidade, a base legal e as categorias de dados são as mesmas — muda apenas o vínculo de contexto (`evento_id` → `mes_referencia`) e o prazo de retenção correspondente.
 
 | Campo | Valor |
 |-------|-------|
-| **Nome da operação** | Captação e gestão de leads comerciais em eventos presenciais |
+| **Nome da operação** | Captação e gestão de leads comerciais em eventos presenciais e na atividade comercial do dia a dia |
 | **Finalidade** | Contato comercial para apresentação e venda de serviços RJNet (internet residencial, empresarial, móvel, streamings) |
 | **Base legal** | Consentimento — art. 7°, I LGPD |
-| **Categorias de titulares** | Pessoas físicas abordadas em eventos de campo da RJNet |
+| **Categorias de titulares** | Pessoas físicas abordadas em eventos de campo da RJNet ou no dia a dia comercial dos vendedores |
 | **Categorias de dados** | Nome, telefone, CPF (opcional), endereço (opcional), serviço de interesse, temperatura do lead, observações do vendedor, data/hora da captação, consentimento e versão do termo |
 | **Dados sensíveis?** | Não |
 | **Destinatários internos** | Equipe de marketing (acesso total) e vendedores (apenas próprios leads) |
 | **Destinatários externos** | Supabase Inc. (armazenamento — EUA) |
 | **Transferência internacional** | Sim — EUA (Supabase Inc.) — base legal: art. 33, II LGPD (DPA pendente assinatura formal) |
-| **Prazo de retenção** | 90 dias após soft delete; 365 dias após encerramento do evento; exclusão automática por rotina diária |
+| **Prazo de retenção** | 90 dias após soft delete; 365 dias após encerramento do evento (leads de evento) ou após o fim do mês de referência (leads do dia a dia, D-058); exclusão automática por rotina diária |
 | **Medidas de segurança** | RLS por papel, MFA TOTP, criptografia da fila offline (AES-GCM 256), audit log de operações, log de exportações CSV |
 | **Sistema** | RJNet Gestão de Eventos — `src/apps/VendedorApp.jsx`, `src/lib/dataService.js` |
 
@@ -35,7 +37,7 @@
 | **Finalidade** | Análise comercial, follow-up e visita técnica (CPF incluído quando disponível) |
 | **Base legal** | Consentimento (art. 7°, I) — os dados exportados foram coletados com consentimento do titular |
 | **Categorias de titulares** | Leads cadastrados no sistema |
-| **Categorias de dados** | Nome, CPF, telefone, endereço, serviço de interesse, temperatura, vendedor, evento |
+| **Categorias de dados** | Nome, CPF, telefone, endereço, serviço de interesse, temperatura, vendedor, evento ou mês de referência (D-058) |
 | **Dados sensíveis?** | Não |
 | **Destinatários internos** | Usuários com papel `marketing` |
 | **Destinatários externos** | Nenhum via sistema — exportação manual (responsabilidade do operador após o download) |

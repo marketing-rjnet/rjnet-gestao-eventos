@@ -604,6 +604,8 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 - **Ação manual necessária:** executar `supabase/migracao-retencao.sql` no Supabase Dashboard → SQL Editor (requer extensão pg_cron habilitada em Database → Extensions)
 - Prazos padrão adotados: 90 dias (leads deletados) e 365 dias (leads de eventos encerrados) — ajustar em `configuracoes_retencao` conforme decisão jurídica
 
+> **Atualização (2026-07-02, D-058):** o vendedor passou a poder registrar leads sem evento, associados a um mês de referência (dia a dia). `supabase/migracao-leads-mensais.sql` estende `configuracoes_retencao` com `retencao_leads_mensais_dias` (365 dias, padrão simétrico ao de "eventos encerrados") e `limpar_leads_expirados()` ganhou um terceiro bloco de exclusão física para esses leads — sem essa extensão, leads sem evento nunca seriam alcançados pela rotina de retenção. **Ação manual necessária:** executar `supabase/migracao-leads-mensais.sql` no Supabase Dashboard → SQL Editor.
+
 ---
 
 ### PA-11 — Restringir SELECT de leads para vendedores (minimização de acesso)
