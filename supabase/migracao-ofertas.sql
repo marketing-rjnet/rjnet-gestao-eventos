@@ -66,6 +66,14 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('ofertas', 'ofertas', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- upload(..., { upsert: true }) faz INSERT ... ON CONFLICT DO UPDATE — resolver o
+-- conflito exige SELECT na linha existente, além de INSERT/UPDATE. Sem essa policy
+-- o upload falha com "new row violates row-level security policy" mesmo com as
+-- policies de escrita corretas (achado em produção, D-057).
+DROP POLICY IF EXISTS "ofertas_bucket_read" ON storage.objects;
+CREATE POLICY "ofertas_bucket_read" ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'ofertas');
+
 DROP POLICY IF EXISTS "ofertas_bucket_write" ON storage.objects;
 CREATE POLICY "ofertas_bucket_write" ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'ofertas' AND public.papel_atual() = 'marketing');

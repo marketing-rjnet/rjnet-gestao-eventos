@@ -1891,6 +1891,7 @@ Resolve a dor real (vendedor sem conteúdo padronizado) reaproveitando ~90% de p
 > - **Botão "Ligar" removido** de "Meus Leads" — contato passa a ser só via WhatsApp (genérico ou com oferta).
 > - **Contraste corrigido**: `.lm-contact-whats` usava `#dcfce7`/`#16a34a` (par pensado pra tema claro, ilegível no tema escuro real do V3); trocado para `var(--green-bg)`/`var(--green)` com borda — mesmo par já usado em `.btn-check-devolucao`. `.lm-contact-call` removida (CSS morto após a remoção do botão).
 > - **Erro de salvamento de oferta agora é visível**: `saveOferta` (`ofertaApi.js`) aceita um 3º parâmetro `onError`, propagado até `db.saveOferta` → `OfertaModal` exibe `alert()` com a mensagem real em caso de falha (upload no Storage ou upsert na tabela) — antes falhava 100% silenciosamente.
+> - **Policy de SELECT faltando no bucket** (achada via o `alert` acima): `upload(..., { upsert: true })` faz `INSERT ... ON CONFLICT DO UPDATE` — resolver o conflito exige RLS de SELECT na linha existente, além de INSERT/UPDATE. As 3 policies de escrita (`ofertas_bucket_write/update/delete`) sozinhas não bastam; faltava `ofertas_bucket_read` (SELECT). Adicionada em `migracao-ofertas.sql`. Bucket ser público não substitui isso — o público só cobre a rota de leitura não-autenticada (`/storage/v1/object/public/...`), separada da RLS que protege a rota autenticada usada pelo upload.
 
 ---
 
