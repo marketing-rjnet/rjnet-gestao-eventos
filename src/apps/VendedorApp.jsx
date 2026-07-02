@@ -509,9 +509,14 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   const tc = TEMPERATURA_CONFIG[l.temperatura] || TEMPERATURA_CONFIG.morno;
                   const editando = editandoId === l.id;
                   const tel = l.telefone.replace(/\D/g, "");
-                  const ofertasDoLead = (Array.isArray(l.servicoInteresse) ? l.servicoInteresse : [l.servicoInteresse])
+                  // D-057: mostra todas as ofertas configuradas (não só o interesse declarado no
+                  // cadastro) — o vendedor pode perceber interesse em outro serviço na conversa e
+                  // enviar na hora, sem precisar editar o lead antes. Interesse declarado vem primeiro.
+                  const interessesDoLead = Array.isArray(l.servicoInteresse) ? l.servicoInteresse : [l.servicoInteresse];
+                  const ofertasDoLead = Object.keys(SERVICO_LABEL)
                     .map((s) => ofertas.find((o) => o.servico === s && o.copy))
-                    .filter(Boolean);
+                    .filter(Boolean)
+                    .sort((a, b) => interessesDoLead.includes(b.servico) - interessesDoLead.includes(a.servico));
                   return (
                     <div key={l.id} className={"lead-mini" + (editando ? " editing" : "")}>
                       {editando ? (
