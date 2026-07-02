@@ -4,7 +4,7 @@
  * Estes testes verificam que payloads maliciosos não causam comportamento inesperado.
  */
 const { test, expect } = require('@playwright/test');
-const { loginMarketing, loginComercial } = require('./helpers/auth');
+const { loginMarketing } = require('./helpers/auth');
 
 // ─── Payloads de ataque ────────────────────────────────────────────────────────
 
@@ -106,46 +106,12 @@ test.describe('XSS — Login', () => {
 });
 
 // ─── XSS — Formulário de Lead ─────────────────────────────────────────────────
+// O teste de XSS no nome do lead (registrado pelo vendedor) está em
+// security-supabase.test.js — precisa de uma sessão de vendedor real, e o
+// modo legado (esta suíte) não tem mais caminho de UI para autenticar como
+// vendedor (tela de seleção removida do app).
 
 test.describe('XSS — Formulário de Lead', () => {
-
-  test('payload XSS no nome do lead é exibido como texto, não executado', async ({ page }) => {
-    test.slow();
-    const alerts = [];
-    page.on('dialog', async dialog => {
-      alerts.push(dialog.message());
-      await dialog.dismiss();
-    });
-
-    await page.addInitScript(() => {
-      localStorage.setItem('rjnet_leads', JSON.stringify([]));
-    });
-    await loginComercial(page);
-
-    const xssPayload = '<script>alert("xss-lead")</script>Fulano';
-    await page.getByPlaceholder('Nome do cliente').fill(xssPayload);
-    await page.getByPlaceholder('(24) 99999-9999').fill('24999887766');
-    await page.locator('.lead-submit').click();
-    await page.waitForTimeout(500);
-
-    // Script não deve ter executado
-    expect(alerts).toHaveLength(0);
-
-    // O lead salvo deve exibir o nome como texto puro, sem tags HTML
-    await page.locator('.vend-nav-btn', { hasText: 'Meus Leads' }).click();
-    const nome = page.locator('.lm-name').first();
-    await expect(nome).toContainText('Fulano');
-    await expect(nome).not.toContainText('<script');
-    expect(await page.locator('.lm-name script').count()).toBe(0);
-    // Nenhum elemento <script> com o conteúdo do payload pode existir no DOM
-    // (os scripts legítimos do Vite/app não contam)
-    const hasInjectedScript = await page.evaluate(() =>
-      [...document.querySelectorAll('script')].some((s) =>
-        (s.textContent || '').includes('xss-lead') || (s.src || '').includes('xss-lead')
-      )
-    );
-    expect(hasInjectedScript).toBeFalsy();
-  });
 
   test('payload XSS no campo nome de evento é sanitizado', async ({ page }) => {
     test.slow();
@@ -155,16 +121,22 @@ test.describe('XSS — Formulário de Lead', () => {
       await dialog.dismiss();
     });
 
-    await loginComercial(page);
+    // Criar evento é ação de marketing — loginComercial() aqui era engano de
+    // copy-paste. O botão "Novo Evento" só existe na aba Eventos (EventosTab),
+    // não na aba padrão (Início) — o teste nunca navegava até lá e sempre
+    // pulava silenciosamente via test.skip() antes desta correção.
+    await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     const newEventBtn = page.locator('button', { hasText: /novo evento/i }).first();
-    const hasBtn = await newEventBtn.isVisible().catch(() => false);
-    if (!hasBtn) { test.skip(); return; }
+    await expect(newEventBtn).toBeVisible();
 
     await newEventBtn.click();
     await expect(page.locator('.modal-box')).toBeVisible();
 
     const modalForm = page.locator('.modal-form');
-    await modalForm.locator('input[type="text"]').first().fill('<img src=x onerror=alert(1)>');
+    // O campo "nome" não tem type="text" explícito no JSX (browsers tratam
+    // <input> sem type como texto, mas o seletor CSS exige o atributo literal).
+    await modalForm.locator('input').first().fill('<img src=x onerror=alert(1)>');
     await modalForm.locator('.btn-primary, button[type="submit"]').first().click();
     await page.waitForTimeout(500);
 
