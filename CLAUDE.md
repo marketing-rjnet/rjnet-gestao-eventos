@@ -49,7 +49,8 @@ src/
 │   ├── leadApi.js        # Factory createLeadApi — CRUD de leads (etapa 17)
 │   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
 │   ├── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
-│   └── ofertaApi.js      # Factory createOfertaApi — ofertas por serviço + registro de envio (D-057)
+│   ├── ofertaApi.js      # Factory createOfertaApi — ofertas por serviço + registro de envio (D-057)
+│   └── equipeApi.js      # Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -107,6 +108,7 @@ src/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
 │   ├── csv.js            # exportLeadsCSV (etapa 3)
+│   ├── ids.js            # genId(prefix) — gerador de IDs temporários para modo local
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
     ├── supabase.js       # Inicialização do cliente Supabase + supabaseEnabled
@@ -231,7 +233,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 
 - Mapeamento automático camelCase ↔ snake_case
 - Retry com backoff exponencial (800ms inicial, 2x por tentativa)
-- Subscriptions realtime via canais Supabase (debounce de 400ms)
+- Subscriptions realtime via canais Supabase (debounce de 1500ms — D-038)
 - Rastreamento de performance com alertas para requisições lentas
 - Suporte a `AbortController` para cancelamento de fetches
 
@@ -324,6 +326,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |
 | `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
 | `src/api/ofertaApi.js` | ~20 | Factory de ofertas por serviço + registro de envio (D-057) |
+| `src/api/equipeApi.js` | ~29 | Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
@@ -348,6 +351,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
 | `src/utils/csv.js` | ~98 | Exportação CSV de leads por evento e por mês (etapa 3, D-058) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
+| `src/utils/ids.js` | ~2 | `genId(prefix)` — gerador de IDs temporários para modo local |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
 | `src/lib/dataService.js` | ~745 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058) |
