@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-06-30 (D-056 — Estoque: edição de nome e quantidade de material existente via `MaterialModal` em modo dual create/edit); 2026-06-30 (correção de coesão documental: renumeração de D-043 duplicado → D-055 em `DECISIONS.md`; sincronização do status de PA-04/consentimento suspenso em `LGPD_AUDIT_AND_COMPLIANCE.md`; correção de status `v1.0` em `UI_VERSIONS.md`; `CLAUDE.md` atualizado para refletir V3 como versão de UI corrente); 2026-06-30 (D-054 — Estoque: checklist de importação persistente em localStorage, com formulário de novo item e exclusão por linha do rascunho); 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-07-02 (D-057 — Área de Ofertas: imagem+copy prontas por serviço geridas pelo marketing, envio manual 1:1 via `wa.me` pelo vendedor; primeiro uso de Supabase Storage no projeto); 2026-06-30 (D-056 — Estoque: edição de nome e quantidade de material existente via `MaterialModal` em modo dual create/edit); 2026-06-30 (correção de coesão documental: renumeração de D-043 duplicado → D-055 em `DECISIONS.md`; sincronização do status de PA-04/consentimento suspenso em `LGPD_AUDIT_AND_COMPLIANCE.md`; correção de status `v1.0` em `UI_VERSIONS.md`; `CLAUDE.md` atualizado para refletir V3 como versão de UI corrente); 2026-06-30 (D-054 — Estoque: checklist de importação persistente em localStorage, com formulário de novo item e exclusão por linha do rascunho); 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 > Documentação de UI/UX: `doc/ui/UI_VERSIONS.md` — catálogo de versões da interface. **V3 é a versão atual** (redesign visual, 2026-06-18); V2 foi implementada por completo (22/22 etapas) e superada pela V3 no mesmo dia; V1.0 é o baseline histórico.
 > Nota: o sistema é desenvolvido e mantido por uma única pessoa (alta velocidade de iteração é resultado de aprendizado contínuo e engenharia reversa assistida, não de equipe múltipla); o status de conformidade LGPD depende de definições externas (terceiros) ainda pendentes — ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
@@ -46,6 +46,7 @@ Padrão **factory function** — cada domínio tem uma factory que recebe estado
 | `createMaterialApi` | `removeMaterial`, `addMaterial`, `updateMaterial`, `addMaterialEvento`, `removeMaterialEvento`, `toggleRetornadoEvento` |
 | `createVendedorApi` | `addVendedor`, `updateVendedor`, `toggleVendedor` |
 | `createEquipeApi` | `criarUsuario`, `atualizarPerfil`, `excluirUsuario` |
+| `createOfertaApi` | `saveOferta`, `removeOferta`, `registrarOfertaEnviada` (D-057) |
 
 As factories são instanciadas dentro do `AppProvider` e expostas via contexto. **Nenhum componente acessa o banco diretamente.**
 
@@ -89,7 +90,8 @@ src/
 │   ├── leadApi.js              # Factory CRUD de leads + obterRanking
 │   ├── materialApi.js          # Factory CRUD de materiais
 │   ├── vendedorApi.js          # Factory CRUD de vendedores (modo local)
-│   └── equipeApi.js            # Factory de gestão de usuários Auth (modo Supabase)
+│   ├── equipeApi.js            # Factory de gestão de usuários Auth (modo Supabase)
+│   └── ofertaApi.js            # Factory de ofertas prontas por serviço + registro de envio (D-057)
 ├── context/
 │   ├── AppContext.js           # createContext(null)
 │   ├── AppProvider.jsx         # Provider: estado + efeitos + factories
@@ -112,6 +114,7 @@ src/
 │       ├── EventModal.jsx
 │       ├── MaterialModal.jsx
 │       ├── MaterialChecklistModal.jsx  # Importação em lote: 14 itens pré-definidos, seleção e ajuste de quantidade (D-053, marketing only)
+│       ├── OfertaModal.jsx             # Edição de oferta (imagem+copy) por serviço, marketing only (D-057)
 │       └── index.js
 ├── features/
 │   ├── events/
@@ -121,6 +124,9 @@ src/
 │   │   └── index.js
 │   ├── inventory/
 │   │   ├── EstoqueTab.jsx
+│   │   └── index.js
+│   ├── offers/
+│   │   ├── OfertasTab.jsx      # Lista fixa (5 serviços): oferta ativa por serviço, marketing only (D-057)
 │   │   └── index.js
 │   ├── leads/
 │   │   ├── LeadsTab.jsx        # Filtros, gráfico, export CSV
@@ -168,12 +174,13 @@ Ponto de entrada após `main.jsx`. Detecta modo (`supabaseEnabled`) e gerencia t
 
 ### `MarketingApp.jsx`
 
-Shell do time de marketing. Navegação por 6 tabs:
+Shell do time de marketing. Navegação por 7 tabs:
 
 | Tab | Componente | Função |
 |---|---|---|
 | Eventos | `EventosTab` / `EventDetail` | CRUD de eventos, materiais alocados, leads por vendedor |
 | Estoque | `EstoqueTab` | Gestão de materiais com nível de disponibilidade; importação em lote via checklist (`MaterialChecklistModal`) com 14 itens pré-definidos do inventário físico; edição de nome/quantidade por linha via `MaterialModal` em modo edit (D-056); exclusão de material por linha com confirmação inline em dois passos (D-053) |
+| Ofertas | `OfertasTab` | Uma oferta ativa por serviço (imagem 1080x1080 via Supabase Storage + copy) editada via `OfertaModal`; congelada para o vendedor, que só consome (D-057) |
 | Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico |
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
 | Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
@@ -186,7 +193,7 @@ Shell do vendedor em campo. Navegação por 4 tabs (bottom nav mobile-first):
 | Tab | Função |
 |---|---|
 | Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, controle Sim/Não para "já é cliente", auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro) |
-| Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, links tel/WhatsApp, exclusão de lead com confirmação inline em dois passos |
+| Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, links tel/WhatsApp, botão "Enviar oferta: `<serviço>`" por serviço de interesse do lead com oferta configurada (abre `wa.me` com copy pronta + link para a imagem, D-057), exclusão de lead com confirmação inline em dois passos |
 | Evento | Detalhes do evento ativo, link Maps, ranking da equipe |
 | Pacotes | Tabela de preços dos serviços RJNet (hardcoded) |
 
@@ -215,6 +222,9 @@ Busca de lead por CPF dentro de um evento. Registra presença sem criar novo lea
 
 ### Materiais de Evento
 Sub-domínio de estoque. Array JSONB dentro de cada evento. Suporta `quantidade`, `retornado` (flag de devolução).
+
+### Ofertas (D-057)
+Conteúdo pronto (imagem 1080x1080 + copy) por serviço, gerido exclusivamente pelo marketing. `servico` é a própria chave primária — no máximo 5 linhas (mesmo enum de `servicoInteresse`), sobrescritas ao editar; sem histórico/versionamento. O vendedor só consome: na aba "Meus Leads", cada lead exibe um botão por serviço de interesse com oferta configurada, que abre `wa.me` com a copy pré-preenchida e um link separado para a imagem (anexo continua manual — limitação do próprio `wa.me`, que não permite pré-anexar mídia). `oferta_envios` registra o clique como indicador visual ("✓ Oferta enviada"), **não** como confirmação de entrega ou leitura.
 
 ---
 
@@ -279,6 +289,7 @@ AppProvider re-sincroniza estado com dados do banco
 - **Gestão de estoque exclusiva do marketing (D-053)**: `removeMaterial` e `MaterialChecklistModal` são operações de `EstoqueTab`, que só renderiza em `MarketingApp`. A proteção é dupla: UI (tab inexistente no `VendedorApp`) e RLS (política `marketing` tem acesso total a `materiais`; `vendedor` não tem permissão de INSERT/DELETE na tabela). `removeMaterial` em `materialApi.js` faz atualização otimista local + `db.removeMaterial()` assíncrono. Importação em lote via `MaterialChecklistModal` itera sobre os selecionados chamando `addMaterial()` sequencialmente — sem endpoint especial.
 - **Checklist de importação persistente (D-054)**: `MaterialChecklistModal` usa `usePersisted('rjnet_checklist_estoque', ...)` em vez de `useState` — o rascunho da lista (itens marcados/desmarcados, quantidades, itens customizados) sobrevive ao fechar o modal e a recarregar a página. Formulário inline permite adicionar itens livres (nome + quantidade) além dos 14 pré-definidos; cada item tem botão de remoção individual do rascunho. Ao confirmar a importação, apenas os itens selecionados são removidos do rascunho (via `addMaterial()`) — os desmarcados permanecem salvos para uma importação futura. Dado local apenas (sem persistência no Supabase); não contém dados pessoais.
 - **Edição de material existente (D-056)**: `MaterialModal` aceita prop opcional `material` — quando presente, pré-preenche o formulário (`nome`, `quantidade`, `descricao`) e o submit chama `updateMaterial(id, patch)` em vez de `addMaterial()`; título e label do botão mudam para "Editar Material"/"Salvar". `EstoqueTab` adiciona um botão de edição (ícone `edit`) ao lado do botão de exclusão em cada linha de estoque, abrindo `MaterialModal` com o material selecionado via estado `editMaterial`. Reaproveita a operação `updateMaterial` já existente em `materialApi.js` (sem mudança na API/backend); restrito ao marketing pela mesma proteção dupla do D-053 (UI + RLS).
+- **Área de Ofertas — 1 oferta por serviço, Storage público, envio manual (D-057)**: tabela `ofertas` tem `servico` como chave primária (máx. 5 linhas, mesmo enum de `servicoInteresse`), sobrescrita ao editar — sem histórico/versionamento. Imagem vai para o bucket público `ofertas` do Supabase Storage (primeiro uso de Storage no projeto), path determinístico `<servico>.<ext>`, `upsert: true`; URL renderizada com `?v=<atualizado_em>` para cache-busting. `db.saveOferta` é a única exceção ao padrão 100%-síncrono de `db.save*` (upload precisa terminar antes do upsert). `ofertas` carrega no boot via `fetchAll` (tabela pequena e estática, mesmo tratamento de `materiais`); `oferta_envios` (indicador de clique, não de entrega) é buscado on-demand por evento junto com `fetchLeadsEvento`, preservando a decisão TB-004/D-039. Proteção dupla UI+RLS marketing-only, mesmo padrão do D-053. CSP `img-src` em `vercel.json` ampliada para `https://*.supabase.co` — sem isso a imagem não carrega em produção/preview (CSP não existe em `npm run dev`).
 - **Realtime Broadcast do Monitor (canal único)**: `activityLog.js` é o único dono do canal `rjnet-monitor` — registra `.on('broadcast', { event: 'log' }, handler)` ANTES de `.subscribe()` (requisito do Supabase JS v2). `MonitoringTab` registra callbacks via `subscribeToRemoteLogs(callback)` — nunca abre canal próprio. Fila `_queue` garante entrega de mensagens enviadas antes de `SUBSCRIBED`. Canal público (anon key), multiplexado na WebSocket existente. **Limitação conhecida (D-052)**: Realtime Broadcast não tem replay/history — eventos emitidos enquanto o MonitoringTab não está subscrito são perdidos irrecuperávelmente; `lead_sync_ok` pode não aparecer no log do marketing se a aba estava fechada no momento da confirmação pelo vendedor. Alternativa estrutural: persistir `activity_log` no Supabase para garantir consistência cross-device sem depender de presença ativa do canal (D-046, D-047)
 
 ---

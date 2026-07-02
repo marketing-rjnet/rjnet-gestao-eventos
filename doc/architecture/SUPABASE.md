@@ -194,6 +194,20 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 9 | `supabase/migracao-rls-vendedor-leads.sql` | ⚠️ Pendente execução em produção (PA-11) | RLS: vendedor vê apenas os próprios leads |
 | 10 | `supabase/migracao-audit-log.sql` | ⚠️ Pendente execução em produção (PA-13) | Tabela `audit_log` + trigger em leads |
 | 11 | `supabase/migracao-retencao.sql` | ⚠️ Pendente execução em produção (PA-10) | Retenção automática via pg_cron |
+| 12 | `supabase/migracao-ofertas.sql` | ⚠️ Pendente execução em produção (D-057) | Tabelas `ofertas`/`oferta_envios`, RLS e bucket Storage `ofertas` (público) |
 
 > Auditorias e conformidade completa: `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`  
 > Plano de ação LGPD: `doc/lgpd/PLANO_DE_ACAO_LGPD.md`
+
+---
+
+## Área de Ofertas — Storage (D-057)
+
+Primeiro uso de **Supabase Storage** no projeto. `supabase/migracao-ofertas.sql` cria:
+
+- Tabela `ofertas` (`servico` como chave primária, máx. 5 linhas — mesmo enum de `servicoInteresse`) e `oferta_envios` (indicador de clique, não de entrega), com RLS no mesmo padrão de `materiais`/`leads`.
+- Bucket **`ofertas`, público** (decisão consciente: são imagens promocionais sem dado pessoal de titular — evita a complexidade de signed URLs). Escrita restrita a `papel_atual() = 'marketing'` via policies em `storage.objects`; leitura pública.
+
+**Passo extra além de rodar o SQL**: a `INSERT INTO storage.buckets` no script cria o bucket automaticamente, mas confirme no Dashboard (**Storage**) que ele aparece como público após a migração. Sem isso, ou sem a migração aplicada, a aba "Ofertas" do marketing funciona normalmente para texto, mas o upload de imagem falha silenciosamente (erro só visível no console do navegador).
+
+**CSP:** `vercel.json` tem `img-src` ampliado para `https://*.supabase.co` — necessário para as imagens do bucket renderizarem em produção/preview (CSP não existe em `npm run dev`).

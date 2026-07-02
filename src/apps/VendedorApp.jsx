@@ -104,7 +104,7 @@ function LeadEditInline({ lead, onSave, onCancel }) {
 }
 
 export default function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento } = useApp();
+  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento, ofertas, ofertaJaEnviada, registrarOfertaEnviada } = useApp();
   const ativos = getEventosAtivos();
   const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
 
@@ -483,6 +483,28 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                               WhatsApp
                             </a>
                           </div>
+                          {/* D-057: ofertas prontas (imagem+copy) do marketing, uma por serviço de interesse do lead */}
+                          {(Array.isArray(l.servicoInteresse) ? l.servicoInteresse : [l.servicoInteresse])
+                            .map((s) => ofertas.find((o) => o.servico === s && o.copy))
+                            .filter(Boolean)
+                            .map((oferta) => (
+                              <div key={oferta.servico} className="lm-contacts" style={{ marginTop: 4 }}>
+                                <a
+                                  href={"https://wa.me/55" + tel + "?text=" + encodeURIComponent(oferta.copy)}
+                                  target="_blank" rel="noreferrer"
+                                  className="lm-contact-btn lm-contact-whats"
+                                  onClick={() => registrarOfertaEnviada({ leadId: l.id, eventoId, servico: oferta.servico, vendedorId: session.userId, vendedorNome: session.vendedorNome })}
+                                >
+                                  Enviar oferta: {SERVICO_LABEL[oferta.servico]}
+                                </a>
+                                {oferta.imagemUrl && (
+                                  <a href={oferta.imagemUrl} target="_blank" rel="noreferrer" className="lm-contact-btn">🖼️ Ver imagem</a>
+                                )}
+                                {ofertaJaEnviada(l.id, oferta.servico) && (
+                                  <span style={{ fontSize: 11, color: "var(--green)", alignSelf: "center" }}>✓ Oferta enviada</span>
+                                )}
+                              </div>
+                            ))}
                           <button type="button" className="lm-edit-btn" onClick={() => { setEditandoId(l.id); setConfirmandoDelId(null); }}>Editar dados</button>
                           {confirmandoDelId === l.id ? (
                             <div className="lm-del-confirm">

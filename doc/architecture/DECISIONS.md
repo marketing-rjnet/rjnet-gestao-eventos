@@ -1837,6 +1837,56 @@ A policy `leads_delete` usa apenas `USING` (sem `WITH CHECK`), contornando compl
 
 ---
 
+### [D-057] — Área de Ofertas: imagem+copy prontas por serviço, envio manual via WhatsApp
+
+**Data:** 2026-07-02
+**Tipo:** Feature / Arquitetura
+
+**Contexto:**
+Vendedores em campo faziam follow-up de leads sem material padronizado. Foi avaliada primeiro uma ideia de "campanha em massa" (disparo automatizado, segmentação de leads, provedor externo de WhatsApp/e-mail, fila de processamento) e **descartada** por complexidade e risco desproporcionais ao porte do projeto (mantenedor único, sem infraestrutura de mensageria). A alternativa adotada reaproveita o link `wa.me` que já existia em `VendedorApp.jsx` ("Meus Leads"): em vez de disparo automatizado, o marketing prepara conteúdo (imagem 1080x1080 + copy) por serviço, e o vendedor dispara manualmente, 1:1, pelo próprio WhatsApp.
+
+**Decisão:**
+1. Tabela `public.ofertas` com **`servico` como chave primária** (um dos 5 valores do enum `servicoInteresse` já existente) — no máximo 5 linhas, sobrescritas quando o marketing edita. Sem histórico/versionamento.
+2. Tabela `public.oferta_envios` — indicador de que o vendedor abriu o `wa.me` com a oferta pronta. **Não é confirmação de entrega ou leitura** (WhatsApp não expõe esse dado via `wa.me`); existe só para o vendedor ver "✓ Oferta enviada" ao lado do lead.
+3. Primeiro uso de **Supabase Storage** no projeto — bucket `ofertas`, **público** (decisão consciente: são materiais promocionais sem dado pessoal de titular, o que evita toda a complexidade de signed URLs). Path determinístico por serviço (`<servico>.<ext>`), upload sempre com `upsert: true`.
+4. `img-src` da CSP (`vercel.json`) ampliado para `https://*.supabase.co` — sem isso a imagem é bloqueada silenciosamente em produção/preview (CSP não existe em `npm run dev`, só na Vercel).
+5. `db.saveOferta` é a única exceção ao padrão 100%-síncrono de `db.save*`: o upload no Storage precisa terminar antes do upsert na tabela (para saber o path final gerado).
+
+**Motivação:**
+Resolve a dor real (vendedor sem conteúdo padronizado) reaproveitando ~90% de padrões já existentes no projeto (`materialApi.js`, `MaterialModal.jsx`, `EstoqueTab.jsx`, o próprio `wa.me`), sem introduzir fila, provedor externo, credencial sensível ou segmentação em massa.
+
+**Alternativas Avaliadas:**
+- **Campanha em massa com segmentação e disparo automatizado** — descartada: exigiria backend próprio (Edge Function + fila + `pg_cron`), credencial de provedor de WhatsApp/e-mail (risco de vazamento equivalente ao já registrado para `VITE_MARKETING_PASS`), e brigaria com a decisão TB-004/D-039 de não carregar todos os leads de uma vez (segmentação cross-evento exigiria exatamente esse carregamento).
+- **Histórico/versionamento de ofertas antigas** — descartada por escopo: não foi pedido, e `servico` como PK cobre o caso de uso real (1 oferta ativa por serviço) com schema mínimo.
+- **Bucket privado com signed URLs** — descartada: adiciona complexidade sem ganho, já que as imagens não contêm dado pessoal de titular.
+
+**Impactos:**
+- `fetchAll()` passa a buscar também `ofertas` (tabela pequena e estática) no boot, no mesmo `Promise.all` de `materiais`/`eventos` — **não** reabre a decisão TB-004/D-039 de não carregar leads no boot, porque `ofertas` não é `leads`.
+- `oferta_envios` é buscado sob demanda por evento (`fetchOfertasEnviadasEvento`), sempre em paralelo com `fetchLeadsEvento` — mesmo modelo on-demand dos leads.
+- `oferta_envios.lead_id` tem `ON DELETE CASCADE` — o hard delete de leads pelo vendedor (D-055) já propaga corretamente, sem precisar de trigger de auditoria adicional (aqui não há dado pessoal novo, só um vínculo).
+- Nova tab "Ofertas" no `MarketingApp` — proteção dupla UI+RLS, mesmo padrão do D-053 (tab só existe no shell do marketing; RLS restringe escrita em `ofertas` e no bucket a `papel_atual() = 'marketing'`).
+- Modo local (sem Supabase): a tab existe mas fica sempre vazia (`ofertas`/`ofertasEnviadas` default `[]`), sem erro — decisão deliberada de não esconder a tab só nesse modo, por ser mais barato.
+
+**Arquivos Afetados:**
+- `supabase/migracao-ofertas.sql` (novo) — tabelas, RLS, bucket e policies de Storage
+- `vercel.json` — CSP `img-src`
+- `src/lib/dataService.js` — mappers `ofertaFromDb`/`ofertaToDb`, `fetchAll`, `fetchOfertasEnviadasEvento`, `db.saveOferta`/`removeOferta`/`registrarOfertaEnviada`
+- `src/api/ofertaApi.js` (novo)
+- `src/context/AppProvider.jsx` — estado `ofertas`/`ofertasEnviadas`, wiring da factory
+- `src/components/modals/OfertaModal.jsx` (novo)
+- `src/features/offers/OfertasTab.jsx` (novo)
+- `src/apps/MarketingApp.jsx` — nova tab "Ofertas"
+- `src/apps/VendedorApp.jsx` — botões "Enviar oferta: X" por lead, ao lado dos contatos existentes
+
+**Riscos:**
+- `oferta_envios` mede clique, não entrega — se for usado como métrica comercial de "quantas ofertas chegaram", vai superestimar (registrado explicitamente para não ser mal-interpretado no futuro).
+- `wa.me` não anexa imagem automaticamente — o vendedor sempre tem um passo manual de salvar/anexar a foto; comportamento de "salvar imagem" varia entre iOS Safari e Android Chrome.
+- Não resolve nem piora a pendência de consentimento LGPD (PA-04/D-043, suspensa) — por ser contato 1:1 iniciado pelo vendedor que já abordou o lead no evento, é o uso mais defensível dentro da finalidade "contato comercial" já redigida no termo suspenso, mas a base de consentimento em si continua pendente de decisão externa.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

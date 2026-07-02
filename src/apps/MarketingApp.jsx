@@ -4,6 +4,7 @@ import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';
 import { Dashboard, EventosTab, EventDetail } from '../features/events';
 import { EstoqueTab } from '../features/inventory';
+import { OfertasTab } from '../features/offers';
 import { LeadsTab } from '../features/leads';
 import { CheckinTab } from '../features/checkin';
 import { EquipeTab, EquipeAuthTab } from '../features/team';
@@ -18,6 +19,7 @@ const MAIN_TABS = [
 
 const MORE_TABS = [
   { id: "estoque", label: "Estoque",    ico: "box" },
+  { id: "ofertas", label: "Ofertas",    ico: "box" },
   { id: "leads",   label: "Relatórios", ico: "users" },
   { id: "monitor", label: "Monitor",    ico: "activity" },
 ];
@@ -25,6 +27,7 @@ const MORE_TABS = [
 const ALL_TABS = [
   ...MAIN_TABS,
   { id: "estoque", label: "Estoque",    ico: "box" },
+  { id: "ofertas", label: "Ofertas",    ico: "box" },
   { id: "leads",   label: "Relatórios", ico: "users" },
   { id: "equipe",  label: "Equipe",     ico: "briefcase" },
   { id: "checkin", label: "Check-in",   ico: "search" },
@@ -40,6 +43,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
     { id: "inicio",  label: "Início",    ico: "home" },
     { id: "eventos", label: "Eventos",   ico: "calendar" },
     { id: "estoque", label: "Estoque",   ico: "box" },
+    { id: "ofertas", label: "Ofertas",   ico: "box" },
     { id: "leads",   label: "Relatórios",ico: "users" },
     { id: "equipe",  label: "Equipe",    ico: "briefcase" },
     { id: "checkin", label: "Check-in",  ico: "search" },
@@ -74,6 +78,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         ? <EventDetail eventoId={detailId} onBack={() => setDetailId(null)} />
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "estoque" && <EstoqueTab />}
+      {tab === "ofertas" && <OfertasTab />}
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}

@@ -48,7 +48,8 @@ src/
 │   ├── eventoApi.js      # Factory createEventoApi — CRUD de eventos (etapa 17)
 │   ├── leadApi.js        # Factory createLeadApi — CRUD de leads (etapa 17)
 │   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
-│   └── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+│   ├── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
+│   └── ofertaApi.js      # Factory createOfertaApi — ofertas por serviço + registro de envio (D-057)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -71,6 +72,7 @@ src/
 │       ├── EventModal.jsx             # Modal de criação/edição de evento (etapa 9)
 │       ├── MaterialModal.jsx          # Modal de criação/edição de material — modo dual via prop `material` (etapa 9, D-056)
 │       ├── MaterialChecklistModal.jsx # Importação em lote: 14 itens pré-definidos, marketing only (D-053)
+│       ├── OfertaModal.jsx            # Edição de oferta (imagem+copy) por serviço, marketing only (D-057)
 │       └── index.js                   # Re-exports de modais (etapa 9)
 ├── features/
 │   ├── events/
@@ -81,6 +83,9 @@ src/
 │   ├── inventory/
 │   │   ├── EstoqueTab.jsx    # Gestão de materiais por nível de estoque (etapa 11)
 │   │   └── index.js          # Re-export de inventory (etapa 11)
+│   ├── offers/
+│   │   ├── OfertasTab.jsx    # Lista fixa (5 serviços): oferta ativa por serviço, marketing only (D-057)
+│   │   └── index.js          # Re-export de offers (D-057)
 │   ├── leads/
 │   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
 │   │   └── index.js          # Re-export de leads (etapa 11)
@@ -117,6 +122,7 @@ supabase/
 ├── schema.sql            # Schema inicial (4 tabelas + seed)
 ├── migracao-auth.sql     # RLS policies + integração Auth
 ├── protecao-dados.sql    # Soft delete
+├── migracao-ofertas.sql  # Tabelas ofertas/oferta_envios + bucket Storage (D-057)
 ├── seed-usuarios-teste.sql
 ├── config.toml           # Config local do Supabase
 └── functions/
@@ -185,6 +191,8 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | `leads` | Leads capturados por evento e vendedor |
 | `perfis` | Perfis de usuários Auth (papel: marketing/vendedor/comercial) |
 | `vendedores` | Tabela legada (substituída por `perfis` no modo Auth) |
+| `ofertas` | Oferta ativa por serviço (imagem+copy), `servico` como PK — máx. 5 linhas (D-057) |
+| `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega (D-057) |
 
 ### Enums usados nos dados
 
@@ -199,6 +207,12 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 
 - `marketing`: acesso total a todas as tabelas
 - `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`)
+- `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing` (mesmo padrão de `materiais`)
+- `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
+
+### Storage
+
+- Bucket `ofertas` (público) — imagens de oferta por serviço, path `<servico>.<ext>` (D-057). Escrita restrita a `marketing` via policies em `storage.objects`.
 
 ---
 
@@ -240,6 +254,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Dashboard | marketing | KPIs, gráfico de leads por serviço, alertas de estoque |
 | Eventos | marketing | CRUD de eventos, alocação de materiais, resumo de leads por vendedor |
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
+| Ofertas | marketing | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057) |
 | Leads | marketing | Visualização e filtros, export CSV, gráfico por evento |
 | Equipe | marketing | CRUD de vendedores, desempenho por evento |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046) |
@@ -305,6 +320,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/leadApi.js` | ~20 | Factory CRUD de leads (etapa 17) |
 | `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |
 | `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
+| `src/api/ofertaApi.js` | ~20 | Factory de ofertas por serviço + registro de envio (D-057) |
 | `src/context/AppProvider.jsx` | ~100 | Provider: orquestra estado, efeitos e factories de API (etapas 16–17) |
 | `src/apps/VendedorApp.jsx` | ~345 | Shell completo do vendedor + LeadEditInline (etapa 13) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
@@ -317,6 +333,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/components/modals/EventModal.jsx` | ~90 | Modal de criação/edição de evento (etapa 9) |
 | `src/components/modals/MaterialModal.jsx` | ~55 | Modal de criação/edição de material — modo dual via prop `material` (etapa 9, D-056) |
 | `src/components/modals/MaterialChecklistModal.jsx` | ~100 | Importação em lote de materiais: 14 itens pré-definidos, seleção + ajuste de quantidade (D-053, marketing only) |
+| `src/components/modals/OfertaModal.jsx` | ~65 | Upload de imagem (1080x1080) + copy por serviço, marketing only (D-057) |
+| `src/features/offers/OfertasTab.jsx` | ~65 | Lista fixa das 5 ofertas por serviço, marketing only (D-057) |
 | `src/features/events/Dashboard.jsx` | ~70 | KPIs, gráfico donut, próximos eventos (etapa 10) |
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
@@ -335,5 +353,6 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
-| `vercel.json` | ~35 | Headers CSP e segurança |
+| `supabase/migracao-ofertas.sql` | ~75 | Tabelas ofertas/oferta_envios, RLS e bucket Storage (D-057) |
+| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |
