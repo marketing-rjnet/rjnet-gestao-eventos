@@ -201,6 +201,19 @@ const perfilFromDb = (r) => ({
   papel: r.papel, ativo: r.ativo,
 });
 
+// D-057: oferta pronta (imagem + copy) por serviço — servico é a própria chave.
+const ofertaFromDb = (r) => ({
+  servico: r.servico, copy: r.copy ?? '', imagemPath: r.imagem_path ?? null,
+  imagemUrl: r.imagem_path
+    ? `${supabaseConfig.url}/storage/v1/object/public/ofertas/${r.imagem_path}?v=${r.atualizado_em}`
+    : null,
+  atualizadoEm: r.atualizado_em,
+});
+const ofertaToDb = (o) => ({
+  servico: o.servico, copy: o.copy ?? '', imagem_path: o.imagemPath ?? null,
+  atualizado_em: new Date().toISOString(),
+});
+
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
@@ -215,10 +228,12 @@ export async function fetchAll(signal) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
-      const [materiais, perfis, eventos] = await Promise.all([
+      const [materiais, perfis, eventos, ofertas] = await Promise.all([
         supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
         supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
         supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
+        // D-057: se a migração ainda não rodou nesse ambiente, cai para lista vazia (não derruba o boot)
+        supabase.from('ofertas').select('servico,copy,imagem_path,atualizado_em').order('servico').abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -239,6 +254,7 @@ export async function fetchAll(signal) {
         materiais: materiais.data.map(materialFromDb),
         vendedores,
         eventos: eventos.data.map(eventoFromDb),
+        ofertas: ofertas.error ? [] : ofertas.data.map(ofertaFromDb),
         leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
@@ -293,6 +309,28 @@ export async function fetchLeadsEventos(eventoIds, signal) {
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao buscar leads consolidados:', err.message || err);
+    return null;
+  });
+}
+
+// D-057: quais ofertas já foram "enviadas" (clicadas) em um evento — mesmo
+// modelo on-demand de fetchLeadsEvento; buscado sempre junto com os leads.
+export async function fetchOfertasEnviadasEvento(eventoId, signal) {
+  if (!isSupabaseMode() || !eventoId) return null;
+  return trackPerf('fetchOfertasEnviadasEvento', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('oferta_envios')
+        .select('lead_id,servico')
+        .eq('evento_id', eventoId)
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map((r) => ({ leadId: r.lead_id, servico: r.servico }));
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar ofertas enviadas:', err.message || err);
     return null;
   });
 }
@@ -393,6 +431,49 @@ export const db = {
       });
     } catch (err) {
       console.warn('[rjnet/PA-06] Falha ao registrar exportação:', err);
+    }
+  },
+
+  // D-057: única exceção ao padrão 100%-síncrono de db.save* — o upload no
+  // Storage precisa terminar antes do upsert (para saber o path final).
+  saveOferta: async ({ servico, copy, file, oldImagemPath }, onSuccess, onFail) => {
+    if (!isSupabaseMode()) { if (onSuccess) onSuccess(); return; }
+    let imagemPath = oldImagemPath ?? null;
+    try {
+      if (file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const path = `${servico}.${ext}`;
+        if (oldImagemPath && oldImagemPath !== path) {
+          await supabase.storage.from('ofertas').remove([oldImagemPath]).catch(() => {});
+        }
+        const { error: upErr } = await supabase.storage.from('ofertas').upload(path, file, { upsert: true });
+        if (upErr) throw upErr;
+        imagemPath = path;
+      }
+      exec(
+        supabase.from('ofertas').upsert(ofertaToDb({ servico, copy, imagemPath })),
+        'salvar oferta',
+        onFail,
+        onSuccess,
+      );
+    } catch (err) {
+      console.error('[rjnet] Falha ao enviar imagem da oferta:', err.message);
+      if (onFail) onFail();
+    }
+  },
+  removeOferta: (servico) => exec(supabase?.from('ofertas').delete().eq('servico', servico), 'remover oferta'),
+
+  // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
+  // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).
+  registrarOfertaEnviada: async ({ leadId, eventoId, servico, vendedorId, vendedorNome }) => {
+    if (!supabase) return;
+    try {
+      await supabase.from('oferta_envios').insert({
+        lead_id: leadId, evento_id: eventoId, servico,
+        vendedor_id: vendedorId || null, vendedor_nome: vendedorNome || null,
+      });
+    } catch (err) {
+      console.warn('[rjnet] Falha ao registrar envio de oferta:', err);
     }
   },
 };

@@ -1,0 +1,1 @@
+export { OfertasTab } from './OfertasTab';

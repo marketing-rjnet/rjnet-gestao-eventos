@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, fetchLeadsEvento, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, fetchLeadsEvento, fetchOfertasEnviadasEvento, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -10,12 +10,16 @@ import { createLeadApi } from '../api/leadApi';
 import { createMaterialApi } from '../api/materialApi';
 import { createVendedorApi } from '../api/vendedorApi';
 import { createEquipeApi } from '../api/equipeApi';
+import { createOfertaApi } from '../api/ofertaApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
   const [eventos, setEventos] = usePersisted("rjnet_eventos", isSupabaseMode() ? [] : MOCK_EVENTOS);
   const [leads, setLeads] = usePersisted("rjnet_leads", isSupabaseMode() ? [] : MOCK_LEADS);
   const [vendedores, setVendedores] = usePersisted("rjnet_vendedores", isSupabaseMode() ? [] : MOCK_VENDEDORES);
+  // D-057: ofertas prontas por serviço (marketing) + indicador de envio (vendedor) — só em modo Supabase
+  const [ofertas, setOfertas] = usePersisted("rjnet_ofertas", []);
+  const [ofertasEnviadas, setOfertasEnviadas] = usePersisted("rjnet_ofertas_enviadas", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -39,21 +43,27 @@ export function AppProvider({ children }) {
     setMateriais(dados.materiais);
     setVendedores(dados.vendedores);
     setEventos(dados.eventos);
+    setOfertas(dados.ofertas);
     // TB-004: recarrega leads do evento ativo quando realtime dispara
     if (eventoLeadsIdRef.current) {
-      const leadsData = await fetchLeadsEvento(eventoLeadsIdRef.current, signal);
+      const [leadsData, enviosData] = await Promise.all([
+        fetchLeadsEvento(eventoLeadsIdRef.current, signal),
+        fetchOfertasEnviadasEvento(eventoLeadsIdRef.current, signal),
+      ]);
       if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
+      if (enviosData !== null && !controller.signal.aborted) setOfertasEnviadas(enviosData);
     }
     setSyncStatus(SYNC_STATUS.IDLE);
     setIsLoading(false);
   };
 
-  // TB-004: carrega leads de um evento específico on-demand
+  // TB-004: carrega leads de um evento específico on-demand (+ ofertas já enviadas, D-057)
   const carregarLeadsEvento = async (eventoId) => {
     if (!isSupabaseMode() || !eventoId) return;
     eventoLeadsIdRef.current = eventoId;
-    const data = await fetchLeadsEvento(eventoId);
+    const [data, envios] = await Promise.all([fetchLeadsEvento(eventoId), fetchOfertasEnviadasEvento(eventoId)]);
     if (data !== null) setLeads(data);
+    if (envios !== null) setOfertasEnviadas(envios);
   };
 
   useEffect(() => {
@@ -65,6 +75,7 @@ export function AppProvider({ children }) {
       if (evento === 'SIGNED_OUT') {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
+        setOfertas([]); setOfertasEnviadas([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -95,8 +106,11 @@ export function AppProvider({ children }) {
   const { criarUsuario, atualizarPerfil, excluirUsuario } =
     createEquipeApi({ recarregar: carregar });
 
+  const { saveOferta, removeOferta, registrarOfertaEnviada } =
+    createOfertaApi({ ofertas, setOfertas, setOfertasEnviadas });
+
   const value = useMemo(() => ({
-    materiais, eventos, leads, vendedores,
+    materiais, eventos, leads, vendedores, ofertas,
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
@@ -104,11 +118,14 @@ export function AppProvider({ children }) {
     addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento,
     addVendedor, updateVendedor, toggleVendedor,
     criarUsuario, atualizarPerfil, excluirUsuario,
+    saveOferta, removeOferta, registrarOfertaEnviada,
     obterRanking,
     recarregar: carregar,
     carregarLeadsEvento,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
+    getOferta: (servico) => ofertas.find((o) => o.servico === servico),
+    ofertaJaEnviada: (leadId, servico) => ofertasEnviadas.some((o) => o.leadId === leadId && o.servico === servico),
     getMateriaisDisponiveis: () =>
       materiais.map((mat) => {
         const emCampo = eventos
@@ -119,7 +136,7 @@ export function AppProvider({ children }) {
         return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, isLoading, syncStatus]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, isLoading, syncStatus]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
