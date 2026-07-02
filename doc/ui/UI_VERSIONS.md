@@ -322,7 +322,9 @@ Layout: card centralizado (max-width 380px), logo 90px, tag "Gestão de Eventos"
 
 - Lista de cards com filtro por temperatura
 - Card: nome, serviço, temperatura (colorida), telefone
-- Botões de contato: ligar (azul) + WhatsApp (verde)
+- Ícones discretos de editar/excluir no topo do card, ao lado do nome (D-057)
+- Botão de contato: WhatsApp (verde) — botão "ligar" removido, contato só via WhatsApp
+- Botão "Enviar oferta" abre seletor com as ofertas prontas (imagem+copy) configuradas pelo marketing — interesse declarado do lead primeiro, mas todas disponíveis; cada item tem botão "Baixar" para a imagem (D-057)
 - Edição inline com confirmação
 - Exclusão em 2 passos (confirmar antes de apagar)
 

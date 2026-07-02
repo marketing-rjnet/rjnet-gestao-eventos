@@ -99,7 +99,7 @@ src/
 ├── apps/
 │   ├── Root.jsx                # Roteador raiz: modo + tema
 │   ├── MarketingApp.jsx        # Shell marketing (5 tabs)
-│   └── VendedorApp.jsx         # Shell vendedor (4 tabs + LeadEditInline)
+│   └── VendedorApp.jsx         # Shell vendedor (4 tabs + LeadEditInline + OfertaPickerModal, D-057)
 ├── auth/
 │   ├── RootAuth.jsx            # Fluxo auth Supabase
 │   ├── RootLegacy.jsx          # Fluxo auth local
@@ -193,7 +193,7 @@ Shell do vendedor em campo. Navegação por 4 tabs (bottom nav mobile-first):
 | Tab | Função |
 |---|---|
 | Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, controle Sim/Não para "já é cliente", auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro) |
-| Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, links tel/WhatsApp, botão "Enviar oferta: `<serviço>`" por serviço de interesse do lead com oferta configurada (abre `wa.me` com copy pronta + link para a imagem, D-057), exclusão de lead com confirmação inline em dois passos |
+| Meus Leads | Lista filtrável, edição inline, ciclo de temperatura, botão WhatsApp, ícones discretos de editar/excluir no topo do card (excluir com confirmação inline em dois passos); botão único "Enviar oferta" abre `OfertaPickerModal` (D-057) listando todas as ofertas configuradas pelo marketing — as do interesse declarado do lead aparecem primeiro, mas todas ficam disponíveis; cada item abre `wa.me` com copy pronta e tem um botão "Baixar" (download via `fetch`+blob) para a imagem |
 | Evento | Detalhes do evento ativo, link Maps, ranking da equipe |
 | Pacotes | Tabela de preços dos serviços RJNet (hardcoded) |
 
@@ -224,7 +224,7 @@ Busca de lead por CPF dentro de um evento. Registra presença sem criar novo lea
 Sub-domínio de estoque. Array JSONB dentro de cada evento. Suporta `quantidade`, `retornado` (flag de devolução).
 
 ### Ofertas (D-057)
-Conteúdo pronto (imagem 1080x1080 + copy) por serviço, gerido exclusivamente pelo marketing. `servico` é a própria chave primária — no máximo 5 linhas (mesmo enum de `servicoInteresse`), sobrescritas ao editar; sem histórico/versionamento. O vendedor só consome: na aba "Meus Leads", cada lead exibe um botão por serviço de interesse com oferta configurada, que abre `wa.me` com a copy pré-preenchida e um link separado para a imagem (anexo continua manual — limitação do próprio `wa.me`, que não permite pré-anexar mídia). `oferta_envios` registra o clique como indicador visual ("✓ Oferta enviada"), **não** como confirmação de entrega ou leitura.
+Conteúdo pronto (imagem 1080x1080 + copy) por serviço, gerido exclusivamente pelo marketing. `servico` é a própria chave primária — no máximo 5 linhas (mesmo enum de `servicoInteresse`), sobrescritas ao editar; sem histórico/versionamento. O vendedor só consome: na aba "Meus Leads", um botão "Enviar oferta" abre um seletor (`OfertaPickerModal`) com **todas** as ofertas configuradas — as que batem com o interesse declarado do lead aparecem primeiro, mas todas ficam disponíveis (o vendedor pode perceber interesse em outro serviço durante a conversa e enviar na hora, sem precisar editar o lead antes). Cada item do seletor abre `wa.me` com a copy pré-preenchida e tem um botão "Baixar" que baixa a imagem via `fetch`+blob (anexo à mensagem continua manual — limitação do próprio `wa.me`, que não permite pré-anexar mídia). `oferta_envios` registra o clique como indicador visual ("✓ Oferta enviada"), **não** como confirmação de entrega ou leitura.
 
 ---
 
