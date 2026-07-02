@@ -27,6 +27,15 @@ const USERS = {
     },
     perfil: { id: 'u-vend-1', email: 'vendedora@rjnet.com', nome: 'Carlos Silva', papel: 'vendedor', ativo: true, criado_em: '2026-01-01T00:00:00Z' },
   },
+  marketing: {
+    user: {
+      id: 'u-mkt-1', aud: 'authenticated', role: 'authenticated',
+      email: 'marketing@rjnet.com', email_confirmed_at: '2026-01-01T00:00:00Z',
+      app_metadata: { provider: 'email' }, user_metadata: { nome: 'Marketing' },
+      created_at: '2026-01-01T00:00:00Z',
+    },
+    perfil: { id: 'u-mkt-1', email: 'marketing@rjnet.com', nome: 'Marketing', papel: 'marketing', ativo: true, criado_em: '2026-01-01T00:00:00Z' },
+  },
 };
 
 const sessionJson = (user) => ({
@@ -42,18 +51,25 @@ const sessionJson = (user) => ({
  * via POST são acumulados à parte e devolvidos junto nos GETs seguintes.
  */
 async function mockSupabase(page, { delayMs = 0, papel = 'vendedor', leads = [], eventos = [EVENTO_PADRAO] } = {}) {
-  const conta = USERS[papel];
+  // Mutável: um teste pode logar como vendedor, sair e logar como marketing
+  // na mesma página — o mock precisa responder com a identidade certa em
+  // cada momento, não só a inicial.
+  let contaAtual = USERS[papel];
   /** @type {any[]} */
   const leadsInseridos = [];
 
   await page.route('**/auth/v1/**', async (route) => {
-    const url = route.request().url();
+    const req = route.request();
+    const url = req.url();
     if (url.includes('/token')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionJson(conta.user)) });
+      const body = req.postDataJSON?.() ?? {};
+      const encontrada = Object.values(USERS).find((u) => u.user.email === body.email);
+      if (encontrada) contaAtual = encontrada;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessionJson(contaAtual.user)) });
     }
     if (url.includes('/logout')) return route.fulfill({ status: 204, body: '' });
     if (url.includes('/user')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(conta.user) });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(contaAtual.user) });
     }
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
@@ -75,7 +91,7 @@ async function mockSupabase(page, { delayMs = 0, papel = 'vendedor', leads = [],
       const single = url.includes('id=eq.');
       return route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify(single ? conta.perfil : [conta.perfil]),
+        body: JSON.stringify(single ? contaAtual.perfil : [contaAtual.perfil]),
       });
     }
 
@@ -119,7 +135,8 @@ async function loginPorEmail(page, papel = 'vendedor') {
   await page.locator('.login-form input[type="email"]').fill(conta.user.email);
   await page.locator('.login-form input[type="password"]').fill('senha-mock-123');
   await page.locator('.login-form button[type="submit"]').click();
-  await page.locator('.vend-bottom-nav').waitFor({ state: 'visible' });
+  // .app-header existe tanto no MarketingApp quanto no VendedorApp.
+  await page.locator('.app-header').waitFor({ state: 'visible' });
 }
 
 module.exports = { REF, EVENTO_PADRAO, USERS, sessionJson, mockSupabase, sessaoSalva, loginPorEmail };

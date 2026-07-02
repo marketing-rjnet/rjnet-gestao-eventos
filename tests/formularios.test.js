@@ -4,7 +4,7 @@
  * V3: wizard do vendedor — lead em branco é bloqueado na etapa 1 (botão disabled).
  */
 const { test, expect } = require('@playwright/test');
-const { loginComercial, loginMarketing } = require('./helpers/auth');
+const { loginMarketing } = require('./helpers/auth');
 
 test.describe('Validação de Formulários', () => {
 
@@ -32,17 +32,8 @@ test.describe('Validação de Formulários', () => {
     expect(hasError || stayedOnLogin).toBeTruthy();
   });
 
-  test('wizard etapa 1 — botão Próximo desabilitado com campos em branco', async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('rjnet_leads', JSON.stringify([]));
-    });
-    await loginComercial(page);
-    const btnProximo = page.locator('.wizard-slide button', { hasText: 'Próximo →' });
-    await expect(btnProximo).toBeDisabled();
-    // Nenhum lead criado — contador deve mostrar 0
-    await expect(page.locator('.count-badge')).toContainText('0');
-    await expect(page.locator('.toast')).not.toBeVisible();
-  });
+  // O teste do wizard etapa 1 (Comercial) está em formularios-supabase.test.js:
+  // o modo legado não tem mais caminho de UI para autenticar como vendedor.
 
   test('modal de novo evento abre ao clicar em Novo Evento', async ({ page }) => {
     await loginMarketing(page);
@@ -69,6 +60,10 @@ test.describe('Validação de Formulários', () => {
     test.slow();
     await loginMarketing(page);
     await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
+    // Evento novo nasce com status "planejado" (EventModal.jsx), mas o filtro
+    // padrão da aba é "ativo" — sem trocar pra "Todos" o card criado nunca
+    // aparece na contagem.
+    await page.locator('.chip', { hasText: 'Todos' }).click();
     const countBefore = await page.locator('.event-card').count();
 
     await page.locator('button', { hasText: /novo evento/i }).first().click();
@@ -89,27 +84,9 @@ test.describe('Validação de Formulários', () => {
     await expect(page.locator('.event-card', { hasText: 'Evento Teste E2E' })).toBeVisible();
   });
 
-  test('lead registrado pelo vendedor aparece para o marketing', async ({ page }) => {
-    test.slow();
-    await loginComercial(page);
-
-    // Wizard: etapa 1
-    await page.getByPlaceholder('Nome do cliente').fill('Lead Salvo E2E');
-    await page.getByPlaceholder('(24) 99999-9999').fill('24999887766');
-    await page.locator('.wizard-slide button', { hasText: 'Próximo →' }).click();
-    // Etapa 2
-    await page.locator('.servico-btn').first().click();
-    await page.locator('.wizard-actions button', { hasText: 'Próximo →' }).click();
-    // Etapa 3
-    await page.locator('button[type="submit"]', { hasText: 'Registrar' }).click();
-
-    await expect(page.locator('.toast')).toContainText('Lead Salvo E2E');
-
-    // Sai e entra como marketing — o lead deve constar na aba Leads
-    await page.locator('.app-header button', { hasText: 'Sair' }).click();
-    await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
-    await expect(page.locator('.tbl-wrap table')).toContainText('Lead Salvo E2E');
-  });
+  // O teste "lead registrado pelo vendedor aparece para o marketing" está em
+  // formularios-supabase.test.js: precisa logar como vendedor e como
+  // marketing na mesma sessão, e o modo legado não tem mais caminho de UI
+  // para autenticar como vendedor.
 
 });
