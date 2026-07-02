@@ -1885,6 +1885,13 @@ Resolve a dor real (vendedor sem conteúdo padronizado) reaproveitando ~90% de p
 
 **Status:** Ativa
 
+> **Atualização 2026-07-02 (pós-deploy):**
+> - **Gotcha de deploy documentado**: tabelas criadas via SQL Editor não ficam imediatamente visíveis para o PostgREST (cache de schema) — `db.saveOferta`/`fetchAll` falhavam silenciosamente até rodar `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema). Sintoma: escrita "funciona" na UI (otimista) mas some ao recarregar a página, e a lista de ofertas do vendedor fica sempre vazia. **Sempre rodar esse `NOTIFY` depois de aplicar `migracao-ofertas.sql`** (ou qualquer migração futura que crie tabela nova).
+> - **UX consolidada**: em vez de 1 botão "Enviar oferta: `<serviço>`" por serviço do lead, agora é 1 botão "Enviar oferta" que abre `OfertaPickerModal` (novo componente local em `VendedorApp.jsx`) listando as ofertas disponíveis para aquele lead — mais limpo quando o lead tem vários serviços de interesse.
+> - **Botão "Ligar" removido** de "Meus Leads" — contato passa a ser só via WhatsApp (genérico ou com oferta).
+> - **Contraste corrigido**: `.lm-contact-whats` usava `#dcfce7`/`#16a34a` (par pensado pra tema claro, ilegível no tema escuro real do V3); trocado para `var(--green-bg)`/`var(--green)` com borda — mesmo par já usado em `.btn-check-devolucao`. `.lm-contact-call` removida (CSS morto após a remoção do botão).
+> - **Erro de salvamento de oferta agora é visível**: `saveOferta` (`ofertaApi.js`) aceita um 3º parâmetro `onError`, propagado até `db.saveOferta` → `OfertaModal` exibe `alert()` com a mensagem real em caso de falha (upload no Storage ou upsert na tabela) — antes falhava 100% silenciosamente.
+
 ---
 
 ## Processo Obrigatório
