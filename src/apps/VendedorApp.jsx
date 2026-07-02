@@ -176,7 +176,9 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   // D-058: modo de captação — "evento" (fluxo de sempre) ou "mes" (dia a dia,
   // fora de eventos). Default inteligente: evento se houver um ativo, senão
   // mês — mas o vendedor pode alternar livremente a qualquer momento.
-  const [contextoTipo, setContextoTipo] = useState(() => (ativos.length > 0 ? "evento" : "mes"));
+  const [contextoManual, setContextoManual] = useState(false);
+  const [contextoTipo, setContextoTipoState] = useState(() => (ativos.length > 0 ? "evento" : "mes"));
+  const setContextoTipo = (tipo) => { setContextoManual(true); setContextoTipoState(tipo); };
   const [mesSelecionado, setMesSelecionado] = useState(mesAtualRef);
   const mesesDisponiveis = mesesDoAno(new Date().getFullYear());
 
@@ -185,6 +187,17 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       setEventoId(ativos[0]?.id || "");
     }
   }, [ativos, eventoId]);
+
+  // Eventos chegam do banco de forma assíncrona — se ainda não havia nenhum
+  // ativo no primeiro render, o default cai em "mes". Assim que um evento
+  // ativo aparecer, promove para "evento" automaticamente — mas só se o
+  // vendedor ainda não tiver escolhido um contexto manualmente (a troca
+  // livre a qualquer momento tem prioridade sobre o default inteligente).
+  useEffect(() => {
+    if (!contextoManual && ativos.length > 0 && contextoTipo !== "evento") {
+      setContextoTipoState("evento");
+    }
+  }, [ativos, contextoManual, contextoTipo]);
 
   useEffect(() => {
     if (contextoTipo === "evento" && eventoId) carregarLeadsEvento(eventoId);

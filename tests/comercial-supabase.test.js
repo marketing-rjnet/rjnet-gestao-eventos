@@ -136,9 +136,17 @@ test.describe('Supabase Auth — papéis e dados assíncronos', () => {
     await expect(page.locator('.big-select select')).toHaveValue('ev-sup-1');
 
     // Regressão: registrar sem recarregar a página deve funcionar
+    // Wizard 3 etapas (V3) — .lead-submit na etapa 1 é o "Próximo →", não o
+    // submit final; precisa percorrer as 3 etapas como em comercial.test.js.
     await page.getByPlaceholder('Nome do cliente').fill('Cliente Pós-Fetch');
     await page.getByPlaceholder('(24) 99999-9999').fill('24999112233');
-    await page.locator('.lead-submit').click();
+    await page.locator('.wizard-slide button', { hasText: 'Próximo →' }).click();
+
+    // "internet_residencial" já vem pré-selecionado por padrão (FORM_VAZIO) —
+    // não precisa clicar num serviço, só avançar.
+    await page.locator('.wizard-actions button', { hasText: 'Próximo →' }).click();
+
+    await page.locator('button[type="submit"]', { hasText: 'Registrar' }).click();
 
     await expect(page.locator('text=Selecione um evento')).not.toBeVisible();
     await expect(page.locator('.toast')).toContainText('Cliente Pós-Fetch');
