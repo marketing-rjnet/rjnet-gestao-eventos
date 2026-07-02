@@ -40,7 +40,7 @@ src/api/*.js                      ← update otimista + chamada assíncrona ao b
 src/lib/dataService.js            ← queries Supabase, retry, realtime, camelCase↔snake_case
     ↓
 Supabase (PostgreSQL + RLS)
-    ↓  subscription realtime (debounce 400ms)
+    ↓  subscription realtime (debounce 1500ms — D-038)
 AppProvider re-sincroniza estado
 ```
 
@@ -97,7 +97,8 @@ src/
 │   ├── leadApi.js      # createLeadApi — add, update, remove, obterRanking/obterRankingMes
 │   ├── materialApi.js  # createMaterialApi — add, update, addEvento, removeEvento, toggleRetornado
 │   ├── vendedorApi.js  # createVendedorApi — add, update, toggle
-│   └── ofertaApi.js    # createOfertaApi — saveOferta, removeOferta, registrarOfertaEnviada (D-057)
+│   ├── ofertaApi.js    # createOfertaApi — saveOferta, removeOferta, registrarOfertaEnviada (D-057)
+│   └── equipeApi.js    # createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
 │
 ├── hooks/
 │   ├── useApp.js        # Único ponto de consumo do AppContext
@@ -108,6 +109,7 @@ src/
 │   ├── format.js    # fmtDate, fmtDateLong, initials, label maps, mesesDoAno/mesReferenciaLabel (D-058)
 │   ├── masks.js     # maskCpf, maskTel, validarCpf, validarTelefone
 │   ├── csv.js       # exportLeadsCSV (por evento e por mês)
+│   ├── ids.js       # genId(prefix) — gerador de IDs temporários para modo local
 │   └── mockData.js  # MOCK_* para modo local
 │
 └── lib/
@@ -169,7 +171,7 @@ A `anon key` sozinha não acessa nada após a migração de auth — todas as po
 
 ### Realtime e performance
 
-- Subscriptions Supabase com debounce de 400ms (evita re-renders em cascata)
+- Subscriptions Supabase com debounce de 1500ms (evita re-renders em cascata — D-038)
 - Cache em memória com TTL de 30s para rankings (`src/lib/cache.js`)
 - `withRetry()`: backoff exponencial 800ms × 3 tentativas
 - Fila offline: leads capturados sem conexão são enfileirados em `localStorage` e sincronizados via `flushPendingQueue()` ao reconectar
