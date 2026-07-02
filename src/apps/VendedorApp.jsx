@@ -106,8 +106,8 @@ function LeadEditInline({ lead, onSave, onCancel }) {
 // D-057: 1 modal por lead listando as ofertas disponíveis pros serviços de interesse dele
 function OfertaPickerModal({ lead, tel, ofertasDoLead, eventoId, session, ofertaJaEnviada, registrarOfertaEnviada, onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay oferta-picker-overlay" onClick={onClose}>
+      <div className="modal-box oferta-picker-box" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Enviar oferta — {lead.nome}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Fechar"><Icon name="x" size={18} /></button>

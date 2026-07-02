@@ -616,6 +616,11 @@
         .modal-overlay { padding: 0; align-items: flex-end; }
         .modal-box { max-width: 100%; border-radius: 20px 20px 0 0; max-height: 92vh; animation: slideUp .22s ease; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* D-057: seletor de ofertas fica centralizado mesmo em mobile — o bottom
+           sheet padrão fica coberto pela barra inferior do vendedor (z-index maior) */
+        .oferta-picker-overlay { align-items: center; padding: 20px; }
+        .oferta-picker-box { border-radius: 16px; max-height: 76vh; animation: none; }
       }
 
       @media (max-width: 400px) {
