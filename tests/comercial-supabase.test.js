@@ -97,10 +97,12 @@ async function mockSupabase(page, { delayMs = 600, papel = 'vendedor', leads = [
   return leadsInseridos;
 }
 
-/** Grava uma sessão Auth válida antes do app carregar (usuário que reabre o app). */
+/** Grava uma sessão Auth válida antes do app carregar (usuário que reabre o app).
+ *  sessionStorage, não localStorage: src/lib/supabase.js configura o client
+ *  Supabase Auth com `auth: { storage: sessionStorage }`. */
 async function sessaoSalva(page, papel = 'vendedor') {
   await page.addInitScript(([key, sessao]) => {
-    localStorage.setItem(key, sessao);
+    sessionStorage.setItem(key, sessao);
   }, [`sb-${REF}-auth-token`, JSON.stringify(sessionJson(USERS[papel].user))]);
 }
 
