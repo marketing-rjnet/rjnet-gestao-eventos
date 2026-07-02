@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { loginMarketing, loginComercial, logout } = require('./helpers/auth');
+const { loginMarketing, logout } = require('./helpers/auth');
 
 const MKT_USER = process.env.TEST_MARKETING_USER || 'marketing';
 const MKT_PASS = process.env.TEST_MARKETING_PASS || 'mkt2025';
@@ -32,12 +32,6 @@ test.describe('Autenticação', () => {
     await expect(page.locator('.user-badge .ub-name')).toHaveText('Marketing');
   });
 
-  test('login Comercial completo — seleciona vendedor e entra no app', async ({ page }) => {
-    await loginComercial(page);
-    await expect(page.locator('.login-bg')).not.toBeVisible();
-    await expect(page.locator('.app-header')).toBeVisible();
-  });
-
   test('logout retorna à tela de login — Marketing', async ({ page }) => {
     await loginMarketing(page);
     await logout(page);
@@ -45,10 +39,8 @@ test.describe('Autenticação', () => {
     await expect(page.locator('.login-form')).toBeVisible();
   });
 
-  test('logout retorna à tela de login — Comercial', async ({ page }) => {
-    await loginComercial(page);
-    await logout(page);
-    await expect(page.locator('.login-bg')).toBeVisible();
-  });
+  // Os testes de login/logout Comercial (vendedor) estão em auth-supabase.test.js:
+  // o modo legado (esta suíte, porta 3000) não tem mais nenhum caminho de UI para
+  // autenticar como vendedor — a tela de seleção de vendedor foi removida do app.
 
 });
