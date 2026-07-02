@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, StatusBadge, TipoBadge } from '../../components/ui';
 import { EmptyState } from '../../components/EmptyState';

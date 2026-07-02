@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { isSupabaseMode } from '../lib/mode';
 import { RootAuth, RootLegacy } from '../auth';
 import MarketingApp from './MarketingApp';

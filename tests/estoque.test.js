@@ -31,9 +31,9 @@ test.describe('Seção Estoque', () => {
   test('cada linha exibe total, em campo e disponível', async ({ page }) => {
     await goToEstoque(page);
     const row = page.locator('.stock-row').first();
-    await expect(row.locator('.sr-num')).toHaveCount(3);
     await expect(row).toContainText('total');
     await expect(row).toContainText('em campo');
+    await expect(row).toContainText('disp.');
   });
 
   test('KPIs de estoque exibem totais', async ({ page }) => {

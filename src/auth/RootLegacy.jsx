@@ -1,4 +1,3 @@
-import React from 'react';
 import { usePersisted } from '../hooks/usePersisted';
 import { Login } from './Login';
 

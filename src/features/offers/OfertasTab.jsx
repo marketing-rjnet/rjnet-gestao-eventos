@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon } from '../../components/ui';
 import { OfertaModal } from '../../components/modals';

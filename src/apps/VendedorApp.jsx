@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../hooks/useApp';
 import { useRanking } from '../hooks/useRanking';
 import { Icon } from '../components/ui';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { sanitizeText } from '../../lib/security';
 import { RECENT_EVENTS_SHOWN } from '../../lib/constants';

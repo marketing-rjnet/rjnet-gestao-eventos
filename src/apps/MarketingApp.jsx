@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
 import { Icon } from '../components/ui';
 import SyncBadge from '../components/SyncBadge';

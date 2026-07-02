@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Kpi, StatusBadge } from '../../components/ui';
 import { Icon } from '../../components/ui';

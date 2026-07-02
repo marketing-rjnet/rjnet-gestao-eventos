@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, setQueueUserId, clearQueueSession } from '../lib/dataService';
 import { LoginAuth } from './LoginAuth';
 import { NovaSenha } from './NovaSenha';

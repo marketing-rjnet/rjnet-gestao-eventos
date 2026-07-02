@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Icon } from '../components/ui';
 import { auth } from '../lib/dataService';
 import { SENHA_MIN_LENGTH } from '../lib/constants';

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { Chart } from 'chart.js';
 import { STATUS_LABEL, tipoLabel } from '../utils/format';
 

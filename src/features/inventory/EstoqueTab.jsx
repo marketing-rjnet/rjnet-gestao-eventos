@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon, Kpi } from '../../components/ui';
 import { MaterialModal, MaterialChecklistModal } from '../../components/modals';

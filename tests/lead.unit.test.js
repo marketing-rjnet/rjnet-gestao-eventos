@@ -47,7 +47,10 @@ const TEMPERATURA_CONFIG = {
   convertido: { label: "Convertido", cor: "#22c55e" },
 };
 
-const META_DIARIA = 15;
+// Mantido em sincronia manualmente com META_DIARIA (= META_OURO) em
+// src/lib/constants.js — este arquivo roda como script Node puro (sem bundler),
+// então não importa o módulo ESM de src/ diretamente.
+const META_DIARIA = 60;
 
 console.log('\ntemperatura');
 assert('todas as temperaturas definidas', ['frio','morno','quente','convertido'].every(k => TEMPERATURA_CONFIG[k]));
@@ -69,19 +72,19 @@ assert('temperatura inválida retorna frio (primeiro)', proximaTemp('invalido') 
 // ─── Meta diária ──────────────────────────────────────────────────────────────
 
 console.log('\nmeta diária');
-assert('meta é 15', META_DIARIA === 15);
+assert('meta é 60', META_DIARIA === 60);
 
 function calcPct(n) { return Math.min((n / META_DIARIA) * 100, 100); }
 assert('0 leads = 0%', calcPct(0) === 0);
-assert('15 leads = 100%', calcPct(15) === 100);
-assert('7 leads = ~46.6%', Math.round(calcPct(7) * 10) === 467);
-assert('acima de 15 é limitado a 100%', calcPct(20) === 100);
+assert('60 leads = 100%', calcPct(60) === 100);
+assert('28 leads = ~46.6%', Math.round(calcPct(28) * 10) === 467);
+assert('acima de 60 é limitado a 100%', calcPct(80) === 100);
 assert('progresso não é negativo', calcPct(-1) === 0 || calcPct(-1) < 1);
 
 function metaBatida(n) { return n >= META_DIARIA; }
-assert('14 leads não bate meta', !metaBatida(14));
-assert('15 leads bate meta', metaBatida(15));
-assert('20 leads bate meta', metaBatida(20));
+assert('59 leads não bate meta', !metaBatida(59));
+assert('60 leads bate meta', metaBatida(60));
+assert('80 leads bate meta', metaBatida(80));
 
 // ─── Chips de atalho — sanitização ───────────────────────────────────────────
 

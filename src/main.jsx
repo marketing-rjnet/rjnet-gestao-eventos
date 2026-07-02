@@ -1,10 +1,6 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Chart, registerables } from 'chart.js';
-import { supabaseEnabled } from './lib/supabase';
-import { fetchAll, db, subscribeChanges, auth, rankingEvento, invalidarRanking } from './lib/dataService';
-import { sanitizeText } from './lib/security';
-import { META_DIARIA, SENHA_MIN_LENGTH, MAX_NOME, MAX_ENDERECO, MAX_OBSERVACAO, TOAST_DURATION_MS } from './lib/constants';
 import './index.css';
 import { AppProvider } from './context';
 import Root from './apps/Root';
