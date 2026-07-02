@@ -1899,6 +1899,55 @@ Resolve a dor real (vendedor sem conteúdo padronizado) reaproveitando ~90% de p
 
 ---
 
+### [D-058] — Captação de leads no dia a dia via "mês de referência" (fora de eventos)
+
+**Data:** 2026-07-02
+**Tipo:** Feature / Arquitetura
+
+**Contexto:**
+A diretoria aprovou expandir o uso do sistema: além dos eventos de campo criados pelo marketing, o vendedor deve poder registrar leads no dia a dia, associando cada lead a um mês (lista de 12, sem esse conceito ficar explícito como "evento" para o vendedor). Investigação prévia confirmou que `leads.evento_id` já é nullable e que nenhuma policy de RLS depende de evento — o acoplamento a evento estava inteiramente na camada de aplicação (seleção obrigatória de evento ativo em `VendedorApp.jsx`, RPC `ranking_evento`, carregamento on-demand por evento de D-039, e a rotina de retenção LGPD que só expurgava leads de eventos encerrados).
+
+**Decisão:**
+Adotado um campo próprio `leads.mes_referencia` (date, primeiro dia do mês) como contexto alternativo e mutuamente exclusivo ao `evento_id`, em vez de modelar os 12 meses como "eventos virtuais" na tabela `eventos`.
+1. `check (num_nonnulls(evento_id, mes_referencia) = 1)` — todo lead pertence a exatamente um dos dois contextos.
+2. RPC `ranking_mes(mref date)` espelhando `ranking_evento`; `fetchLeadsMes`/`fetchLeadsMeses`/`fetchOfertasEnviadasMes` espelhando as versões por evento (mesmo modelo on-demand do D-039).
+3. `oferta_envios.mes_referencia` (nullable, espelha `evento_id`) — o fluxo "Enviar oferta" (D-057) funciona igual para leads de mês.
+4. Extensão de `limpar_leads_expirados()` (PA-10/D-058) com um terceiro bloco simétrico ao de "evento encerrado há N dias": leads cujo mês de referência terminou há mais de `retencao_leads_mensais_dias` (365 por padrão) são expurgados fisicamente.
+5. `VendedorApp.jsx` ganha um seletor "Evento" / "Atividade do Mês" sempre visível — o vendedor alterna livremente, não é um fallback só para quando não há evento ativo. O caminho "evento" permanece com exatamente o mesmo código/validações de antes (mudança aditiva, não reescrita).
+6. `LeadsTab.jsx` (marketing) ganha uma segunda seção "Atividade Mensal" com o mesmo padrão de interação (checkbox de meses + exportar/consolidar) da seção de eventos — sem isso, leads de mês ficariam invisíveis para o marketing.
+
+**Motivação:**
+Atende ao pedido de negócio sem exigir evento algum para o vendedor produzir leads, e sem tocar em nenhum código já existente do fluxo de eventos.
+
+**Alternativas Avaliadas:**
+- **"Eventos virtuais"** — criar 12 linhas em `eventos` (uma por mês, sempre `status='ativo'`) e reaproveitar 100% do código de evento existente. Descartada: exigiria filtrar manualmente essas linhas em todos os pontos que hoje listam/contam `eventos` sem distinção (`Dashboard.jsx` — KPI "Eventos Ativos" e hero card, `EventosTab.jsx`, `getEventosAtivos()`, `getMateriaisDisponiveis()`), com risco real de vazar "meses" para telas do marketing que assumem que todo evento é um evento de campo real; e exigiria uma rotina de reseed anual (criar os 12 meses do próximo ano). O campo próprio elimina os dois problemas: zero mudança nas telas de evento, e a lista de meses é gerada no frontend a partir do ano corrente (`mesesDoAno`, sem manutenção).
+- **Generalizar completamente `useRanking` num único hook data-driven por "tipo"** — descartada em favor de um parâmetro opcional (`obterFn`) simples: resolve a duplicação sem introduzir uma abstração nova.
+
+**Impactos:**
+- `leadFromDb`/`leadToDb` (`dataService.js`) mapeiam `mesReferencia` ↔ `mes_referencia`; `flushPendingQueue` não precisou de nenhuma mudança — o descarte de leads offline por evento encerrado só age quando `evento_id` é truthy, e leads de mês têm `evento_id: null`.
+- `useRanking(id, leadsCount, obterFn)` ganhou um 3º parâmetro opcional (default = `obterRanking` do contexto) para ser reaproveitado com `obterRankingMes` sem duplicar toda a lógica de debounce/polling.
+- Meta de leads (Bronze/Prata/Ouro, D-027) e o placar da equipe passam a ser calculados sobre `leadsDoContexto` (evento OU mês, conforme o modo ativo do vendedor) — mesmos limiares, sem mudança de regra de negócio.
+- A coleta de dados pessoais deixa de ser exclusivamente "em eventos de campo" — refletido em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`, `doc/lgpd/ROPA.md` e `doc/lgpd/POLITICA_DE_PRIVACIDADE.md`.
+
+**Arquivos Afetados:**
+- `supabase/migracao-leads-mensais.sql` (novo) — coluna, constraint, índices, RPC `ranking_mes`, coluna em `oferta_envios`, extensão de `configuracoes_retencao`/`limpar_leads_expirados()`
+- `src/lib/dataService.js` — mappers, `fetchLeadsMes`/`fetchLeadsMeses`/`fetchOfertasEnviadasMes`, `rankingMes`/`invalidarRankingMes`, `registrarOfertaEnviada`
+- `src/api/leadApi.js` — `obterRankingMes`, invalidação de placar dual
+- `src/hooks/useRanking.js` — parâmetro `obterFn` opcional
+- `src/context/AppProvider.jsx` — `carregarLeadsMes`, `getLeadsMes`, ref de contexto de refetch dual (evento|mês)
+- `src/utils/format.js` — `mesesDoAno`, `mesReferenciaLabel`
+- `src/utils/csv.js` — `exportLeadsMesCSV`/`exportLeadsMesConsolidadoCSV`
+- `src/apps/VendedorApp.jsx` — seletor de contexto, `leadsDoContexto`, submits condicionais
+- `src/features/leads/LeadsTab.jsx` — seção "Atividade Mensal"
+
+**Riscos:**
+- Baixo/médio: vendedor pode esquecer de trocar o contexto e registrar no mês quando deveria ser no evento (ou vice-versa) — mitigado pelo seletor ficar sempre visível no topo da tela e pelo default inteligente (evento se houver um ativo, senão mês).
+- Baixo: `oferta_envios`/consentimento (D-043, suspensa) seguem com a mesma pendência de antes — nada piora nem resolve aqui, é herdado do fluxo de evento.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

@@ -165,7 +165,8 @@ const eventoToDb = (e) => ({
 });
 
 const leadFromDb = (r) => ({
-  id: r.id, eventoId: r.evento_id, vendedorNome: r.vendedor_nome ?? "",
+  id: r.id, eventoId: r.evento_id, mesReferencia: r.mes_referencia ?? null,
+  vendedorNome: r.vendedor_nome ?? "",
   vendedorId: r.vendedor_id ?? null,
   nome: r.nome, telefone: r.telefone ?? "", cpf: r.cpf ?? "",
   endereco: r.endereco ?? "", servicoInteresse: (() => {
@@ -182,7 +183,8 @@ const leadFromDb = (r) => ({
   versaoTermo: r.versao_termo ?? null,
 });
 const leadToDb = (l) => ({
-  id: l.id, evento_id: l.eventoId, vendedor_nome: l.vendedorNome ?? null,
+  id: l.id, evento_id: l.eventoId ?? null, mes_referencia: l.mesReferencia ?? null,
+  vendedor_nome: l.vendedorNome ?? null,
   vendedor_id: l.vendedorId ?? null,
   nome: l.nome, telefone: l.telefone || null, cpf: l.cpf || null,
   endereco: l.endereco || null,
@@ -217,7 +219,7 @@ const ofertaToDb = (o) => ({
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
-const LEADS_COLS = 'id,evento_id,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo';
+const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo';
 
 // TB-004: busca apenas materiais, eventos e perfis no boot.
 // Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
@@ -313,6 +315,54 @@ export async function fetchLeadsEventos(eventoIds, signal) {
   });
 }
 
+// D-058: leads de um único mês de referência — mesmo modelo on-demand de
+// fetchLeadsEvento, usado pelo vendedor em modo "Atividade do Mês".
+export async function fetchLeadsMes(mesReferencia, signal) {
+  if (!isSupabaseMode() || !mesReferencia) return null;
+  return trackPerf('fetchLeadsMes', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .eq('mes_referencia', mesReferencia)
+        .eq('deletado', false)
+        .order('criado_em')
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads do mês:', err.message || err);
+    return null;
+  });
+}
+
+// D-058: leads de múltiplos meses — usado pela exportação consolidada do marketing.
+export async function fetchLeadsMeses(mesesReferencia, signal) {
+  if (!isSupabaseMode() || !mesesReferencia?.length) return null;
+  return trackPerf('fetchLeadsMeses', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .in('mes_referencia', mesesReferencia)
+        .eq('deletado', false)
+        .order('mes_referencia')
+        .order('criado_em')
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads mensais consolidados:', err.message || err);
+    return null;
+  });
+}
+
 // D-057: quais ofertas já foram "enviadas" (clicadas) em um evento — mesmo
 // modelo on-demand de fetchLeadsEvento; buscado sempre junto com os leads.
 export async function fetchOfertasEnviadasEvento(eventoId, signal) {
@@ -331,6 +381,27 @@ export async function fetchOfertasEnviadasEvento(eventoId, signal) {
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao buscar ofertas enviadas:', err.message || err);
+    return null;
+  });
+}
+
+// D-058: mesmo indicador de "enviada" (clique), só que para leads de mês.
+export async function fetchOfertasEnviadasMes(mesReferencia, signal) {
+  if (!isSupabaseMode() || !mesReferencia) return null;
+  return trackPerf('fetchOfertasEnviadasMes', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('oferta_envios')
+        .select('lead_id,servico')
+        .eq('mes_referencia', mesReferencia)
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map((r) => ({ leadId: r.lead_id, servico: r.servico }));
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar ofertas enviadas do mês:', err.message || err);
     return null;
   });
 }
@@ -362,6 +433,34 @@ export async function rankingEvento(eventoId) {
 // Invalida o cache do placar de um evento (chamar após salvar lead)
 export function invalidarRanking(eventoId) {
   cache.invalidate(`ranking:${eventoId}`);
+}
+
+// D-058: mesmo placar com cache de 30s, só que por mês de referência.
+export async function rankingMes(mesReferencia) {
+  if (!isSupabaseMode() || !mesReferencia) return null;
+
+  const cacheKey = `ranking_mes:${mesReferencia}`;
+  const cached = cache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  return trackPerf(`rankingMes(${mesReferencia})`, () =>
+    withRetry(async () => {
+      const { data, error } = await supabase.rpc('ranking_mes', { mref: mesReferencia });
+      if (error) throw error;
+      return data.map((r) => ({ nome: r.vendedor_nome, total: Number(r.total) }));
+    }, { maxAttempts: 2, baseDelayMs: 500 })
+  ).then((result) => {
+    cache.set(cacheKey, result, 30_000); // TTL 30 s
+    return result;
+  }).catch((err) => {
+    console.error('[rjnet] Falha ao carregar o placar do mês:', err.message);
+    return null;
+  });
+}
+
+// Invalida o cache do placar de um mês (chamar após salvar lead)
+export function invalidarRankingMes(mesReferencia) {
+  cache.invalidate(`ranking_mes:${mesReferencia}`);
 }
 
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
@@ -402,7 +501,7 @@ export const db = {
       'salvar lead',
       () => addToQueue({ type: 'saveLead', data: dbData }),
       onSuccess,
-      { vendedor: l.vendedorNome, eventoId: l.eventoId },
+      { vendedor: l.vendedorNome, eventoId: l.eventoId, mesReferencia: l.mesReferencia },
     );
   },
   removeMaterial: (id) => exec(supabase?.from('materiais').delete().eq('id', id), 'remover material'),
@@ -465,11 +564,12 @@ export const db = {
 
   // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
   // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).
-  registrarOfertaEnviada: async ({ leadId, eventoId, servico, vendedorId, vendedorNome }) => {
+  // D-058: eventoId/mesReferencia são mutuamente exclusivos, como em leads.
+  registrarOfertaEnviada: async ({ leadId, eventoId, mesReferencia, servico, vendedorId, vendedorNome }) => {
     if (!supabase) return;
     try {
       await supabase.from('oferta_envios').insert({
-        lead_id: leadId, evento_id: eventoId, servico,
+        lead_id: leadId, evento_id: eventoId || null, mes_referencia: mesReferencia || null, servico,
         vendedor_id: vendedorId || null, vendedor_nome: vendedorNome || null,
       });
     } catch (err) {

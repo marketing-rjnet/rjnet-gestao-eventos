@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useApp } from './useApp';
 import { RANKING_DEBOUNCE_MS, RANKING_POLL_MS } from '../lib/constants';
 
-export function useRanking(eventoId, leadsCount) {
+// D-058: `obterFn` permite reaproveitar o hook para o placar por mês
+// (`obterRankingMes`) em vez de duplicar toda a lógica de debounce/polling.
+export function useRanking(eventoId, leadsCount, obterFn) {
   const { obterRanking } = useApp();
+  const fetchFn = obterFn || obterRanking;
   const [ranking, setRanking] = useState([]);
   const [rankingLoading, setRankingLoading] = useState(false);
   const rankingDebounce = useRef(null);
@@ -12,7 +15,7 @@ export function useRanking(eventoId, leadsCount) {
   atualizarRanking.current = async (id) => {
     if (!id) { setRanking([]); return; }
     setRankingLoading(true);
-    const r = await obterRanking(id);
+    const r = await fetchFn(id);
     setRanking(r || []);
     setRankingLoading(false);
   };

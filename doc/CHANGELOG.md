@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.5] — Captação de leads no dia a dia por mês de referência (fora de eventos)
+**Data:** 2026-07-02
+**Branch:** `claude/seller-monthly-leads-lvscr8`
+
+**O que mudou**
+
+- **`supabase/migracao-leads-mensais.sql`** (novo) — coluna `leads.mes_referencia` (date), constraint `check (num_nonnulls(evento_id, mes_referencia) = 1)` garantindo que todo lead pertence a exatamente um contexto, RPC `ranking_mes(mref)` (espelha `ranking_evento`), coluna `oferta_envios.mes_referencia`, e extensão de `limpar_leads_expirados()` (PA-10) com um terceiro bloco de retenção para leads de mês.
+- **`src/apps/VendedorApp.jsx`** — novo seletor "Evento" / "Atividade do Mês" sempre visível no topo da tela do vendedor. Em modo "Atividade do Mês", o vendedor escolhe um dos 12 meses do ano corrente e registra leads sem depender de nenhum evento ativo; meta (Bronze/Prata/Ouro), lista "Meus Leads", placar da equipe e o botão "Enviar oferta" funcionam identicamente nos dois modos. O fluxo "Evento" existente não foi alterado — só ganhou um branch condicional.
+- **`src/features/leads/LeadsTab.jsx`** — nova seção "Atividade Mensal" (marketing), com o mesmo padrão de seleção/exportação da tabela de eventos, para que os leads capturados fora de eventos continuem visíveis e exportáveis.
+- **`src/lib/dataService.js`, `src/api/leadApi.js`, `src/hooks/useRanking.js`, `src/context/AppProvider.jsx`, `src/utils/format.js`, `src/utils/csv.js`** — camada de dados, API, ranking e exportação espelhadas para o novo contexto (`fetchLeadsMes`/`fetchLeadsMeses`, `obterRankingMes`, `carregarLeadsMes`, `mesesDoAno`/`mesReferenciaLabel`, `exportLeadsMesCSV`/`exportLeadsMesConsolidadoCSV`).
+
+**Por que mudou**
+- A diretoria aprovou expandir o uso do sistema para o dia a dia do vendedor: além dos eventos de campo criados pelo marketing, o vendedor precisa poder registrar leads mês a mês, sem depender de um evento ativo.
+
+**Ações manuais necessárias**
+- Executar `supabase/migracao-leads-mensais.sql` no SQL Editor do Supabase.
+- Rodar `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema) logo em seguida — gotcha já documentado no D-057: sem isso, a coluna/RPC novas não ficam visíveis para o PostgREST imediatamente.
+- Nenhuma alteração de RLS necessária (as policies de `leads`/`oferta_envios` já eram agnósticas a evento).
+
+---
+
 ## [v5.4] — Estoque: edição de material existente (nome e quantidade)
 **Data:** 2026-06-30
 **Branch:** `claude/inventory-materials-checklist-ar5mcv`

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, fetchLeadsEvento, fetchOfertasEnviadasEvento, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -24,8 +24,9 @@ export function AppProvider({ children }) {
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
   const abortRef = useRef(null);
-  // TB-004: rastreia qual evento tem leads carregados — usado pelo realtime para recarregar
-  const eventoLeadsIdRef = useRef(null);
+  // TB-004/D-058: rastreia qual contexto (evento ou mês) tem leads carregados —
+  // usado pelo realtime para recarregar o mesmo contexto.
+  const leadsContextRef = useRef(null); // { tipo: 'evento' | 'mes', id }
 
   const carregar = async () => {
     abortRef.current?.abort();
@@ -44,11 +45,19 @@ export function AppProvider({ children }) {
     setVendedores(dados.vendedores);
     setEventos(dados.eventos);
     setOfertas(dados.ofertas);
-    // TB-004: recarrega leads do evento ativo quando realtime dispara
-    if (eventoLeadsIdRef.current) {
+    // TB-004/D-058: recarrega leads do contexto ativo (evento ou mês) quando realtime dispara
+    const ctx = leadsContextRef.current;
+    if (ctx?.tipo === 'evento') {
       const [leadsData, enviosData] = await Promise.all([
-        fetchLeadsEvento(eventoLeadsIdRef.current, signal),
-        fetchOfertasEnviadasEvento(eventoLeadsIdRef.current, signal),
+        fetchLeadsEvento(ctx.id, signal),
+        fetchOfertasEnviadasEvento(ctx.id, signal),
+      ]);
+      if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
+      if (enviosData !== null && !controller.signal.aborted) setOfertasEnviadas(enviosData);
+    } else if (ctx?.tipo === 'mes') {
+      const [leadsData, enviosData] = await Promise.all([
+        fetchLeadsMes(ctx.id, signal),
+        fetchOfertasEnviadasMes(ctx.id, signal),
       ]);
       if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
       if (enviosData !== null && !controller.signal.aborted) setOfertasEnviadas(enviosData);
@@ -60,8 +69,17 @@ export function AppProvider({ children }) {
   // TB-004: carrega leads de um evento específico on-demand (+ ofertas já enviadas, D-057)
   const carregarLeadsEvento = async (eventoId) => {
     if (!isSupabaseMode() || !eventoId) return;
-    eventoLeadsIdRef.current = eventoId;
+    leadsContextRef.current = { tipo: 'evento', id: eventoId };
     const [data, envios] = await Promise.all([fetchLeadsEvento(eventoId), fetchOfertasEnviadasEvento(eventoId)]);
+    if (data !== null) setLeads(data);
+    if (envios !== null) setOfertasEnviadas(envios);
+  };
+
+  // D-058: mesmo modelo on-demand, para leads de um mês de referência
+  const carregarLeadsMes = async (mesReferencia) => {
+    if (!isSupabaseMode() || !mesReferencia) return;
+    leadsContextRef.current = { tipo: 'mes', id: mesReferencia };
+    const [data, envios] = await Promise.all([fetchLeadsMes(mesReferencia), fetchOfertasEnviadasMes(mesReferencia)]);
     if (data !== null) setLeads(data);
     if (envios !== null) setOfertasEnviadas(envios);
   };
@@ -94,7 +112,7 @@ export function AppProvider({ children }) {
   const { patchEvento, addEvento, updateEvento, removeEvento } =
     createEventoApi({ eventos, setEventos });
 
-  const { addLead, updateLead, removeLead, obterRanking } =
+  const { addLead, updateLead, removeLead, obterRanking, obterRankingMes } =
     createLeadApi({ leads, setLeads });
 
   const { removeMaterial, addMaterial, updateMaterial, addMaterialEvento, removeMaterialEvento, toggleRetornadoEvento } =
@@ -119,10 +137,11 @@ export function AppProvider({ children }) {
     addVendedor, updateVendedor, toggleVendedor,
     criarUsuario, atualizarPerfil, excluirUsuario,
     saveOferta, removeOferta, registrarOfertaEnviada,
-    obterRanking,
+    obterRanking, obterRankingMes,
     recarregar: carregar,
-    carregarLeadsEvento,
+    carregarLeadsEvento, carregarLeadsMes,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
+    getLeadsMes: (mes) => leads.filter((l) => l.mesReferencia === mes),
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
     getOferta: (servico) => ofertas.find((o) => o.servico === servico),
     ofertaJaEnviada: (leadId, servico) => ofertasEnviadas.some((o) => o.leadId === leadId && o.servico === servico),

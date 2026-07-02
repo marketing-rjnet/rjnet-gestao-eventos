@@ -119,12 +119,14 @@ src/
     └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, limites (etapas 5)
 
 supabase/
-├── schema.sql            # Schema inicial (4 tabelas + seed)
-├── migracao-auth.sql     # RLS policies + integração Auth
-├── protecao-dados.sql    # Soft delete
-├── migracao-ofertas.sql  # Tabelas ofertas/oferta_envios + bucket Storage (D-057)
+├── schema.sql               # Schema inicial (4 tabelas + seed)
+├── migracao-auth.sql        # RLS policies + integração Auth
+├── protecao-dados.sql       # Soft delete
+├── migracao-ofertas.sql     # Tabelas ofertas/oferta_envios + bucket Storage (D-057)
+├── migracao-leads-mensais.sql  # Coluna mes_referencia + ranking_mes + retenção (D-058)
+├── migracao-retencao.sql    # Retenção LGPD automática (PA-10)
 ├── seed-usuarios-teste.sql
-├── config.toml           # Config local do Supabase
+├── config.toml              # Config local do Supabase
 └── functions/
     └── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
 
@@ -188,11 +190,11 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 |--------|-----------|
 | `materiais` | Estoque de materiais promocionais |
 | `eventos` | Eventos (datas, local, tipo, status, materiais JSONB) |
-| `leads` | Leads capturados por evento e vendedor |
+| `leads` | Leads capturados por vendedor, vinculados a **evento OU mês de referência** (mutuamente exclusivos — D-058) |
 | `perfis` | Perfis de usuários Auth (papel: marketing/vendedor/comercial) |
 | `vendedores` | Tabela legada (substituída por `perfis` no modo Auth) |
 | `ofertas` | Oferta ativa por serviço (imagem+copy), `servico` como PK — máx. 5 linhas (D-057) |
-| `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega (D-057) |
+| `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega; também aceita evento OU mês (D-057, D-058) |
 
 ### Enums usados nos dados
 
@@ -202,11 +204,12 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **serviços de interesse (array):** `internet_residencial`, `internet_empresarial`, `rjnet_movel`, `streamings`, `outro` — `servicoInteresse` é `string[]` no frontend; serializado como JSON string na coluna TEXT `servico_interesse` do banco (backward-compat com string simples legada)
 - **metas do vendedor:** `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` — `META_DIARIA` é alias de `META_OURO`
 - **papel perfil:** `marketing`, `vendedor`
+- **mês de referência do lead (D-058):** `mes_referencia` é `date` com o primeiro dia do mês (ex: `2026-07-01`); `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos via `check (num_nonnulls(evento_id, mes_referencia) = 1)`
 
 ### RLS (Row Level Security)
 
 - `marketing`: acesso total a todas as tabelas
-- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`)
+- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`) — regra idêntica para leads de evento ou de mês (D-058), RLS nunca depende de `evento_id`/`mes_referencia`
 - `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing` (mesmo padrão de `materiais`)
 - `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
 
@@ -255,7 +258,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Eventos | marketing | CRUD de eventos, alocação de materiais, resumo de leads por vendedor |
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
 | Ofertas | marketing | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057) |
-| Leads | marketing | Visualização e filtros, export CSV, gráfico por evento |
+| Leads | marketing | Export CSV por evento e por mês de referência (D-058), auditoria de exportação |
 | Equipe | marketing | CRUD de vendedores, desempenho por evento |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046) |
 
@@ -317,12 +320,12 @@ node tests/lead.unit.test.js       # validação de leads
 |---------|--------|-----------|
 | `src/main.jsx` | ~35 | ErrorBoundary + ponto de entrada React |
 | `src/api/eventoApi.js` | ~22 | Factory CRUD de eventos (etapa 17) |
-| `src/api/leadApi.js` | ~20 | Factory CRUD de leads (etapa 17) |
+| `src/api/leadApi.js` | ~76 | Factory CRUD de leads + `obterRanking`/`obterRankingMes` (etapa 17, D-058) |
 | `src/api/materialApi.js` | ~30 | Factory CRUD de materiais e materiais de evento (etapa 17) |
 | `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
 | `src/api/ofertaApi.js` | ~20 | Factory de ofertas por serviço + registro de envio (D-057) |
-| `src/context/AppProvider.jsx` | ~100 | Provider: orquestra estado, efeitos e factories de API (etapas 16–17) |
-| `src/apps/VendedorApp.jsx` | ~800 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal (etapa 13, D-057) |
+| `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
+| `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
@@ -340,19 +343,20 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
-| `src/hooks/useRanking.js` | ~38 | Hook de polling de ranking com debounce e cleanup (etapa 15) |
-| `src/utils/format.js` | ~21 | Formatação de datas, labels e iniciais (etapa 1) |
+| `src/hooks/useRanking.js` | ~42 | Hook de polling de ranking com debounce e cleanup; parâmetro `obterFn` opcional reaproveitado para o placar por mês (etapa 15, D-058) |
+| `src/utils/format.js` | ~42 | Formatação de datas, labels e iniciais; `mesesDoAno`/`mesReferenciaLabel` (etapa 1, D-058) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
-| `src/utils/csv.js` | ~20 | Exportação CSV de leads (etapa 3) |
+| `src/utils/csv.js` | ~98 | Exportação CSV de leads por evento e por mês (etapa 3, D-058) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
-| `src/lib/dataService.js` | ~400 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b) |
+| `src/lib/dataService.js` | ~745 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058) |
 | `src/lib/activityLog.js` | ~100 | Buffer localStorage + Supabase Realtime broadcast + receiveActivityLog (D-044, D-045, D-046) |
 | `src/features/monitoring/MonitoringTab.jsx` | ~460 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards com status de atividade, feed 9 tipos, perf tiers, toolbar sessão, limpar log (D-044–D-051) |
 | `src/lib/security.js` | ~50 | Sanitização de inputs |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
 | `supabase/migracao-ofertas.sql` | ~75 | Tabelas ofertas/oferta_envios, RLS e bucket Storage (D-057) |
+| `supabase/migracao-leads-mensais.sql` | ~122 | Coluna `mes_referencia`, constraint de exclusividade, RPC `ranking_mes`, retenção LGPD estendida (D-058) |
 | `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

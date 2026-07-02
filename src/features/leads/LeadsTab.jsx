@@ -1,15 +1,66 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { servicoLabel, fmtDateLong } from '../../utils/format';
-import { exportLeadsCSV, exportLeadsConsolidadoCSV } from '../../utils/csv';
-import { fetchLeadsEvento, fetchLeadsEventos, db } from '../../lib/dataService';
+import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
+import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
+import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, db } from '../../lib/dataService';
 
 export function LeadsTab({ session }) {
   const { eventos } = useApp();
   const [selecionados, setSelecionados] = useState([]);
   const [carregando, setCarregando] = useState(false);
 
+  // D-058: leads do dia a dia, fora de eventos — mesmo padrão de interação
+  // da tabela de eventos acima, só que por mês de referência.
+  const anoAtual = new Date().getFullYear();
+  const [anoSelecionado, setAnoSelecionado] = useState(anoAtual);
+  const [mesesSelecionados, setMesesSelecionados] = useState([]);
+  const [carregandoMes, setCarregandoMes] = useState(false);
+  const mesesDoAnoSelecionado = mesesDoAno(anoSelecionado);
+
   const evName = (id) => eventos.find((e) => e.id === id)?.nome || id;
+
+  const toggleMes = (value) => setMesesSelecionados((prev) =>
+    prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
+  );
+
+  const toggleTodosMeses = () =>
+    setMesesSelecionados(mesesSelecionados.length === mesesDoAnoSelecionado.length ? [] : mesesDoAnoSelecionado.map((m) => m.value));
+
+  const exportarMes = async () => {
+    if (mesesSelecionados.length !== 1) return;
+    setCarregandoMes(true);
+    const mesRef = mesesSelecionados[0];
+    const leads = await fetchLeadsMes(mesRef);
+    setCarregandoMes(false);
+    if (!leads?.length) { alert('Nenhum lead encontrado para este mês.'); return; }
+    const sufixo = mesReferenciaLabel(mesRef).replace(/\s+/g, '_').replace('/', '-');
+    exportLeadsMesCSV(leads, sufixo, servicoLabel, mesReferenciaLabel, ({ totalRegistros }) => {
+      db.registrarExportacao({
+        usuarioId: session?.userId || null,
+        usuarioNome: session?.nome || null,
+        usuarioEmail: session?.email || null,
+        filtros: { mes: mesRef },
+        totalRegistros,
+      });
+    });
+  };
+
+  const exportarMesConsolidado = async () => {
+    if (mesesSelecionados.length === 0) return;
+    setCarregandoMes(true);
+    const leads = await fetchLeadsMeses(mesesSelecionados);
+    setCarregandoMes(false);
+    if (!leads?.length) { alert('Nenhum lead encontrado nos meses selecionados.'); return; }
+    exportLeadsMesConsolidadoCSV(leads, mesReferenciaLabel, servicoLabel, ({ totalRegistros, totalMeses }) => {
+      db.registrarExportacao({
+        usuarioId: session?.userId || null,
+        usuarioNome: session?.nome || null,
+        usuarioEmail: session?.email || null,
+        filtros: { meses: mesesSelecionados },
+        totalRegistros,
+      });
+    });
+  };
 
   const toggle = (id) => setSelecionados((prev) =>
     prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -134,6 +185,83 @@ export function LeadsTab({ session }) {
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
             {selecionados.length} evento{selecionados.length > 1 ? 's' : ''} selecionado{selecionados.length > 1 ? 's' : ''}.
             {selecionados.length === 1 ? ' Use "Exportar evento" para CSV individual.' : ' Use "Exportar consolidado" para CSV único com coluna Evento.'}
+          </div>
+        )}
+      </div>
+
+      {/* D-058: leads do dia a dia, fora de eventos — mesmo padrão da tabela acima */}
+      <div className="page-head" style={{ marginTop: 28 }}>
+        <div>
+          <div className="page-title">Atividade Mensal</div>
+          <p className="tab-desc">Leads registrados pelo vendedor fora de eventos, por mês de referência.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select value={anoSelecionado} onChange={(e) => { setAnoSelecionado(Number(e.target.value)); setMesesSelecionados([]); }} style={{ fontSize: 13 }}>
+            <option value={anoAtual}>{anoAtual}</option>
+            <option value={anoAtual - 1}>{anoAtual - 1}</option>
+          </select>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 13 }}
+            onClick={exportarMes}
+            disabled={mesesSelecionados.length !== 1 || carregandoMes}
+            title="Exporta apenas o mês selecionado"
+          >
+            {carregandoMes ? 'Carregando...' : '↓ Exportar mês'}
+          </button>
+          <button
+            className="btn-primary"
+            style={{ fontSize: 13 }}
+            onClick={exportarMesConsolidado}
+            disabled={mesesSelecionados.length === 0 || carregandoMes}
+            title="Exporta todos os meses selecionados em um único CSV com coluna Mês"
+          >
+            {carregandoMes ? 'Carregando...' : `↓ Exportar consolidado${mesesSelecionados.length > 0 ? ` (${mesesSelecionados.length})` : ''}`}
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span className="section-title" style={{ marginBottom: 0 }}>Meses de {anoSelecionado}</span>
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodosMeses}>
+            {mesesSelecionados.length === mesesDoAnoSelecionado.length ? 'Desmarcar todos' : 'Selecionar todos'}
+          </button>
+        </div>
+        <div className="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: 40 }}></th>
+                <th>Mês</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mesesDoAnoSelecionado.map((m) => (
+                <tr
+                  key={m.value}
+                  onClick={() => toggleMes(m.value)}
+                  style={{ cursor: 'pointer', background: mesesSelecionados.includes(m.value) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
+                >
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={mesesSelecionados.includes(m.value)}
+                      onChange={() => toggleMes(m.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </td>
+                  <td className="strong">{m.label}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {mesesSelecionados.length > 0 && (
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
+            {mesesSelecionados.length} mês{mesesSelecionados.length > 1 ? 'es' : ''} selecionado{mesesSelecionados.length > 1 ? 's' : ''}.
+            {mesesSelecionados.length === 1 ? ' Use "Exportar mês" para CSV individual.' : ' Use "Exportar consolidado" para CSV único com coluna Mês.'}
           </div>
         )}
       </div>
