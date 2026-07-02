@@ -1,19 +1,19 @@
 # RJNet Gestão de Eventos
 
-Sistema de gerenciamento de eventos de campo da RJNet. Permite que o time de marketing crie e gerencie eventos, estoque e equipe, enquanto vendedores em campo capturam leads e acompanham desempenho em tempo real — tudo em um único SPA React com suporte offline e sincronização automática via Supabase.
+Sistema de gerenciamento de eventos de campo **e do dia a dia comercial** da RJNet. Permite que o time de marketing crie e gerencie eventos, estoque, ofertas e equipe, enquanto vendedores capturam leads — em eventos de campo ou na atividade comercial mensal, fora de eventos — e acompanham desempenho em tempo real. Tudo em um único SPA React com suporte offline e sincronização automática via Supabase.
 
 ---
 
 ## Visão Geral
 
-O sistema resolve um problema operacional concreto: eventos de campo da RJNet envolvem equipes de vendedores capturando leads em locais com conexão instável, e um time de marketing que precisa acompanhar resultados e controlar materiais em tempo real.
+O sistema nasceu para resolver um problema operacional concreto: eventos de campo da RJNet envolviam equipes de vendedores capturando leads em locais com conexão instável, e um time de marketing que precisava acompanhar resultados e controlar materiais em tempo real. Ele evoluiu para cobrir também o **dia a dia do vendedor fora de eventos** (D-058): o vendedor alterna livremente entre o contexto "Evento" (campo) e "Atividade do Mês" (comercial contínuo, por mês de referência), sem precisar de um evento ativo para registrar um lead.
 
 **Dois perfis de acesso:**
 
 | Perfil | O que faz |
 |--------|-----------|
-| `marketing` | Cria eventos, gerencia estoque de materiais, acompanha KPIs, exporta leads, gerencia equipe |
-| `vendedor` | Registra leads em campo, acompanha ranking, gerencia os próprios leads |
+| `marketing` | Cria eventos, gerencia estoque de materiais, mantém as ofertas prontas por serviço, acompanha KPIs, exporta leads (por evento e por mês), gerencia equipe |
+| `vendedor` | Registra leads em campo ou no dia a dia mensal, acompanha ranking, gerencia os próprios leads, envia ofertas prontas por WhatsApp |
 
 **Dois modos de operação:**
 
@@ -64,8 +64,8 @@ src/
 │
 ├── apps/
 │   ├── Root.jsx                # Detecta modo (Supabase/local) e dark mode
-│   ├── MarketingApp.jsx        # Shell do marketing: 5 tabs + navegação
-│   └── VendedorApp.jsx         # Shell do vendedor: 4 tabs + LeadEditInline
+│   ├── MarketingApp.jsx        # Shell do marketing: 7 tabs + navegação
+│   └── VendedorApp.jsx         # Shell do vendedor: 4 tabs + seletor Evento/Atividade do Mês (D-058)
 │
 ├── auth/
 │   ├── RootAuth.jsx / RootLegacy.jsx   # Roteadores de auth por modo
@@ -75,15 +75,17 @@ src/
 │
 ├── features/
 │   ├── events/        # Dashboard (KPIs + gráfico), EventosTab (lista), EventDetail (detalhe)
-│   ├── inventory/     # EstoqueTab (gestão de materiais por nível)
-│   ├── leads/         # LeadsTab (filtros, gráfico, export CSV)
+│   ├── inventory/     # EstoqueTab (gestão de materiais por nível, importação em lote)
+│   ├── offers/        # OfertasTab — oferta ativa por serviço, marketing only (D-057)
+│   ├── leads/         # LeadsTab (filtros, gráfico, export CSV por evento e por mês)
 │   ├── checkin/       # CheckinTab (busca de lead por CPF)
-│   └── team/          # EquipeTab (modo local) / EquipeAuthTab (modo Supabase + RBAC)
+│   ├── team/          # EquipeTab (modo local) / EquipeAuthTab (modo Supabase + RBAC)
+│   └── monitoring/    # MonitoringTab — diagnóstico ao vivo de sincronização e atividade (D-044+)
 │
 ├── components/
 │   ├── ui.jsx          # Icon, StatusBadge, TipoBadge, Kpi, ChartView
 │   ├── SyncBadge.jsx   # Indicador visual de sincronização
-│   └── modals/         # EventModal, MaterialModal
+│   └── modals/         # EventModal, MaterialModal, MaterialChecklistModal, OfertaModal
 │
 ├── context/
 │   ├── AppContext.js   # createContext(null)
@@ -92,9 +94,10 @@ src/
 │
 ├── api/
 │   ├── eventoApi.js    # createEventoApi — add, update, remove, patch
-│   ├── leadApi.js      # createLeadApi — add, update, remove
+│   ├── leadApi.js      # createLeadApi — add, update, remove, obterRanking/obterRankingMes
 │   ├── materialApi.js  # createMaterialApi — add, update, addEvento, removeEvento, toggleRetornado
-│   └── vendedorApi.js  # createVendedorApi — add, update, toggle
+│   ├── vendedorApi.js  # createVendedorApi — add, update, toggle
+│   └── ofertaApi.js    # createOfertaApi — saveOferta, removeOferta, registrarOfertaEnviada (D-057)
 │
 ├── hooks/
 │   ├── useApp.js        # Único ponto de consumo do AppContext
@@ -102,15 +105,17 @@ src/
 │   └── useRanking.js    # Polling de ranking com debounce e cleanup automático
 │
 ├── utils/
-│   ├── format.js    # fmtDate, fmtDateLong, initials, label maps de domínio
+│   ├── format.js    # fmtDate, fmtDateLong, initials, label maps, mesesDoAno/mesReferenciaLabel (D-058)
 │   ├── masks.js     # maskCpf, maskTel, validarCpf, validarTelefone
-│   ├── csv.js       # exportLeadsCSV
+│   ├── csv.js       # exportLeadsCSV (por evento e por mês)
 │   └── mockData.js  # MOCK_* para modo local
 │
 └── lib/
     ├── supabase.js      # Cliente Supabase + supabaseEnabled (feature flag)
     ├── mode.js          # isSupabaseMode(), getMode(), MODE — fonte única de verdade do modo
     ├── dataService.js   # Queries, auth, realtime, retry, fila offline, camelCase↔snake_case
+    ├── activityLog.js   # Log de atividade (Monitor): buffer local + broadcast Realtime
+    ├── crypto.js        # AES-GCM + PBKDF2 para a fila offline no localStorage (LGPD)
     ├── security.js      # sanitizeText() — sanitização de inputs
     ├── cache.js         # Cache em memória com TTL (30s para rankings)
     └── constants.js     # Constantes globais: STATUS_EVENTO, NIVEL_ESTOQUE, META_*, limites
@@ -142,9 +147,11 @@ Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/arc
 | Tabela | Descrição |
 |--------|-----------|
 | `eventos` | Eventos (datas, local, tipo, status, materiais JSONB) |
-| `leads` | Leads capturados por evento e vendedor (com soft delete via `deletado`) |
+| `leads` | Leads capturados por vendedor, vinculados a **evento OU mês de referência** — mutuamente exclusivos (D-058); soft delete via `deletado` |
 | `materiais` | Estoque de materiais promocionais |
 | `perfis` | Perfis de usuários Auth (papel: `marketing` / `vendedor`) |
+| `ofertas` | Oferta ativa por serviço (imagem + copy), `servico` como chave primária — máx. 5 linhas (D-057) |
+| `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega (D-057) |
 
 ### Enums de domínio
 
@@ -208,7 +215,7 @@ npm run dev
 
 **Setup inicial do banco:**
 1. SQL Editor do Supabase → executar `supabase/schema.sql`
-2. Executar `supabase/migracao-auth.sql` (RLS + Auth)
+2. Executar as demais migrações **na ordem definida em `doc/architecture/SUPABASE.md`** (o projeto já acumula mais de uma dezena — `migracao-auth.sql`, `migracao-ofertas.sql`, `migracao-leads-mensais.sql`, etc.; a ordem importa porque algumas dependem de colunas criadas por outras)
 3. Criar primeiro usuário marketing:
    ```sql
    UPDATE perfis SET papel = 'marketing', ativo = true WHERE email = 'seu@email.com';
@@ -269,8 +276,14 @@ export function createExemploApi({ itens, setItens }) {
 
 ### Histórico de versões (resumo)
 
+> Lista completa e detalhada em `doc/CHANGELOG.md`. Abaixo, só os marcos mais relevantes.
+
 | Versão | Data | Mudança principal |
 |--------|------|-------------------|
+| v5.5 | Jul/2026 | Captação de leads por mês de referência, fora de eventos — dia a dia comercial (D-058) |
+| v5.x | Jun–Jul/2026 | Área de Ofertas: imagem+copy prontas por serviço, envio manual via WhatsApp pelo vendedor (D-057) |
+| v3.x–v4.x | Jun/2026 | Ciclo de conformidade LGPD: criptografia da fila offline, retenção automática, remoção de CPF do check-in, auditoria de exportação |
+| v2.x | Jun/2026 | Redesign visual V3 (versão de UI atual); aba Monitor com diagnóstico de sincronização ao vivo (D-044+) |
 | v1.4 | Jun/2026 | Controle Sim/Não para "já é cliente"; exclusão de lead pelo vendedor com confirmação inline |
 | v1.2 | Jun/2026 | Multi-seleção de serviços por lead; metas em 3 níveis Bronze/Prata/Ouro |
 | v1.1 | Jun/2026 | Centralização do dual mode em `src/lib/mode.js` (etapa 18/18 da refatoração) |
@@ -306,6 +319,10 @@ Com a base modular estabilizada, as evoluções mais naturais são:
 |---------|----------|
 | `doc/architecture/SYSTEM_MAP.md` | Arquitetura viva — estrutura, fluxo de dados e restrições |
 | `doc/architecture/DECISIONS.md` | Histórico de decisões arquiteturais com justificativas |
-| `doc/architecture/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, usuários de teste) |
+| `doc/architecture/SUPABASE.md` | Configuração detalhada do Supabase (schema, ordem de migrações, RLS, usuários de teste) |
 | `doc/CHANGELOG.md` | Histórico completo de mudanças por versão |
+| `doc/BOAS_PRATICAS.md` | Fluxo de desenvolvimento, git, convenção de commits, onde registrar cada tipo de mudança |
+| `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` + `PLANO_DE_ACAO_LGPD.md` | Auditoria e plano de ação de conformidade LGPD |
+| `doc/performance/TECHNICAL_BACKLOG.md` | Backlog técnico de performance priorizado |
+| `doc/ui/UI_VERSIONS.md` | Catálogo de versões de UI/UX — V3 é a versão atual |
 | `CLAUDE.md` | Instruções para sessões de IA (stack, scripts, variáveis, banco) |

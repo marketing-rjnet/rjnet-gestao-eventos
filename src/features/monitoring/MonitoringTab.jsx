@@ -41,6 +41,26 @@ const TYPE_DESC = {
   offline_queue: 'sem internet · lead salvo localmente e será enviado ao reconectar',
 };
 
+/* ─── "Se X, faça Y" — nota de ação sugerida em campo ───────────── */
+const PERF_SOLUCAO = [
+  { min: 60000, texto: 'Sem conexão real com o servidor. Vendedor deve continuar normalmente — o lead já está salvo localmente e sincroniza sozinho quando a conexão voltar. Confirme depois pelo filtro Sync.' },
+  { min: 30000, texto: 'Provável perda de conexão no momento do salvamento. Peça pro vendedor conferir o sinal e, se o lead não aparecer como confirmado em alguns minutos, registrar de novo.' },
+  { min: 5000,  texto: 'Rede fraca no local. Oriente o vendedor a aguardar sinal melhor ou se afastar de áreas com pouca cobertura antes de registrar o próximo lead.' },
+  { min: 0,     texto: 'Lentidão pontual — normal em 3G/4G. Sem ação necessária; só vira problema se repetir com frequência.' },
+];
+
+const SOLUCAO_DESC = {
+  sync_error:    'Peça pro vendedor tentar salvar de novo. Se o erro persistir em vários leads, verifique a conexão dele ou o status do Supabase.',
+  offline_queue: 'Nenhuma ação necessária agora — o app sincroniza sozinho ao reconectar. Só confirme depois que o lead aparecer como "sync confirmado".',
+};
+
+function getSolucao(log) {
+  if (log.type === 'perf_warn') {
+    return PERF_SOLUCAO.find((tier) => (log.ms || 0) >= tier.min).texto;
+  }
+  return SOLUCAO_DESC[log.type] || null;
+}
+
 function getPerfCfg(ms) {
   if (ms >= 60000) return { label: 'timeout de rede',   mark: '✗', color: 'var(--red)' };
   if (ms >= 30000) return { label: 'possível timeout',  mark: '⚡', color: 'var(--red)' };
@@ -166,6 +186,7 @@ function FeedEntry({ log, eventoNome }) {
     ? getPerfCfg(log.ms || 0)
     : (TYPE_CFG[log.type] || { label: log.type, mark: '·', color: 'var(--text-3)' });
   const desc = getDesc(log);
+  const solucao = getSolucao(log);
   const evento = eventoNome(log.eventoId);
   const isSyncOk = log.type === 'lead_sync_ok';
   return (
@@ -204,6 +225,11 @@ function FeedEntry({ log, eventoNome }) {
           {desc && (
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, paddingLeft: 2, lineHeight: 1.4 }}>
               ↳ {desc}
+            </div>
+          )}
+          {solucao && (
+            <div style={{ fontSize: 11, color: 'var(--rj-blue)', marginTop: 3, paddingLeft: 2, lineHeight: 1.4 }}>
+              🛠 {solucao}
             </div>
           )}
         </div>
