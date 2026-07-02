@@ -57,7 +57,7 @@ src/
 ├── apps/
 │   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
 │   ├── MarketingApp.jsx  # Shell do usuário marketing: navegação, tabs, dark mode (etapa 14)
-│   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline (etapa 13)
+│   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline + OfertaPickerModal (etapa 13, D-057)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
 │   ├── LoginAuth.jsx     # Formulário de login Supabase + recuperação de senha (etapa 8)
@@ -325,7 +325,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
 | `src/api/ofertaApi.js` | ~20 | Factory de ofertas por serviço + registro de envio (D-057) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
-| `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline; seletor Evento/Atividade do Mês (etapa 13, D-058) |
+| `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
