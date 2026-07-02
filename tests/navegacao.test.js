@@ -5,15 +5,16 @@
  *     Aba padrão do Marketing é "Início" (Dashboard). Vendedor tem 3 botões no bottom nav.
  */
 const { test, expect } = require('@playwright/test');
-const { loginMarketing, loginComercial } = require('./helpers/auth');
+const { loginMarketing } = require('./helpers/auth');
 
 test.describe('Navegação entre abas', () => {
 
-  test('header desktop do Marketing exibe 7 tabs', async ({ page }) => {
+  test('header desktop do Marketing exibe 8 tabs', async ({ page }) => {
     await loginMarketing(page);
     await expect(page.locator('.header-nav')).toBeVisible();
     const tabs = page.locator('.header-nav .nav-tab');
-    await expect(tabs).toHaveCount(7);
+    // Início, Eventos, Estoque, Ofertas (D-057), Relatórios, Equipe, Check-in, Monitor
+    await expect(tabs).toHaveCount(8);
   });
 
   test('aba Início (Dashboard) está ativa por padrão', async ({ page }) => {
@@ -37,7 +38,10 @@ test.describe('Navegação entre abas', () => {
     await loginMarketing(page);
     await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
     await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Relatórios');
-    await expect(page.locator('.page-title')).toHaveText('Leads');
+    // D-058: a aba agora tem 2 seções (evento + mês de referência), cada
+    // uma com seu próprio .page-title — não existe mais um título "Leads" só.
+    await expect(page.locator('.page-title', { hasText: 'Exportar Leads' })).toBeVisible();
+    await expect(page.locator('.page-title', { hasText: 'Atividade Mensal' })).toBeVisible();
   });
 
   test('clicando em Equipe exibe lista de vendedores', async ({ page }) => {
@@ -77,19 +81,7 @@ test.describe('Navegação entre abas', () => {
     await expect(page.locator('.event-grid')).toBeVisible();
   });
 
-  test('Comercial usa navegação própria com 3 abas', async ({ page }) => {
-    await loginComercial(page);
-    const tabs = page.locator('.vend-bottom-nav .vend-nav-btn');
-    await expect(tabs).toHaveCount(3);
-    await expect(tabs.nth(0)).toContainText('Registrar');
-    await expect(tabs.nth(1)).toContainText('Meus Leads');
-    await expect(tabs.nth(2)).toContainText('Evento');
-  });
-
-  test('Comercial inicia na aba Registrar com wizard visível', async ({ page }) => {
-    await loginComercial(page);
-    await expect(page.locator('.wizard-progress')).toBeVisible();
-    await expect(page.locator('.vend-nav-btn.active')).toContainText('Registrar');
-  });
+  // Os testes de navegação Comercial (vendedor) estão em navegacao-supabase.test.js:
+  // o modo legado não tem mais caminho de UI para autenticar como vendedor.
 
 });
