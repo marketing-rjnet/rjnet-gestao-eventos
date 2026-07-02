@@ -152,6 +152,44 @@ Se você não gostou do hover amarelo nos cards (A-05), mas gostou de tudo mais,
 
 Se tudo estivesse num commit só, você perderia tudo ou não reverteria nada.
 
+### Convenção de mensagem de commit
+
+```
+<tipo>(<escopo>): <descrição no imperativo> [D-XXX]
+```
+
+| Tipo | Quando usar |
+|------|-------------|
+| `feat` | Nova funcionalidade |
+| `fix` | Correção de bug ou comportamento incorreto |
+| `docs` | Só documentação, sem mudança de código |
+| `refactor` | Reorganização de código sem mudar comportamento |
+| `perf` | Melhoria de performance mensurável |
+
+O escopo é o domínio afetado (`ofertas`, `vendedor`, `estoque`, `monitor`, etc.). Quando o commit implementa ou fecha uma decisão registrada em `DECISIONS.md`, referenciar o ID no final (`(D-057)`) — facilita rastrear no `git log` qual commit corresponde a qual decisão.
+
+**Exemplos reais do projeto:**
+```
+feat(ofertas): baixar imagem via blob em vez de abrir em nova aba (D-057)
+fix(vendedor): move editar/excluir lead pra ícones discretos no topo do card
+docs: fecha lacunas de documentação da sessão de Ofertas (D-057)
+```
+
+### Onde registrar cada tipo de mudança
+
+Nem toda mudança precisa dos quatro documentos — regra prática:
+
+| Mudança | Registrar em |
+|---------|--------------|
+| Decisão arquitetural, de padrão ou "por que escolhemos X e não Y" | `doc/architecture/DECISIONS.md` (novo D-XXX) |
+| Qualquer mudança que afete o comportamento do sistema em produção | `doc/CHANGELOG.md` (nova versão) |
+| Mudança na estrutura de pastas, fluxo de dados ou regra técnica vigente | `doc/architecture/SYSTEM_MAP.md` (e `CLAUDE.md` se afetar a árvore de diretórios) |
+| Mudança de schema, RLS ou migração no Supabase | `doc/architecture/SUPABASE.md` |
+| Mudança que envolve coleta/armazenamento de dado pessoal | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` + `doc/lgpd/PLANO_DE_ACAO_LGPD.md` |
+| Ajuste pontual de UI sem mudar fluxo (cor, espaçamento, texto) | Só o commit já basta — não precisa de entrada em doc |
+
+Uma feature típica (como D-057/D-058) toca DECISIONS + CHANGELOG + SYSTEM_MAP + SUPABASE no mesmo PR. Um `fix` de UI isolado normalmente não precisa de nenhum.
+
 ---
 
 ## 6. Documentação Obrigatória por Fase
