@@ -458,7 +458,7 @@ export const db = {
       );
     } catch (err) {
       console.error('[rjnet] Falha ao enviar imagem da oferta:', err.message);
-      if (onFail) onFail();
+      if (onFail) onFail(err.message);
     }
   },
   removeOferta: (servico) => exec(supabase?.from('ofertas').delete().eq('servico', servico), 'remover oferta'),

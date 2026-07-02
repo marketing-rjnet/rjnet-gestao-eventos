@@ -322,8 +322,7 @@
       .lm-contacts { display: flex; gap: 8px; margin-top: 10px; }
       .lm-contact-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: opacity .15s; }
       .lm-contact-btn:active { opacity: .75; }
-      .lm-contact-call { background: #e8f0f9; color: var(--rj-blue); }
-      .lm-contact-whats { background: #dcfce7; color: #16a34a; }
+      .lm-contact-whats { background: var(--green-bg); color: var(--green); border: 1.5px solid var(--green); }
       .lm-edit-btn { margin-top: 8px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--bg); border: 1px solid var(--border); cursor: pointer; transition: all .15s; }
       .lm-edit-btn:hover { border-color: var(--rj-blue); color: var(--rj-blue); }
       .lm-del-btn { margin-top: 6px; width: 100%; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--red); background: var(--bg); border: 1px solid var(--red); cursor: pointer; transition: all .15s; }

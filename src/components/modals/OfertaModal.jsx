@@ -32,7 +32,7 @@ export function OfertaModal({ servico, oferta, onClose }) {
     e.preventDefault();
     const texto = sanitizeText(copy, 800);
     if (!texto) { alert('Escreva a mensagem da oferta.'); return; }
-    saveOferta(servico, { copy: texto, file });
+    saveOferta(servico, { copy: texto, file }, (msg) => alert('Falha ao salvar a oferta' + (msg ? `: ${msg}` : '.') + ' Tente novamente.'));
     onClose();
   };
 
