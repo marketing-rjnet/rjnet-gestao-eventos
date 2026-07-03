@@ -66,6 +66,15 @@ test.describe('SQL Injection — Login', () => {
 
 test.describe('XSS — Login', () => {
 
+  // Cada teste faz vários page.goto() em sequência; a fonte do Google
+  // carregada por index.html é bloqueante e não deveria ser uma dependência
+  // de rede externa para um teste E2E — bloquear deixa o teste mais rápido
+  // e hermético, independente da rede do ambiente onde roda.
+  test.beforeEach(async ({ page }) => {
+    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
+    await page.route('https://fonts.gstatic.com/**', (route) => route.abort());
+  });
+
   test('payloads XSS no campo usuário não executam script', async ({ page }) => {
     const alerts = [];
     page.on('dialog', async dialog => {

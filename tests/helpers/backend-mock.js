@@ -132,6 +132,10 @@ async function sessaoSalva(page, papel = 'vendedor') {
 async function loginPorEmail(page, papel = 'vendedor') {
   const conta = USERS[papel];
   await page.goto('/');
+  // Timeout mais generoso: quando chamado logo após um logout (ex: teste
+  // que troca de vendedor para marketing na mesma página), a transição para
+  // a tela de login pode demorar um pouco mais sob carga do worker.
+  await page.locator('.login-form input[type="email"]').waitFor({ state: 'visible', timeout: 20000 });
   await page.locator('.login-form input[type="email"]').fill(conta.user.email);
   await page.locator('.login-form input[type="password"]').fill('senha-mock-123');
   await page.locator('.login-form button[type="submit"]').click();
