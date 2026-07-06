@@ -5,7 +5,7 @@ import SyncBadge from '../components/SyncBadge';
 import { Dashboard, EventosTab, EventDetail } from '../features/events';
 import { EstoqueTab } from '../features/inventory';
 import { OfertasTab } from '../features/offers';
-import { LeadsTab, MesDetail } from '../features/leads';
+import { LeadsTab } from '../features/leads';
 import { CheckinTab } from '../features/checkin';
 import { EquipeTab, EquipeAuthTab } from '../features/team';
 import { MonitoringTab } from '../features/monitoring';
@@ -37,7 +37,6 @@ const ALL_TABS = [
 export default function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
   const [tab, setTab] = useState("inicio");
   const [detailId, setDetailId] = useState(null);
-  const [mesDetalhe, setMesDetalhe] = useState(null);
   const [showMore, setShowMore] = useState(false);
 
   const allDesktopTabs = [
@@ -51,12 +50,12 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
     { id: "monitor", label: "Monitor",   ico: "activity" },
   ];
 
-  const switchTab = (id) => { setTab(id); setDetailId(null); setMesDetalhe(null); setShowMore(false); };
+  const switchTab = (id) => { setTab(id); setDetailId(null); setShowMore(false); };
 
-  // D-060: cards do Início (Dashboard) navegam direto para o detalhe do
-  // evento ativo ou do mês corrente, sem passar pela lista.
-  const abrirEvento = (eventoId) => { setDetailId(eventoId); setMesDetalhe(null); setTab("eventos"); setShowMore(false); };
-  const abrirMes = (mesRef) => { setMesDetalhe(mesRef); setDetailId(null); setTab("leads"); setShowMore(false); };
+  // D-060: card "Evento Ativo" do Início navega direto para o detalhe do
+  // evento, sem passar pela lista. O card "Mês/Dia a dia" fica embutido no
+  // próprio Dashboard (ver Dashboard.jsx) — não passa por aqui.
+  const abrirEvento = (eventoId) => { setDetailId(eventoId); setTab("eventos"); setShowMore(false); };
 
   const moreActive = MORE_TABS.some((t) => t.id === tab);
 
@@ -79,15 +78,13 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         <button className="btn-ghost" style={{ marginLeft: "auto" }} onClick={onLogout}>Sair</button>
       </header>
 
-      {tab === "inicio" && <Dashboard onOpenEvento={abrirEvento} onOpenMes={abrirMes} />}
+      {tab === "inicio" && <Dashboard onOpenEvento={abrirEvento} />}
       {tab === "eventos" && (detailId
         ? <EventDetail eventoId={detailId} onBack={() => setDetailId(null)} />
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "estoque" && <EstoqueTab />}
       {tab === "ofertas" && <OfertasTab />}
-      {tab === "leads" && (mesDetalhe
-        ? <MesDetail mesReferencia={mesDetalhe} onBack={() => setMesDetalhe(null)} />
-        : <LeadsTab session={session} />)}
+      {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}
       {tab === "monitor" && <MonitoringTab />}

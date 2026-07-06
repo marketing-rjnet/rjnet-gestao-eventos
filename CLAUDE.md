@@ -333,7 +333,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/equipeApi.js` | ~29 | Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
-| `src/apps/ComercialApp.jsx` | ~70 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `mesDetalhe`/`abrirEvento`/`abrirMes` para os cards do Início (D-060) |
+| `src/apps/ComercialApp.jsx` | ~67 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
@@ -346,7 +346,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/components/modals/MaterialChecklistModal.jsx` | ~100 | Importação em lote de materiais: 14 itens pré-definidos, seleção + ajuste de quantidade (D-053, marketing only) |
 | `src/components/modals/OfertaModal.jsx` | ~65 | Upload de imagem (1080x1080) + copy por serviço, marketing only (D-057) |
 | `src/features/offers/OfertasTab.jsx` | ~65 | Lista fixa das 5 ofertas por serviço, marketing only (D-057) |
-| `src/features/events/Dashboard.jsx` | ~166 | KPIs, gráfico donut, próximos eventos; 2 hero cards clicáveis Evento/Mês via `obterRanking`/`obterRankingMes` (etapa 10, D-060) |
+| `src/features/events/Dashboard.jsx` | ~175 | KPIs, gráfico donut, próximos eventos; 2 hero cards clicáveis Evento/Mês via `obterRanking`/`obterRankingMes`; card de mês abre `MesDetail` embutido, sem trocar de aba (etapa 10, D-060) |
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/features/leads/MesDetail.jsx` | ~94 | Detalhe do mês: leads por vendedor + tabela, espelha `EventDetail.jsx` sem materiais (D-060) |

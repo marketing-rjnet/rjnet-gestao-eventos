@@ -36,7 +36,7 @@ export default function MesDetail({ mesReferencia, onBack }) {
     <div className="page">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <button className="back-btn" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Icon name="back" size={15} /> Voltar para Relatórios
+          <Icon name="back" size={15} /> Voltar para o Início
         </button>
       </div>
 
