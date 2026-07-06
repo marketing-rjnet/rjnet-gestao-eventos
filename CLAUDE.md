@@ -50,7 +50,9 @@ src/
 │   ├── materialApi.js    # Factory createMaterialApi — CRUD de materiais (etapa 17)
 │   ├── vendedorApi.js    # Factory createVendedorApi — CRUD de vendedores (etapa 17)
 │   ├── ofertaApi.js      # Factory createOfertaApi — ofertas por serviço + registro de envio (D-057)
-│   └── equipeApi.js      # Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
+│   ├── equipeApi.js      # Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
+│   ├── formularioApi.js  # Factory createFormularioApi — CRUD de formulários do Form Builder (D-062)
+│   └── campoPersonalizadoApi.js # Factory createCampoPersonalizadoApi — campos personalizados reutilizáveis (D-063)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -99,9 +101,17 @@ src/
 │   │   ├── EquipeTab.jsx     # Gestão de vendedores modo local (etapa 12)
 │   │   ├── EquipeAuthTab.jsx # Gestão de usuários com RBAC modo Supabase (etapa 12)
 │   │   └── index.js          # Re-exports de team (etapa 12)
-│   └── monitoring/
-│       ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards, feed 9 tipos, toolbar sessão ▶/■, limpar log (D-044–D-051)
-│       └── index.js          # Re-export de monitoring (D-044)
+│   ├── monitoring/
+│   │   ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards, feed 9 tipos, toolbar sessão ▶/■, limpar log (D-044–D-051)
+│   │   └── index.js          # Re-export de monitoring (D-044)
+│   ├── qrcode/
+│   │   └── QrCodeGeradorTab.jsx # Geração de QR Code/link por origem, marketing only (D-061)
+│   └── formularios/
+│       ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager, marketing only (D-062, D-063)
+│       └── index.js          # Re-export de formularios (D-062)
+├── public/
+│   ├── QrCapturaPublica.jsx    # Página pública de captura via QR Code, sem sessão (D-061)
+│   └── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
@@ -120,7 +130,8 @@ src/
     ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
-    └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, limites (etapas 5)
+    ├── localPublicSubmit.js # Fallback local (sem Supabase) para páginas públicas de QR Code/Formulário — dev/teste only (D-061, D-062)
+    └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, CAMPOS_FORMULARIO (etapas 5, D-062)
 
 supabase/
 ├── schema.sql               # Schema inicial (4 tabelas + seed)
@@ -130,10 +141,16 @@ supabase/
 ├── migracao-leads-mensais.sql  # Coluna mes_referencia + ranking_mes + retenção (D-058)
 ├── migracao-comercial.sql   # Papel comercial + RLS de eventos/ofertas/leads (D-059)
 ├── migracao-retencao.sql    # Retenção LGPD automática (PA-10)
+├── migracao-qrcode.sql            # Colunas origem/qr_code_id/qr_code_label em leads + RLS ajustada (D-061)
+├── migracao-qrcode-retencao.sql   # Retenção LGPD para leads sem evento/mês (D-061)
+├── migracao-form-builder.sql      # Tabela formularios + RLS anon (D-062)
+├── migracao-campos-personalizados.sql # Tabela campos_personalizados + RLS anon + leads.campos_extras (D-063)
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
-    └── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
+    ├── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
+    ├── captar-lead-qrcode/index.ts       # Edge Function pública — captura de lead via QR Code (D-061)
+    └── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder (D-062, D-063)
 
 tests/
 ├── security.test.js      # E2E: SQL injection, XSS
@@ -200,6 +217,8 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | `vendedores` | Tabela legada (substituída por `perfis` no modo Auth) |
 | `ofertas` | Oferta ativa por serviço (imagem+copy), `servico` como PK — máx. 5 linhas (D-057) |
 | `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega; também aceita evento OU mês (D-057, D-058) |
+| `formularios` | Formulários do Form Builder — nome, slug, campos escolhidos do catálogo fixo, campos personalizados vinculados, obrigatoriedade; leitura `anon` restrita a `ativo=true` (D-062) |
+| `campos_personalizados` | Catálogo de campos de texto livre reutilizáveis entre formulários, criados pelo marketing; leitura `anon` restrita a `ativo=true` (D-063) |
 
 ### Enums usados nos dados
 
@@ -209,15 +228,17 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **serviços de interesse (array):** `internet_residencial`, `internet_empresarial`, `rjnet_movel`, `streamings`, `outro` — `servicoInteresse` é `string[]` no frontend; serializado como JSON string na coluna TEXT `servico_interesse` do banco (backward-compat com string simples legada)
 - **metas do vendedor:** `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` — `META_DIARIA` é alias de `META_OURO`
 - **papel perfil:** `marketing`, `vendedor`, `comercial` (D-059 — mesmo nível do marketing em eventos/ofertas/leads, sem estoque nem gestão de equipe)
-- **mês de referência do lead (D-058):** `mes_referencia` é `date` com o primeiro dia do mês (ex: `2026-07-01`); `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos via `check (num_nonnulls(evento_id, mes_referencia) = 1)`
+- **mês de referência do lead (D-058):** `mes_referencia` é `date` com o primeiro dia do mês (ex: `2026-07-01`); `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos (`check (num_nonnulls(evento_id, mes_referencia) <= 1)` — relaxado de `= 1` para `<= 1` em D-061, permitindo leads sem nenhum dos dois: origem QR Code/Formulário)
+- **atribuição do lead (D-061, D-062, D-063):** `origem` (`evento`/`mes`/`qrcode`/`formulario`), `qr_code_id`/`qr_code_label`, `formulario_id`, `bairro`, `campos_extras` (JSONB) — eixo ortogonal ao contexto operacional (evento/mês); leads de QR Code/Formulário não têm `vendedor_id` até serem distribuídos pelo marketing/comercial
 
 ### RLS (Row Level Security)
 
 - `marketing`: acesso total a todas as tabelas
 - `comercial` (D-059): escreve em `eventos`, `ofertas` e `leads` no mesmo nível de `marketing` (inclusive leads de qualquer vendedor); **não** tem escrita em `materiais` (estoque) nem em `perfis` (gestão de equipe) — nessas duas, RLS continua restrita a `marketing`
-- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`) — regra idêntica para leads de evento ou de mês (D-058), RLS nunca depende de `evento_id`/`mes_referencia`
+- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads — exige `vendedor_id is not null and vendedor_id = auth.uid()` (D-061: antes da atribuição, leads de QR Code/Formulário não têm `vendedor_id` e ficam visíveis só para marketing/comercial); regra idêntica para leads de evento ou de mês (D-058), RLS nunca depende de `evento_id`/`mes_referencia`
 - `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing`/`comercial` (D-059)
 - `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
+- `formularios`/`campos_personalizados` (D-062, D-063): **primeiras policies `anon` do projeto** — leitura pública restrita a `ativo=true`, necessária para a página pública do Form Builder renderizar sem sessão; escrita restrita a `marketing`
 
 ### Storage
 
@@ -266,6 +287,8 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Ofertas | marketing, comercial | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057, D-059) |
 | Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
+| QR Codes | marketing | Geração de QR Code/link por origem para captura pública sem sessão, distribuição de leads não atribuídos para vendedores (D-061) |
+| Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis), link/QR próprio (D-062, D-063) |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
@@ -331,6 +354,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/vendedorApi.js` | ~18 | Factory CRUD de vendedores (etapa 17) |
 | `src/api/ofertaApi.js` | ~20 | Factory de ofertas por serviço + registro de envio (D-057) |
 | `src/api/equipeApi.js` | ~29 | Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase) |
+| `src/api/formularioApi.js` | ~22 | Factory createFormularioApi — CRUD de formulários do Form Builder (D-062) |
+| `src/api/campoPersonalizadoApi.js` | ~31 | Factory createCampoPersonalizadoApi — CRUD de campos personalizados reutilizáveis (D-063) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/apps/ComercialApp.jsx` | ~67 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |
@@ -350,6 +375,11 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/features/leads/MesDetail.jsx` | ~94 | Detalhe do mês: leads por vendedor + tabela, espelha `EventDetail.jsx` sem materiais (D-060) |
+| `src/features/qrcode/QrCodeGeradorTab.jsx` | ~107 | Geração de QR Code/link por origem, marketing only (D-061) |
+| `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`, marketing only (D-062, D-063) |
+| `src/public/QrCapturaPublica.jsx` | ~133 | Página pública de captura via QR Code, sem sessão, sem `AppContext` (D-061) |
+| `src/public/FormularioPublico.jsx` | ~235 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063) |
+| `src/lib/localPublicSubmit.js` | ~37 | Fallback local (sem Supabase) para páginas públicas, dev/teste only (D-061, D-062) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
 | `src/hooks/useRanking.js` | ~42 | Hook de polling de ranking com debounce e cleanup; parâmetro `obterFn` opcional reaproveitado para o placar por mês (etapa 15, D-058) |
@@ -369,5 +399,11 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-ofertas.sql` | ~75 | Tabelas ofertas/oferta_envios, RLS e bucket Storage (D-057) |
 | `supabase/migracao-leads-mensais.sql` | ~122 | Coluna `mes_referencia`, constraint de exclusividade, RPC `ranking_mes`, retenção LGPD estendida (D-058) |
 | `supabase/migracao-comercial.sql` | ~94 | Papel `comercial` + RLS de `eventos`/`ofertas`/`leads`/bucket Storage (D-059) |
-| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057) |
+| `supabase/migracao-qrcode.sql` | ~68 | Colunas `origem`/`qr_code_id`/`qr_code_label`, constraint relaxada, RLS de visibilidade (D-061) |
+| `supabase/migracao-qrcode-retencao.sql` | ~86 | Retenção LGPD para leads sem evento/mês (D-061) |
+| `supabase/migracao-form-builder.sql` | ~78 | Tabela `formularios`, colunas `formulario_id`/`bairro` em `leads`, RLS `anon` (D-062) |
+| `supabase/migracao-campos-personalizados.sql` | ~63 | Tabela `campos_personalizados`, colunas em `formularios`/`leads`, RLS `anon` (D-063) |
+| `supabase/functions/captar-lead-qrcode/index.ts` | ~129 | Edge Function pública — captura de lead via QR Code (D-061) |
+| `supabase/functions/submeter-formulario/index.ts` | ~212 | Edge Function pública — submissão do Form Builder + campos personalizados (D-062, D-063) |
+| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrites SPA para `/qr/:path*` e `/f/:path*` (D-061, D-062) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

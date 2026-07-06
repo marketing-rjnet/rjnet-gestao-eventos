@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-07-06 (D-060 — Cards clicáveis "Evento" e "Mês/Dia a dia" no Início, levando a `EventDetail.jsx`/novo `MesDetail.jsx`; stats do Início via `obterRanking`/`obterRankingMes` em vez do array `leads` local); 2026-07-06 (D-059 — Terceiro perfil "comercial": mesmo nível de eventos/ofertas/relatórios do marketing, sem estoque nem gestão de equipe; novo shell `ComercialApp.jsx`); 2026-07-02 (D-058 — Captação de leads no dia a dia via "mês de referência": vendedor alterna entre Evento e Atividade do Mês em `VendedorApp.jsx`, ambos contextos mutuamente exclusivos em `leads`; ranking, retenção LGPD e exportação do marketing espelhados para o novo contexto); 2026-07-02 (D-057 — Área de Ofertas: imagem+copy prontas por serviço geridas pelo marketing, envio manual 1:1 via `wa.me` pelo vendedor; primeiro uso de Supabase Storage no projeto); 2026-06-30 (D-056 — Estoque: edição de nome e quantidade de material existente via `MaterialModal` em modo dual create/edit); 2026-06-30 (correção de coesão documental: renumeração de D-043 duplicado → D-055 em `DECISIONS.md`; sincronização do status de PA-04/consentimento suspenso em `LGPD_AUDIT_AND_COMPLIANCE.md`; correção de status `v1.0` em `UI_VERSIONS.md`; `CLAUDE.md` atualizado para refletir V3 como versão de UI corrente); 2026-06-30 (D-054 — Estoque: checklist de importação persistente em localStorage, com formulário de novo item e exclusão por linha do rascunho); 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-07-06 (D-064 — correções pós-implementação: persistência da fila de distribuição em modo Supabase e modo local, retenção LGPD para leads sem contexto operacional, CORS das Edge Functions públicas); 2026-07-06 (D-063 — Campos personalizados: marketing/comercial criam campos de texto livre reutilizáveis em qualquer formulário, sem deploy de código; `leads.campos_extras`); 2026-07-06 (D-062 — Form Builder: catálogo fixo de campos configurável por formulário — não motor de campo genérico; tabela `formularios`, Edge Function `submeter-formulario`, primeira leitura anônima (RLS `anon`) do projeto); 2026-07-06 (D-061 — QR Code como canal de captação: atributo de proveniência (`origem`/`qr_code_id`), nunca um terceiro contexto operacional ao lado de Evento/Atividade do Mês; Edge Function pública `captar-lead-qrcode`, distribuição manual de leads sem vendedor, alternativa de Google Forms via Apps Script); 2026-07-06 (D-060 — Cards clicáveis "Evento" e "Mês/Dia a dia" no Início, levando a `EventDetail.jsx`/novo `MesDetail.jsx`; stats do Início via `obterRanking`/`obterRankingMes` em vez do array `leads` local); 2026-07-06 (D-059 — Terceiro perfil "comercial": mesmo nível de eventos/ofertas/relatórios do marketing, sem estoque nem gestão de equipe; novo shell `ComercialApp.jsx`); 2026-07-02 (D-058 — Captação de leads no dia a dia via "mês de referência": vendedor alterna entre Evento e Atividade do Mês em `VendedorApp.jsx`, ambos contextos mutuamente exclusivos em `leads`; ranking, retenção LGPD e exportação do marketing espelhados para o novo contexto); 2026-07-02 (D-057 — Área de Ofertas: imagem+copy prontas por serviço geridas pelo marketing, envio manual 1:1 via `wa.me` pelo vendedor; primeiro uso de Supabase Storage no projeto); 2026-06-30 (D-056 — Estoque: edição de nome e quantidade de material existente via `MaterialModal` em modo dual create/edit); 2026-06-30 (correção de coesão documental: renumeração de D-043 duplicado → D-055 em `DECISIONS.md`; sincronização do status de PA-04/consentimento suspenso em `LGPD_AUDIT_AND_COMPLIANCE.md`; correção de status `v1.0` em `UI_VERSIONS.md`; `CLAUDE.md` atualizado para refletir V3 como versão de UI corrente); 2026-06-30 (D-054 — Estoque: checklist de importação persistente em localStorage, com formulário de novo item e exclusão por linha do rascunho); 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 > Documentação de UI/UX: `doc/ui/UI_VERSIONS.md` — catálogo de versões da interface. **V3 é a versão atual** (redesign visual, 2026-06-18); V2 foi implementada por completo (22/22 etapas) e superada pela V3 no mesmo dia; V1.0 é o baseline histórico.
 > Nota: o sistema é desenvolvido e mantido por uma única pessoa (alta velocidade de iteração é resultado de aprendizado contínuo e engenharia reversa assistida, não de equipe múltipla); o status de conformidade LGPD depende de definições externas (terceiros) ainda pendentes — ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
@@ -15,6 +15,8 @@ SPA React para gerenciamento de eventos de campo da RJNet. Permite que o time de
 
 Três perfis de acesso: **marketing** (gestão completa), **comercial** (D-059 — mesmo nível de marketing em eventos/ofertas/relatórios, sem estoque nem gestão de equipe) e **vendedor** (captura de leads + ranking).  
 Dois modos de operação: **Supabase** (produção, com auth e realtime) e **local** (localStorage, sem backend).
+
+Além da captação presencial (Evento/Atividade do Mês, mediada por um vendedor), o sistema aceita dois canais de captação **públicos, sem sessão** (D-061, D-062): **QR Code** e **Form Builder** (formulários configuráveis). Ambos convergem para o mesmo Lead, via Edge Functions públicas — nunca um pipeline de escrita paralelo. Ver seção 5 (Domínios de Negócio) e D-061–D-064 em `DECISIONS.md`.
 
 ---
 
@@ -47,8 +49,10 @@ Padrão **factory function** — cada domínio tem uma factory que recebe estado
 | `createVendedorApi` | `addVendedor`, `updateVendedor`, `toggleVendedor` |
 | `createEquipeApi` | `criarUsuario`, `atualizarPerfil`, `excluirUsuario` |
 | `createOfertaApi` | `saveOferta`, `removeOferta`, `registrarOfertaEnviada` (D-057) |
+| `createFormularioApi` | `addFormulario`, `updateFormulario`, `removeFormulario` (D-062) |
+| `createCampoPersonalizadoApi` | `addCampoPersonalizado`, `updateCampoPersonalizado`, `removeCampoPersonalizado` (D-063) |
 
-As factories são instanciadas dentro do `AppProvider` e expostas via contexto. **Nenhum componente acessa o banco diretamente.**
+As factories são instanciadas dentro do `AppProvider` e expostas via contexto. **Nenhum componente acessa o banco diretamente** — exceção documentada: `LeadsTab.jsx` (fila de distribuição) e as páginas públicas (`src/public/`) chamam funções de `dataService.js` diretamente, por não terem (ou não deverem depender de) `AppProvider`/sessão. Ver nota em D-062/D-064.
 
 ### Camada de Dados (`src/lib/dataService.js`)
 
@@ -83,7 +87,7 @@ O tema dark/light é gerenciado em `Root.jsx` via `localStorage("rjnet-theme")`.
 
 ```
 src/
-├── main.jsx                    # ErrorBoundary + ReactDOM.createRoot
+├── main.jsx                    # ErrorBoundary + ReactDOM.createRoot; desvio mínimo pra /qr/:id e /f/:slug ANTES do AppProvider (D-061/D-062, sem biblioteca de rotas)
 ├── index.css                   # Estilos globais (tema dark/light via CSS variables)
 ├── api/
 │   ├── eventoApi.js            # Factory CRUD de eventos
@@ -91,7 +95,9 @@ src/
 │   ├── materialApi.js          # Factory CRUD de materiais
 │   ├── vendedorApi.js          # Factory CRUD de vendedores (modo local)
 │   ├── equipeApi.js            # Factory de gestão de usuários Auth (modo Supabase)
-│   └── ofertaApi.js            # Factory de ofertas prontas por serviço + registro de envio (D-057)
+│   ├── ofertaApi.js            # Factory de ofertas prontas por serviço + registro de envio (D-057)
+│   ├── formularioApi.js        # Factory CRUD de formulários do Form Builder (D-062)
+│   └── campoPersonalizadoApi.js # Factory CRUD de campos personalizados reutilizáveis (D-063)
 ├── context/
 │   ├── AppContext.js           # createContext(null)
 │   ├── AppProvider.jsx         # Provider: estado + efeitos + factories
@@ -140,9 +146,18 @@ src/
 │   │   ├── EquipeTab.jsx       # Vendedores (modo local)
 │   │   ├── EquipeAuthTab.jsx   # Usuários com RBAC (modo Supabase)
 │   │   └── index.js
-│   └── monitoring/
-│       ├── MonitoringTab.jsx   # Diagnóstico ao vivo + histórico por dia: cards, feed com descrições, seletor de dias (D-044, D-044b, D-045)
+│   ├── monitoring/
+│   │   ├── MonitoringTab.jsx   # Diagnóstico ao vivo + histórico por dia: cards, feed com descrições, seletor de dias (D-044, D-044b, D-045)
+│   │   └── index.js
+│   ├── qrcode/
+│   │   ├── QrCodeGeradorTab.jsx # Gera URL (/qr/:id) + imagem do QR 100% client-side; opção de apontar pra Google Forms (D-061)
+│   │   └── index.js
+│   └── formularios/
+│       ├── FormBuilderTab.jsx  # Cria formulário (catálogo fixo + campos personalizados) e gestão de campos personalizados (D-062, D-063)
 │       └── index.js
+├── public/
+│   ├── QrCapturaPublica.jsx    # Página pública do QR Code — sem sessão, sem AppContext (D-061)
+│   └── FormularioPublico.jsx   # Página pública dinâmica do Form Builder — sem sessão, sem AppContext (D-062)
 ├── hooks/
 │   ├── useApp.js               # Wrapper de useContext(AppContext)
 │   ├── usePersisted.js         # Persistência em localStorage/sessionStorage
@@ -160,7 +175,8 @@ src/
     ├── crypto.js               # PA-05/LGPD: AES-GCM 256 + PBKDF2 para fila offline no localStorage
     ├── security.js             # sanitizeText() — sanitização de inputs
     ├── cache.js                # Cache em memória com TTL
-    └── constants.js            # Constantes globais e enums de domínio
+    ├── constants.js            # Constantes globais, enums de domínio e CAMPOS_FORMULARIO (catálogo fixo, D-062)
+    └── localPublicSubmit.js    # Fallback local/preview (sem Supabase) pras páginas públicas — grava direto em localStorage, nunca é o caminho de produção (D-061/D-062)
 ```
 
 ---
@@ -176,7 +192,7 @@ Ponto de entrada após `main.jsx`. Detecta modo (`supabaseEnabled`) e gerencia t
 
 ### `MarketingApp.jsx`
 
-Shell do time de marketing. Navegação por 7 tabs:
+Shell do time de marketing. Navegação por 9 tabs:
 
 | Tab | Componente | Função |
 |---|---|---|
@@ -184,7 +200,9 @@ Shell do time de marketing. Navegação por 7 tabs:
 | Eventos | `EventosTab` / `EventDetail` | CRUD de eventos, materiais alocados, leads por vendedor |
 | Estoque | `EstoqueTab` | Gestão de materiais com nível de disponibilidade; importação em lote via checklist (`MaterialChecklistModal`) com 14 itens pré-definidos do inventário físico; edição de nome/quantidade por linha via `MaterialModal` em modo edit (D-056); exclusão de material por linha com confirmação inline em dois passos (D-053) |
 | Ofertas | `OfertasTab` | Uma oferta ativa por serviço (imagem 1080x1080 via Supabase Storage + copy) editada via `OfertaModal`; congelada para o vendedor, que só consome (D-057) |
-| Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico |
+| QR Codes | `QrCodeGeradorTab` | Gera QR Code (URL própria ou Google Forms) pra captação pública sem sessão; leads chegam sem vendedor, distribuídos manualmente (D-061) |
+| Formulários | `FormBuilderTab` | Cria formulários escolhendo campos de um catálogo fixo + campos personalizados que a própria equipe cadastra (sempre texto livre); gera QR/link próprio por formulário (D-062, D-063) |
+| Leads | `LeadsTab` | Visão consolidada de leads, filtros, export CSV, gráfico; seção "Leads sem vendedor" pra distribuir leads de QR Code/Formulário (D-061, D-064) |
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
 | Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
 | Monitor | `MonitoringTab` | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards com status de atividade do vendedor, feed 9 tipos, filtros Sync/Perf, descrições de campo, toolbar de sessão (▶/■) + limpar log (D-044–D-051) |
@@ -208,8 +226,8 @@ Shell do vendedor em campo. Navegação por 4 tabs (bottom nav mobile-first):
 
 | Tab | Função |
 |---|---|
-| Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, controle Sim/Não para "já é cliente", auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro). Seletor de contexto sempre visível — **Evento** (evento ativo criado pelo marketing) ou **Atividade do Mês** (D-058, dia a dia fora de eventos, 12 meses do ano corrente) — o vendedor alterna livremente a qualquer momento |
-| Meus Leads | Lista filtrável do contexto ativo (evento ou mês, D-058), edição inline, ciclo de temperatura, botão WhatsApp, ícones discretos de editar/excluir no topo do card (excluir com confirmação inline em dois passos); botão único "Enviar oferta" abre `OfertaPickerModal` (D-057) listando todas as ofertas configuradas pelo marketing — as do interesse declarado do lead aparecem primeiro, mas todas ficam disponíveis; cada item abre `wa.me` com copy pronta e tem um botão "Baixar" (download via `fetch`+blob) para a imagem |
+| Registrar | Formulário de captura de lead com modo rápido, multi-seleção de serviços, controle Sim/Não para "já é cliente", auto-sanitização, toast com undo, barra de meta em 3 níveis (Bronze/Prata/Ouro). Seletor de contexto sempre visível — **Evento** (evento ativo criado pelo marketing), **Atividade do Mês** (D-058, dia a dia fora de eventos, 12 meses do ano corrente) ou **QR Code** (D-061, só leitura — sem registro manual, mensagem informativa: leads de QR Code chegam sozinhos e são distribuídos pelo marketing) — o vendedor alterna livremente a qualquer momento |
+| Meus Leads | Lista filtrável do contexto ativo (evento, mês — D-058 — ou QR Code — D-061, só os já distribuídos a esse vendedor, sem ranking/meta), edição inline, ciclo de temperatura, botão WhatsApp, ícones discretos de editar/excluir no topo do card (excluir com confirmação inline em dois passos); campos personalizados (D-063) exibidos como `rótulo: valor` quando presentes; botão único "Enviar oferta" abre `OfertaPickerModal` (D-057) listando todas as ofertas configuradas pelo marketing — as do interesse declarado do lead aparecem primeiro, mas todas ficam disponíveis; cada item abre `wa.me` com copy pronta e tem um botão "Baixar" (download via `fetch`+blob) para a imagem |
 | Evento | Em contexto Evento: detalhes do evento ativo, link Maps, ranking da equipe. Em contexto Atividade do Mês (D-058): só o placar da equipe do mês selecionado (sem local/data, que não existem nesse contexto) |
 | Pacotes | Tabela de preços dos serviços RJNet (hardcoded) — acessível em ambos os contextos |
 
@@ -225,7 +243,9 @@ Capturados por vendedores, vinculados a `vendedorNome` e a **exatamente um** dos
 
 > **`servicoInteresse` é array:** no frontend sempre `string[]`; no banco (`servico_interesse` TEXT) armazenado como JSON string. `leadFromDb` normaliza strings legadas para `[string]` automaticamente. `servicoLabel()` aceita string ou array.
 
-> **Contexto evento vs. mês (D-058):** `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos via `check (num_nonnulls(evento_id, mes_referencia) = 1)`. Ranking, carregamento on-demand e retenção LGPD têm um caminho espelhado para cada contexto (`ranking_evento`/`ranking_mes`, `fetchLeadsEvento`/`fetchLeadsMes`, retenção por evento encerrado/por mês encerrado). O vendedor escolhe o contexto em `VendedorApp.jsx` via seletor sempre visível ("Evento" / "Atividade do Mês"); a lista de 12 meses é gerada a partir do ano corrente (`mesesDoAno`), sem necessidade de cadastro ou manutenção anual.
+> **Contexto evento vs. mês (D-058):** `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos entre si via `check (num_nonnulls(evento_id, mes_referencia) <= 1` — relaxado de `= 1` em D-061 pra aceitar leads sem nenhum dos dois (QR Code, Form Builder). Ranking, carregamento on-demand e retenção LGPD têm um caminho espelhado para cada contexto (`ranking_evento`/`ranking_mes`, `fetchLeadsEvento`/`fetchLeadsMes`, retenção por evento encerrado/por mês encerrado). O vendedor escolhe o contexto em `VendedorApp.jsx` via seletor sempre visível ("Evento" / "Atividade do Mês" / "QR Code" — D-061); a lista de 12 meses é gerada a partir do ano corrente (`mesesDoAno`), sem necessidade de cadastro ou manutenção anual.
+
+> **Atribuição vs. contexto operacional (D-061):** `origem`/`qr_code_id`/`qr_code_label`/`formulario_id`/`campos_extras` são um eixo **independente** de `evento_id`/`mes_referencia` — respondem "de onde o Lead veio", nunca "em que contexto o vendedor está trabalhando agora". Um lead pode ter um contexto operacional (Evento OU Mês OU nenhum) e, separadamente, um atributo de proveniência (QR Code, Formulário, ou nenhum — captação presencial direta). Leads com `origem` preenchido e sem vendedor (`vendedor_id is null`) ficam invisíveis ao papel `vendedor` via RLS até serem distribuídos manualmente por marketing/comercial (fila "Leads sem vendedor" em `LeadsTab.jsx`).
 
 ### Estoque
 Materiais promocionais com `quantidade` e `nivel` derivado (`crit` / `warn` / `ok`). Alocados a eventos via `evento.materiais[]`.
@@ -243,6 +263,12 @@ Sub-domínio de estoque. Array JSONB dentro de cada evento. Suporta `quantidade`
 
 ### Ofertas (D-057)
 Conteúdo pronto (imagem 1080x1080 + copy) por serviço, gerido exclusivamente pelo marketing. `servico` é a própria chave primária — no máximo 5 linhas (mesmo enum de `servicoInteresse`), sobrescritas ao editar; sem histórico/versionamento. O vendedor só consome: na aba "Meus Leads", um botão "Enviar oferta" abre um seletor (`OfertaPickerModal`) com **todas** as ofertas configuradas — as que batem com o interesse declarado do lead aparecem primeiro, mas todas ficam disponíveis (o vendedor pode perceber interesse em outro serviço durante a conversa e enviar na hora, sem precisar editar o lead antes). Cada item do seletor abre `wa.me` com a copy pré-preenchida e tem um botão "Baixar" que baixa a imagem via `fetch`+blob (anexo à mensagem continua manual — limitação do próprio `wa.me`, que não permite pré-anexar mídia). `oferta_envios` registra o clique como indicador visual ("✓ Oferta enviada"), **não** como confirmação de entrega ou leitura.
+
+### QR Code (D-061)
+Canal de captação pública, sem sessão. `QrCodeGeradorTab.jsx` (marketing) gera uma URL (`/qr/:id`, própria, ou de um Google Forms configurado) + imagem do QR 100% client-side (lib `qrcode`), sem persistir nada em tabela nova — a identidade do QR (nome/local/serviço/campanha) viaja na própria URL como label. `QrCapturaPublica.jsx` é a página que o titular preenche; converge pro Lead via Edge Function `captar-lead-qrcode` (produção) ou `localPublicSubmit.js` (fallback local/preview, nunca produção). Nasce com `origem='qrcode'`, `qr_code_id`/`qr_code_label`, sem vendedor — ver "Atribuição vs. contexto operacional" acima. Alternativa: `google-forms-apps-script.js` (referência de instalação, não roda no build) reencaminha respostas de um Google Forms pra essa mesma Edge Function.
+
+### Form Builder (D-062, D-063)
+Formulários configuráveis pelo marketing/comercial — catálogo **fixo** de campos (`CAMPOS_FORMULARIO`: nome, telefone, endereço, bairro, cpf, servicoInteresse), nunca um motor de campo genérico. Tabela `formularios` (`campos`/`campos_obrigatorios`, `slug` único). `FormBuilderTab.jsx` cria o formulário e reaproveita a geração de QR/link do QR Code. `FormularioPublico.jsx` (`/f/:slug`) renderiza só os campos habilitados; converge pro Lead via Edge Function `submeter-formulario` (honeypot antispam) ou fallback local. **Campos personalizados (D-063):** tabela `campos_personalizados`, gerida pela própria equipe — sempre texto livre, só a legenda é livre; reutilizável em qualquer formulário; respostas gravadas em `leads.campos_extras` (jsonb, chave = `key` do campo), exibidas genericamente (`rótulo: valor`) onde quer que o Lead apareça. `formularios`/`campos_personalizados` são as **primeiras tabelas com leitura anônima** (RLS `to anon`, restrita a `ativo=true`, sem dado sensível) do projeto — necessário pra página pública renderizar sem sessão.
 
 ---
 
@@ -263,6 +289,20 @@ Supabase (PostgreSQL + RLS)
     ↓ subscription realtime notifica AppProvider (debounce 1500ms — D-038)
 AppProvider re-sincroniza estado com dados do banco
 ```
+
+**Fluxo paralelo — captação pública sem sessão (D-061, D-062):**
+```
+Página pública (QrCapturaPublica.jsx / FormularioPublico.jsx)
+    ↓ sem AppProvider, sem sessão, sem useApp()
+    ↓ modo Supabase: fetch() direto pra Edge Function pública
+supabase/functions/captar-lead-qrcode | submeter-formulario
+    ↓ valida/sanitiza no servidor (catálogo fixo replicado em Deno)
+    ↓ insere em `leads` com service_role — vendedor_id nasce nulo
+Supabase (mesmo banco, mesma tabela leads)
+    ↓ modo local/preview: localPublicSubmit.js grava direto em localStorage
+    (nunca é o caminho de produção)
+```
+Esse fluxo não passa por `addLead()`/`AppProvider`/`leadApi.js` — é a única exceção documentada ao "pipeline único via `useApp()`", porque a página pública não tem (e não deve ter) sessão autenticada. A regra de negócio (validação/sanitização/consentimento) é replicada no servidor, não reaproveitada do bundle do frontend.
 
 **Erros de sync** são despachados via `window.dispatchEvent(new CustomEvent('rjnet:sync-error'))` e capturados pelo `SyncBadge` e pelo `activityLog`.
 
@@ -312,6 +352,11 @@ AppProvider re-sincroniza estado com dados do banco
 - **Edição de material existente (D-056)**: `MaterialModal` aceita prop opcional `material` — quando presente, pré-preenche o formulário (`nome`, `quantidade`, `descricao`) e o submit chama `updateMaterial(id, patch)` em vez de `addMaterial()`; título e label do botão mudam para "Editar Material"/"Salvar". `EstoqueTab` adiciona um botão de edição (ícone `edit`) ao lado do botão de exclusão em cada linha de estoque, abrindo `MaterialModal` com o material selecionado via estado `editMaterial`. Reaproveita a operação `updateMaterial` já existente em `materialApi.js` (sem mudança na API/backend); restrito ao marketing pela mesma proteção dupla do D-053 (UI + RLS).
 - **Área de Ofertas — 1 oferta por serviço, Storage público, envio manual (D-057)**: tabela `ofertas` tem `servico` como chave primária (máx. 5 linhas, mesmo enum de `servicoInteresse`), sobrescrita ao editar — sem histórico/versionamento. Imagem vai para o bucket público `ofertas` do Supabase Storage (primeiro uso de Storage no projeto), path determinístico `<servico>.<ext>`, `upsert: true`; URL renderizada com `?v=<atualizado_em>` para cache-busting. `db.saveOferta` é a única exceção ao padrão 100%-síncrono de `db.save*` (upload precisa terminar antes do upsert). `ofertas` carrega no boot via `fetchAll` (tabela pequena e estática, mesmo tratamento de `materiais`); `oferta_envios` (indicador de clique, não de entrega) é buscado on-demand por evento junto com `fetchLeadsEvento`, preservando a decisão TB-004/D-039. Proteção dupla UI+RLS marketing-only, mesmo padrão do D-053. CSP `img-src` em `vercel.json` ampliada para `https://*.supabase.co` — sem isso a imagem não carrega em produção/preview (CSP não existe em `npm run dev`).
 - **Captação por mês de referência, mutuamente exclusiva a evento (D-058)**: `leads.mes_referencia` (date, primeiro dia do mês) e `leads.evento_id` são protegidos por `check (num_nonnulls(evento_id, mes_referencia) = 1)` — nenhum lead pode ter os dois ou nenhum. RLS não muda (já era escopada por `vendedor_id`/papel, nunca por evento). Ranking espelhado via RPC `ranking_mes(mref)` (mesmo padrão de `ranking_evento`, cache de 30s com chave própria `ranking_mes:`). Retenção LGPD (PA-10) ganha um terceiro bloco em `limpar_leads_expirados()`: leads de mês cujo mês terminou há mais de `retencao_leads_mensais_dias` (365 por padrão) são expurgados fisicamente, simétrico ao bloco de "evento encerrado há N dias". `VendedorApp.jsx` expõe um seletor "Evento"/"Atividade do Mês" sempre visível (`contextoTipo`), com default inteligente (evento se houver um ativo, senão mês) mas troca livre a qualquer momento; o caminho "evento" preexistente não foi reescrito, só ganhou um branch condicional.
+- **QR Code como atributo, não contexto operacional (D-061)**: `origem`/`qr_code_id`/`qr_code_label` são colunas paralelas a `evento_id`/`mes_referencia`, nunca substituem o modelo de contexto ao vivo (ranking/meta/fetch sob demanda). RLS de `leads_select` restringe o papel `vendedor` a `vendedor_id is not null` — zero impacto em leads existentes (100% já nascem com vendedor). Distribuição é manual (`LeadsTab.jsx`, seção "Leads sem vendedor"), usando `db.saveLead()` direto (não `updateLead()` do contexto) porque esses leads não estão no array `leads` compartilhado do `AppProvider` em modo Supabase.
+- **Form Builder — catálogo fixo, não motor genérico (D-062)**: `CAMPOS_FORMULARIO` (`src/lib/constants.js`) é a única fonte de tipos de campo aceitos; `formularios.campos`/`campos_obrigatorios` guardam só chaves desse catálogo. Edge Function `submeter-formulario` nunca aceita um `tipo` vindo do cliente — sempre a config já gravada em `formularios` (escrita restrita a marketing/comercial). Primeira leitura `anon` do projeto (RLS `to anon`, só `ativo=true`) em `formularios`/`campos_personalizados` — necessária pra página pública renderizar sem sessão, mas expõe só metadado não sensível (nome, lista de campos).
+- **Campos personalizados — sempre texto livre (D-063)**: `campos_personalizados` é gerido por marketing/comercial, mas o **tipo nunca é escolha da equipe** — só a legenda (`label`). Respostas em `leads.campos_extras` (jsonb, chave = `key`), fora das colunas fixas do catálogo. Exibição genérica (`rótulo: valor`) reaproveitada em qualquer tela que já mostra o Lead — não redesenha nada a cada campo novo.
+- **Retenção LGPD para leads sem contexto operacional (D-064)**: `limpar_leads_expirados()` ganha um 4º bloco (`migracao-qrcode-retencao.sql`) — leads sem `evento_id` nem `mes_referencia` (QR Code, Form Builder) expiram por `criado_em` (não existe "fim de contexto" pra eles, ao contrário de evento/mês).
+- **CORS das Edge Functions públicas**: `Access-Control-Allow-Headers` deve incluir `authorization, apikey, content-type` — o frontend sempre envia `apikey`/`authorization` (exigidos pela própria plataforma Supabase antes de chegar na função), não só `content-type`. Faltar isso quebra a chamada real com "Failed to fetch" no navegador (D-064).
 - **Realtime Broadcast do Monitor (canal único)**: `activityLog.js` é o único dono do canal `rjnet-monitor` — registra `.on('broadcast', { event: 'log' }, handler)` ANTES de `.subscribe()` (requisito do Supabase JS v2). `MonitoringTab` registra callbacks via `subscribeToRemoteLogs(callback)` — nunca abre canal próprio. Fila `_queue` garante entrega de mensagens enviadas antes de `SUBSCRIBED`. Canal público (anon key), multiplexado na WebSocket existente. **Limitação conhecida (D-052)**: Realtime Broadcast não tem replay/history — eventos emitidos enquanto o MonitoringTab não está subscrito são perdidos irrecuperávelmente; `lead_sync_ok` pode não aparecer no log do marketing se a aba estava fechada no momento da confirmação pelo vendedor. Alternativa estrutural: persistir `activity_log` no Supabase para garantir consistência cross-device sem depender de presença ativa do canal (D-046, D-047)
 
 ---
@@ -323,6 +368,7 @@ AppProvider re-sincroniza estado com dados do banco
 | `react` + `react-dom` | ^19.2.7 | Framework UI |
 | `@supabase/supabase-js` | ^2.108.1 | Backend (auth, DB, realtime) |
 | `chart.js` | ^4.5.1 | Gráfico donut de leads por serviço |
+| `qrcode` | ^1.5.4 | Geração de imagem QR 100% client-side (D-061) |
 | `vite` + `@vitejs/plugin-react` | ^8.0.16 / ^6.0.2 | Build e dev server |
 | `@playwright/test` | ^1.44.0 | Testes E2E |
 
@@ -334,7 +380,7 @@ AppProvider re-sincroniza estado com dados do banco
 
 - **Sem lógica de negócio em componentes UI** — componentes só chamam operações via `useApp()`
 - **Sem acesso a `import.meta.env` fora de `src/lib/supabase.js`** — demais módulos consomem `supabaseEnabled` ou `supabaseConfig`
-- **Sem CRUD direto fora de `src/api/`** — nem contexto, nem componente acessa `dataService` diretamente
+- **Sem CRUD direto fora de `src/api/`** — nem contexto, nem componente acessa `dataService` diretamente. **Exceção documentada (D-061/D-062/D-064):** `LeadsTab.jsx` (fila de distribuição) e as páginas públicas (`src/public/`) chamam `dataService.js` direto — a primeira porque busca leads que não fazem parte do array `leads` do `AppProvider`; as segundas porque não têm `AppProvider`/sessão nenhuma por design.
 - **Sem "god services"** — cada factory de API tem escopo de um único domínio
-- **Sem biblioteca de roteamento** — navegação por `useState` de tab ativa
-- **Sem modo server-side** — SPA puro, deploy estático via Vercel
+- **Sem biblioteca de roteamento** — navegação por `useState` de tab ativa. **Exceção mínima (D-061/D-062):** `main.jsx` checa `window.location.pathname` pra `/qr/:id` e `/f/:slug` antes de renderizar `AppProvider`/`Root` — não é um roteador, é um desvio único no boot pras duas páginas públicas.
+- **Sem modo server-side** — SPA puro, deploy estático via Vercel. O backend limita-se a Supabase (Postgres + RLS) e a Edge Functions pontuais e públicas (`atualizar-email-usuario`, `captar-lead-qrcode`, `submeter-formulario`) — nunca um servidor de aplicação próprio.

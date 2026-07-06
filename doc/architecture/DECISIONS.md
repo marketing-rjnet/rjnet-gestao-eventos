@@ -2041,6 +2041,135 @@ Dá ao marketing/comercial (D-059, que também usa esse Dashboard) um "exemplo v
 
 ---
 
+### [D-061] — QR Code como canal de captação: atributo de proveniência, não contexto operacional
+
+**Data:** 2026-07-06
+**Tipo:** Arquitetura / Feature
+
+**Contexto:**
+Evolução de produto discutida em profundidade antes de implementar: o Lead reafirmado como entidade central do sistema, com `addLead()`/pipeline único de Captação como porta de entrada obrigatória para qualquer canal (Evento, QR Code, e futuramente Landing Page/Meta Ads/Google Ads/API). Marketing passou a ser entendido como o domínio de negócio responsável por gerar demanda (não só um papel de acesso). Antes de implementar QR Code, foi definido um teste reutilizável pra classificar qualquer canal novo: **ele é uma sessão de trabalho ao vivo do vendedor (como Evento/Atividade do Mês — com ranking, meta, contexto), ou é só um atributo de proveniência (de onde o Lead veio)?** QR Code se encaixa na segunda categoria.
+
+**Decisão:**
+1. Colunas aditivas em `leads` (nunca substituindo `evento_id`/`mes_referencia`, que continuam sendo o único contexto operacional real): `origem`, `qr_code_id`, `qr_code_label`. Constraint `leads_evento_xor_mes` relaxada de `= 1` para `<= 1` — um lead de QR Code "avulso" não tem nem evento nem mês.
+2. `supabase/functions/captar-lead-qrcode`: Edge Function pública (sem sessão), único ponto de escrita para leads de QR Code — valida e sanitiza no servidor (mesmas regras de `sanitizeText`/`validarTelefone` do frontend, duplicadas em Deno por não poder importar os módulos do bundle do app), exige consentimento LGPD, grava com `service_role`. `vendedor_id`/`vendedor_nome` nascem nulos.
+3. RLS de `leads_select` ajustada: papel `vendedor` só enxerga leads com `vendedor_id is not null`; marketing/comercial continuam com leitura total (inclui leads sem responsável, necessário para a fila de distribuição). Sem impacto em nenhum lead existente — 100% deles já nascem com vendedor definido pelos fluxos de Evento/Mês.
+4. Distribuição manual: seção "Leads sem vendedor" em `LeadsTab.jsx` (marketing/comercial) — dropdown de vendedor ativo por linha, reaproveitando a mesma operação de negócio de qualquer edição de lead.
+5. `VendedorApp.jsx` ganha um terceiro item no seletor de contexto ("QR Code"), tratado explicitamente **diferente** de Evento/Mês: sem ranking, sem meta, sem opção de registro manual (mensagem informativa na aba Registrar) — só lista os leads de QR Code já distribuídos a esse vendedor (`origem === 'qrcode' && vendedorNome === próprio`).
+6. `QrCodeGeradorTab.jsx` (aba marketing-only): gera URL (`/qr/:id`) + imagem do QR 100% client-side (biblioteca `qrcode`), sem persistir nada em tabela nova nesta fase — a identidade do QR (nome/local/serviço/campanha) viaja na própria URL como label.
+7. Roteamento mínimo em `main.jsx` (checagem de `window.location.pathname` antes de `AppProvider`/`Root`, sem biblioteca de rotas) + rewrite em `vercel.json` para `/qr/:path*` (necessário porque a Vercel só serve arquivos estáticos existentes; sem o rewrite, acessar `/qr/:id` direto dá 404 antes do React carregar).
+8. Alternativa disponível, não obrigatória: o QR pode apontar para um Google Forms em vez do formulário próprio — `supabase/functions/captar-lead-qrcode/google-forms-apps-script.js` é uma referência de instalação (não roda no build do app) de um gatilho `onFormSubmit` que reencaminha cada resposta do Forms pra essa mesma Edge Function, reaproveitando toda a validação/consentimento. Configurável via `GOOGLE_FORM_BASE_URL`/`GOOGLE_FORM_ENTRY_QRCODE` em `QrCodeGeradorTab.jsx` (vazio por padrão → usa o formulário próprio).
+
+**Motivação:**
+Preservar 100% do comportamento de Evento/Atividade do Mês (ranking, meta, fetch sob demanda) sem duplicar essa infraestrutura pra cada canal novo. O teste "é sessão de trabalho ou é atribuição?" fica documentado como critério reutilizável pra QR Code, Landing Page, Meta/Google Ads e qualquer canal futuro.
+
+**Alternativas Avaliadas:**
+- **Entidade `origens` polimórfica** cobrindo todos os canais de forma genérica — descartada: peso arquitetural sem necessidade concreta hoje. QR Code e futuros canais (ex: Form Builder, D-062) resolvem sozinhos com uma tabela satélite própria quando precisam de dado rico, sem precisar de um supertipo comum.
+- **QR Code como terceira natureza operacional** (ranking/fetch/contexto próprio, espelhando Evento/Mês) — descartada: não existe "sessão de trabalho" de QR Code: ninguém "está trabalhando" um QR Code do jeito que trabalha um evento.
+- **Formulário público próprio vs. Google Forms** — mantidos os dois como opções (item 8): próprio dá controle total de marca e mantém o consentimento como validação de código testada; Google Forms remove a superfície pública do próprio domínio, à custa de menos controle visual e do consentimento virar configuração do Form (não código).
+
+**Impactos:**
+Arquivos principais: `supabase/migracao-qrcode.sql`, `supabase/migracao-qrcode-retencao.sql`, `supabase/functions/captar-lead-qrcode/`, `src/features/qrcode/QrCodeGeradorTab.jsx`, `src/public/QrCapturaPublica.jsx`, `src/lib/localPublicSubmit.js`, `src/main.jsx`, `vercel.json`, `src/features/leads/LeadsTab.jsx` (fila de distribuição), `src/apps/VendedorApp.jsx` (bucket QR Code). PR #67, branch `claude/optimistic-einstein-jwz8q6`, mesclado em `main` (`c1368ab`).
+
+**Riscos:**
+- Superfície pública nova (Edge Function sem autenticação): mitigada por validação server-side completa e consentimento obrigatório; **sem rate-limiting/CAPTCHA implementado** — se o volume de spam crescer, é a próxima camada a adicionar.
+- Retenção LGPD de leads sem contexto operacional não coberta inicialmente por `limpar_leads_expirados()` — corrigida em D-064 (item 4).
+
+**Status:** Ativa
+
+---
+
+### [D-062] — Form Builder: catálogo fixo de campos (não motor de campo genérico)
+
+**Data:** 2026-07-06
+**Tipo:** Arquitetura / Feature
+
+**Contexto:**
+Pedido de um "Form Builder" dentro do sistema — marketing/comercial cria formulários escolhendo campos como nome, telefone, bairro, serviço de interesse. Antes de implementar, foi comparada uma análise de duas abordagens: **Opção A** — motor de campo genérico (JSON Schema livre, tipos de campo definidos em runtime pelo usuário, tabela de respostas própria desconectada do Lead); **Opção B** — catálogo fixo de campos conhecidos definidos em código, o formulário só escolhe/ordena/exige um subconjunto.
+
+**Decisão:**
+Adotada a Opção B. `CAMPOS_FORMULARIO` (catálogo fixo, `src/lib/constants.js`): `nome`, `telefone`, `endereco`, `bairro` (campo novo, adicionado a `leads` nesta decisão), `cpf`, `servicoInteresse` — cada um com o validador simples já existente no projeto (`sanitizeText`/`validarTelefone`/whitelist de serviço). Toda resposta de formulário é só mais um Lead (`origem='formulario'`, `formulario_id`), pelo mesmo pipeline único de Captação — nunca uma entidade de "resposta de formulário" separada, com schema próprio.
+
+**Arquivos principais:**
+- `supabase/migracao-form-builder.sql`: tabela `formularios` (`id`, `nome`, `slug` único, `campos`/`campos_obrigatorios` jsonb — só chaves do catálogo fixo, `ativo`). RLS: marketing/comercial gerenciam; leitura interna para qualquer papel autenticado; **primeira leitura anônima do projeto** (papel `anon`, restrita a `ativo = true`, sem dado sensível — só nome/lista de campos) — necessária porque a página pública do formulário não tem sessão nenhuma e precisa saber quais campos desenhar. Coluna `leads.bairro` e `leads.formulario_id`.
+- `supabase/functions/submeter-formulario`: Edge Function pública, valida pelo catálogo fixo de tipos (`TIPO_POR_CAMPO`, espelha `CAMPOS_FORMULARIO`) — nunca aceita um `tipo` vindo do cliente, sempre a config gravada em `formularios` (só marketing/comercial autenticados escrevem essa tabela). Honeypot antispam (campo `website` que só um robô preenche).
+- `src/features/formularios/FormBuilderTab.jsx`: criação de formulário (checklist de campos + obrigatório) e reaproveita a geração de QR/link do gerador de QR Code (D-061).
+- `src/public/FormularioPublico.jsx`: renderização dinâmica só dos campos habilitados pelo formulário.
+- `src/lib/localPublicSubmit.js`: fallback em modo local/preview (sem Supabase configurado) — grava direto em `localStorage['rjnet_leads']`, reaproveitado tanto pelo QR Code quanto pelo Form Builder, só para permitir testar o fluxo inteiro num preview sem backend real. **Nunca é o caminho de produção** (produção sempre passa pela Edge Function).
+- `src/features/leads/LeadsTab.jsx`: fila de distribuição generalizada de `fetchLeadsQrCode` (só QR Code) para `fetchLeadsSemVendedor` (qualquer origem fria — QR Code e Form Builder juntos, com coluna "Origem" indicando qual).
+
+**Motivação:**
+Atender "gerar formulário de acordo com o que eu preciso, com QR/link próprio" sem abrir mão da estabilidade de schema do Lead — exportação CSV, cards do vendedor e filtros do marketing continuam podendo assumir um conjunto conhecido de campos.
+
+**Alternativas Avaliadas:**
+- **Motor de campo genérico (Opção A)** — descartada: exigiria um interpretador de validação genérico rodando num endpoint público sem autenticação (mais superfície de bug num lugar sensível), uma tabela de respostas desconectada do Lead (quebraria tudo que hoje espera campos fixos: CSV, cards, filtros), e nenhum tipo de campo além dos já usados no projeto foi realmente necessário.
+- **Google Forms como única via de formulário** — não descartada, mantida como opção adicional específica de QR Code (D-061); o Form Builder próprio resolve o caso onde se quer um formulário configurável dentro do próprio sistema, com resposta já integrada à fila de distribuição.
+
+**Impactos:** PR #67 (commit `c3a025d`), branch `claude/optimistic-einstein-jwz8q6`, mesclado em `main` (`c1368ab`).
+
+**Riscos:**
+Nenhum tipo de campo além de texto/telefone/cpf/serviço. Se um dia for necessário um tipo genuinamente diferente (data, número, múltipla escolha), isso é uma decisão de ampliar o catálogo (`CAMPOS_FORMULARIO` + coluna nova em `leads`, mesma receita de `bairro`), não algo que o motor deveria inferir sozinho.
+
+**Status:** Ativa
+
+---
+
+### [D-063] — Campos personalizados: extensão controlada do catálogo do Form Builder pela própria equipe
+
+**Data:** 2026-07-06
+**Tipo:** Feature (incremento sobre D-062)
+
+**Contexto:**
+Depois de usar o Form Builder (D-062), o responsável pelo sistema pediu mais flexibilidade: poder adicionar ao formulário "itens que eu preciso e que a equipe precisa" — campos que serão "discutidos em equipe" e vão surgindo com o tempo — sem depender de um desenvolvedor a cada campo novo. Importante: isso não é o mesmo pedido de "motor de campo genérico" (Opção A, rejeitada em D-062) — é autonomia pra equipe **estender o catálogo**, mantendo o tipo sempre simples.
+
+**Decisão:**
+Nova tabela `campos_personalizados`, gerenciada por marketing/comercial: cada campo tem só uma legenda livre (`label`) e é **sempre texto livre** — nunca um tipo/validação novo escolhido pela equipe. Reutilizável em qualquer formulário (não é específico de um form). Respostas gravadas em `leads.campos_extras` (jsonb, chave = `key` do campo personalizado, gerada por slug), separado das colunas fixas do catálogo — evita colisão de chave entre um campo fixo e um personalizado, e deixa claro que essa lista é sempre texto simples, nunca precisa do validador por tipo do catálogo fixo.
+
+**Arquivos principais:**
+- `supabase/migracao-campos-personalizados.sql`: tabela `campos_personalizados` (mesmo padrão de RLS de `formularios` — marketing/comercial escrevem, authenticated lê tudo, anon lê só `ativo=true`); `formularios.campos_personalizados_ids`/`campos_personalizados_obrigatorios` (jsonb, lista separada de `campos`/`campos_obrigatorios` de propósito); `leads.campos_extras` (jsonb).
+- `src/api/campoPersonalizadoApi.js` + wiring em `AppProvider.jsx` (mesmo padrão de factory já usado por Ofertas/Formulários).
+- `FormBuilderTab.jsx`: seção "Campos personalizados" (criar/ativar/desativar/excluir) + seleção deles (incluir/obrigatório) ao montar um formulário, ao lado do catálogo fixo.
+- `submeter-formulario`: busca as definições referenciadas pelo formulário, valida obrigatoriedade (mesma `sanitizeText`), grava `campos_extras` (chave = `key`, valor sanitizado).
+- `FormularioPublico.jsx`: renderiza cada campo personalizado como um input de texto simples (Supabase ou fallback local).
+- Exibição genérica (`rótulo: valor`) na fila de distribuição (`LeadsTab.jsx`) e no card de Meus Leads do vendedor (`VendedorApp.jsx`) — resolve "onde a equipe vê essa resposta" sem precisar redesenhar a tela a cada campo novo criado.
+
+**Motivação:**
+Dar autonomia real à equipe (self-service, sem deploy de código a cada campo) sem reabrir a decisão de D-062 de não ter motor de campo genérico — o "tipo" nunca é uma escolha da equipe, só a legenda.
+
+**Alternativas Avaliadas:**
+- **Ampliar só o catálogo fixo em código** (`CAMPOS_FORMULARIO`) a cada campo pedido — descartada como única via: o responsável explicitamente queria não depender de mim pra cada campo novo, dado que os campos "serão discutidos em equipe" continuamente.
+- **Tipos variados pro campo personalizado** (número, data, múltipla escolha) — não implementado agora; se necessário no futuro, é uma ampliação pontual do "tipo" aceito, decidida caso a caso, não uma escolha livre da equipe na hora de criar o campo.
+
+**Impactos:** PR aberto após o merge de D-061/D-062 (branch `claude/optimistic-einstein-jwz8q6` reiniciada a partir de `main` pós-merge do PR #67), commit `964e1fc`.
+
+**Riscos:**
+Campos personalizados ainda não aparecem em exportação CSV/relatórios estruturados — só na exibição genérica inline nas telas de lead. Se o volume de uso crescer, vale considerar expor como colunas dinâmicas no CSV.
+
+**Status:** Ativa
+
+---
+
+### [D-064] — Correções pós-implementação: persistência da distribuição, retenção LGPD e CORS das Edge Functions públicas
+
+**Data:** 2026-07-06
+**Tipo:** Bugfix
+
+**Decisão / Correções:**
+1. **`updateLead()` do contexto silenciosamente não gravava no banco** quando o lead não estava no array `leads` compartilhado do `AppContext` — caso dos leads "frios" (QR Code/Form Builder), buscados à parte via `fetchLeadsSemVendedor()`/`fetchLeadsQrCode()`, nunca carregados no array principal (que só é populado por contexto evento/mês sob demanda, D-039). A tela de distribuição mostrava "atribuído com sucesso" mas o `vendedor_id` nunca era gravado. Corrigido: `FilaDistribuicao` (`LeadsTab.jsx`) usa `db.saveLead()` direto com o objeto completo quando em modo Supabase (onde o lead não está no array compartilhado), e `updateLead()` do contexto quando em modo local (onde o array `leads` já contém tudo, sem carregamento sob demanda nesse modo).
+2. **Fila de distribuição não aparecia em modo local** — `fetchLeadsSemVendedor()` retornava `null` incondicionalmente fora do modo Supabase (função pensada só pra produção). Corrigido: `FilaDistribuicao` lê do array `leads` compartilhado do contexto (`.filter(l => l.origem)`) quando `!isSupabaseMode()`.
+3. **Referência a estado já removido** (`atribuindo`/`setAtribuindo`) deixada por engano numa correção anterior à distribuição — quebraria em runtime (`ReferenceError`) ao tentar atribuir um lead. Removida junto com a correção do item 1.
+4. **Retenção LGPD (PA-10) incompleta**: `limpar_leads_expirados()` (D-058) tinha 3 blocos (soft-delete expirado, evento encerrado, mês encerrado) — nenhum cobria um lead sem `evento_id` **nem** `mes_referencia` (QR Code, Form Builder). Esses leads ficariam retidos indefinidamente. Novo 4º bloco em `migracao-qrcode-retencao.sql`: expira por `criado_em` (não existe "fim de contexto" pra esses leads, ao contrário de evento/mês).
+5. **CORS das Edge Functions públicas bloqueava a própria chamada do frontend**: `Access-Control-Allow-Headers` só liberava `content-type`, mas o frontend (`QrCapturaPublica.jsx`/`FormularioPublico.jsx`) também envia `apikey`/`authorization` (exigidos pela própria plataforma Supabase antes mesmo de chegar na função). O preflight do navegador bloqueava a chamada real, aparecendo como "Failed to fetch" sem detalhe. Corrigido para `authorization, apikey, content-type` (mesmo padrão já usado em `atualizar-email-usuario`).
+
+**Motivação:** Todos os 5 itens foram encontrados durante teste real (local e depois em produção-Supabase) antes de considerar o QR Code/Form Builder prontos — nenhum foi hipotético.
+
+**Arquivos Afetados:** `src/features/leads/LeadsTab.jsx`, `supabase/migracao-qrcode-retencao.sql`, `supabase/functions/captar-lead-qrcode/index.ts`, `supabase/functions/submeter-formulario/index.ts`.
+
+**Riscos:** Nenhum novo — todas as 5 são correções de comportamento já quebrado, não mudanças de comportamento pretendido.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
