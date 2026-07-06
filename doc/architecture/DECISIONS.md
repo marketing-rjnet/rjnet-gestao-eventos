@@ -2036,6 +2036,9 @@ Dá ao marketing/comercial (D-059, que também usa esse Dashboard) um "exemplo v
 
 **Status:** Ativa
 
+> **Atualização 2026-07-06 (ajuste de UX a pedido do responsável pelo sistema):**
+> O item 5 da decisão original (`mesDetalhe` em `MarketingApp`/`ComercialApp`, trocando pra aba Relatórios) foi **revertido**. O responsável não queria ser levado para Relatórios ao clicar no card do mês — queria que o detalhe abrisse **no próprio Início**, sem trocar de aba. Mudança: `mesAberto` agora é estado **local do `Dashboard.jsx`** (não mais levantado para o shell); ao clicar no card "Mês/Dia a dia", o `Dashboard` troca sua própria renderização para `<MesDetail>` (o mesmo componente, só que não navega mais para lugar nenhum — a aba "Início" nunca deixa de estar ativa no menu). `mesDetalhe`/`abrirMes` foram removidos de `MarketingApp.jsx`/`ComercialApp.jsx` (ficaram mortos); `Dashboard` não recebe mais a prop `onOpenMes`. O botão de voltar do `MesDetail.jsx` mudou de "Voltar para Relatórios" para "Voltar para o Início", já que esse componente só é aberto a partir do Dashboard agora. **O card "Evento Ativo" não mudou** — continua levando para a aba Eventos e abrindo `EventDetail` lá, porque só o comportamento do card de mês foi pedido para mudar.
+
 ---
 
 ## Processo Obrigatório

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Kpi, StatusBadge, Icon } from '../../components/ui';
+import { MesDetail } from '../leads';
 import { fmtDate, mesAtualRef, mesReferenciaLabel } from '../../utils/format';
 import { STATUS_EVENTO, UPCOMING_EVENTS_LIMIT } from '../../lib/constants';
 
@@ -14,8 +15,12 @@ const SERVICO_LABELS = {
 
 const BAR_COLORS = ["#ffcb00", "#22c55e", "#60a5fa", "#fb923c", "#666666"];
 
-export default function Dashboard({ onOpenEvento, onOpenMes }) {
+export default function Dashboard({ onOpenEvento }) {
   const { eventos, leads, vendedores, getMateriaisDisponiveis, obterRanking, obterRankingMes } = useApp();
+
+  // D-060: mês fica embutido no próprio Início (sem navegar para Relatórios) —
+  // diferente do card de Evento, que ainda abre EventDetail na aba Eventos.
+  const [mesAberto, setMesAberto] = useState(null);
 
   const eventoAtivo = eventos.find((e) => e.status === STATUS_EVENTO.ATIVO);
   const qtdAtivos = eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO).length;
@@ -64,6 +69,10 @@ export default function Dashboard({ onOpenEvento, onOpenMes }) {
 
   const upcoming = [...eventos].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)).slice(0, UPCOMING_EVENTS_LIMIT);
 
+  if (mesAberto) {
+    return <MesDetail mesReferencia={mesAberto} onBack={() => setMesAberto(null)} />;
+  }
+
   return (
     <div className="section">
       {/* Hero cards — Evento Ativo e Mês/Dia a dia (D-060), clicáveis para o detalhe de cada contexto */}
@@ -99,8 +108,8 @@ export default function Dashboard({ onOpenEvento, onOpenMes }) {
         )}
 
         <div
-          className={"hero-card hero-card-mes" + (onOpenMes ? " hero-card-clickable" : "")}
-          onClick={() => onOpenMes?.(mesAtual)}
+          className="hero-card hero-card-mes hero-card-clickable"
+          onClick={() => setMesAberto(mesAtual)}
         >
           <div className="hero-label">MÊS / DIA A DIA</div>
           <div className="hero-title">{mesReferenciaLabel(mesAtual)}</div>
