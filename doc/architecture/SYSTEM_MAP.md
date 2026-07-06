@@ -2,7 +2,7 @@
 
 > Fonte única de verdade sobre a arquitetura viva do sistema.
 > Localização: `doc/architecture/SYSTEM_MAP.md` — carregado automaticamente via `@import` no `CLAUDE.md`.
-> Atualizado em: 2026-07-02 (D-058 — Captação de leads no dia a dia via "mês de referência": vendedor alterna entre Evento e Atividade do Mês em `VendedorApp.jsx`, ambos contextos mutuamente exclusivos em `leads`; ranking, retenção LGPD e exportação do marketing espelhados para o novo contexto); 2026-07-02 (D-057 — Área de Ofertas: imagem+copy prontas por serviço geridas pelo marketing, envio manual 1:1 via `wa.me` pelo vendedor; primeiro uso de Supabase Storage no projeto); 2026-06-30 (D-056 — Estoque: edição de nome e quantidade de material existente via `MaterialModal` em modo dual create/edit); 2026-06-30 (correção de coesão documental: renumeração de D-043 duplicado → D-055 em `DECISIONS.md`; sincronização do status de PA-04/consentimento suspenso em `LGPD_AUDIT_AND_COMPLIANCE.md`; correção de status `v1.0` em `UI_VERSIONS.md`; `CLAUDE.md` atualizado para refletir V3 como versão de UI corrente); 2026-06-30 (D-054 — Estoque: checklist de importação persistente em localStorage, com formulário de novo item e exclusão por linha do rascunho); 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
+> Atualizado em: 2026-07-06 (D-059 — Terceiro perfil "comercial": mesmo nível de eventos/ofertas/relatórios do marketing, sem estoque nem gestão de equipe; novo shell `ComercialApp.jsx`); 2026-07-02 (D-058 — Captação de leads no dia a dia via "mês de referência": vendedor alterna entre Evento e Atividade do Mês em `VendedorApp.jsx`, ambos contextos mutuamente exclusivos em `leads`; ranking, retenção LGPD e exportação do marketing espelhados para o novo contexto); 2026-07-02 (D-057 — Área de Ofertas: imagem+copy prontas por serviço geridas pelo marketing, envio manual 1:1 via `wa.me` pelo vendedor; primeiro uso de Supabase Storage no projeto); 2026-06-30 (D-056 — Estoque: edição de nome e quantidade de material existente via `MaterialModal` em modo dual create/edit); 2026-06-30 (correção de coesão documental: renumeração de D-043 duplicado → D-055 em `DECISIONS.md`; sincronização do status de PA-04/consentimento suspenso em `LGPD_AUDIT_AND_COMPLIANCE.md`; correção de status `v1.0` em `UI_VERSIONS.md`; `CLAUDE.md` atualizado para refletir V3 como versão de UI corrente); 2026-06-30 (D-054 — Estoque: checklist de importação persistente em localStorage, com formulário de novo item e exclusão por linha do rascunho); 2026-06-29 (D-053 — Estoque: importação em lote via checklist + exclusão de material; restrito ao perfil marketing); 2026-06-20 (D-052 — Monitor: timeout 15s em escrita, sync_error com vendedor via meta, stats.leads líquido, filtro Sync inclui lead_sync_ok; D-051 — fix contagem sessão; D-050 — status vendedor nos cards; D-049 — sync_ok removeLead + perf tiers; D-048 — marcadores de sessão + limpar log; D-047 — fix canal único Realtime; D-046 — Monitor Realtime entre dispositivos; D-045 — Monitor histórico por dia; D-044b — Monitor v2; D-044 — aba Monitor; D-036, D-037, D-038 — quick wins de performance)
 > Documentação de performance: `doc/performance/` (backlog, auditoria, planos de teste, homologação)
 > Documentação de UI/UX: `doc/ui/UI_VERSIONS.md` — catálogo de versões da interface. **V3 é a versão atual** (redesign visual, 2026-06-18); V2 foi implementada por completo (22/22 etapas) e superada pela V3 no mesmo dia; V1.0 é o baseline histórico.
 > Nota: o sistema é desenvolvido e mantido por uma única pessoa (alta velocidade de iteração é resultado de aprendizado contínuo e engenharia reversa assistida, não de equipe múltipla); o status de conformidade LGPD depende de definições externas (terceiros) ainda pendentes — ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
@@ -13,7 +13,7 @@
 
 SPA React para gerenciamento de eventos de campo da RJNet. Permite que o time de marketing crie e gerencie eventos, estoque e equipe, enquanto vendedores em campo capturam leads e acompanham desempenho em tempo real.
 
-Dois perfis de acesso: **marketing** (gestão completa) e **vendedor** (captura de leads + ranking).  
+Três perfis de acesso: **marketing** (gestão completa), **comercial** (D-059 — mesmo nível de marketing em eventos/ofertas/relatórios, sem estoque nem gestão de equipe) e **vendedor** (captura de leads + ranking).  
 Dois modos de operação: **Supabase** (produção, com auth e realtime) e **local** (localStorage, sem backend).
 
 ---
@@ -99,6 +99,7 @@ src/
 ├── apps/
 │   ├── Root.jsx                # Roteador raiz: modo + tema
 │   ├── MarketingApp.jsx        # Shell marketing (5 tabs)
+│   ├── ComercialApp.jsx        # Shell comercial (4 tabs: Início/Eventos/Ofertas/Relatórios, D-059)
 │   └── VendedorApp.jsx         # Shell vendedor (4 tabs + LeadEditInline + OfertaPickerModal, D-057)
 ├── auth/
 │   ├── RootAuth.jsx            # Fluxo auth Supabase
@@ -169,8 +170,8 @@ src/
 
 Ponto de entrada após `main.jsx`. Detecta modo (`supabaseEnabled`) e gerencia tema via `localStorage`.
 
-- `supabaseEnabled` → `RootAuth` → Supabase session → papel do usuário → `MarketingApp` ou `VendedorApp`
-- `!supabaseEnabled` → `RootLegacy` → credenciais de env → `MarketingApp` ou `VendedorApp`
+- `supabaseEnabled` → `RootAuth` → Supabase session → papel do usuário → `MarketingApp`, `ComercialApp` (D-059) ou `VendedorApp`
+- `!supabaseEnabled` → `RootLegacy` → credenciais de env → `MarketingApp` ou `VendedorApp` (papel `comercial` não existe no modo local/legado — só em modo Supabase Auth)
 
 ### `MarketingApp.jsx`
 
@@ -185,6 +186,19 @@ Shell do time de marketing. Navegação por 7 tabs:
 | Equipe | `EquipeAuthTab` / `EquipeTab` | CRUD de vendedores / usuários com RBAC |
 | Check-in | `CheckinTab` | Busca de lead por CPF em evento ativo |
 | Monitor | `MonitoringTab` | Diagnóstico ao vivo + histórico por dia: seletor de datas, cards com status de atividade do vendedor, feed 9 tipos, filtros Sync/Perf, descrições de campo, toolbar de sessão (▶/■) + limpar log (D-044–D-051) |
+
+### `ComercialApp.jsx` (D-059)
+
+Shell do gerente comercial. Mesma casca visual do `MarketingApp` (header, tema, `SyncBadge`), navegação por 4 tabs:
+
+| Tab | Componente | Função |
+|---|---|---|
+| Início | `Dashboard` | Mesmos KPIs do marketing, somente leitura (inclusive "Materiais Críticos" — RLS de `materiais` continua leitura para qualquer papel autenticado) |
+| Eventos | `EventosTab` / `EventDetail` | CRUD de eventos, mesmo nível de escrita do marketing (RLS `eventos_write` aceita `marketing` ou `comercial`) |
+| Ofertas | `OfertasTab` | Edição de oferta por serviço, mesmo nível do marketing (RLS `ofertas_write` + bucket Storage aceitam `comercial`) |
+| Relatórios | `LeadsTab` | Visão consolidada de leads, filtros, export CSV — comercial pode editar/excluir qualquer lead, igual marketing (RLS `leads_insert/update/delete`) |
+
+**Sem** Estoque, Equipe ou Monitor — nem no menu, nem na RLS (`materiais` e `perfis` continuam exclusivos de `marketing`). Contas comerciais são criadas pelo próprio marketing em `EquipeAuthTab`.
 
 ### `VendedorApp.jsx`
 
@@ -267,7 +281,7 @@ AppProvider re-sincroniza estado com dados do banco
 
 - **`supabaseEnabled` de `src/lib/supabase.js`** é a única fonte de verdade sobre o modo ativo
 - **API factory pattern é obrigatório**: todo CRUD passa por `src/api/`, nunca direto ao `dataService`
-- **RLS ativo no Supabase**: `marketing` tem acesso total; `vendedor` só escreve/edita próprios leads (`vendedor_id = auth.uid()`)
+- **RLS ativo no Supabase**: `marketing` tem acesso total; `comercial` (D-059) escreve em `eventos`/`ofertas`/`leads` no mesmo nível de `marketing`, mas não em `materiais`/`perfis`; `vendedor` só escreve/edita próprios leads (`vendedor_id = auth.uid()`)
 - **Updates otimistas**: estado local muda antes da resposta do banco
 - **Retry com backoff**: `withRetry()` — base 800 ms, fator 2x, máx. 3 tentativas
 - **Timeout de fetch**: `carregar()` usa `AbortSignal.any([controller, AbortSignal.timeout(15s)])` — evita loading infinito (D-036)
@@ -290,6 +304,7 @@ AppProvider re-sincroniza estado com dados do banco
 - **perf_warn com severidade dinâmica**: `getPerfCfg(ms)` — 4 tiers (lenta/muito lenta/possível timeout/timeout de rede) com cor e label distintos; `getDesc` adiciona prefixo de contexto para ms ≥ 30s (D-049)
 - **sync_ok para todos os tipos de mutação de lead**: `lead_add`, `lead_update` e `lead_remove` disparam `lead_sync_ok` após confirmação do Supabase via `onSuccess` em `exec()`; `db.removeLead` aceita 3º param `onSuccess` e 4º param `meta`; `leadApi.removeLead` passa `{ vendedor, eventoId }` como meta (D-049, D-052)
 - **Gestão de estoque exclusiva do marketing (D-053)**: `removeMaterial` e `MaterialChecklistModal` são operações de `EstoqueTab`, que só renderiza em `MarketingApp`. A proteção é dupla: UI (tab inexistente no `VendedorApp`) e RLS (política `marketing` tem acesso total a `materiais`; `vendedor` não tem permissão de INSERT/DELETE na tabela). `removeMaterial` em `materialApi.js` faz atualização otimista local + `db.removeMaterial()` assíncrono. Importação em lote via `MaterialChecklistModal` itera sobre os selecionados chamando `addMaterial()` sequencialmente — sem endpoint especial.
+- **Perfil comercial: mesmo nível do marketing só em eventos/ofertas/relatórios (D-059)**: `ComercialApp.jsx` é um terceiro shell (ao lado de `MarketingApp`/`VendedorApp`), roteado por `RootAuth.jsx` quando `session.role === 'comercial'`. Proteção dupla, mesmo padrão do D-053: UI (tabs de Estoque/Equipe/Monitor simplesmente não existem nesse shell) e RLS (`eventos_write`/`ofertas_write`/bucket `ofertas`/`leads_insert`/`leads_update`/`leads_delete` aceitam `papel_atual() in ('marketing', 'comercial')`; `materiais_write` e as policies de `perfis` continuam checando só `papel_atual() = 'marketing'`, e a Edge Function `atualizar-email-usuario` também não muda). `RootLegacy.jsx` (modo local sem Supabase) não ganhou esse papel — só existe em modo Supabase Auth.
 - **Checklist de importação persistente (D-054)**: `MaterialChecklistModal` usa `usePersisted('rjnet_checklist_estoque', ...)` em vez de `useState` — o rascunho da lista (itens marcados/desmarcados, quantidades, itens customizados) sobrevive ao fechar o modal e a recarregar a página. Formulário inline permite adicionar itens livres (nome + quantidade) além dos 14 pré-definidos; cada item tem botão de remoção individual do rascunho. Ao confirmar a importação, apenas os itens selecionados são removidos do rascunho (via `addMaterial()`) — os desmarcados permanecem salvos para uma importação futura. Dado local apenas (sem persistência no Supabase); não contém dados pessoais.
 - **Edição de material existente (D-056)**: `MaterialModal` aceita prop opcional `material` — quando presente, pré-preenche o formulário (`nome`, `quantidade`, `descricao`) e o submit chama `updateMaterial(id, patch)` em vez de `addMaterial()`; título e label do botão mudam para "Editar Material"/"Salvar". `EstoqueTab` adiciona um botão de edição (ícone `edit`) ao lado do botão de exclusão em cada linha de estoque, abrindo `MaterialModal` com o material selecionado via estado `editMaterial`. Reaproveita a operação `updateMaterial` já existente em `materialApi.js` (sem mudança na API/backend); restrito ao marketing pela mesma proteção dupla do D-053 (UI + RLS).
 - **Área de Ofertas — 1 oferta por serviço, Storage público, envio manual (D-057)**: tabela `ofertas` tem `servico` como chave primária (máx. 5 linhas, mesmo enum de `servicoInteresse`), sobrescrita ao editar — sem histórico/versionamento. Imagem vai para o bucket público `ofertas` do Supabase Storage (primeiro uso de Storage no projeto), path determinístico `<servico>.<ext>`, `upsert: true`; URL renderizada com `?v=<atualizado_em>` para cache-busting. `db.saveOferta` é a única exceção ao padrão 100%-síncrono de `db.save*` (upload precisa terminar antes do upsert). `ofertas` carrega no boot via `fetchAll` (tabela pequena e estática, mesmo tratamento de `materiais`); `oferta_envios` (indicador de clique, não de entrega) é buscado on-demand por evento junto com `fetchLeadsEvento`, preservando a decisão TB-004/D-039. Proteção dupla UI+RLS marketing-only, mesmo padrão do D-053. CSP `img-src` em `vercel.json` ampliada para `https://*.supabase.co` — sem isso a imagem não carrega em produção/preview (CSP não existe em `npm run dev`).

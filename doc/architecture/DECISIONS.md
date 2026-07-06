@@ -1948,6 +1948,54 @@ Atende ao pedido de negócio sem exigir evento algum para o vendedor produzir le
 
 ---
 
+### [D-059] — Terceiro perfil "comercial": mesmo nível de eventos/ofertas/relatórios do marketing, sem estoque nem gestão de equipe
+
+**Data:** 2026-07-06
+**Tipo:** Feature / Arquitetura / RBAC
+
+**Contexto:**
+O uso diário do sistema por vendedores em campo vai começar de fato, e a gerência comercial (que acompanha os vendedores, mas não é marketing) precisa de login próprio para acompanhar eventos, ofertas e relatórios de leads — hoje só existem os papéis `marketing` (acesso total) e `vendedor` (escopo próprio).
+
+**Nota histórica:** já existiu um papel `comercial` no sistema, **antes** da arquitetura atual de Supabase Auth/RLS/factory (commits de 2026-06-09/12, era do protótipo local com `localStorage`). Era **somente leitura** (leads e eventos) e foi removido por decisão de simplificação ("sistema unificado em marketing e vendedor"), documentada apenas em `CLAUDE.md`/`SUPABASE.md` da época (pré-numeração D-NNN). Um bug relacionado — conflito de sessão entre abas de marketing e comercial — foi corrigido movendo a sessão para `sessionStorage`; essa correção já está presente na arquitetura atual (`src/lib/supabase.js`: `auth: { storage: sessionStorage }`), então não se repete aqui. O papel reintroduzido por este D-059 **não é o mesmo**: tem escrita em eventos/ofertas/leads (não só leitura), reaproveitando o RBAC via RLS que não existia na versão anterior.
+
+**Decisão:**
+1. `perfis.papel` passa a aceitar `'comercial'` além de `'marketing'`/`'vendedor'` (`perfis_papel_check`).
+2. RLS: `comercial` ganha o **mesmo nível de escrita do marketing** em `eventos`, `ofertas` (+ bucket Storage `ofertas`) e `leads` (insert/update/delete de qualquer lead, não só os próprios — mesmo padrão de `marketing`, para permitir acompanhar/corrigir dados de qualquer vendedor).
+3. `materiais` (estoque) e `perfis` (gestão de equipe — criar/ativar/desativar/excluir usuário, trocar papel) **permanecem exclusivos de `marketing`** — nem RLS nem a Edge Function `atualizar-email-usuario` mudam nessas duas áreas. Decisão explícita do responsável pelo sistema: comercial não deve mexer em estoque nem em contas de acesso, por ora.
+4. Novo shell de frontend `ComercialApp.jsx` — mesma casca visual de `MarketingApp.jsx`, com só 4 tabs: Início (Dashboard, somente leitura), Eventos, Ofertas, Relatórios (Leads). Sem Estoque, sem Equipe, sem Check-in, sem Monitor.
+5. `RootAuth.jsx` ganha um terceiro branch (`session.role === 'comercial'` → `ComercialApp`); `RootLegacy.jsx` (modo local sem Supabase) **não** ganha esse papel — é um modo de dev com credenciais fixas via env, sem gestão real de usuários, fora de escopo aqui.
+6. `EquipeAuthTab.jsx` (painel de usuários, ainda marketing-only) ganha uma terceira seção "Comercial" e a opção no seletor de papel — é o próprio marketing quem cria/gerencia as contas comerciais, já que Equipe continua fora do alcance do papel comercial.
+
+**Motivação:**
+Resolve a necessidade de negócio (gerente comercial acompanhando vendedores em produção, com uso diário já em andamento) reaproveitando 100% do padrão RBAC já existente (RLS por `papel_atual()`, proteção dupla UI+RLS do D-053/D-057) — sem introduzir uma dimensão nova de permissão (ex: granularidade por evento) que não foi pedida.
+
+**Alternativas Avaliadas:**
+- **Reaproveitar o papel `marketing` e restringir só na UI** — descartada: sem RLS própria, um comercial mal-intencionado (ou uma sessão comprometida) teria acesso de escrita a `materiais`/`perfis` direto via API, quebrando a garantia de proteção dupla que o resto do projeto segue à risca.
+- **Permissão granular por evento/vendedor** — não pedida; comercial enxerga/edita tudo em eventos/ofertas/leads, igual marketing, só sem estoque/equipe.
+- **Reintroduzir o `comercial` antigo (somente leitura)** — descartada porque o pedido de negócio atual é explicitamente de edição ("poderá alterar... ofertas/relatórios/eventos"), não só observação.
+
+**Impactos:**
+- Mudança 100% aditiva: nenhuma policy de `marketing`/`vendedor` existente foi removida ou reescrita, só estendida com `OR papel_atual() = 'comercial'` onde fazia sentido. Vendedores e marketing em produção não têm nenhuma mudança de comportamento.
+- `fetchAll()`/`carregarLeadsEvento`/`carregarLeadsMes` não mudam — já eram neutros a papel (dependem só de `papel_atual() is not null` para leitura).
+- Dashboard (Início) do comercial reaproveita `Dashboard.jsx` tal qual — o KPI "Materiais Críticos" é só leitura (RLS de `materiais` não muda), então não expõe nenhuma ação de escrita indevida.
+
+**Arquivos Afetados:**
+- `supabase/migracao-comercial.sql` (novo) — constraint de papel, policies de `eventos`/`ofertas`/`leads`/bucket `ofertas`
+- `src/apps/ComercialApp.jsx` (novo)
+- `src/apps/Root.jsx` — wiring do `ComercialApp` no `RootAuth`
+- `src/auth/RootAuth.jsx` — terceiro branch de roteamento por papel
+- `src/features/team/EquipeAuthTab.jsx` — seção "Comercial", `PAPEL_LABEL`, selects de papel
+- `src/index.css` — `.equipe-section--comercial`
+
+**Riscos:**
+- Baixo: como comercial tem escrita ampla em `leads` (igual marketing), um erro de digitação/edição por um comercial afeta dados de qualquer vendedor — mesmo risco que já existe para marketing hoje, não é uma superfície nova.
+- Baixo: se no futuro o comercial precisar gerenciar equipe, será uma nova decisão (D-06x) — deliberadamente fora de escopo aqui a pedido do responsável pelo sistema.
+- Nenhum: a migração não altera `RootLegacy.jsx` (modo local) nem exige mudança em ambiente de dev sem Supabase — o papel só existe em modo Supabase Auth.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

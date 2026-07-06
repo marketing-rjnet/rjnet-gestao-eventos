@@ -11,7 +11,7 @@ export default function EquipeAuthTab() {
   const [editando, setEditando] = useState(null);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
-  const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor" };
+  const PAPEL_LABEL = { marketing: "Marketing", vendedor: "Vendedor", comercial: "Comercial" };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -83,6 +83,7 @@ export default function EquipeAuthTab() {
               <label>Papel *</label>
               <select value={f.papel} onChange={(e) => set("papel", e.target.value)}>
                 <option value="vendedor">Vendedor — registra e acompanha leads</option>
+                <option value="comercial">Comercial — acompanha eventos, ofertas e relatórios</option>
                 <option value="marketing">Marketing — administra tudo</option>
               </select>
             </div>
@@ -119,7 +120,8 @@ export default function EquipeAuthTab() {
 
       {(() => {
         const admins = perfis.filter((p) => p.papel === "marketing");
-        const vendedores = perfis.filter((p) => p.papel !== "marketing");
+        const comerciais = perfis.filter((p) => p.papel === "comercial");
+        const vendedores = perfis.filter((p) => p.papel === "vendedor");
 
         const renderCard = (p) => (
           <div key={p.id} className="vendor-card">
@@ -139,6 +141,7 @@ export default function EquipeAuthTab() {
             <div className="v-actions" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
               <select value={p.papel} onChange={(e) => mudarPapel(p, e.target.value)} title="Alterar papel">
                 <option value="vendedor">Vendedor</option>
+                <option value="comercial">Comercial</option>
                 <option value="marketing">Marketing</option>
               </select>
               <button className="btn-ghost vendor-toggle" onClick={() => setEditando({ id: p.id, nome: p.nome, email: p.email || "" })}>
@@ -169,6 +172,22 @@ export default function EquipeAuthTab() {
                 {admins.length === 0
                   ? <p className="empty-state">Nenhum administrador cadastrado.</p>
                   : admins.map(renderCard)}
+              </div>
+            </div>
+
+            <div className="equipe-section equipe-section--comercial">
+              <div className="equipe-section-header">
+                <div className="equipe-section-title">
+                  <span className="equipe-section-icon">📊</span>
+                  Comercial
+                </div>
+                <span className="equipe-section-count">{comerciais.length}</span>
+              </div>
+              <p className="equipe-section-desc">Acompanha eventos, ofertas e relatórios de todos os vendedores — sem acesso a estoque ou gestão de equipe.</p>
+              <div className="vendor-grid">
+                {comerciais.length === 0
+                  ? <p className="empty-state">Nenhum gerente comercial cadastrado.</p>
+                  : comerciais.map(renderCard)}
               </div>
             </div>
 
