@@ -1994,6 +1994,9 @@ Resolve a necessidade de negócio (gerente comercial acompanhando vendedores em 
 
 **Status:** Ativa
 
+> **Atualização 2026-07-06 (bug pós-deploy, achado ao validar D-060):**
+> A migração original só estendeu as policies de **escrita** de `leads` (`leads_insert`/`update`/`delete`) para `comercial` — a policy de **leitura** (`leads_select`) não foi tocada e continuou restrita a `marketing`/`vendedor` (definida em `protecao-dados.sql`, antes de D-059 existir). Resultado observado em produção: o card "Mês/Dia a dia" (D-060) mostrava a contagem certa de leads/vendedores pro comercial (via `ranking_mes`, função `security definer` que ignora RLS), mas a tela de detalhe (`MesDetail`/`EventDetail`, que fazem SELECT direto na tabela) vinha sempre vazia — mesmo bug valeria pra aba Eventos do comercial. Corrigido em `migracao-comercial.sql`: `leads_select` e `oferta_envios_select` (mesma lacuna, mesma categoria) passam a aceitar `comercial` também. Arquivo é idempotente — basta rodar de novo no SQL Editor.
+
 ---
 
 ### [D-060] — Cards clicáveis "Evento" e "Mês/Dia a dia" no Início, com `MesDetail.jsx` espelhando `EventDetail.jsx`
