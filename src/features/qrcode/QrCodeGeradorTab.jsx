@@ -5,8 +5,18 @@ import { SERVICO_LABEL } from '../../utils/format';
 // Fase 0 do QR Code: gera a URL pública + a imagem do QR — sem persistir
 // nada em tabela nova. O marketing gera, baixa o PNG e imprime; a
 // identidade do QR (nome/local/campanha) viaja dentro da própria URL como
-// atributo de proveniência, consumida pela Edge Function na hora da
-// captação (ver supabase/functions/captar-lead-qrcode).
+// atributo de proveniência.
+//
+// Duas opções de "onde o QR aponta", ambas convergindo para a mesma Edge
+// Function (captar-lead-qrcode) — a origem do lead não muda, só quem
+// hospeda a tela que o titular preenche:
+//   1. Formulário próprio do sistema (/qr/:id) — padrão, sem configuração.
+//   2. Google Forms — preencha as duas constantes abaixo após criar o Form
+//      (ver google-forms-apps-script.js, no mesmo diretório da Edge
+//      Function, para o script que reencaminha as respostas).
+const GOOGLE_FORM_BASE_URL = ''; // ex: 'https://docs.google.com/forms/d/e/1FAIpQLSc.../viewform'
+const GOOGLE_FORM_ENTRY_QRCODE = ''; // ex: 'entry.123456789' — campo "Código de referência" do Form
+
 function slugify(str) {
   return str
     .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
@@ -27,9 +37,12 @@ export function QrCodeGeradorTab() {
     e.preventDefault();
     if (!f.nome.trim()) return;
     const qrCodeId = `${slugify(f.nome)}-${Math.random().toString(36).slice(2, 6)}`;
-    const label = [f.nome.trim(), f.local.trim(), f.campanha.trim()].filter(Boolean).join(' — ');
-    const url = `${window.location.origin}/qr/${qrCodeId}${label ? `?label=${encodeURIComponent(label)}` : ''}`;
-    setResultado({ url, label, qrCodeId, servico: f.servico });
+    const label = [f.nome.trim(), f.local.trim(), f.servico ? SERVICO_LABEL[f.servico] : '', f.campanha.trim()].filter(Boolean).join(' — ');
+    const usaGoogleForms = Boolean(GOOGLE_FORM_BASE_URL && GOOGLE_FORM_ENTRY_QRCODE);
+    const url = usaGoogleForms
+      ? `${GOOGLE_FORM_BASE_URL}?usp=pp_url&${GOOGLE_FORM_ENTRY_QRCODE}=${encodeURIComponent(qrCodeId)}`
+      : `${window.location.origin}/qr/${qrCodeId}${label ? `?label=${encodeURIComponent(label)}` : ''}`;
+    setResultado({ url, label, qrCodeId, usaGoogleForms });
     // canvas só existe após o próximo render (resultado passa a não-nulo)
     requestAnimationFrame(() => {
       if (canvasRef.current) QRCode.toCanvas(canvasRef.current, url, { width: 260, margin: 2 });
@@ -86,6 +99,9 @@ export function QrCodeGeradorTab() {
             <canvas ref={canvasRef} />
             <div style={{ fontWeight: 700, fontSize: 15 }}>{resultado.label || resultado.qrCodeId}</div>
             <div className="qr-gerador-url">{resultado.url}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              {resultado.usaGoogleForms ? '📋 Aponta para o Google Forms configurado' : '🔗 Aponta para o formulário próprio do sistema'}
+            </div>
             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
               <button type="button" className="btn-primary" style={{ flex: 1 }} onClick={baixarPng}>⬇️ Baixar PNG</button>
               <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={novoQr}>Gerar outro</button>
