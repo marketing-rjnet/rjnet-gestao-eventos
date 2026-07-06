@@ -260,10 +260,10 @@
       .equipe-section-count { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: var(--border); color: var(--text-3); }
       .equipe-section-desc { font-size: 12px; color: var(--text-3); margin: 0 0 12px; }
       .equipe-section--admin { border-left: 3px solid var(--rj-yellow); padding-left: 14px; }
-      .equipe-section--comercial { border-left: 3px solid var(--rj-blue); padding-left: 14px; }
+      .equipe-section--comercial { border-left: 3px solid var(--yellow); padding-left: 14px; }
       .equipe-section--vendas { border-left: 3px solid var(--border); padding-left: 14px; }
       .equipe-section--admin .equipe-section-title { color: var(--rj-yellow); }
-      .equipe-section--comercial .equipe-section-title { color: var(--rj-blue); }
+      .equipe-section--comercial .equipe-section-title { color: var(--yellow); }
       .empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 56px 20px; text-align: center; }
       .empty-state-title { font-size: 15px; font-weight: 600; color: var(--text-2); }
       .empty-state-sub { font-size: 13px; color: var(--text-3); max-width: 280px; line-height: 1.6; }
@@ -493,6 +493,8 @@
         border-left: 4px solid var(--yellow); margin-bottom: 0;
       }
       .hero-card-empty { border-left-color: var(--border); }
+      .hero-card-clickable { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+      .hero-card-clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-float), 0 0 0 1px var(--yellow); }
       .hero-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--yellow); text-transform: uppercase; margin-bottom: 6px; }
       .hero-title { font-size: 20px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; margin-bottom: 8px; }
       .hero-meta { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-3); margin-bottom: 16px; }

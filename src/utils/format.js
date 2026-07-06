@@ -25,6 +25,12 @@ export const MES_LABEL = [
 export const mesesDoAno = (ano) =>
   MES_LABEL.map((label, i) => ({ value: `${ano}-${String(i + 1).padStart(2, "0")}-01`, label }));
 
+// Mês corrente como mes_referencia (ex: hoje em 2026-07-06 -> "2026-07-01")
+export const mesAtualRef = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+
 // "2026-07-01" -> "Julho/2026"
 export const mesReferenciaLabel = (mesRef) => {
   if (!mesRef) return "—";

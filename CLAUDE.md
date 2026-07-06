@@ -78,7 +78,7 @@ src/
 │       └── index.js                   # Re-exports de modais (etapa 9)
 ├── features/
 │   ├── events/
-│   │   ├── Dashboard.jsx     # KPIs, gráfico de leads, próximos eventos (etapa 10)
+│   │   ├── Dashboard.jsx     # KPIs, gráfico de leads, próximos eventos; cards clicáveis Evento/Mês (etapa 10, D-060)
 │   │   ├── EventosTab.jsx    # Lista de eventos com filtros de status (etapa 10)
 │   │   ├── EventDetail.jsx   # Detalhe do evento, materiais e leads (etapa 10)
 │   │   └── index.js          # Re-exports de events (etapa 10)
@@ -90,6 +90,7 @@ src/
 │   │   └── index.js          # Re-export de offers (D-057)
 │   ├── leads/
 │   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
+│   │   ├── MesDetail.jsx     # Detalhe do mês: leads por vendedor + tabela, espelha EventDetail sem materiais (D-060)
 │   │   └── index.js          # Re-export de leads (etapa 11)
 │   ├── checkin/
 │   │   ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
@@ -332,7 +333,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/equipeApi.js` | ~29 | Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
-| `src/apps/ComercialApp.jsx` | ~62 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059) |
+| `src/apps/ComercialApp.jsx` | ~70 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `mesDetalhe`/`abrirEvento`/`abrirMes` para os cards do Início (D-060) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
@@ -345,13 +346,14 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/components/modals/MaterialChecklistModal.jsx` | ~100 | Importação em lote de materiais: 14 itens pré-definidos, seleção + ajuste de quantidade (D-053, marketing only) |
 | `src/components/modals/OfertaModal.jsx` | ~65 | Upload de imagem (1080x1080) + copy por serviço, marketing only (D-057) |
 | `src/features/offers/OfertasTab.jsx` | ~65 | Lista fixa das 5 ofertas por serviço, marketing only (D-057) |
-| `src/features/events/Dashboard.jsx` | ~70 | KPIs, gráfico donut, próximos eventos (etapa 10) |
+| `src/features/events/Dashboard.jsx` | ~166 | KPIs, gráfico donut, próximos eventos; 2 hero cards clicáveis Evento/Mês via `obterRanking`/`obterRankingMes` (etapa 10, D-060) |
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
+| `src/features/leads/MesDetail.jsx` | ~94 | Detalhe do mês: leads por vendedor + tabela, espelha `EventDetail.jsx` sem materiais (D-060) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
 | `src/hooks/useRanking.js` | ~42 | Hook de polling de ranking com debounce e cleanup; parâmetro `obterFn` opcional reaproveitado para o placar por mês (etapa 15, D-058) |
-| `src/utils/format.js` | ~42 | Formatação de datas, labels e iniciais; `mesesDoAno`/`mesReferenciaLabel` (etapa 1, D-058) |
+| `src/utils/format.js` | ~48 | Formatação de datas, labels e iniciais; `mesesDoAno`/`mesReferenciaLabel`/`mesAtualRef` (etapa 1, D-058, D-060) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
 | `src/utils/csv.js` | ~98 | Exportação CSV de leads por evento e por mês (etapa 3, D-058) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
