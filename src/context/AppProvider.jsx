@@ -12,6 +12,7 @@ import { createVendedorApi } from '../api/vendedorApi';
 import { createEquipeApi } from '../api/equipeApi';
 import { createOfertaApi } from '../api/ofertaApi';
 import { createFormularioApi } from '../api/formularioApi';
+import { createCampoPersonalizadoApi } from '../api/campoPersonalizadoApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -23,6 +24,8 @@ export function AppProvider({ children }) {
   const [ofertasEnviadas, setOfertasEnviadas] = usePersisted("rjnet_ofertas_enviadas", []);
   // Form Builder: formulários configuráveis pelo marketing/comercial
   const [formularios, setFormularios] = usePersisted("rjnet_formularios", []);
+  // Campos personalizados (sempre texto livre) reutilizáveis entre formulários
+  const [camposPersonalizados, setCamposPersonalizados] = usePersisted("rjnet_campos_personalizados", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -49,6 +52,7 @@ export function AppProvider({ children }) {
     setEventos(dados.eventos);
     setOfertas(dados.ofertas);
     setFormularios(dados.formularios);
+    setCamposPersonalizados(dados.camposPersonalizados);
     // TB-004/D-058: recarrega leads do contexto ativo (evento ou mês) quando realtime dispara
     const ctx = leadsContextRef.current;
     if (ctx?.tipo === 'evento') {
@@ -109,7 +113,7 @@ export function AppProvider({ children }) {
       if (evento === 'SIGNED_OUT') {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
-        setOfertas([]); setOfertasEnviadas([]); setFormularios([]);
+        setOfertas([]); setOfertasEnviadas([]); setFormularios([]); setCamposPersonalizados([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -146,8 +150,11 @@ export function AppProvider({ children }) {
   const { addFormulario, updateFormulario, removeFormulario } =
     createFormularioApi({ formularios, setFormularios });
 
+  const { addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado } =
+    createCampoPersonalizadoApi({ camposPersonalizados, setCamposPersonalizados });
+
   const value = useMemo(() => ({
-    materiais, eventos, leads, vendedores, ofertas, formularios,
+    materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados,
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
@@ -157,6 +164,7 @@ export function AppProvider({ children }) {
     criarUsuario, atualizarPerfil, excluirUsuario,
     saveOferta, removeOferta, registrarOfertaEnviada,
     addFormulario, updateFormulario, removeFormulario,
+    addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado,
     obterRanking, obterRankingMes,
     recarregar: carregar,
     carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode,
@@ -175,7 +183,7 @@ export function AppProvider({ children }) {
         return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, isLoading, syncStatus]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, isLoading, syncStatus]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

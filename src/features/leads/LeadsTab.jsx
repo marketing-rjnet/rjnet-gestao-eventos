@@ -12,9 +12,15 @@ const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário' };
 // manualmente — a mesma operação de negócio pra qualquer origem, sem regra
 // nova por canal.
 function FilaDistribuicao() {
-  const { vendedores, leads: leadsCompartilhados, updateLead } = useApp();
+  const { vendedores, leads: leadsCompartilhados, updateLead, camposPersonalizados } = useApp();
   const [leadsRemotos, setLeadsRemotos] = useState(null);
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
+  // campos_extras é guardado por `key` (não por id) — mapeia pra legenda
+  // legível sem precisar redesenhar a tela a cada campo novo criado.
+  const labelPorKey = Object.fromEntries(camposPersonalizados.map((c) => [c.key, c.label]));
+  const camposExtrasTexto = (l) => Object.entries(l.camposExtras || {})
+    .map(([key, valor]) => `${labelPorKey[key] || key}: ${valor}`)
+    .join(' · ');
 
   // Modo Supabase: leads frios não fazem parte do array `leads` do
   // contexto (que só carrega por evento/mês sob demanda) — busca à parte.
@@ -68,7 +74,10 @@ function FilaDistribuicao() {
           <tbody>
             {leadsFrios.map((l) => (
               <tr key={l.id}>
-                <td className="strong">{l.nome}</td>
+                <td>
+                  <div className="strong">{l.nome}</div>
+                  {camposExtrasTexto(l) && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{camposExtrasTexto(l)}</div>}
+                </td>
                 <td>{l.telefone}</td>
                 <td>{servicoLabel(l.servicoInteresse)}</td>
                 <td style={{ color: 'var(--text-3)', fontSize: 12 }}>

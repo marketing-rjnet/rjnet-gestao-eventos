@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
 
     const { data: formulario, error: formErro } = await admin
       .from('formularios')
-      .select('id,campos,campos_obrigatorios,ativo')
+      .select('id,campos,campos_obrigatorios,campos_personalizados_ids,campos_personalizados_obrigatorios,ativo')
       .eq('id', formularioId)
       .maybeSingle();
     if (formErro || !formulario || !formulario.ativo) {
@@ -147,6 +147,32 @@ Deno.serve(async (req) => {
 
     if (!valores.nome) return json({ error: 'Nome é obrigatório.' }, 400, corsHeaders);
 
+    // Campos personalizados: sempre texto livre, definidos pela própria
+    // equipe (marketing/comercial) — nunca um tipo/validação novo. A
+    // resposta é gravada num espaço à parte (campos_extras), fora das
+    // colunas fixas do Lead.
+    const idsPersonalizados: string[] = formulario.campos_personalizados_ids || [];
+    const obrigatoriosPersonalizados: string[] = formulario.campos_personalizados_obrigatorios || [];
+    const valoresPersonalizadosBrutos = body.valoresPersonalizados || {};
+    const camposExtras: Record<string, string> = {};
+
+    if (idsPersonalizados.length > 0) {
+      const { data: definicoes } = await admin
+        .from('campos_personalizados')
+        .select('id,label,key,ativo')
+        .in('id', idsPersonalizados);
+
+      for (const def of definicoes || []) {
+        if (!def.ativo) continue;
+        const bruto = valoresPersonalizadosBrutos[def.id];
+        const texto = sanitizeText(bruto, 255);
+        if (obrigatoriosPersonalizados.includes(def.id) && !texto) {
+          return json({ error: `Preencha o campo "${def.label}".` }, 400, corsHeaders);
+        }
+        if (texto) camposExtras[def.key] = texto;
+      }
+    }
+
     const agora = new Date().toISOString();
     const { error } = await admin.from('leads').insert({
       id: `l-form-${crypto.randomUUID()}`,
@@ -161,6 +187,7 @@ Deno.serve(async (req) => {
       cpf: (valores.cpf as string) || null,
       endereco: (valores.endereco as string) || null,
       bairro: (valores.bairro as string) || null,
+      campos_extras: camposExtras,
       servico_interesse: JSON.stringify(valores.servicoInteresse || []),
       temperatura: 'morno',
       observacao: null,

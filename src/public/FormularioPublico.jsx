@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
-import { fetchFormularioPublico } from '../lib/dataService';
+import { fetchFormularioPublico, fetchCamposPersonalizadosPublico } from '../lib/dataService';
 import { CAMPOS_FORMULARIO } from '../lib/constants';
 import { SERVICO_LABEL } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
 
 // Página pública dinâmica do Form Builder — sem sessão, sem AppContext.
-// Renderiza só os campos que o formulário escolheu, do catálogo fixo
-// CAMPOS_FORMULARIO (nunca um tipo de campo desconhecido). Mesma lógica de
-// destino dupla da página do QR Code: Edge Function quando o Supabase está
-// configurado, fallback local em preview/dev sem backend.
+// Renderiza os campos que o formulário escolheu: do catálogo fixo
+// CAMPOS_FORMULARIO e/ou dos campos personalizados que a equipe cadastrou
+// (sempre texto livre — nunca um tipo de campo desconhecido). Mesma lógica
+// de destino dupla da página do QR Code: Edge Function quando o Supabase
+// está configurado, fallback local em preview/dev sem backend.
 function buscarFormularioLocal(slug) {
   try {
     const todos = JSON.parse(localStorage.getItem('rjnet_formularios')) || [];
@@ -20,9 +21,20 @@ function buscarFormularioLocal(slug) {
   }
 }
 
+function buscarCamposPersonalizadosLocal(ids) {
+  try {
+    const todos = JSON.parse(localStorage.getItem('rjnet_campos_personalizados')) || [];
+    return todos.filter((c) => ids.includes(c.id) && c.ativo);
+  } catch {
+    return [];
+  }
+}
+
 export default function FormularioPublico({ slug }) {
   const [formulario, setFormulario] = useState(undefined); // undefined = carregando
+  const [definicoesPersonalizadas, setDefinicoesPersonalizadas] = useState([]);
   const [valores, setValores] = useState({});
+  const [valoresPersonalizados, setValoresPersonalizados] = useState({});
   const [consentimentoColetado, setConsentimentoColetado] = useState(false);
   const [website, setWebsite] = useState(''); // honeypot — humano nunca preenche
   const [erro, setErro] = useState('');
@@ -31,10 +43,17 @@ export default function FormularioPublico({ slug }) {
 
   useEffect(() => {
     if (!supabaseConfig.url) {
-      setFormulario(buscarFormularioLocal(slug));
+      const f = buscarFormularioLocal(slug);
+      setFormulario(f);
+      if (f?.camposPersonalizadosIds?.length) setDefinicoesPersonalizadas(buscarCamposPersonalizadosLocal(f.camposPersonalizadosIds));
       return;
     }
-    fetchFormularioPublico(slug).then(setFormulario);
+    fetchFormularioPublico(slug).then(async (f) => {
+      setFormulario(f);
+      if (f?.camposPersonalizadosIds?.length) {
+        setDefinicoesPersonalizadas(await fetchCamposPersonalizadosPublico(f.camposPersonalizadosIds));
+      }
+    });
   }, [slug]);
 
   const set = (k, v) => setValores((p) => ({ ...p, [k]: v }));
@@ -63,10 +82,20 @@ export default function FormularioPublico({ slug }) {
         setErro(`Preencha o campo "${campo.label}".`); return;
       }
     }
+    for (const def of definicoesPersonalizadas) {
+      const obrigatorio = (formulario.camposPersonalizadosObrigatorios || []).includes(def.id);
+      if (obrigatorio && !String(valoresPersonalizados[def.id] || '').trim()) {
+        setErro(`Preencha o campo "${def.label}".`); return;
+      }
+    }
     if (!consentimentoColetado) { setErro('É necessário confirmar o uso dos seus dados para continuar.'); return; }
 
     if (!supabaseConfig.url) {
-      salvarLeadPublicoLocal({ ...valores, origem: 'formulario', formularioId: formulario.id, nome: valores.nome || '(sem nome)' });
+      const camposExtras = {};
+      definicoesPersonalizadas.forEach((def) => {
+        if (valoresPersonalizados[def.id]) camposExtras[def.key] = valoresPersonalizados[def.id];
+      });
+      salvarLeadPublicoLocal({ ...valores, camposExtras, origem: 'formulario', formularioId: formulario.id, nome: valores.nome || '(sem nome)' });
       setEnviado(true);
       return;
     }
@@ -80,7 +109,7 @@ export default function FormularioPublico({ slug }) {
           'apikey': supabaseConfig.anonKey,
           'Authorization': `Bearer ${supabaseConfig.anonKey}`,
         },
-        body: JSON.stringify({ formularioId: formulario.id, valores, consentimentoColetado, website }),
+        body: JSON.stringify({ formularioId: formulario.id, valores, valoresPersonalizados, consentimentoColetado, website }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Não foi possível enviar seus dados.');
@@ -169,6 +198,20 @@ export default function FormularioPublico({ slug }) {
             <div className="big-field" key={key} style={{ marginBottom: 10 }}>
               <label>{campo.label} {obrigatorio && '*'}</label>
               <input maxLength={200} value={valores[key] || ''} onChange={(e) => set(key, e.target.value)} />
+            </div>
+          );
+        })}
+
+        {definicoesPersonalizadas.map((def) => {
+          const obrigatorio = (formulario.camposPersonalizadosObrigatorios || []).includes(def.id);
+          return (
+            <div className="big-field" key={def.id} style={{ marginBottom: 10 }}>
+              <label>{def.label} {obrigatorio && '*'}</label>
+              <input
+                maxLength={255}
+                value={valoresPersonalizados[def.id] || ''}
+                onChange={(e) => setValoresPersonalizados((p) => ({ ...p, [def.id]: e.target.value }))}
+              />
             </div>
           );
         })}
