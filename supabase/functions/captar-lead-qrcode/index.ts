@@ -37,7 +37,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
   const effectiveOrigin = allowed.includes(origin) ? origin : allowed[0];
   return {
     'Access-Control-Allow-Origin': effectiveOrigin,
-    'Access-Control-Allow-Headers': 'content-type',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
   };
 }
 
