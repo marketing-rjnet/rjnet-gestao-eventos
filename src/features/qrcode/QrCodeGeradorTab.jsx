@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import QRCode from 'qrcode';
 import { SERVICO_LABEL } from '../../utils/format';
+import { slugify } from '../../utils/ids';
 
 // Fase 0 do QR Code: gera a URL pública + a imagem do QR — sem persistir
 // nada em tabela nova. O marketing gera, baixa o PNG e imprime; a
@@ -16,14 +17,6 @@ import { SERVICO_LABEL } from '../../utils/format';
 //      Function, para o script que reencaminha as respostas).
 const GOOGLE_FORM_BASE_URL = ''; // ex: 'https://docs.google.com/forms/d/e/1FAIpQLSc.../viewform'
 const GOOGLE_FORM_ENTRY_QRCODE = ''; // ex: 'entry.123456789' — campo "Código de referência" do Form
-
-function slugify(str) {
-  return str
-    .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
 
 const FORM_VAZIO = { nome: '', local: '', servico: '', campanha: '' };
 

@@ -181,11 +181,14 @@ const leadFromDb = (r) => ({
   consentimentoColetado: r.consentimento_coletado ?? false,
   consentimentoEm: r.consentimento_em ?? null,
   versaoTermo: r.versao_termo ?? null,
-  // QR Code: atributos de proveniência — nunca um contexto operacional novo,
-  // sempre paralelos a evento_id/mes_referencia (que continuam XOR entre si)
+  // QR Code / Form Builder: atributos de proveniência — nunca um contexto
+  // operacional novo, sempre paralelos a evento_id/mes_referencia (que
+  // continuam XOR entre si)
   origem: r.origem ?? null,
   qrCodeId: r.qr_code_id ?? null,
   qrCodeLabel: r.qr_code_label ?? null,
+  formularioId: r.formulario_id ?? null,
+  bairro: r.bairro ?? "",
 });
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId ?? null, mes_referencia: l.mesReferencia ?? null,
@@ -201,10 +204,26 @@ const leadToDb = (l) => ({
   consentimento_coletado: l.consentimentoColetado ?? false,
   consentimento_em: l.consentimentoColetado ? (l.consentimentoEm || new Date().toISOString()) : null,
   versao_termo: l.consentimentoColetado ? (l.versaoTermo || 'v1.0') : null,
-  // QR Code: atributos de proveniência (ver leadFromDb)
+  // QR Code / Form Builder: atributos de proveniência (ver leadFromDb)
   origem: l.origem ?? null,
   qr_code_id: l.qrCodeId ?? null,
   qr_code_label: l.qrCodeLabel ?? null,
+  formulario_id: l.formularioId ?? null,
+  bairro: l.bairro || null,
+});
+
+// Form Builder: `campos`/`campos_obrigatorios` guardam só chaves do
+// catálogo fixo CAMPOS_FORMULARIO (src/lib/constants.js) — nunca schema
+// arbitrário (ver comentário em supabase/migracao-form-builder.sql).
+const formularioFromDb = (r) => ({
+  id: r.id, nome: r.nome, slug: r.slug,
+  campos: r.campos ?? [], camposObrigatorios: r.campos_obrigatorios ?? [],
+  ativo: r.ativo ?? true, criadoEm: r.criado_em,
+});
+const formularioToDb = (f) => ({
+  id: f.id, nome: f.nome, slug: f.slug,
+  campos: f.campos ?? [], campos_obrigatorios: f.camposObrigatorios ?? [],
+  ativo: f.ativo ?? true, criado_em: f.criadoEm || new Date().toISOString(),
 });
 
 const perfilFromDb = (r) => ({
@@ -228,7 +247,7 @@ const ofertaToDb = (o) => ({
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
-const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,qr_code_id,qr_code_label';
+const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,qr_code_id,qr_code_label,formulario_id,bairro';
 
 // TB-004: busca apenas materiais, eventos e perfis no boot.
 // Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
@@ -239,12 +258,14 @@ export async function fetchAll(signal) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
-      const [materiais, perfis, eventos, ofertas] = await Promise.all([
+      const [materiais, perfis, eventos, ofertas, formularios] = await Promise.all([
         supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
         supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
         supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
         // D-057: se a migração ainda não rodou nesse ambiente, cai para lista vazia (não derruba o boot)
         supabase.from('ofertas').select('servico,copy,imagem_path,atualizado_em').order('servico').abortSignal(signal),
+        // Form Builder: tabela pequena e estática, mesmo tratamento de ofertas
+        supabase.from('formularios').select('id,nome,slug,campos,campos_obrigatorios,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -266,6 +287,7 @@ export async function fetchAll(signal) {
         vendedores,
         eventos: eventos.data.map(eventoFromDb),
         ofertas: ofertas.error ? [] : ofertas.data.map(ofertaFromDb),
+        formularios: formularios.error ? [] : formularios.data.map(formularioFromDb),
         leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
@@ -368,6 +390,46 @@ export async function fetchLeadsMeses(mesesReferencia, signal) {
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao buscar leads mensais consolidados:', err.message || err);
+    return null;
+  });
+}
+
+// Form Builder: leitura pública (anon) de um formulário ativo pelo slug —
+// usada pela página pública, sem sessão nenhuma. RLS restringe a
+// `ativo = true` (migracao-form-builder.sql).
+export async function fetchFormularioPublico(slug) {
+  if (!isSupabaseMode() || !slug) return null;
+  const { data, error } = await supabase
+    .from('formularios')
+    .select('id,nome,slug,campos,campos_obrigatorios,ativo')
+    .eq('slug', slug)
+    .eq('ativo', true)
+    .maybeSingle();
+  if (error || !data) return null;
+  return formularioFromDb(data);
+}
+
+// Distribuição: qualquer lead "frio" (sem vendedor ainda), não importa a
+// origem (QR Code, Form Builder, futuros canais) — generaliza
+// fetchLeadsQrCode para a fila de distribuição do marketing/comercial.
+export async function fetchLeadsSemVendedor(signal) {
+  if (!isSupabaseMode()) return null;
+  return trackPerf('fetchLeadsSemVendedor', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .not('origem', 'is', null)
+        .eq('deletado', false)
+        .order('criado_em', { ascending: false })
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads sem vendedor:', err.message || err);
     return null;
   });
 }
@@ -597,6 +659,11 @@ export const db = {
     }
   },
   removeOferta: (servico) => exec(supabase?.from('ofertas').delete().eq('servico', servico), 'remover oferta'),
+
+  // Form Builder: mesmo padrão simples de saveEvento/saveOferta — sem
+  // upload nem passo assíncrono extra (diferente de saveOferta/imagem).
+  saveFormulario: (f) => exec(supabase?.from('formularios').upsert(formularioToDb(f)), 'salvar formulário'),
+  removeFormulario: (id) => exec(supabase?.from('formularios').delete().eq('id', id), 'remover formulário'),
 
   // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
   // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).

@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
 import { SERVICO_LABEL } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
+import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
 
 // Página pública — sem sessão, sem AppContext. O próprio titular preenche
-// ao escanear o QR Code. Converge para o mesmo Lead de sempre, só que via
-// Edge Function (captar-lead-qrcode) em vez do addLead() autenticado do
-// app, porque aqui não existe usuário logado nenhum.
+// ao escanear o QR Code. Converge para o mesmo Lead de sempre: via Edge
+// Function (captar-lead-qrcode) quando o Supabase está configurado, ou
+// gravando direto em localStorage em modo local/preview (ver
+// src/lib/localPublicSubmit.js) — só pra permitir testar o fluxo inteiro
+// sem backend; produção real sempre passa pela Edge Function.
 const FORM_VAZIO = { nome: '', telefone: '', cpf: '', endereco: '', servicoInteresse: [], consentimentoColetado: false };
 
 export default function QrCapturaPublica({ qrCodeId, qrCodeLabel }) {
@@ -30,7 +33,14 @@ export default function QrCapturaPublica({ qrCodeId, qrCodeLabel }) {
     if (!validarTelefone(f.telefone)) { setErro('Telefone inválido. Informe DDD + número.'); return; }
     if (!f.servicoInteresse.length) { setErro('Selecione ao menos um serviço de interesse.'); return; }
     if (!f.consentimentoColetado) { setErro('É necessário confirmar o uso dos seus dados para continuar.'); return; }
-    if (!supabaseConfig.url || !supabaseConfig.anonKey) { setErro('Formulário indisponível no momento. Tente novamente mais tarde.'); return; }
+
+    // Modo local/preview (sem Supabase configurado): grava direto, sem
+    // Edge Function — só para testar o fluxo ponta a ponta.
+    if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+      salvarLeadPublicoLocal({ ...f, origem: 'qrcode', qrCodeId, qrCodeLabel });
+      setEnviado(true);
+      return;
+    }
 
     setEnviando(true);
     try {

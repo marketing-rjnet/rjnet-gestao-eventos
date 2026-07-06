@@ -2,43 +2,54 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
 import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
-import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsQrCode, db } from '../../lib/dataService';
+import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, db } from '../../lib/dataService';
+import { isSupabaseMode } from '../../lib/mode';
 
-// Distribuição: leads de QR Code chegam sem vendedor. Marketing/Comercial
-// atribui manualmente — a mesma operação de updateLead() já usada em
-// qualquer outra edição de lead, sem regra nova de negócio.
-function DistribuicaoQrCode() {
-  const { vendedores } = useApp();
-  const [leadsQr, setLeadsQr] = useState(null);
+const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário' };
+
+// Distribuição: leads sem contexto operacional (QR Code, Form Builder e
+// futuros canais frios) chegam sem vendedor. Marketing/Comercial atribui
+// manualmente — a mesma operação de negócio pra qualquer origem, sem regra
+// nova por canal.
+function FilaDistribuicao() {
+  const { vendedores, leads: leadsCompartilhados, updateLead } = useApp();
+  const [leadsRemotos, setLeadsRemotos] = useState(null);
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
 
-  const carregar = () => { fetchLeadsQrCode().then(setLeadsQr); };
+  // Modo Supabase: leads frios não fazem parte do array `leads` do
+  // contexto (que só carrega por evento/mês sob demanda) — busca à parte.
+  // Modo local: `leads` já contém tudo (sem carregamento sob demanda nesse
+  // modo), então já dá pra filtrar direto do contexto compartilhado.
+  const carregar = () => { fetchLeadsSemVendedor().then(setLeadsRemotos); };
   useEffect(carregar, []);
+  const leadsFrios = isSupabaseMode() ? leadsRemotos : leadsCompartilhados.filter((l) => l.origem);
 
-  // Esses leads vivem só no estado local desta tela (buscados direto via
-  // fetchLeadsQrCode, fora do array `leads` compartilhado do contexto) — por
-  // isso a atribuição usa db.saveLead() com o objeto completo, em vez de
-  // updateLead() do contexto (que procura o lead em `leads` e, não achando,
-  // pulava a gravação silenciosamente).
   const atribuir = (leadId, vendedorId) => {
     const v = vendedoresAtivos.find((x) => x.id === vendedorId);
-    const lead = leadsQr?.find((l) => l.id === leadId);
-    if (!v || !lead) return;
-    const atualizado = { ...lead, vendedorNome: v.nome, vendedorId: v.id };
-    db.saveLead(atualizado);
-    setLeadsQr((prev) => prev.map((l) => (l.id === leadId ? atualizado : l)));
+    if (!v) return;
+    if (isSupabaseMode()) {
+      // Este lead não está no array `leads` compartilhado — updateLead()
+      // do contexto não o acharia e pularia a gravação silenciosamente.
+      const lead = leadsRemotos?.find((l) => l.id === leadId);
+      if (!lead) return;
+      const atualizado = { ...lead, vendedorNome: v.nome, vendedorId: v.id };
+      db.saveLead(atualizado);
+      setLeadsRemotos((prev) => prev.map((l) => (l.id === leadId ? atualizado : l)));
+    } else {
+      updateLead(leadId, { vendedorNome: v.nome, vendedorId: v.id });
+    }
   };
 
-  if (leadsQr === null) return null;
-  if (leadsQr.length === 0) return null;
+  if (leadsFrios === null) return null;
+  if (leadsFrios.length === 0) return null;
 
-  const semVendedor = leadsQr.filter((l) => !l.vendedorId);
+  const semVendedor = leadsFrios.filter((l) => !l.vendedorId);
 
   return (
     <div className="card" style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <span className="section-title" style={{ marginBottom: 0 }}>
-          Leads via QR Code {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
+          Leads sem vendedor {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
         </span>
         <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
       </div>
@@ -49,26 +60,25 @@ function DistribuicaoQrCode() {
               <th>Nome</th>
               <th>Telefone</th>
               <th>Interesse</th>
-              <th>QR Code</th>
+              <th>Origem</th>
               <th>Responsável</th>
               <th style={{ width: 200 }}></th>
             </tr>
           </thead>
           <tbody>
-            {leadsQr.map((l) => (
+            {leadsFrios.map((l) => (
               <tr key={l.id}>
                 <td className="strong">{l.nome}</td>
                 <td>{l.telefone}</td>
                 <td>{servicoLabel(l.servicoInteresse)}</td>
-                <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{l.qrCodeLabel || l.qrCodeId}</td>
+                <td style={{ color: 'var(--text-3)', fontSize: 12 }}>
+                  {ORIGEM_LABEL[l.origem] || l.origem}{l.qrCodeLabel ? ` — ${l.qrCodeLabel}` : ''}
+                </td>
                 <td>{l.vendedorNome || <span style={{ color: 'var(--text-3)' }}>Não atribuído</span>}</td>
                 <td>
                   <select
-                    value={atribuindo[l.id] ?? l.vendedorId ?? ''}
-                    onChange={(e) => {
-                      setAtribuindo((p) => ({ ...p, [l.id]: e.target.value }));
-                      if (e.target.value) atribuir(l.id, e.target.value);
-                    }}
+                    value={l.vendedorId ?? ''}
+                    onChange={(e) => { if (e.target.value) atribuir(l.id, e.target.value); }}
                     style={{ fontSize: 12 }}
                   >
                     <option value="">Atribuir a...</option>
@@ -269,7 +279,7 @@ export function LeadsTab({ session }) {
         )}
       </div>
 
-      <DistribuicaoQrCode />
+      <FilaDistribuicao />
 
       {/* D-058: leads do dia a dia, fora de eventos — mesmo padrão da tabela acima */}
       <div className="page-head" style={{ marginTop: 28 }}>

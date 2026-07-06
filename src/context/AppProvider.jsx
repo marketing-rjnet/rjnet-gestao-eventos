@@ -11,6 +11,7 @@ import { createMaterialApi } from '../api/materialApi';
 import { createVendedorApi } from '../api/vendedorApi';
 import { createEquipeApi } from '../api/equipeApi';
 import { createOfertaApi } from '../api/ofertaApi';
+import { createFormularioApi } from '../api/formularioApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -20,6 +21,8 @@ export function AppProvider({ children }) {
   // D-057: ofertas prontas por serviço (marketing) + indicador de envio (vendedor) — só em modo Supabase
   const [ofertas, setOfertas] = usePersisted("rjnet_ofertas", []);
   const [ofertasEnviadas, setOfertasEnviadas] = usePersisted("rjnet_ofertas_enviadas", []);
+  // Form Builder: formulários configuráveis pelo marketing/comercial
+  const [formularios, setFormularios] = usePersisted("rjnet_formularios", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -45,6 +48,7 @@ export function AppProvider({ children }) {
     setVendedores(dados.vendedores);
     setEventos(dados.eventos);
     setOfertas(dados.ofertas);
+    setFormularios(dados.formularios);
     // TB-004/D-058: recarrega leads do contexto ativo (evento ou mês) quando realtime dispara
     const ctx = leadsContextRef.current;
     if (ctx?.tipo === 'evento') {
@@ -105,7 +109,7 @@ export function AppProvider({ children }) {
       if (evento === 'SIGNED_OUT') {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
-        setOfertas([]); setOfertasEnviadas([]);
+        setOfertas([]); setOfertasEnviadas([]); setFormularios([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -139,8 +143,11 @@ export function AppProvider({ children }) {
   const { saveOferta, removeOferta, registrarOfertaEnviada } =
     createOfertaApi({ ofertas, setOfertas, setOfertasEnviadas });
 
+  const { addFormulario, updateFormulario, removeFormulario } =
+    createFormularioApi({ formularios, setFormularios });
+
   const value = useMemo(() => ({
-    materiais, eventos, leads, vendedores, ofertas,
+    materiais, eventos, leads, vendedores, ofertas, formularios,
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
@@ -149,6 +156,7 @@ export function AppProvider({ children }) {
     addVendedor, updateVendedor, toggleVendedor,
     criarUsuario, atualizarPerfil, excluirUsuario,
     saveOferta, removeOferta, registrarOfertaEnviada,
+    addFormulario, updateFormulario, removeFormulario,
     obterRanking, obterRankingMes,
     recarregar: carregar,
     carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode,
@@ -167,7 +175,7 @@ export function AppProvider({ children }) {
         return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, isLoading, syncStatus]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, isLoading, syncStatus]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -9,6 +9,7 @@ import './index.css';
 import { AppProvider } from './context';
 import Root from './apps/Root';
 import QrCapturaPublica from './public/QrCapturaPublica';
+import FormularioPublico from './public/FormularioPublico';
 
 Chart.register(...registerables);
 
@@ -34,10 +35,11 @@ class ErrorBoundary extends Component {
   }
 }
 
-// QR Code: página pública de captura (sem login, sem AppProvider). O app
-// não usa biblioteca de rotas — este é só um desvio mínimo antes do fluxo
-// autenticado normal, checado uma única vez no boot.
+// QR Code / Form Builder: páginas públicas de captura (sem login, sem
+// AppProvider). O app não usa biblioteca de rotas — isso é só um desvio
+// mínimo antes do fluxo autenticado normal, checado uma única vez no boot.
 const qrMatch = window.location.pathname.match(/^\/qr\/([^/]+)\/?$/);
+const formMatch = window.location.pathname.match(/^\/f\/([^/]+)\/?$/);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
@@ -46,6 +48,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         qrCodeId={decodeURIComponent(qrMatch[1])}
         qrCodeLabel={new URLSearchParams(window.location.search).get("label") || ""}
       />
+    ) : formMatch ? (
+      <FormularioPublico slug={decodeURIComponent(formMatch[1])} />
     ) : (
       <AppProvider><Root /></AppProvider>
     )}
