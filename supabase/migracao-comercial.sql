@@ -10,7 +10,14 @@
 --   2. Estende as policies de escrita de `eventos`, `ofertas`,
 --      `leads` e do bucket `ofertas` para aceitar também o papel
 --      'comercial' — mesmo nível de marketing nessas 3 áreas
---   3. NÃO toca em `materiais` (estoque) nem em `perfis`
+--   3. Estende a policy de LEITURA de `leads` e `oferta_envios`
+--      para aceitar 'comercial' (fix pós-deploy — a versão
+--      original desta migração só tinha estendido escrita;
+--      leitura continuava restrita a marketing/vendedor, então
+--      o comercial via os números certos no card do Início
+--      (RPC ranking_mes, security definer, ignora RLS) mas a
+--      tela de detalhe vinha sempre vazia)
+--   4. NÃO toca em `materiais` (estoque) nem em `perfis`
 --      (gestão de equipe) — essas continuam marketing-only
 --
 -- Depois de aplicar, rode:
@@ -32,9 +39,15 @@ create policy "eventos_write" on public.eventos for all to authenticated
   with check (public.papel_atual() in ('marketing', 'comercial'));
 
 -- ─── 3. leads: comercial acompanha e edita como marketing ────
--- (leitura já era ampla para qualquer papel autenticado; aqui só
--- as policies de escrita ganham o novo papel, lado a lado com
--- marketing — vendedor continua restrito aos próprios leads)
+-- (a policy de leitura de `leads` NÃO é aberta a qualquer papel —
+-- protecao-dados.sql restringe a marketing/vendedor; fix abaixo)
+
+drop policy if exists "leads_select" on public.leads;
+create policy "leads_select" on public.leads for select to authenticated
+  using (
+    deletado = false
+    and public.papel_atual() in ('marketing', 'comercial', 'vendedor')
+  );
 
 drop policy if exists "leads_insert" on public.leads;
 create policy "leads_insert" on public.leads for insert to authenticated
@@ -62,6 +75,10 @@ create policy "leads_delete" on public.leads for delete to authenticated
   );
 
 -- ─── 4. ofertas + bucket de Storage: marketing OU comercial ──
+
+drop policy if exists "oferta_envios_select" on public.oferta_envios;
+create policy "oferta_envios_select" on public.oferta_envios for select to authenticated
+  using (public.papel_atual() in ('marketing', 'comercial', 'vendedor'));
 
 drop policy if exists "ofertas_write" on public.ofertas;
 create policy "ofertas_write" on public.ofertas for all to authenticated
