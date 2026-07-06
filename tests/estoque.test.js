@@ -4,7 +4,8 @@ const { loginMarketing } = require('./helpers/auth');
 
 async function goToEstoque(page) {
   await loginMarketing(page);
-  await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+  await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+  await page.locator('.nav-more-item', { hasText: 'Estoque' }).click();
   await expect(page.locator('.page-title')).toHaveText('Estoque');
 }
 

@@ -104,13 +104,10 @@ src/
 │   ├── monitoring/
 │   │   ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards, feed 9 tipos, toolbar sessão ▶/■, limpar log (D-044–D-051)
 │   │   └── index.js          # Re-export de monitoring (D-044)
-│   ├── qrcode/
-│   │   └── QrCodeGeradorTab.jsx # Geração de QR Code/link por origem, marketing only (D-061)
 │   └── formularios/
-│       ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager, marketing only (D-062, D-063)
+│       ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065)
 │       └── index.js          # Re-export de formularios (D-062)
 ├── public/
-│   ├── QrCapturaPublica.jsx    # Página pública de captura via QR Code, sem sessão (D-061)
 │   └── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
@@ -130,7 +127,7 @@ src/
     ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
-    ├── localPublicSubmit.js # Fallback local (sem Supabase) para páginas públicas de QR Code/Formulário — dev/teste only (D-061, D-062)
+    ├── localPublicSubmit.js # Fallback local (sem Supabase) para a página pública do Form Builder — dev/teste only (D-062)
     └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, CAMPOS_FORMULARIO (etapas 5, D-062)
 
 supabase/
@@ -149,7 +146,6 @@ supabase/
 ├── config.toml              # Config local do Supabase
 └── functions/
     ├── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
-    ├── captar-lead-qrcode/index.ts       # Edge Function pública — captura de lead via QR Code (D-061)
     └── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder (D-062, D-063)
 
 tests/
@@ -279,6 +275,8 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 
 ## Módulos da UI
 
+**Navegação do Marketing (D-065):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários), **Comercial** (Ofertas), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial mantém os 4 botões diretos de sempre (sem "Mais"), Vendedor não muda.
+
 | Tab | Papel | Funcionalidade |
 |-----|-------|---------------|
 | Dashboard | marketing, comercial | KPIs, gráfico de leads por serviço, alertas de estoque (leitura, mesmo para comercial) |
@@ -287,8 +285,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | Ofertas | marketing, comercial | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057, D-059) |
 | Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
-| QR Codes | marketing | Geração de QR Code/link por origem para captura pública sem sessão, distribuição de leads não atribuídos para vendedores (D-061) |
-| Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis), link/QR próprio (D-062, D-063) |
+| Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
@@ -375,9 +372,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/features/leads/MesDetail.jsx` | ~94 | Detalhe do mês: leads por vendedor + tabela, espelha `EventDetail.jsx` sem materiais (D-060) |
-| `src/features/qrcode/QrCodeGeradorTab.jsx` | ~107 | Geração de QR Code/link por origem, marketing only (D-061) |
-| `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`, marketing only (D-062, D-063) |
-| `src/public/QrCapturaPublica.jsx` | ~133 | Página pública de captura via QR Code, sem sessão, sem `AppContext` (D-061) |
+| `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065) |
 | `src/public/FormularioPublico.jsx` | ~235 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063) |
 | `src/lib/localPublicSubmit.js` | ~37 | Fallback local (sem Supabase) para páginas públicas, dev/teste only (D-061, D-062) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
@@ -399,11 +394,10 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-ofertas.sql` | ~75 | Tabelas ofertas/oferta_envios, RLS e bucket Storage (D-057) |
 | `supabase/migracao-leads-mensais.sql` | ~122 | Coluna `mes_referencia`, constraint de exclusividade, RPC `ranking_mes`, retenção LGPD estendida (D-058) |
 | `supabase/migracao-comercial.sql` | ~94 | Papel `comercial` + RLS de `eventos`/`ofertas`/`leads`/bucket Storage (D-059) |
-| `supabase/migracao-qrcode.sql` | ~68 | Colunas `origem`/`qr_code_id`/`qr_code_label`, constraint relaxada, RLS de visibilidade (D-061) |
+| `supabase/migracao-qrcode.sql` | ~68 | Colunas `origem`/`qr_code_id`/`qr_code_label`, constraint relaxada, RLS de visibilidade (D-061) — colunas seguem ativas (compartilhadas com origem `formulario`) mesmo após D-065 retirar o gerador standalone |
 | `supabase/migracao-qrcode-retencao.sql` | ~86 | Retenção LGPD para leads sem evento/mês (D-061) |
 | `supabase/migracao-form-builder.sql` | ~78 | Tabela `formularios`, colunas `formulario_id`/`bairro` em `leads`, RLS `anon` (D-062) |
 | `supabase/migracao-campos-personalizados.sql` | ~63 | Tabela `campos_personalizados`, colunas em `formularios`/`leads`, RLS `anon` (D-063) |
-| `supabase/functions/captar-lead-qrcode/index.ts` | ~129 | Edge Function pública — captura de lead via QR Code (D-061) |
 | `supabase/functions/submeter-formulario/index.ts` | ~212 | Edge Function pública — submissão do Form Builder + campos personalizados (D-062, D-063) |
-| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrites SPA para `/qr/:path*` e `/f/:path*` (D-061, D-062) |
+| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrite SPA para `/f/:path*` (D-062; a rewrite `/qr/:path*` foi retirada em D-065) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

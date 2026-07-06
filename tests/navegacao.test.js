@@ -1,19 +1,21 @@
 // @ts-check
 /**
  * Testes E2E de navegação entre abas.
- * V3: Marketing tem bottom nav mobile (5 itens + Mais) e header desktop com 7 tabs.
- *     Aba padrão do Marketing é "Início" (Dashboard). Vendedor tem 3 botões no bottom nav.
+ * D-065: Marketing tem 3 botões diretos (Início/Eventos/Relatórios) + botão
+ *     "Mais" com dropdown (desktop) / bottom sheet (mobile) agrupado por
+ *     categoria (Captação, Comercial, Operação, Sistema). Vendedor tem 3
+ *     botões no bottom nav.
  */
 const { test, expect } = require('@playwright/test');
 const { loginMarketing, loginComercial } = require('./helpers/auth');
 
 test.describe('Navegação entre abas', () => {
 
-  test('header desktop do Marketing exibe 7 tabs', async ({ page }) => {
+  test('header desktop do Marketing exibe 3 tabs diretas + Mais', async ({ page }) => {
     await loginMarketing(page);
     await expect(page.locator('.header-nav')).toBeVisible();
     const tabs = page.locator('.header-nav .nav-tab');
-    await expect(tabs).toHaveCount(7);
+    await expect(tabs).toHaveCount(4);
   });
 
   test('aba Início (Dashboard) está ativa por padrão', async ({ page }) => {
@@ -26,10 +28,17 @@ test.describe('Navegação entre abas', () => {
     await expect(page.locator('.hero-card, .grid-kpi').first()).toBeVisible();
   });
 
-  test('clicando em Estoque exibe seção de estoque', async ({ page }) => {
+  test('botão Mais abre dropdown agrupado por categoria', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
-    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Estoque');
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await expect(page.locator('.nav-more-dropdown')).toBeVisible();
+    await expect(page.locator('.nav-more-group-title')).toHaveText(['Captação', 'Comercial', 'Operação', 'Sistema']);
+  });
+
+  test('clicando em Estoque (dentro de Mais) exibe seção de estoque', async ({ page }) => {
+    await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Estoque' }).click();
     await expect(page.locator('.page-title')).toHaveText('Estoque');
   });
 
@@ -37,20 +46,28 @@ test.describe('Navegação entre abas', () => {
     await loginMarketing(page);
     await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
     await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Relatórios');
-    await expect(page.locator('.page-title')).toHaveText('Leads');
+    await expect(page.locator('.page-title').first()).toHaveText('Exportar Leads');
   });
 
-  test('clicando em Equipe exibe lista de vendedores', async ({ page }) => {
+  test('clicando em Equipe (dentro de Mais) exibe lista de vendedores', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Equipe' }).click();
-    await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Equipe');
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Equipe' }).click();
     await expect(page.locator('.vendor-card').first()).toBeVisible();
   });
 
-  test('clicando em Check-in exibe busca por nome', async ({ page }) => {
+  test('clicando em Check-in (dentro de Mais) exibe busca por nome', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Check-in' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Check-in' }).click();
     await expect(page.locator('.page-title')).toContainText('Check-in');
+  });
+
+  test('clicando em Formulários (dentro de Mais) exibe o Form Builder', async ({ page }) => {
+    await loginMarketing(page);
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Formulários' }).click();
+    await expect(page.locator('.page-title')).toHaveText('Formulários');
   });
 
   test('clicando em Eventos exibe grid de eventos', async ({ page }) => {
@@ -62,7 +79,7 @@ test.describe('Navegação entre abas', () => {
 
   test('clicando em Início retorna ao Dashboard', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Eventos' }).click();
     await page.locator('.header-nav .nav-tab', { hasText: 'Início' }).click();
     await expect(page.locator('.header-nav .nav-tab.active')).toContainText('Início');
     await expect(page.locator('.hero-card, .grid-kpi').first()).toBeVisible();

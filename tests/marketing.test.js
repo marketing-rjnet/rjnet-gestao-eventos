@@ -19,35 +19,37 @@ test.describe('Seção Marketing', () => {
     await expect(page.locator('.event-card').first()).toBeVisible();
   });
 
-  test('aba Leads exibe a tabela de leads', async ({ page }) => {
+  test('aba Relatórios exibe a tabela de leads', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
     await expect(page.locator('.tbl-wrap table, .empty').first()).toBeVisible();
   });
 
-  test('leads do mock aparecem na aba Leads', async ({ page }) => {
+  test('leads do mock aparecem na aba Relatórios', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
-    await expect(page.locator('.tbl-wrap table')).toContainText('João Pereira');
+    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
+    await expect(page.locator('.tbl-wrap table').first()).toContainText('João Pereira');
   });
 
-  test('filtro por evento na aba Leads funciona', async ({ page }) => {
+  test('filtro por evento na aba Relatórios funciona', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Leads' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Relatórios' }).click();
     const filtroEvento = page.locator('.filter-row select').first();
     await filtroEvento.selectOption({ label: 'Feira de Tecnologia RJ' });
     await expect(page.locator('.empty', { hasText: 'Nenhum lead encontrado' })).toBeVisible();
   });
 
-  test('aba Estoque é acessível para Marketing', async ({ page }) => {
+  test('aba Estoque é acessível para Marketing (dentro de Mais)', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Estoque' }).click();
     await expect(page.locator('.stock-group').first()).toBeVisible();
   });
 
-  test('aba Equipe é acessível para Marketing', async ({ page }) => {
+  test('aba Equipe é acessível para Marketing (dentro de Mais)', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Equipe' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Equipe' }).click();
     await expect(page.locator('.vendor-card').first()).toBeVisible();
   });
 
@@ -62,7 +64,8 @@ test.describe('Seção Marketing', () => {
 
   test('adicionar vendedor na aba Equipe', async ({ page }) => {
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Equipe' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Equipe' }).click();
     await page.locator('button', { hasText: 'Adicionar Vendedor' }).click();
     await page.locator('.inline-form-card input').fill('Vendedor Teste E2E');
     await page.locator('.inline-form-card button[type="submit"]').click();

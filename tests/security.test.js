@@ -247,7 +247,8 @@ test.describe('Integridade de Dados', () => {
   test('campos numéricos não aceitam texto livre sem validação', async ({ page }) => {
     test.slow();
     await loginMarketing(page);
-    await page.locator('.header-nav .nav-tab', { hasText: 'Estoque' }).click();
+    await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
+    await page.locator('.nav-more-item', { hasText: 'Estoque' }).click();
     await page.locator('button', { hasText: 'Adicionar Material' }).click();
 
     const numInput = page.locator('.modal-box input[type="number"]');

@@ -9,54 +9,30 @@ import { LeadsTab } from '../features/leads';
 import { CheckinTab } from '../features/checkin';
 import { EquipeTab, EquipeAuthTab } from '../features/team';
 import { MonitoringTab } from '../features/monitoring';
-import { QrCodeGeradorTab } from '../features/qrcode';
 import { FormBuilderTab } from '../features/formularios';
 
-const MAIN_TABS = [
-  { id: "inicio",  label: "Início",   ico: "home" },
-  { id: "eventos", label: "Eventos",  ico: "calendar" },
-  { id: "equipe",  label: "Equipe",   ico: "briefcase" },
-  { id: "checkin", label: "Check-in", ico: "search" },
+// D-065: 3 botões diretos (uso diário) + 1 botão "Mais" com o restante
+// agrupado por categoria — mesma estrutura no header desktop e no bottom
+// sheet mobile, pra não ter dois modelos mentais de navegação.
+const DIRECT_TABS = [
+  { id: "inicio",  label: "Início",     ico: "home" },
+  { id: "eventos", label: "Eventos",    ico: "calendar" },
+  { id: "leads",   label: "Relatórios", ico: "users" },
 ];
 
-const MORE_TABS = [
-  { id: "estoque", label: "Estoque",    ico: "box" },
-  { id: "ofertas", label: "Ofertas",    ico: "box" },
-  { id: "qrcode",  label: "QR Codes",   ico: "search" },
-  { id: "formularios", label: "Formulários", ico: "edit" },
-  { id: "leads",   label: "Relatórios", ico: "users" },
-  { id: "monitor", label: "Monitor",    ico: "activity" },
+const MORE_GROUPS = [
+  { title: "Captação",  items: [{ id: "formularios", label: "Formulários", ico: "edit" }] },
+  { title: "Comercial", items: [{ id: "ofertas", label: "Ofertas", ico: "box" }] },
+  { title: "Operação",  items: [{ id: "estoque", label: "Estoque", ico: "box" }, { id: "checkin", label: "Check-in", ico: "search" }] },
+  { title: "Sistema",   items: [{ id: "equipe", label: "Equipe", ico: "briefcase" }, { id: "monitor", label: "Monitor", ico: "activity" }] },
 ];
 
-const ALL_TABS = [
-  ...MAIN_TABS,
-  { id: "estoque", label: "Estoque",    ico: "box" },
-  { id: "ofertas", label: "Ofertas",    ico: "box" },
-  { id: "qrcode",  label: "QR Codes",   ico: "search" },
-  { id: "formularios", label: "Formulários", ico: "edit" },
-  { id: "leads",   label: "Relatórios", ico: "users" },
-  { id: "equipe",  label: "Equipe",     ico: "briefcase" },
-  { id: "checkin", label: "Check-in",   ico: "search" },
-  { id: "monitor", label: "Monitor",    ico: "activity" },
-];
+const MORE_TABS = MORE_GROUPS.flatMap((g) => g.items);
 
 export default function MarketingApp({ session, onLogout, darkMode, toggleDark }) {
   const [tab, setTab] = useState("inicio");
   const [detailId, setDetailId] = useState(null);
   const [showMore, setShowMore] = useState(false);
-
-  const allDesktopTabs = [
-    { id: "inicio",  label: "Início",    ico: "home" },
-    { id: "eventos", label: "Eventos",   ico: "calendar" },
-    { id: "estoque", label: "Estoque",   ico: "box" },
-    { id: "ofertas", label: "Ofertas",   ico: "box" },
-    { id: "qrcode",  label: "QR Codes",  ico: "search" },
-    { id: "formularios", label: "Formulários", ico: "edit" },
-    { id: "leads",   label: "Relatórios",ico: "users" },
-    { id: "equipe",  label: "Equipe",    ico: "briefcase" },
-    { id: "checkin", label: "Check-in",  ico: "search" },
-    { id: "monitor", label: "Monitor",   ico: "activity" },
-  ];
 
   const switchTab = (id) => { setTab(id); setDetailId(null); setShowMore(false); };
 
@@ -72,11 +48,34 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
       <header className="app-header">
         <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
         <nav className="header-nav">
-          {allDesktopTabs.map((t) => (
+          {DIRECT_TABS.map((t) => (
             <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
               <Icon name={t.ico} size={17} />{t.label}
             </button>
           ))}
+          <div className="nav-more-wrap">
+            <button className={"nav-tab" + (moreActive || showMore ? " active" : "")} onClick={() => setShowMore((v) => !v)}>
+              <Icon name="menu" size={17} />Mais
+            </button>
+            {showMore && (
+              <>
+                <div className="nav-more-scrim" onClick={() => setShowMore(false)} />
+                <div className="nav-more-dropdown">
+                  {MORE_GROUPS.map((g) => (
+                    <div className="nav-more-group" key={g.title}>
+                      <div className="nav-more-group-title">{g.title}</div>
+                      {g.items.map((t) => (
+                        <button key={t.id} className={"nav-more-item" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
+                          <Icon name={t.ico} size={17} />
+                          <span>{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </nav>
         <div className="header-right">
           <SyncBadge />
@@ -92,17 +91,16 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "estoque" && <EstoqueTab />}
       {tab === "ofertas" && <OfertasTab />}
-      {tab === "qrcode" && <QrCodeGeradorTab />}
       {tab === "formularios" && <FormBuilderTab />}
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}
       {tab === "monitor" && <MonitoringTab />}
 
-      {/* Bottom nav — mobile only (5 items + Mais) */}
+      {/* Bottom nav — mobile only (3 diretos + Mais) */}
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
-          {MAIN_TABS.map((t) => (
+          {DIRECT_TABS.map((t) => (
             <button key={t.id} className={"bn-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
               <span className="bn-ico"><Icon name={t.ico} size={22} /></span>
               {t.label}
@@ -115,18 +113,22 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         </div>
       </nav>
 
-      {/* Bottom sheet "Mais" */}
+      {/* Bottom sheet "Mais" — mesmo agrupamento do dropdown desktop */}
       {showMore && (
         <>
           <div className="more-overlay" onClick={() => setShowMore(false)} />
           <div className="more-sheet">
             <div className="more-sheet-handle" />
-            <div className="more-sheet-title">Mais opções</div>
-            {MORE_TABS.map((t) => (
-              <button key={t.id} className={"more-sheet-item" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
-                <Icon name={t.ico} size={20} stroke={tab === t.id ? "var(--yellow)" : "var(--text-2)"} />
-                <span>{t.label}</span>
-              </button>
+            {MORE_GROUPS.map((g) => (
+              <div key={g.title} style={{ marginBottom: 14 }}>
+                <div className="more-sheet-title">{g.title}</div>
+                {g.items.map((t) => (
+                  <button key={t.id} className={"more-sheet-item" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>
+                    <Icon name={t.ico} size={20} stroke={tab === t.id ? "var(--yellow)" : "var(--text-2)"} />
+                    <span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </>
