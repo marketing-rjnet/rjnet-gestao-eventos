@@ -8,19 +8,25 @@ import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fe
 // atribui manualmente — a mesma operação de updateLead() já usada em
 // qualquer outra edição de lead, sem regra nova de negócio.
 function DistribuicaoQrCode() {
-  const { vendedores, updateLead } = useApp();
+  const { vendedores } = useApp();
   const [leadsQr, setLeadsQr] = useState(null);
-  const [atribuindo, setAtribuindo] = useState({});
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
 
   const carregar = () => { fetchLeadsQrCode().then(setLeadsQr); };
   useEffect(carregar, []);
 
+  // Esses leads vivem só no estado local desta tela (buscados direto via
+  // fetchLeadsQrCode, fora do array `leads` compartilhado do contexto) — por
+  // isso a atribuição usa db.saveLead() com o objeto completo, em vez de
+  // updateLead() do contexto (que procura o lead em `leads` e, não achando,
+  // pulava a gravação silenciosamente).
   const atribuir = (leadId, vendedorId) => {
     const v = vendedoresAtivos.find((x) => x.id === vendedorId);
-    if (!v) return;
-    updateLead(leadId, { vendedorNome: v.nome, vendedorId: v.id });
-    setLeadsQr((prev) => prev.map((l) => (l.id === leadId ? { ...l, vendedorNome: v.nome, vendedorId: v.id } : l)));
+    const lead = leadsQr?.find((l) => l.id === leadId);
+    if (!v || !lead) return;
+    const atualizado = { ...lead, vendedorNome: v.nome, vendedorId: v.id };
+    db.saveLead(atualizado);
+    setLeadsQr((prev) => prev.map((l) => (l.id === leadId ? atualizado : l)));
   };
 
   if (leadsQr === null) return null;
