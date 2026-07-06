@@ -1996,6 +1996,45 @@ Resolve a necessidade de negócio (gerente comercial acompanhando vendedores em 
 
 ---
 
+### [D-060] — Cards clicáveis "Evento" e "Mês/Dia a dia" no Início, com `MesDetail.jsx` espelhando `EventDetail.jsx`
+
+**Data:** 2026-07-06
+**Tipo:** Feature / UX
+
+**Contexto:**
+O responsável pelo sistema queria, para o mês de referência (D-058), a mesma visão que já existe por evento — gráfico "Leads por Vendedor" + tabela de leads (`EventDetail.jsx`). A ideia inicial (ícone de "visualizar" na tabela de exportação da aba Relatórios) foi substituída, a pedido do próprio responsável, por dois cards clicáveis no Início (Dashboard) — no mesmo estilo do hero card "Evento Ativo" que já existia — cada um levando ao detalhe do seu contexto.
+
+**Decisão:**
+1. Novo componente `src/features/leads/MesDetail.jsx` — mesma estrutura da seção "LEADS" de `EventDetail.jsx` (gráfico de barras "Leads por Vendedor" + busca + tabela), **sem** a parte de materiais (não existe estoque alocado a mês). Usa `carregarLeadsMes`/`getLeadsMes`, já existentes desde D-058.
+2. `Dashboard.jsx` ganha um segundo hero card, "MÊS / DIA A DIA", ao lado do já existente "EVENTO ATIVO" (`grid-2`). Ambos os cards agora são clicáveis (`onOpenEvento`/`onOpenMes`, props novas do componente) e navegam para o detalhe do respectivo contexto.
+3. Os dois cards passam a calcular "leads"/"vendedores" via `obterRanking(eventoId)`/`obterRankingMes(mes)` (RPC agregada, com cache de 30s) em vez de derivar do array `leads` do contexto — esse array só contém o contexto (evento ou mês) carregado por último em alguma outra tela (D-039/D-058), então o card do Início quase sempre mostraria 0 até o usuário abrir aquele evento/mês manualmente. Esse ajuste também corrige esse comportamento pro card "Evento Ativo", que já existia.
+4. `mesAtualRef()` (novo util em `format.js`) gera o mês corrente no formato `mes_referencia` (`"2026-07-01"`), reaproveitando o mesmo formato de `mesesDoAno`/`mesReferenciaLabel` (D-058).
+5. `MarketingApp.jsx`/`ComercialApp.jsx` ganham um estado `mesDetalhe` (espelhando `detailId`, já usado para o evento) e funções `abrirEvento`/`abrirMes` que trocam de aba **e** abrem o detalhe certo num só clique a partir do card do Início.
+6. **Paleta:** a primeira versão usava uma cor azul para diferenciar visualmente os dois cards (e a seção "Comercial" do D-059). Corrigido a pedido do responsável pelo sistema: a marca RJNet é amarela, então ambos os cards e a seção "Comercial" usam o mesmo amarelo (`--yellow`) do resto do app — sem introduzir uma segunda cor de destaque.
+
+**Motivação:**
+Dá ao marketing/comercial (D-059, que também usa esse Dashboard) um "exemplo visual" imediato do que está sendo captado tanto em evento quanto no dia a dia, reaproveitando ~90% do código já existente (`EventDetail`, `carregarLeadsMes`/`getLeadsMes`, `obterRanking`/`obterRankingMes`, `ChartView`) — sem nenhuma migração de banco.
+
+**Alternativas Avaliadas:**
+- **Ícone "visualizar" por linha na tabela de exportação (`LeadsTab.jsx`)** — descartada a pedido do responsável em favor dos cards no Início, mais visíveis e consistentes com o hero card que já existia.
+- **Card do mês carregando `carregarLeadsMes` direto no `Dashboard`** — descartada: substituiria o array `leads` do contexto compartilhado (`AppProvider`) só para exibir um número no card, conflitando com qualquer outra tela que dependa desse mesmo array (ex: se o usuário estivesse com um evento aberto). `obterRanking`/`obterRankingMes` (RPC própria, com cache, sem tocar o array principal) resolve sem esse efeito colateral.
+- **Bug corrigido durante a implementação, achado por acidente**: `--rj-blue` (usada em D-059 para a seção "Comercial") na verdade vale `#ffcb00` — é o nome legado da cor de marca (amarelo), não azul. Confirmado com o responsável que a marca é mesmo amarela; a correção foi usar `var(--yellow)` (variável correta e já definida) em vez de introduzir uma cor nova. **Não foi mexido** o `--rj-yellow` usado em `.equipe-section--admin` (D-053/pré-D-059) — essa variável nunca foi definida em `:root`; é um bug pré-existente, fora do escopo desta sessão.
+
+**Impactos:**
+- `src/features/leads/index.js` — novo export `MesDetail`
+- `src/features/events/Dashboard.jsx` — dois hero cards clicáveis, stats via ranking agregado em vez de `leads` local
+- `src/apps/MarketingApp.jsx`/`ComercialApp.jsx` — estado `mesDetalhe`, funções `abrirEvento`/`abrirMes`
+- `src/utils/format.js` — `mesAtualRef()`
+- `src/index.css` — `.hero-card-clickable`, `.hero-card-mes` (estrutural, sem cor própria); `.equipe-section--comercial` corrigida para `var(--yellow)`
+- Nenhuma mudança de banco/RLS — 100% frontend, reaproveitando dados/endpoints já existentes de D-058
+
+**Riscos:**
+- Nenhum: mudança aditiva de UI, sem migração. Pior caso é o card do mês mostrar "0 leads" quando de fato não há nenhum lead capturado no mês corrente ainda — comportamento correto, não um bug.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

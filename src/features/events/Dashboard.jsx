@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
-import { Kpi, StatusBadge } from '../../components/ui';
-import { Icon } from '../../components/ui';
-import { fmtDate } from '../../utils/format';
+import { Kpi, StatusBadge, Icon } from '../../components/ui';
+import { fmtDate, mesAtualRef, mesReferenciaLabel } from '../../utils/format';
 import { STATUS_EVENTO, UPCOMING_EVENTS_LIMIT } from '../../lib/constants';
 
 const SERVICO_LABELS = {
@@ -15,18 +14,39 @@ const SERVICO_LABELS = {
 
 const BAR_COLORS = ["#ffcb00", "#22c55e", "#60a5fa", "#fb923c", "#666666"];
 
-export default function Dashboard() {
-  const { eventos, leads, vendedores, getMateriaisDisponiveis } = useApp();
+export default function Dashboard({ onOpenEvento, onOpenMes }) {
+  const { eventos, leads, vendedores, getMateriaisDisponiveis, obterRanking, obterRankingMes } = useApp();
 
   const eventoAtivo = eventos.find((e) => e.status === STATUS_EVENTO.ATIVO);
   const qtdAtivos = eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO).length;
   const criticos = getMateriaisDisponiveis().filter((m) => m.disponivel <= 0).length;
   const vendAtivos = vendedores.filter((v) => v.ativo).length;
 
-  const leadsAtivo = eventoAtivo ? leads.filter((l) => l.eventoId === eventoAtivo.id) : [];
-  const vendedoresAtivos = eventoAtivo
-    ? [...new Set(leadsAtivo.map((l) => l.vendedorNome))].length
-    : 0;
+  const mesAtual = mesAtualRef();
+
+  // D-060: placar via RPC (ranking_evento/ranking_mes), não via `leads` local —
+  // esse array só tem o contexto (evento/mês) carregado por último em outra
+  // tela (D-039), então ficaria zerado na maioria das visitas ao Início.
+  const [rankingEventoAtivo, setRankingEventoAtivo] = useState([]);
+  const [rankingMesAtual, setRankingMesAtual] = useState([]);
+
+  useEffect(() => {
+    let ativo = true;
+    if (eventoAtivo) obterRanking(eventoAtivo.id).then((r) => { if (ativo) setRankingEventoAtivo(r || []); });
+    else setRankingEventoAtivo([]);
+    return () => { ativo = false; };
+  }, [eventoAtivo?.id]);
+
+  useEffect(() => {
+    let ativo = true;
+    obterRankingMes(mesAtual).then((r) => { if (ativo) setRankingMesAtual(r || []); });
+    return () => { ativo = false; };
+  }, [mesAtual]);
+
+  const leadsEventoAtivo = rankingEventoAtivo.reduce((acc, r) => acc + Number(r.total || 0), 0);
+  const vendedoresEventoAtivo = rankingEventoAtivo.length;
+  const leadsMesAtual = rankingMesAtual.reduce((acc, r) => acc + Number(r.total || 0), 0);
+  const vendedoresMesAtual = rankingMesAtual.length;
 
   const dist = useMemo(() => {
     const c = {};
@@ -46,33 +66,61 @@ export default function Dashboard() {
 
   return (
     <div className="section">
-      {/* Hero card — evento ativo */}
-      {eventoAtivo ? (
-        <div className="hero-card">
-          <div className="hero-label">EVENTO ATIVO</div>
-          <div className="hero-title">{eventoAtivo.nome}</div>
+      {/* Hero cards — Evento Ativo e Mês/Dia a dia (D-060), clicáveis para o detalhe de cada contexto */}
+      <div className="grid-2">
+        {eventoAtivo ? (
+          <div
+            className={"hero-card" + (onOpenEvento ? " hero-card-clickable" : "")}
+            onClick={() => onOpenEvento?.(eventoAtivo.id)}
+          >
+            <div className="hero-label">EVENTO ATIVO</div>
+            <div className="hero-title">{eventoAtivo.nome}</div>
+            <div className="hero-meta">
+              <Icon name="pin" size={13} stroke="var(--text-3)" />
+              {eventoAtivo.local} · {fmtDate(eventoAtivo.dataInicio)} – {fmtDate(eventoAtivo.dataFim)}
+            </div>
+            <div className="hero-stats">
+              <div className="hero-stat">
+                <span className="hero-stat-num">{leadsEventoAtivo}</span>
+                <span className="hero-stat-label">leads</span>
+              </div>
+              <div className="hero-stat-div" />
+              <div className="hero-stat">
+                <span className="hero-stat-num">{vendedoresEventoAtivo}</span>
+                <span className="hero-stat-label">vendedores</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="hero-card hero-card-empty">
+            <div className="hero-label">EVENTO ATIVO</div>
+            <div style={{ color: "var(--text-3)", fontSize: 14, marginTop: 4 }}>Nenhum evento ativo no momento.</div>
+          </div>
+        )}
+
+        <div
+          className={"hero-card hero-card-mes" + (onOpenMes ? " hero-card-clickable" : "")}
+          onClick={() => onOpenMes?.(mesAtual)}
+        >
+          <div className="hero-label">MÊS / DIA A DIA</div>
+          <div className="hero-title">{mesReferenciaLabel(mesAtual)}</div>
           <div className="hero-meta">
-            <Icon name="pin" size={13} stroke="var(--text-3)" />
-            {eventoAtivo.local} · {fmtDate(eventoAtivo.dataInicio)} – {fmtDate(eventoAtivo.dataFim)}
+            <Icon name="calendar" size={13} stroke="var(--text-3)" />
+            Leads capturados fora de eventos
           </div>
           <div className="hero-stats">
             <div className="hero-stat">
-              <span className="hero-stat-num">{leadsAtivo.length}</span>
+              <span className="hero-stat-num">{leadsMesAtual}</span>
               <span className="hero-stat-label">leads</span>
             </div>
             <div className="hero-stat-div" />
             <div className="hero-stat">
-              <span className="hero-stat-num">{vendedoresAtivos}</span>
+              <span className="hero-stat-num">{vendedoresMesAtual}</span>
               <span className="hero-stat-label">vendedores</span>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="hero-card hero-card-empty">
-          <div className="hero-label">EVENTO ATIVO</div>
-          <div style={{ color: "var(--text-3)", fontSize: 14, marginTop: 4 }}>Nenhum evento ativo no momento.</div>
-        </div>
-      )}
+      </div>
 
       <div className="grid-kpi" style={{ marginTop: 16 }}>
         <Kpi label="Eventos Ativos" value={qtdAtivos} icon="calendar" />
