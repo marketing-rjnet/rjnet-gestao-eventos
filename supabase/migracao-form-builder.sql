@@ -4,6 +4,13 @@
 -- Rode no SQL Editor do Supabase APÓS migracao-qrcode.sql.
 -- Idempotente: pode rodar mais de uma vez sem erro.
 --
+-- Depois de aplicar, rode (mesmo gotcha de migracao-qrcode.sql):
+--   NOTIFY pgrst, 'reload schema';
+-- (ou Dashboard → Settings → API → Reload schema) — sem isso o
+-- PostgREST não enxerga a tabela/colunas novas imediatamente, e a
+-- página pública do formulário mostra "Formulário não encontrado ou
+-- indisponível" mesmo com os dados já gravados no banco.
+--
 -- Decisão de arquitetura: NÃO é um motor de campo genérico. `campos` e
 -- `campos_obrigatorios` guardam só uma lista de chaves de um catálogo FIXO
 -- definido em código (src/lib/constants.js — CAMPOS_FORMULARIO). O
