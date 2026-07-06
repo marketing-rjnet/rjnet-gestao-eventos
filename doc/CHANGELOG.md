@@ -4,6 +4,29 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.9] — Navegação do Marketing em 3 diretos + "Mais"; unificação de QR Code com Form Builder
+**Data:** 2026-07-06
+**Branch:** `claude/exciting-heisenberg-eiiuig`
+
+**O que mudou**
+
+- **`src/apps/MarketingApp.jsx`** — reestruturado de 9 tabs numa lista plana para **3 botões diretos** (Início, Eventos, Relatórios) + **1 botão "Mais"** com dropdown (desktop) / bottom sheet (mobile) agrupado por categoria: Captação (Formulários), Comercial (Ofertas), Operação (Estoque, Check-in), Sistema (Equipe, Monitor).
+- **`src/index.css`** — novas classes `.nav-more-*` para o dropdown desktop.
+- **Removidos:** `src/features/qrcode/` (diretório inteiro), `src/public/QrCapturaPublica.jsx`, `supabase/functions/captar-lead-qrcode/` (Edge Function + script de referência do Google Forms) — o gerador de QR Code standalone foi absorvido pelo Form Builder, que já cobre o mesmo catálogo de campos e já gera QR Code/link por formulário.
+- **`src/main.jsx`** — desvio de rota `/qr/:id` removido (só resta `/f/:slug`).
+- **`vercel.json`** — rewrite `/qr/:path*` removida.
+- **`src/features/formularios/FormBuilderTab.jsx`** — descrição da aba atualizada para deixar explícito que cada formulário já gera QR Code/link.
+- **Testes E2E** (`tests/navegacao.test.js`, `tests/marketing.test.js`, `tests/estoque.test.js`, `tests/security.test.js`) atualizados para o novo fluxo (abrir "Mais" antes de Estoque/Equipe/Check-in).
+- **Sem mudança:** `ComercialApp.jsx` (mantém os 4 tabs diretos), `VendedorApp.jsx` (seletor "QR Code" e leads com essa origem continuam funcionando normalmente — só não há mais como criar leads novos com essa origem), colunas `origem`/`qr_code_id`/`qr_code_label` em `leads` e as migrations `migracao-qrcode.sql`/`migracao-qrcode-retencao.sql`.
+
+**Por que mudou**
+- O header do Marketing vinha ganhando uma aba nova a cada feature (9 no total, sem hierarquia), dificultando a leitura e a navegação. Ao mesmo tempo, "QR Codes" e "Formulários" resolviam o mesmo problema de negócio — captação pública sem sessão — por dois caminhos de código paralelos. Confirmado que nenhum QR Code do gerador standalone chegou a ser impresso/distribuído, viabilizando a retirada sem plano de migração de dados.
+
+**Ações manuais necessárias**
+- Se a Edge Function `captar-lead-qrcode` chegou a ser deployada no Supabase, remover manualmente via `supabase functions delete captar-lead-qrcode` ou pelo Dashboard — o código-fonte saiu do repositório, mas isso não desfaz um deploy já feito.
+
+---
+
 ## [v5.8] — Campos personalizados: extensão self-service do Form Builder
 **Data:** 2026-07-06
 **Branch:** `claude/optimistic-einstein-jwz8q6`

@@ -2170,6 +2170,42 @@ Campos personalizados ainda não aparecem em exportação CSV/relatórios estrut
 
 ---
 
+### [D-065] — Navegação do Marketing em 3 diretos + "Mais" agrupado; retirada do gerador de QR Code standalone (unificação com Form Builder)
+
+**Data:** 2026-07-06
+**Tipo:** Refatoração / UX
+
+**Decisão / Duas partes:**
+
+1. **Navegação do Marketing reestruturada:** `MarketingApp.jsx` passa de uma lista plana de 9 tabs (desktop) para **3 botões diretos** (Início, Eventos, Relatórios) + **1 botão "Mais"**, com dropdown no desktop (`.nav-more-dropdown`) e bottom sheet no mobile (`.more-sheet`, já existente), agrupado por categoria: **Captação** (Formulários), **Comercial** (Ofertas), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). `ComercialApp.jsx` **não** ganhou esse padrão — mantém os 4 tabs diretos de sempre, por decisão explícita do responsável pelo sistema (com só 4 itens, agrupar não reduz cliques). `VendedorApp.jsx` não foi tocado.
+
+2. **Retirada do gerador de QR Code standalone** (`QrCodeGeradorTab.jsx`, rota pública `/qr/:id`, página `QrCapturaPublica.jsx`, Edge Function `captar-lead-qrcode`, script `google-forms-apps-script.js`): o Form Builder (D-062) já é um superconjunto funcional — `CAMPOS_FORMULARIO` cobre todos os campos que a página do QR Code coletava (nome, telefone, endereço, cpf, serviço) e cada formulário criado já gera seu próprio QR Code + link (`QrDoFormulario`, dentro de `FormBuilderTab.jsx`). Manter os dois caminhos era a própria redundância que o responsável pelo sistema pediu para resolver. Confirmado que nenhum QR Code desse gerador standalone chegou a ser impresso/distribuído fisicamente — retirada sem plano de migração para QR já em campo.
+
+**Motivação:** O sistema vinha acumulando abas no header do Marketing a cada feature nova (Estoque, Ofertas, QR Codes, Formulários, Relatórios, Equipe, Check-in, Monitor — 9 no total, sem hierarquia), dificultando a leitura visual e a navegação. Ao mesmo tempo, "QR Codes" e "Formulários" resolviam o mesmo problema de negócio (captação pública sem sessão) por dois caminhos de código paralelos.
+
+**Alternativas Avaliadas:**
+- **Manter as duas ferramentas de captação, só reorganizar o menu:** rejeitada — não resolve a duplicação de código/manutenção (duas Edge Functions, duas páginas públicas, dois conjuntos de colunas de proveniência para o mesmo conceito).
+- **Migrar o modelo de dados do QR Code para dentro de `formularios` (ex: converter QRs existentes em formulários):** descartada por não haver QR em produção para migrar — sem necessidade de ponte de compatibilidade.
+- **Dropdown "Mais" sem agrupamento (lista plana, como o antigo bottom sheet mobile):** considerada, mas com 6 itens sem categoria o problema original (leitura difícil) se repetiria dentro do próprio dropdown.
+- **Aplicar o mesmo dropdown "Mais" ao Comercial:** rejeitada a pedido do responsável pelo sistema — Comercial só tem 4 tabs, abaixo do ponto onde agrupar compensa a fricção de mais um clique.
+
+**O que foi mantido sem alteração (importante para não confundir sessões futuras):** as colunas `origem`/`qr_code_id`/`qr_code_label` em `leads` (compartilhadas com o pipeline de distribuição, que não distingue origem), `fetchLeadsQrCode`/`carregarLeadsQrCode` em `dataService.js`/`AppProvider.jsx`, o seletor "QR Code" em `VendedorApp.jsx` (contexto só-leitura) e as migrations `migracao-qrcode.sql`/`migracao-qrcode-retencao.sql`. Esse lado do código não foi tocado porque a interface do vendedor foi mantida deliberadamente inalterada — mas fica vestigial para leads *novos*: sem gerador, nenhum lead novo nasce com `origem='qrcode'` a partir desta decisão. Qualquer lead com essa origem que já exista no banco continua visível e funcional normalmente.
+
+**Impactos:**
+- `src/features/qrcode/` (diretório inteiro), `src/public/QrCapturaPublica.jsx` e `supabase/functions/captar-lead-qrcode/` removidos do repositório.
+- `src/main.jsx` perde o desvio de rota `/qr/:id` — só resta `/f/:slug` antes do `AppProvider`/`Root`.
+- `vercel.json` perde a rewrite `/qr/:path*`.
+- `FormBuilderTab.jsx` ganha uma frase na descrição da aba deixando explícito que cada formulário já gera QR Code/link.
+- Testes E2E (`tests/navegacao.test.js`, `tests/marketing.test.js`, `tests/estoque.test.js`, `tests/security.test.js`) atualizados para abrir "Mais" antes de clicar em Estoque/Equipe/Check-in, e a contagem de tabs diretas do header passa de 7 (já desatualizada antes desta sessão) para 4 (3 diretas + botão "Mais").
+
+**Arquivos Afetados:** `src/apps/MarketingApp.jsx`, `src/index.css` (`.nav-more-*`), `src/main.jsx`, `src/features/formularios/FormBuilderTab.jsx`, `vercel.json`, `tests/navegacao.test.js`, `tests/marketing.test.js`, `tests/estoque.test.js`, `tests/security.test.js`. Removidos: `src/features/qrcode/QrCodeGeradorTab.jsx`, `src/features/qrcode/index.js`, `src/public/QrCapturaPublica.jsx`, `supabase/functions/captar-lead-qrcode/index.ts`, `supabase/functions/captar-lead-qrcode/google-forms-apps-script.js`.
+
+**Riscos:** Nenhum de dados (nenhum QR em produção). Risco de UX: itens dentro de "Mais" exigem 1 clique a mais que antes — aceito, é exatamente a troca que o responsável pelo sistema pediu (menos itens visíveis, hierarquia por categoria).
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

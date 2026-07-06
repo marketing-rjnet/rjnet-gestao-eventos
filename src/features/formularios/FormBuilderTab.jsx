@@ -139,7 +139,7 @@ export function FormBuilderTab() {
       <div className="page-head">
         <div>
           <div className="page-title">Formulários</div>
-          <p className="tab-desc">Crie um formulário escolhendo os campos que ele deve pedir. As respostas chegam como leads, prontos para distribuir aos vendedores.</p>
+          <p className="tab-desc">Crie um formulário escolhendo os campos que ele deve pedir. Cada formulário já vem com QR Code e link próprios para divulgar (banner, balcão, redes sociais) — as respostas chegam como leads, prontos para distribuir aos vendedores.</p>
         </div>
       </div>
 

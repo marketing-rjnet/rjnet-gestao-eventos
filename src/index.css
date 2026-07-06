@@ -140,6 +140,24 @@
       .nav-tab.active { color: var(--rj-blue); border-bottom-color: var(--rj-blue); }
       .nav-tab svg { opacity: .8; }
       .nav-tab.active svg { opacity: 1; }
+      .nav-more-wrap { position: relative; }
+      .nav-more-scrim { position: fixed; inset: 0; z-index: 59; background: transparent; }
+      .nav-more-dropdown {
+        position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+        z-index: 60; min-width: 200px; background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius-lg); padding: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.35);
+        animation: slideFromBottom .15s ease;
+      }
+      .nav-more-group { margin-bottom: 8px; }
+      .nav-more-group:last-child { margin-bottom: 0; }
+      .nav-more-group-title { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; padding: 4px 10px 6px; }
+      .nav-more-item {
+        display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+        padding: 8px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
+        color: var(--text-2); transition: all .15s ease;
+      }
+      .nav-more-item:hover { background: var(--surface2); color: var(--text); }
+      .nav-more-item.active { color: var(--rj-blue); background: var(--yellow-dim); }
       .header-right { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
       .user-badge {
         display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2);

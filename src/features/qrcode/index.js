@@ -1,1 +1,0 @@
-export { QrCodeGeradorTab } from './QrCodeGeradorTab';
