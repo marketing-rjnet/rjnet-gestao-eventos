@@ -1055,6 +1055,8 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 | `vendedores_marketing` | vendedores | ✅ |
 | `leads_select`, `leads_insert`, `leads_update`, `leads_delete` | leads | ✅ |
 
+> **Atualização (2026-07-06, D-061/D-062/D-063):** `formularios` e `campos_personalizados` introduzem as **primeiras policies `to anon` do projeto desde o bootstrap do `schema.sql`** (seção 4.4/BD-01) — necessárias para a página pública do Form Builder renderizar sem sessão. Diferente do bootstrap antigo (`app_acesso_total`, acesso total incluindo escrita), estas são **restritas a leitura (`SELECT`) e escopadas a `ativo=true`**; escrita continua exclusiva de `marketing`. Nenhuma tabela com dados pessoais de leads já capturados (`leads`, `perfis`) ganhou policy `anon` — a captação pública em si (inserção de novo lead) não passa por RLS `anon`, e sim pelas Edge Functions `captar-lead-qrcode`/`submeter-formulario`, que usam `service_role` (bypassa RLS) após validar os dados no servidor. Risco residual: qualquer pessoa com a `anon key` pode listar todos os formulários/campos personalizados ativos (nome, campos, slugs) — não inclui dados pessoais de titulares, apenas metadados de configuração do marketing.
+
 ### 11.5 Fluxos identificados
 
 1. Fluxo de autenticação (login, logout, recuperação de senha, sessão persistida)
@@ -1119,6 +1121,8 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 **Status:** 🟡 Fase 2 parcialmente regredida (5/6 concluído, 1 suspenso) — ver nota abaixo
 
 > **Atualização (2026-06-17, D-043):** o checkbox de consentimento implementado por PA-04 foi **ocultado da UI** e a validação de bloqueio **suspensa**, por decisão de aguardar definição externa do processo de coleta (ficha física vs. termo digital). O schema do banco (`consentimento_coletado`, `consentimento_em`, `versao_termo`) e o mapeamento em `dataService.js` permanecem intactos para reativação rápida assim que o processo for definido. Enquanto a UI estiver suspensa, **L-01/L-02 (ausência de consentimento) voltam a ser não conformidades ativas**, e a nota geral de LGPD não deve ser tratada como 8,7/10 até a reativação. Ver `doc/architecture/DECISIONS.md` (decisão de Suspensão do consentimento).
+
+> **Atualização (2026-07-06, D-061/D-062):** os dois novos canais de captação pública sem sessão — QR Code (D-061) e Form Builder (D-062, D-063) — **reativam a coleta de consentimento, mas por uma via digital independente da suspensão do D-043**. `QrCapturaPublica.jsx` e `FormularioPublico.jsx` exigem um checkbox explícito ("Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a utilizá-los para contato comercial, conforme a LGPD") antes de habilitar o envio — bloqueio ativo, não apenas cosmético, em ambas as páginas. Isso cobre **apenas os leads captados por QR Code/Formulário**; leads captados presencialmente por vendedor (evento ou mês de referência, D-058) continuam sob o D-043 (checkbox oculto/suspenso, aguardando definição do processo de ficha física). O sistema hoje tem, portanto, **dois caminhos de consentimento coexistindo**: digital ativo (QR Code/Formulário) e presencial suspenso (vendedor em campo) — isso deve ser considerado ao reavaliar a nota geral de LGPD, e o processo de ficha física (D-033/D-043) continua sendo a lacuna pendente, não o sistema como um todo.
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|

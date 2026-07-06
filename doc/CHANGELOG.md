@@ -4,6 +4,86 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.8] — Campos personalizados: extensão self-service do Form Builder
+**Data:** 2026-07-06
+**Branch:** `claude/optimistic-einstein-jwz8q6`
+
+**O que mudou**
+
+- **`supabase/migracao-campos-personalizados.sql`** (novo) — tabela `campos_personalizados` (catálogo de campos de texto livre reutilizáveis, criados/geridos pelo marketing), colunas `formularios.campos_personalizados_ids`/`campos_personalizados_obrigatorios`, coluna `leads.campos_extras` (JSONB). RLS: leitura `anon` restrita a `ativo=true` (mesmo padrão de `formularios`), escrita restrita a `marketing`.
+- **`src/api/campoPersonalizadoApi.js`** (novo) — factory `createCampoPersonalizadoApi` (CRUD).
+- **`src/features/formularios/FormBuilderTab.jsx`** — novo `CamposPersonalizadosManager`: criar/ativar/desativar campos personalizados e selecioná-los (com obrigatoriedade própria) ao montar um formulário, além do catálogo fixo já existente.
+- **`src/public/FormularioPublico.jsx`, `supabase/functions/submeter-formulario/index.ts`** — renderização e validação dos campos personalizados selecionados (sempre texto livre), gravados em `leads.campos_extras`.
+- **`src/apps/VendedorApp.jsx`, `src/features/leads/LeadsTab.jsx`** — exibição genérica de `camposExtras` nas telas que já mostram o lead.
+
+**Por que mudou**
+- Ao usar o Form Builder pela primeira vez, o responsável pelo marketing precisava de campos além do catálogo fixo, mas sem abrir mão do controle: só marketing/comercial cria formulários, então flexibilidade total de nomeação não trazia risco de "bagunça" desde que os campos continuassem sempre texto livre (D-063) — decisão explícita de não construir um motor de formulário genérico (JSON Schema/tipos arbitrários), avaliado como overengineering para o tamanho do projeto.
+
+**Ações manuais necessárias**
+- Executar `supabase/migracao-campos-personalizados.sql` no SQL Editor do Supabase.
+- Rodar `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema) logo em seguida.
+- Fazer redeploy da Edge Function `submeter-formulario` (código atualizado para validar/gravar `campos_extras`).
+
+---
+
+## [v5.7] — Form Builder: formulários dinâmicos com QR Code próprio
+**Data:** 2026-07-06
+**Branch:** `claude/optimistic-einstein-jwz8q6`
+
+**O que mudou**
+
+- **`supabase/migracao-form-builder.sql`** (novo) — tabela `formularios` (nome, slug, campos escolhidos do catálogo fixo, obrigatoriedade), colunas `leads.formulario_id`/`leads.bairro`. RLS: **primeiras policies `anon` do projeto** — leitura pública restrita a `ativo=true`, escrita restrita a `marketing`.
+- **`src/lib/constants.js`** — catálogo fixo `CAMPOS_FORMULARIO` (nome, telefone, CPF, bairro, serviço de interesse etc.) — decisão explícita de **não** construir um motor de formulário genérico, e sim uma lista fechada de campos pré-validados (Opção B avaliada vs. Opção A "engine genérica").
+- **`supabase/functions/submeter-formulario/index.ts`** (novo) — Edge Function pública, mesmo padrão da de QR Code: valida contra `CAMPOS_FORMULARIO`, honeypot antispam, grava com `service_role`.
+- **`src/features/formularios/FormBuilderTab.jsx`** (novo) — aba marketing-only: criar formulário escolhendo campos do catálogo + obrigatoriedade, gerar link/QR Code próprio.
+- **`src/public/FormularioPublico.jsx`** (novo) — página pública dinâmica, sem sessão, sem `AppContext`, renderiza os campos escolhidos pelo formulário; mesmo texto de consentimento LGPD do QR Code.
+- **`src/lib/localPublicSubmit.js`** (novo, compartilhado com D-061) — fallback local (`localStorage`) para teste/preview sem Supabase configurado.
+- **`vercel.json`** — rewrite `/f/:path*` → `index.html` (SPA).
+
+**Por que mudou**
+- Ideia inicial era integrar com Google Forms (link externo + tagging manual do QR Code), mas isso deixaria os dados fora do sistema e sem o mesmo controle de RLS/atribuição dos leads nativos. Optou-se por um Form Builder próprio, mais simples que um motor genérico: campos vêm de um catálogo fixo e sempre pré-validados, evitando o custo de manutenção de tipos arbitrários para um projeto mantido por uma única pessoa.
+
+**Ações manuais necessárias**
+- Executar `supabase/migracao-form-builder.sql` no SQL Editor do Supabase.
+- Rodar `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema).
+- Deploy manual da Edge Function `submeter-formulario` (Dashboard → Edge Functions).
+- Configurar/atualizar o secret `CORS_ALLOWED_ORIGINS` (compartilhado entre todas as Edge Functions do projeto) incluindo a URL de produção.
+
+---
+
+## [v5.6] — Captação de leads via QR Code (origem, sem sessão)
+**Data:** 2026-07-06
+**Branch:** `claude/optimistic-einstein-jwz8q6`
+
+**O que mudou**
+
+- **`supabase/migracao-qrcode.sql`** (novo) — colunas `leads.origem`/`qr_code_id`/`qr_code_label`; constraint `leads_evento_xor_mes` relaxada de `= 1` para `<= 1` (agora permite lead sem evento nem mês — origem QR Code/Formulário); RLS de `vendedor` passa a exigir `vendedor_id is not null` (antes da distribuição, leads de QR Code ficam visíveis só para marketing/comercial).
+- **`supabase/functions/captar-lead-qrcode/index.ts`** (novo) — Edge Function pública (sem auth), usa `service_role`, honeypot antispam, texto de consentimento LGPD explícito no formulário.
+- **`src/features/qrcode/QrCodeGeradorTab.jsx`** (novo) — aba marketing-only: gera QR Code/link rastreável (`qrcode` npm), com opção alternativa de apontar para um Google Forms externo (mantida como conector opcional, não o caminho principal).
+- **`src/public/QrCapturaPublica.jsx`** (novo) — página pública de captura, sem sessão, sem `AppContext`; fallback local via `salvarLeadPublicoLocal` quando Supabase não está configurado.
+- **`src/features/leads/LeadsTab.jsx`** — nova `FilaDistribuicao`: leads sem `vendedor_id` (qualquer origem) ficam visíveis só para marketing/comercial até serem atribuídos a um vendedor.
+- **`supabase/migracao-qrcode-retencao.sql`** (novo) — 4º bloco de retenção LGPD (PA-10) em `limpar_leads_expirados()`, para leads sem evento/mês, baseado em `criado_em` (config `retencao_leads_sem_contexto_dias`, 365 dias padrão).
+- **`vercel.json`** — rewrite `/qr/:path*` → `index.html` (SPA).
+
+**Por que mudou**
+- Além de eventos e captação mensal, a diretoria pediu um canal de captação via material gráfico (QR Code) sem exigir autenticação do lead. Modelado como um eixo de **atribuição** (`origem`) ortogonal ao contexto operacional (evento/mês) já existente, em vez de uma terceira entidade polimórfica (`origens`) — mais simples e sem duplicar lógica de ranking/retenção.
+
+**Ações manuais necessárias**
+- Executar `supabase/migracao-qrcode.sql` e `supabase/migracao-qrcode-retencao.sql` no SQL Editor do Supabase.
+- Rodar `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema).
+- Deploy manual da Edge Function `captar-lead-qrcode` (Dashboard → Edge Functions).
+- Configurar o secret `CORS_ALLOWED_ORIGINS` com a URL de produção (secret compartilhado com `atualizar-email-usuario` — **risco identificado e verificado antes do merge**: sobrescrever o valor sem incluir a URL de produção quebraria CORS da gestão de Equipe).
+- Verificar em Vercel → Settings → Deployment Protection caso QR Codes sejam escaneados a partir de um preview (não a produção) — bloqueia acesso anônimo por padrão.
+
+**Correções pós-implementação (revisão de código)**
+- `updateLead()` não gravava alterações em leads fora do array `leads` compartilhado (QR Code/Formulário são carregados à parte) — corrigido usando `db.saveLead()` diretamente.
+- `limpar_leads_expirados()` não cobria leads sem `evento_id`/`mes_referencia` — corrigido com o 4º bloco de retenção.
+- Estado morto `atribuindo`/`setAtribuindo` (resíduo de refactor incompleto) removido.
+- `fetchLeadsSemVendedor()` retornava `null` em modo local — `FilaDistribuicao` passou a ler do array `leads` compartilhado (filtrado por `origem`) quando `!isSupabaseMode()`.
+- CORS das Edge Functions só permitia o header `content-type`; Supabase exige `apikey`/`authorization` mesmo em endpoints públicos — corrigido em ambas as functions (`captar-lead-qrcode` e `submeter-formulario`).
+
+---
+
 ## [v5.5] — Captação de leads no dia a dia por mês de referência (fora de eventos)
 **Data:** 2026-07-02
 **Branch:** `claude/seller-monthly-leads-lvscr8`
