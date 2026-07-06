@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchLeadsQrCode, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -11,6 +11,8 @@ import { createMaterialApi } from '../api/materialApi';
 import { createVendedorApi } from '../api/vendedorApi';
 import { createEquipeApi } from '../api/equipeApi';
 import { createOfertaApi } from '../api/ofertaApi';
+import { createFormularioApi } from '../api/formularioApi';
+import { createCampoPersonalizadoApi } from '../api/campoPersonalizadoApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -20,6 +22,10 @@ export function AppProvider({ children }) {
   // D-057: ofertas prontas por serviço (marketing) + indicador de envio (vendedor) — só em modo Supabase
   const [ofertas, setOfertas] = usePersisted("rjnet_ofertas", []);
   const [ofertasEnviadas, setOfertasEnviadas] = usePersisted("rjnet_ofertas_enviadas", []);
+  // Form Builder: formulários configuráveis pelo marketing/comercial
+  const [formularios, setFormularios] = usePersisted("rjnet_formularios", []);
+  // Campos personalizados (sempre texto livre) reutilizáveis entre formulários
+  const [camposPersonalizados, setCamposPersonalizados] = usePersisted("rjnet_campos_personalizados", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -45,6 +51,8 @@ export function AppProvider({ children }) {
     setVendedores(dados.vendedores);
     setEventos(dados.eventos);
     setOfertas(dados.ofertas);
+    setFormularios(dados.formularios);
+    setCamposPersonalizados(dados.camposPersonalizados);
     // TB-004/D-058: recarrega leads do contexto ativo (evento ou mês) quando realtime dispara
     const ctx = leadsContextRef.current;
     if (ctx?.tipo === 'evento') {
@@ -61,6 +69,9 @@ export function AppProvider({ children }) {
       ]);
       if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
       if (enviosData !== null && !controller.signal.aborted) setOfertasEnviadas(enviosData);
+    } else if (ctx?.tipo === 'qrcode') {
+      const leadsData = await fetchLeadsQrCode(signal);
+      if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
     }
     setSyncStatus(SYNC_STATUS.IDLE);
     setIsLoading(false);
@@ -84,6 +95,15 @@ export function AppProvider({ children }) {
     if (envios !== null) setOfertasEnviadas(envios);
   };
 
+  // QR Code: não é contexto operacional (sem evento_id/mes_referencia), só
+  // atribuição — RLS decide o recorte (vendedor só vê os já distribuídos).
+  const carregarLeadsQrCode = async () => {
+    if (!isSupabaseMode()) return;
+    leadsContextRef.current = { tipo: 'qrcode' };
+    const data = await fetchLeadsQrCode();
+    if (data !== null) setLeads(data);
+  };
+
   useEffect(() => {
     if (!isSupabaseMode()) return;
     carregar();
@@ -93,7 +113,7 @@ export function AppProvider({ children }) {
       if (evento === 'SIGNED_OUT') {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
-        setOfertas([]); setOfertasEnviadas([]);
+        setOfertas([]); setOfertasEnviadas([]); setFormularios([]); setCamposPersonalizados([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -127,8 +147,14 @@ export function AppProvider({ children }) {
   const { saveOferta, removeOferta, registrarOfertaEnviada } =
     createOfertaApi({ ofertas, setOfertas, setOfertasEnviadas });
 
+  const { addFormulario, updateFormulario, removeFormulario } =
+    createFormularioApi({ formularios, setFormularios });
+
+  const { addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado } =
+    createCampoPersonalizadoApi({ camposPersonalizados, setCamposPersonalizados });
+
   const value = useMemo(() => ({
-    materiais, eventos, leads, vendedores, ofertas,
+    materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados,
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
@@ -137,9 +163,11 @@ export function AppProvider({ children }) {
     addVendedor, updateVendedor, toggleVendedor,
     criarUsuario, atualizarPerfil, excluirUsuario,
     saveOferta, removeOferta, registrarOfertaEnviada,
+    addFormulario, updateFormulario, removeFormulario,
+    addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado,
     obterRanking, obterRankingMes,
     recarregar: carregar,
-    carregarLeadsEvento, carregarLeadsMes,
+    carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
     getLeadsMes: (mes) => leads.filter((l) => l.mesReferencia === mes),
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
@@ -155,7 +183,7 @@ export function AppProvider({ children }) {
         return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, isLoading, syncStatus]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, isLoading, syncStatus]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

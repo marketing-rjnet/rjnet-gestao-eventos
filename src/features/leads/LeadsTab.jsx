@@ -1,8 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
 import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
-import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, db } from '../../lib/dataService';
+import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, db } from '../../lib/dataService';
+import { isSupabaseMode } from '../../lib/mode';
+
+const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário' };
+
+// Distribuição: leads sem contexto operacional (QR Code, Form Builder e
+// futuros canais frios) chegam sem vendedor. Marketing/Comercial atribui
+// manualmente — a mesma operação de negócio pra qualquer origem, sem regra
+// nova por canal.
+function FilaDistribuicao() {
+  const { vendedores, leads: leadsCompartilhados, updateLead, camposPersonalizados } = useApp();
+  const [leadsRemotos, setLeadsRemotos] = useState(null);
+  const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
+  // campos_extras é guardado por `key` (não por id) — mapeia pra legenda
+  // legível sem precisar redesenhar a tela a cada campo novo criado.
+  const labelPorKey = Object.fromEntries(camposPersonalizados.map((c) => [c.key, c.label]));
+  const camposExtrasTexto = (l) => Object.entries(l.camposExtras || {})
+    .map(([key, valor]) => `${labelPorKey[key] || key}: ${valor}`)
+    .join(' · ');
+
+  // Modo Supabase: leads frios não fazem parte do array `leads` do
+  // contexto (que só carrega por evento/mês sob demanda) — busca à parte.
+  // Modo local: `leads` já contém tudo (sem carregamento sob demanda nesse
+  // modo), então já dá pra filtrar direto do contexto compartilhado.
+  const carregar = () => { fetchLeadsSemVendedor().then(setLeadsRemotos); };
+  useEffect(carregar, []);
+  const leadsFrios = isSupabaseMode() ? leadsRemotos : leadsCompartilhados.filter((l) => l.origem);
+
+  const atribuir = (leadId, vendedorId) => {
+    const v = vendedoresAtivos.find((x) => x.id === vendedorId);
+    if (!v) return;
+    if (isSupabaseMode()) {
+      // Este lead não está no array `leads` compartilhado — updateLead()
+      // do contexto não o acharia e pularia a gravação silenciosamente.
+      const lead = leadsRemotos?.find((l) => l.id === leadId);
+      if (!lead) return;
+      const atualizado = { ...lead, vendedorNome: v.nome, vendedorId: v.id };
+      db.saveLead(atualizado);
+      setLeadsRemotos((prev) => prev.map((l) => (l.id === leadId ? atualizado : l)));
+    } else {
+      updateLead(leadId, { vendedorNome: v.nome, vendedorId: v.id });
+    }
+  };
+
+  if (leadsFrios === null) return null;
+  if (leadsFrios.length === 0) return null;
+
+  const semVendedor = leadsFrios.filter((l) => !l.vendedorId);
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span className="section-title" style={{ marginBottom: 0 }}>
+          Leads sem vendedor {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
+        </span>
+        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+      </div>
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>Interesse</th>
+              <th>Origem</th>
+              <th>Responsável</th>
+              <th style={{ width: 200 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {leadsFrios.map((l) => (
+              <tr key={l.id}>
+                <td>
+                  <div className="strong">{l.nome}</div>
+                  {camposExtrasTexto(l) && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{camposExtrasTexto(l)}</div>}
+                </td>
+                <td>{l.telefone}</td>
+                <td>{servicoLabel(l.servicoInteresse)}</td>
+                <td style={{ color: 'var(--text-3)', fontSize: 12 }}>
+                  {ORIGEM_LABEL[l.origem] || l.origem}{l.qrCodeLabel ? ` — ${l.qrCodeLabel}` : ''}
+                </td>
+                <td>{l.vendedorNome || <span style={{ color: 'var(--text-3)' }}>Não atribuído</span>}</td>
+                <td>
+                  <select
+                    value={l.vendedorId ?? ''}
+                    onChange={(e) => { if (e.target.value) atribuir(l.id, e.target.value); }}
+                    style={{ fontSize: 12 }}
+                  >
+                    <option value="">Atribuir a...</option>
+                    {vendedoresAtivos.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export function LeadsTab({ session }) {
   const { eventos } = useApp();
@@ -188,6 +287,8 @@ export function LeadsTab({ session }) {
           </div>
         )}
       </div>
+
+      <FilaDistribuicao />
 
       {/* D-058: leads do dia a dia, fora de eventos — mesmo padrão da tabela acima */}
       <div className="page-head" style={{ marginTop: 28 }}>
