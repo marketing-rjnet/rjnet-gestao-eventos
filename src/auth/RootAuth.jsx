@@ -3,7 +3,7 @@ import { auth, setQueueUserId, clearQueueSession } from '../lib/dataService';
 import { LoginAuth } from './LoginAuth';
 import { NovaSenha } from './NovaSenha';
 
-export function RootAuth({ darkMode, toggleDark, MarketingApp, VendedorApp }) {
+export function RootAuth({ darkMode, toggleDark, MarketingApp, VendedorApp, ComercialApp }) {
   const [session, setSession] = useState(undefined);
   const [recuperandoSenha, setRecuperandoSenha] = useState(false);
 
@@ -43,5 +43,6 @@ export function RootAuth({ darkMode, toggleDark, MarketingApp, VendedorApp }) {
   if (session === undefined) return <div className="login-bg" />;
   if (!session) return <LoginAuth onLogin={setSession} darkMode={darkMode} toggleDark={toggleDark} />;
   if (session.role === "marketing") return <MarketingApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
+  if (session.role === "comercial") return <ComercialApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
   return <VendedorApp session={session} onLogout={logout} darkMode={darkMode} toggleDark={toggleDark} />;
 }

@@ -58,6 +58,7 @@ src/
 ├── apps/
 │   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
 │   ├── MarketingApp.jsx  # Shell do usuário marketing: navegação, tabs, dark mode (etapa 14)
+│   ├── ComercialApp.jsx  # Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059)
 │   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline + OfertaPickerModal (etapa 13, D-057)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
@@ -126,6 +127,7 @@ supabase/
 ├── protecao-dados.sql       # Soft delete
 ├── migracao-ofertas.sql     # Tabelas ofertas/oferta_envios + bucket Storage (D-057)
 ├── migracao-leads-mensais.sql  # Coluna mes_referencia + ranking_mes + retenção (D-058)
+├── migracao-comercial.sql   # Papel comercial + RLS de eventos/ofertas/leads (D-059)
 ├── migracao-retencao.sql    # Retenção LGPD automática (PA-10)
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
@@ -205,14 +207,15 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **temperatura lead:** `frio`, `morno`, `quente`, `convertido`
 - **serviços de interesse (array):** `internet_residencial`, `internet_empresarial`, `rjnet_movel`, `streamings`, `outro` — `servicoInteresse` é `string[]` no frontend; serializado como JSON string na coluna TEXT `servico_interesse` do banco (backward-compat com string simples legada)
 - **metas do vendedor:** `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` — `META_DIARIA` é alias de `META_OURO`
-- **papel perfil:** `marketing`, `vendedor`
+- **papel perfil:** `marketing`, `vendedor`, `comercial` (D-059 — mesmo nível do marketing em eventos/ofertas/leads, sem estoque nem gestão de equipe)
 - **mês de referência do lead (D-058):** `mes_referencia` é `date` com o primeiro dia do mês (ex: `2026-07-01`); `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos via `check (num_nonnulls(evento_id, mes_referencia) = 1)`
 
 ### RLS (Row Level Security)
 
 - `marketing`: acesso total a todas as tabelas
+- `comercial` (D-059): escreve em `eventos`, `ofertas` e `leads` no mesmo nível de `marketing` (inclusive leads de qualquer vendedor); **não** tem escrita em `materiais` (estoque) nem em `perfis` (gestão de equipe) — nessas duas, RLS continua restrita a `marketing`
 - `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`) — regra idêntica para leads de evento ou de mês (D-058), RLS nunca depende de `evento_id`/`mes_referencia`
-- `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing` (mesmo padrão de `materiais`)
+- `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing`/`comercial` (D-059)
 - `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
 
 ### Storage
@@ -256,13 +259,13 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 
 | Tab | Papel | Funcionalidade |
 |-----|-------|---------------|
-| Dashboard | marketing | KPIs, gráfico de leads por serviço, alertas de estoque |
-| Eventos | marketing | CRUD de eventos, alocação de materiais, resumo de leads por vendedor |
+| Dashboard | marketing, comercial | KPIs, gráfico de leads por serviço, alertas de estoque (leitura, mesmo para comercial) |
+| Eventos | marketing, comercial | CRUD de eventos, alocação de materiais, resumo de leads por vendedor (D-059: comercial no mesmo nível do marketing) |
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
-| Ofertas | marketing | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057) |
-| Leads | marketing | Export CSV por evento e por mês de referência (D-058), auditoria de exportação |
-| Equipe | marketing | CRUD de vendedores, desempenho por evento |
-| Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046) |
+| Ofertas | marketing, comercial | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057, D-059) |
+| Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
+| Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
+| Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
 
@@ -329,10 +332,11 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/equipeApi.js` | ~29 | Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
+| `src/apps/ComercialApp.jsx` | ~62 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |
-| `src/auth/RootAuth.jsx` | ~38 | Roteador de auth modo Supabase (etapa 8) |
+| `src/auth/RootAuth.jsx` | ~48 | Roteador de auth modo Supabase; 3 papéis — marketing/comercial/vendedor (etapa 8, D-059) |
 | `src/auth/RootLegacy.jsx` | ~25 | Roteador de auth modo legado (etapa 8) |
 | `src/components/ui.jsx` | ~80 | Componentes UI atômicos extraídos (etapa 6) |
 | `src/components/SyncBadge.jsx` | ~14 | Indicador de sincronização (etapa 7) |
@@ -362,5 +366,6 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
 | `supabase/migracao-ofertas.sql` | ~75 | Tabelas ofertas/oferta_envios, RLS e bucket Storage (D-057) |
 | `supabase/migracao-leads-mensais.sql` | ~122 | Coluna `mes_referencia`, constraint de exclusividade, RPC `ranking_mes`, retenção LGPD estendida (D-058) |
+| `supabase/migracao-comercial.sql` | ~94 | Papel `comercial` + RLS de `eventos`/`ofertas`/`leads`/bucket Storage (D-059) |
 | `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

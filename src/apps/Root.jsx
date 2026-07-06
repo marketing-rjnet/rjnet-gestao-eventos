@@ -3,6 +3,7 @@ import { isSupabaseMode } from '../lib/mode';
 import { RootAuth, RootLegacy } from '../auth';
 import MarketingApp from './MarketingApp';
 import VendedorApp from './VendedorApp';
+import ComercialApp from './ComercialApp';
 
 export default function Root() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -18,6 +19,6 @@ export default function Root() {
   const toggleDark = () => setDarkMode((d) => !d);
 
   return isSupabaseMode()
-    ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />
+    ? <RootAuth darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} ComercialApp={ComercialApp} />
     : <RootLegacy darkMode={darkMode} toggleDark={toggleDark} MarketingApp={MarketingApp} VendedorApp={VendedorApp} />;
 }
