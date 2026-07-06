@@ -9,6 +9,7 @@ import { LeadsTab } from '../features/leads';
 import { CheckinTab } from '../features/checkin';
 import { EquipeTab, EquipeAuthTab } from '../features/team';
 import { MonitoringTab } from '../features/monitoring';
+import { QrCodeGeradorTab } from '../features/qrcode';
 
 const MAIN_TABS = [
   { id: "inicio",  label: "Início",   ico: "home" },
@@ -20,6 +21,7 @@ const MAIN_TABS = [
 const MORE_TABS = [
   { id: "estoque", label: "Estoque",    ico: "box" },
   { id: "ofertas", label: "Ofertas",    ico: "box" },
+  { id: "qrcode",  label: "QR Codes",   ico: "search" },
   { id: "leads",   label: "Relatórios", ico: "users" },
   { id: "monitor", label: "Monitor",    ico: "activity" },
 ];
@@ -28,6 +30,7 @@ const ALL_TABS = [
   ...MAIN_TABS,
   { id: "estoque", label: "Estoque",    ico: "box" },
   { id: "ofertas", label: "Ofertas",    ico: "box" },
+  { id: "qrcode",  label: "QR Codes",   ico: "search" },
   { id: "leads",   label: "Relatórios", ico: "users" },
   { id: "equipe",  label: "Equipe",     ico: "briefcase" },
   { id: "checkin", label: "Check-in",   ico: "search" },
@@ -44,6 +47,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
     { id: "eventos", label: "Eventos",   ico: "calendar" },
     { id: "estoque", label: "Estoque",   ico: "box" },
     { id: "ofertas", label: "Ofertas",   ico: "box" },
+    { id: "qrcode",  label: "QR Codes",  ico: "search" },
     { id: "leads",   label: "Relatórios",ico: "users" },
     { id: "equipe",  label: "Equipe",    ico: "briefcase" },
     { id: "checkin", label: "Check-in",  ico: "search" },
@@ -84,6 +88,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "estoque" && <EstoqueTab />}
       {tab === "ofertas" && <OfertasTab />}
+      {tab === "qrcode" && <QrCodeGeradorTab />}
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}

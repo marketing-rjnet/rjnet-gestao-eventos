@@ -1,8 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
 import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
-import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, db } from '../../lib/dataService';
+import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsQrCode, db } from '../../lib/dataService';
+
+// Distribuição: leads de QR Code chegam sem vendedor. Marketing/Comercial
+// atribui manualmente — a mesma operação de updateLead() já usada em
+// qualquer outra edição de lead, sem regra nova de negócio.
+function DistribuicaoQrCode() {
+  const { vendedores, updateLead } = useApp();
+  const [leadsQr, setLeadsQr] = useState(null);
+  const [atribuindo, setAtribuindo] = useState({});
+  const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
+
+  const carregar = () => { fetchLeadsQrCode().then(setLeadsQr); };
+  useEffect(carregar, []);
+
+  const atribuir = (leadId, vendedorId) => {
+    const v = vendedoresAtivos.find((x) => x.id === vendedorId);
+    if (!v) return;
+    updateLead(leadId, { vendedorNome: v.nome, vendedorId: v.id });
+    setLeadsQr((prev) => prev.map((l) => (l.id === leadId ? { ...l, vendedorNome: v.nome, vendedorId: v.id } : l)));
+  };
+
+  if (leadsQr === null) return null;
+  if (leadsQr.length === 0) return null;
+
+  const semVendedor = leadsQr.filter((l) => !l.vendedorId);
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span className="section-title" style={{ marginBottom: 0 }}>
+          Leads via QR Code {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
+        </span>
+        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+      </div>
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>Interesse</th>
+              <th>QR Code</th>
+              <th>Responsável</th>
+              <th style={{ width: 200 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {leadsQr.map((l) => (
+              <tr key={l.id}>
+                <td className="strong">{l.nome}</td>
+                <td>{l.telefone}</td>
+                <td>{servicoLabel(l.servicoInteresse)}</td>
+                <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{l.qrCodeLabel || l.qrCodeId}</td>
+                <td>{l.vendedorNome || <span style={{ color: 'var(--text-3)' }}>Não atribuído</span>}</td>
+                <td>
+                  <select
+                    value={atribuindo[l.id] ?? l.vendedorId ?? ''}
+                    onChange={(e) => {
+                      setAtribuindo((p) => ({ ...p, [l.id]: e.target.value }));
+                      if (e.target.value) atribuir(l.id, e.target.value);
+                    }}
+                    style={{ fontSize: 12 }}
+                  >
+                    <option value="">Atribuir a...</option>
+                    {vendedoresAtivos.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export function LeadsTab({ session }) {
   const { eventos } = useApp();
@@ -188,6 +262,8 @@ export function LeadsTab({ session }) {
           </div>
         )}
       </div>
+
+      <DistribuicaoQrCode />
 
       {/* D-058: leads do dia a dia, fora de eventos — mesmo padrão da tabela acima */}
       <div className="page-head" style={{ marginTop: 28 }}>

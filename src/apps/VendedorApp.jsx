@@ -170,12 +170,15 @@ const mesAtualRef = () => {
 };
 
 export default function VendedorApp({ session, onLogout, darkMode, toggleDark }) {
-  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento, carregarLeadsMes, obterRankingMes, ofertas, ofertaJaEnviada, registrarOfertaEnviada } = useApp();
+  const { getEventosAtivos, addLead, removeLead, updateLead, leads, eventos, carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode, obterRankingMes, ofertas, ofertaJaEnviada, registrarOfertaEnviada } = useApp();
   const ativos = getEventosAtivos();
   const [eventoId, setEventoId] = useState(ativos[0]?.id || "");
   // D-058: modo de captação — "evento" (fluxo de sempre) ou "mes" (dia a dia,
   // fora de eventos). Default inteligente: evento se houver um ativo, senão
   // mês — mas o vendedor pode alternar livremente a qualquer momento.
+  // QR Code: um terceiro item na mesma seleção visual, mas NÃO é um contexto
+  // operacional como Evento/Mês — não tem registro manual, ranking nem meta;
+  // só mostra os leads já distribuídos a este vendedor (ver DECISIONS/D-061).
   const [contextoTipo, setContextoTipo] = useState(() => (ativos.length > 0 ? "evento" : "mes"));
   const [mesSelecionado, setMesSelecionado] = useState(mesAtualRef);
   const mesesDisponiveis = mesesDoAno(new Date().getFullYear());
@@ -189,6 +192,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   useEffect(() => {
     if (contextoTipo === "evento" && eventoId) carregarLeadsEvento(eventoId);
     if (contextoTipo === "mes" && mesSelecionado) carregarLeadsMes(mesSelecionado);
+    if (contextoTipo === "qrcode") carregarLeadsQrCode();
   }, [contextoTipo, eventoId, mesSelecionado]);
 
   const [aba, setAba] = useState("registrar");
@@ -207,7 +211,9 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const eventoAtual = eventos.find((e) => e.id === eventoId);
   const leadsDoContexto = contextoTipo === "evento"
     ? leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome)
-    : leads.filter((l) => l.mesReferencia === mesSelecionado && l.vendedorNome === session.vendedorNome);
+    : contextoTipo === "mes"
+    ? leads.filter((l) => l.mesReferencia === mesSelecionado && l.vendedorNome === session.vendedorNome)
+    : leads.filter((l) => l.origem === "qrcode" && l.vendedorNome === session.vendedorNome);
 
   const pct = Math.min((leadsDoContexto.length / META_OURO) * 100, 100);
   const metaBronze = leadsDoContexto.length >= META_BRONZE;
@@ -216,7 +222,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   const nivelMeta  = metaOuro ? "ouro" : metaPrata ? "prata" : metaBronze ? "bronze" : "";
 
   const { ranking, rankingLoading } = useRanking(
-    contextoTipo === "evento" ? eventoId : mesSelecionado,
+    contextoTipo === "evento" ? eventoId : contextoTipo === "mes" ? mesSelecionado : null,
     leads.length,
     contextoTipo === "mes" ? obterRankingMes : undefined,
   );
@@ -255,8 +261,10 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
       if (!eventoId) return "Selecione um evento antes de registrar.";
       const eventoSel = eventos.find((ev) => ev.id === eventoId);
       if (!eventoSel || eventoSel.status === STATUS_EVENTO.ENCERRADO) return "Este evento está encerrado e não aceita novos leads.";
-    } else if (!mesSelecionado) {
-      return "Selecione um mês antes de registrar.";
+    } else if (contextoTipo === "mes") {
+      if (!mesSelecionado) return "Selecione um mês antes de registrar.";
+    } else {
+      return "Leads de QR Code chegam automaticamente — não é possível registrar manualmente neste contexto.";
     }
     return "";
   };
@@ -333,34 +341,49 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
             <button type="button" className={"seg-btn" + (contextoTipo === "mes" ? " active" : "")} onClick={() => { setContextoTipo("mes"); setEditandoId(null); }}>
               Atividade do Mês
             </button>
+            <button type="button" className={"seg-btn" + (contextoTipo === "qrcode" ? " active" : "")} onClick={() => { setContextoTipo("qrcode"); setEditandoId(null); }}>
+              QR Code
+            </button>
           </div>
         </div>
 
-        {/* Seletor de evento / mês compartilhado */}
-        <div className="big-field big-select" style={{ marginBottom: 20 }}>
-          {contextoTipo === "evento" ? (
-            <>
-              <label>Evento</label>
-              {ativos.length === 0 ? (
-                <div className="empty" style={{ textAlign: "left", padding: "10px 0" }}>Nenhum evento ativo no momento.</div>
-              ) : (
-                <select value={eventoId} onChange={(e) => { setEventoId(e.target.value); setEditandoId(null); }}>
-                  {ativos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+        {/* Seletor de evento / mês compartilhado — QR Code não tem seletor
+            próprio (não é um contexto ao vivo, só os leads já distribuídos) */}
+        {contextoTipo !== "qrcode" && (
+          <div className="big-field big-select" style={{ marginBottom: 20 }}>
+            {contextoTipo === "evento" ? (
+              <>
+                <label>Evento</label>
+                {ativos.length === 0 ? (
+                  <div className="empty" style={{ textAlign: "left", padding: "10px 0" }}>Nenhum evento ativo no momento.</div>
+                ) : (
+                  <select value={eventoId} onChange={(e) => { setEventoId(e.target.value); setEditandoId(null); }}>
+                    {ativos.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                  </select>
+                )}
+              </>
+            ) : (
+              <>
+                <label>Mês</label>
+                <select value={mesSelecionado} onChange={(e) => { setMesSelecionado(e.target.value); setEditandoId(null); }}>
+                  {mesesDisponiveis.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
-              )}
-            </>
-          ) : (
-            <>
-              <label>Mês</label>
-              <select value={mesSelecionado} onChange={(e) => { setMesSelecionado(e.target.value); setEditandoId(null); }}>
-                {mesesDisponiveis.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* ---- ABA REGISTRAR ---- */}
-        {aba === "registrar" && (
+        {aba === "registrar" && contextoTipo === "qrcode" && (
+          <div className="empty" style={{ padding: "48px 16px", textAlign: "center" }}>
+            <Icon name="search" size={36} stroke="var(--text-3)" />
+            <div style={{ marginTop: 12, fontWeight: 700, fontSize: 15, color: "var(--text-2)" }}>Leads de QR Code chegam automaticamente</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: "var(--text-3)", maxWidth: 280, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
+              Quem escaneia um QR Code preenche os próprios dados. O marketing distribui esses leads para você — acompanhe em "Meus Leads".
+            </div>
+          </div>
+        )}
+        {aba === "registrar" && contextoTipo !== "qrcode" && (
           <>
             <div className="vend-top">
               <span style={{ fontSize: 18, fontWeight: 700 }}>Novo Lead</span>
@@ -557,7 +580,9 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               <div className="empty" style={{ padding: "48px 0", textAlign: "center" }}>
                 <Icon name="person" size={36} stroke="var(--text-3)" />
                 <div style={{ marginTop: 12, color: "var(--text-3)", fontSize: 14 }}>
-                  {contextoTipo === "evento" ? "Nenhum lead registrado neste evento ainda." : "Nenhum lead registrado neste mês ainda."}
+                  {contextoTipo === "evento" ? "Nenhum lead registrado neste evento ainda."
+                    : contextoTipo === "mes" ? "Nenhum lead registrado neste mês ainda."
+                    : "Nenhum lead de QR Code distribuído a você ainda."}
                 </div>
               </div>
             ) : (
@@ -568,7 +593,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   placeholder="Buscar por nome…"
                   onClear={() => setBuscaLead("")}
                 />
-                <h3>{leadsDoContexto.length} lead{leadsDoContexto.length > 1 ? "s" : ""} {contextoTipo === "evento" ? "neste evento" : "neste mês"}</h3>
+                <h3>{leadsDoContexto.length} lead{leadsDoContexto.length > 1 ? "s" : ""} {contextoTipo === "evento" ? "neste evento" : contextoTipo === "mes" ? "neste mês" : "via QR Code"}</h3>
                 {leadsDoContexto.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
                   <div style={{ textAlign: "center", color: "var(--text-3)", fontSize: 13, padding: "24px 0" }}>Nenhum lead com esse nome.</div>
                 ) : leadsDoContexto.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).map((l) => {
@@ -813,35 +838,44 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   </a>
                 )}
 
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                    Placar da equipe
-                    {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#ffcb00)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
-                  </div>
-                  {ranking.length === 0 && !rankingLoading ? (
-                    <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
-                  ) : ranking.length === 0 ? (
-                    <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Carregando placar…</div>
-                  ) : (
-                    <div className="ranking-list">
-                      {ranking.map((item, i) => (
-                        <div key={item.nome} ref={item.nome === session.vendedorNome ? meRef : null} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
-                          <div className="ranking-header">
-                            <span className={"ranking-pos" + (i < 3 ? " " + posColors[i] : "")}>{i + 1}º</span>
-                            <span className="ranking-name">{item.nome}{item.nome === session.vendedorNome && <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>(você)</span>}</span>
-                            <span className="ranking-count">
-                              {item.total}
-                              {item.total >= META_OURO ? " 🥇" : item.total >= META_PRATA ? " 🥈" : item.total >= META_BRONZE ? " 🥉" : ""}
-                            </span>
-                          </div>
-                          <div className="ranking-bar-track">
-                            <div className="ranking-bar-fill" style={{ width: Math.round((item.total / maxRanking) * 100) + "%" }} />
-                          </div>
-                        </div>
-                      ))}
+                {contextoTipo === "qrcode" ? (
+                  <div className="ev-info-card">
+                    <div className="ev-info-row">
+                      <span className="ev-info-label">Total de leads via QR Code</span>
+                      <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{leadsDoContexto.length}</span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      Placar da equipe
+                      {rankingLoading && <span style={{ width: 12, height: 12, border: "2px solid var(--text-3)", borderTopColor: "var(--yellow,#ffcb00)", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
+                    </div>
+                    {ranking.length === 0 && !rankingLoading ? (
+                      <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Nenhum lead registrado ainda.</div>
+                    ) : ranking.length === 0 ? (
+                      <div style={{ color: "var(--text-3)", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Carregando placar…</div>
+                    ) : (
+                      <div className="ranking-list">
+                        {ranking.map((item, i) => (
+                          <div key={item.nome} ref={item.nome === session.vendedorNome ? meRef : null} className={"ranking-item" + (item.nome === session.vendedorNome ? " me" : "")}>
+                            <div className="ranking-header">
+                              <span className={"ranking-pos" + (i < 3 ? " " + posColors[i] : "")}>{i + 1}º</span>
+                              <span className="ranking-name">{item.nome}{item.nome === session.vendedorNome && <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: 6 }}>(você)</span>}</span>
+                              <span className="ranking-count">
+                                {item.total}
+                                {item.total >= META_OURO ? " 🥇" : item.total >= META_PRATA ? " 🥈" : item.total >= META_BRONZE ? " 🥉" : ""}
+                              </span>
+                            </div>
+                            <div className="ranking-bar-track">
+                              <div className="ranking-bar-fill" style={{ width: Math.round((item.total / maxRanking) * 100) + "%" }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <button
                   type="button"
                   className="btn-ghost"

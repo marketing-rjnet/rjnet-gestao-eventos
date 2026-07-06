@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchLeadsQrCode, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -61,6 +61,9 @@ export function AppProvider({ children }) {
       ]);
       if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
       if (enviosData !== null && !controller.signal.aborted) setOfertasEnviadas(enviosData);
+    } else if (ctx?.tipo === 'qrcode') {
+      const leadsData = await fetchLeadsQrCode(signal);
+      if (leadsData !== null && !controller.signal.aborted) setLeads(leadsData);
     }
     setSyncStatus(SYNC_STATUS.IDLE);
     setIsLoading(false);
@@ -82,6 +85,15 @@ export function AppProvider({ children }) {
     const [data, envios] = await Promise.all([fetchLeadsMes(mesReferencia), fetchOfertasEnviadasMes(mesReferencia)]);
     if (data !== null) setLeads(data);
     if (envios !== null) setOfertasEnviadas(envios);
+  };
+
+  // QR Code: não é contexto operacional (sem evento_id/mes_referencia), só
+  // atribuição — RLS decide o recorte (vendedor só vê os já distribuídos).
+  const carregarLeadsQrCode = async () => {
+    if (!isSupabaseMode()) return;
+    leadsContextRef.current = { tipo: 'qrcode' };
+    const data = await fetchLeadsQrCode();
+    if (data !== null) setLeads(data);
   };
 
   useEffect(() => {
@@ -139,7 +151,7 @@ export function AppProvider({ children }) {
     saveOferta, removeOferta, registrarOfertaEnviada,
     obterRanking, obterRankingMes,
     recarregar: carregar,
-    carregarLeadsEvento, carregarLeadsMes,
+    carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
     getLeadsMes: (mes) => leads.filter((l) => l.mesReferencia === mes),
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),

@@ -181,6 +181,11 @@ const leadFromDb = (r) => ({
   consentimentoColetado: r.consentimento_coletado ?? false,
   consentimentoEm: r.consentimento_em ?? null,
   versaoTermo: r.versao_termo ?? null,
+  // QR Code: atributos de proveniência — nunca um contexto operacional novo,
+  // sempre paralelos a evento_id/mes_referencia (que continuam XOR entre si)
+  origem: r.origem ?? null,
+  qrCodeId: r.qr_code_id ?? null,
+  qrCodeLabel: r.qr_code_label ?? null,
 });
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId ?? null, mes_referencia: l.mesReferencia ?? null,
@@ -196,6 +201,10 @@ const leadToDb = (l) => ({
   consentimento_coletado: l.consentimentoColetado ?? false,
   consentimento_em: l.consentimentoColetado ? (l.consentimentoEm || new Date().toISOString()) : null,
   versao_termo: l.consentimentoColetado ? (l.versaoTermo || 'v1.0') : null,
+  // QR Code: atributos de proveniência (ver leadFromDb)
+  origem: l.origem ?? null,
+  qr_code_id: l.qrCodeId ?? null,
+  qr_code_label: l.qrCodeLabel ?? null,
 });
 
 const perfilFromDb = (r) => ({
@@ -219,7 +228,7 @@ const ofertaToDb = (o) => ({
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
-const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo';
+const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,qr_code_id,qr_code_label';
 
 // TB-004: busca apenas materiais, eventos e perfis no boot.
 // Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
@@ -359,6 +368,33 @@ export async function fetchLeadsMeses(mesesReferencia, signal) {
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao buscar leads mensais consolidados:', err.message || err);
+    return null;
+  });
+}
+
+// QR Code: leads captados por esse canal — não têm evento_id nem
+// mes_referencia (não são um contexto operacional, só atribuição), então
+// não cabem em fetchLeadsEvento/fetchLeadsMes. RLS decide o que cada papel
+// enxerga: marketing/comercial veem todos (inclusive sem vendedor_id, para
+// a fila de distribuição); vendedor só vê os já distribuídos a alguém.
+export async function fetchLeadsQrCode(signal) {
+  if (!isSupabaseMode()) return null;
+  return trackPerf('fetchLeadsQrCode', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .eq('origem', 'qrcode')
+        .eq('deletado', false)
+        .order('criado_em', { ascending: false })
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads de QR Code:', err.message || err);
     return null;
   });
 }
