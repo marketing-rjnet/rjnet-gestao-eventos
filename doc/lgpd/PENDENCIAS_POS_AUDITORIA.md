@@ -22,17 +22,20 @@
 
 ### 1.1 Aplicar migration de RLS para vendedores
 
-**Arquivo:** `supabase/migracao-rls-vendedor-leads.sql`  
+**Arquivo:** `supabase/migracao-rls-vendedor-leads-v2.sql` (não a v1 — ver nota abaixo)
 **Onde executar:** Supabase Dashboard → SQL Editor → Run  
 **Tempo estimado:** 5 minutos
 
 **Por que é urgente:** Em produção, vendedores leem os dados pessoais (nome, telefone, CPF, endereço, observação) de **todos os leads do sistema** — inclusive leads de colegas. O SQL corrige isso para que cada vendedor veja apenas os próprios leads.
 
+**Nota (2026-07-07):** este item originalmente apontava para `migracao-rls-vendedor-leads.sql` (v1). Essa migration nunca foi aplicada em produção, e nesse meio-tempo `migracao-comercial.sql` (D-059) e `migracao-qrcode.sql` (D-061) — trabalho de feature, não de LGPD — reescreveram a mesma policy `leads_select` sem a restrição do PA-11. Aplicar a v1 isoladamente não resolve mais nada, porque a versão vigente da policy já é outra. Use a v2, que parte do estado atual e reaplica a restrição por cima dele. Detalhe completo em `doc/architecture/SUPABASE.md` (linha 20 da tabela de migrações) e `doc/lgpd/PLANO_DE_ACAO_LGPD.md` (PA-11).
+
 **Como verificar depois:**
 ```sql
 SELECT policyname, qual FROM pg_policies
 WHERE tablename = 'leads' AND policyname = 'leads_select';
--- Deve conter "vendedor_id = auth.uid()" na condição do vendedor
+-- Deve conter "vendedor_id = auth.uid()" na condição do vendedor,
+-- não "vendedor_id is not null"
 ```
 
 ---

@@ -652,6 +652,8 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 - [x] `supabase/migracao-auth.sql` ou novo SQL
 - [x] `doc/architecture/SUPABASE.md`
 - [x] `doc/CHANGELOG.md`
+
+> **Atualização (2026-07-07, auditoria de consistência):** `migracao-rls-vendedor-leads.sql` nunca foi executada em produção (ver nota ¹ abaixo). Nesse intervalo, `migracao-comercial.sql` (D-059) e `migracao-qrcode.sql` (D-061) — trabalho de feature não relacionado a este PA — reescreveram a mesma policy `leads_select` do zero, sem essa restrição. A versão que ficou vigente (`migracao-qrcode.sql`) usa `vendedor_id is not null`, que **não** restringe o vendedor ao próprio lead — reintroduz exatamente a não conformidade que este PA corrige (SB-04). `supabase/migracao-rls-vendedor-leads-v2.sql` reaplica `vendedor_id = auth.uid()` por cima da versão atual, preservando a leitura total de marketing/comercial adicionada por D-059. **A v1 não deve mais ser aplicada isoladamente** — só a v2, que já parte do estado atual da policy. Impacto verificado no frontend: `VendedorApp.jsx` já filtra os leads recebidos por `vendedorNome` antes de exibir, e o ranking usa RPC `security definer` (ignora RLS) — nenhuma tela quebra.
 - [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`
 
 **Evidência de conclusão:**
@@ -1043,6 +1045,8 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-22 | Moderação e mitigação de abuso no formulário público | — | ALTA | 🟢 | 2026-07-07 |
 
 > ¹ **PA-10/PA-11/PA-13 rebaixadas de 🟢 para 🟡** (auditoria de consistência, confirmado pelo responsável do sistema): o código/migração está pronto (`migracao-retencao.sql`, `migracao-rls-vendedor-leads.sql`, `migracao-audit-log.sql`), mas a execução em produção ainda está pendente — consistente com `doc/architecture/SUPABASE.md` (linhas 9–11 da tabela de ordem de migrações), que já marcava essas três como "⚠️ Pendente execução em produção". Risco enquanto pendente: vendedores continuam lendo dados pessoais de leads de outros vendedores (PA-11) e não há retenção automática (PA-10) nem tabela de auditoria (PA-13) ativas em produção.
+>
+> **Atualização (2026-07-07) — PA-11 especificamente:** o arquivo referenciado nesta nota (`migracao-rls-vendedor-leads.sql`) foi superado por `migracao-rls-vendedor-leads-v2.sql` — feature work posterior (D-059, D-061) reescreveu a mesma policy sem a restrição do PA-11. Aplicar a v1 sozinha não resolve mais nada; só a v2 fecha o gap no estado atual do banco. Ver nota na seção PA-11 acima.
 
 ---
 
@@ -1070,7 +1074,8 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | `supabase/migracao-soft-delete-audit.sql` | PA-07 | 🟢 |
 | `supabase/migracao-audit-log.sql` | PA-13 | 🟢 |
 | `supabase/migracao-retencao.sql` | PA-10 | 🟢 |
-| `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟢 |
+| `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟡 (substituída por v2, nunca aplicada isoladamente) |
+| `supabase/migracao-rls-vendedor-leads-v2.sql` | PA-11 | 🟡 (pronta, pendente execução em produção) |
 | `supabase/migracao-moderacao-formulario.sql` | PA-22 | 🟢 |
 
 ---

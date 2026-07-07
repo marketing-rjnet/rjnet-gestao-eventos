@@ -206,7 +206,7 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 6 | `supabase/migracao-soft-delete-audit.sql` | ✅ Aplicado em produção (PA-07) | Colunas `deletado_em` e `deletado_por` em `leads` — rastreabilidade de soft delete — confirmado 2026-06-16 |
 | 7 | `supabase/migracao-remove-cpf.sql` | ✅ Aplicado em produção (PA-08) | Remove coluna `cpf` de `leads` — confirmado 2026-06-16 |
 | 8 | `supabase/migracao-readd-cpf.sql` | ✅ Aplicado em produção (PA-08b) | Reintroduz `cpf` como opcional com finalidade declarada — confirmado 2026-06-16 |
-| 9 | `supabase/migracao-rls-vendedor-leads.sql` | ⚠️ Pendente execução em produção (PA-11) | RLS: vendedor vê apenas os próprios leads |
+| 9 | `supabase/migracao-rls-vendedor-leads.sql` | ⚠️ Substituída por v2 (linha 20) — não aplicar isoladamente | RLS: vendedor vê apenas os próprios leads (superada por migrações posteriores, ver linha 20) |
 | 10 | `supabase/migracao-audit-log.sql` | ⚠️ Pendente execução em produção (PA-13) | Tabela `audit_log` + trigger em leads |
 | 11 | `supabase/migracao-retencao.sql` | ⚠️ Pendente execução em produção (PA-10) | Retenção automática via pg_cron |
 | 12 | `supabase/migracao-ofertas.sql` | ⚠️ Pendente execução em produção (D-057) | Tabelas `ofertas`/`oferta_envios`, RLS e bucket Storage `ofertas` (público) |
@@ -217,11 +217,14 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 17 | `supabase/migracao-form-builder.sql` | ⚠️ Pendente execução em produção (D-062) | Tabela `formularios`, colunas `formulario_id`/`bairro` em `leads`, **primeiras policies `anon`** do projeto (leitura, `ativo=true`) |
 | 18 | `supabase/migracao-campos-personalizados.sql` | ⚠️ Pendente execução em produção (D-063) | Tabela `campos_personalizados`, RLS `anon` de leitura, coluna `leads.campos_extras` (jsonb) |
 | 19 | `supabase/migracao-moderacao-formulario.sql` | ⚠️ Pendente execução em produção (D-067) | Coluna `leads.origem_ip` + índice para rate limit (5 submissões/10min por IP no formulário público) |
+| 20 | `supabase/migracao-rls-vendedor-leads-v2.sql` | ⚠️ Pendente execução em produção (PA-11 v2) | RLS: reaplica `vendedor_id = auth.uid()` em `leads_select` por cima da versão vigente (linha 15). **Deve ser a última migração de RLS de `leads` a rodar** — qualquer script futuro que reescreva `leads_select` sem essa condição reabre o mesmo gap |
 
 > Status "⚠️ Pendente execução em produção" nas linhas 9–19 reflete o que estava
 > registrado antes destas migrações existirem — **confirme o estado real em
 > produção** (via `verificar-migracao-auth.sql` ou consulta direta) antes de
 > assumir que algo já foi aplicado ou não.
+>
+> **Nota sobre a linha 9 e a linha 20:** `migracao-rls-vendedor-leads.sql` (PA-11, escrita em 2026-06-16) nunca chegou a ser aplicada em produção. Entre a escrita e a aplicação, `migracao-comercial.sql` (linha 14, D-059) e `migracao-qrcode.sql` (linha 15, D-061) reescreveram a mesma policy `leads_select` sem a restrição do PA-11 — a versão vigente hoje deixa o vendedor ler leads de qualquer colega (`vendedor_id is not null`, não `= auth.uid()`). Por isso a linha 9 está marcada como substituída: aplicar só ela, seguindo a ordem numérica, não fecha o gap, porque as linhas 14/15 viriam depois e desfariam a restrição de novo. A correção real é a linha 20, que deve ser aplicada por último.
 >
 > **Nota histórica:** `supabase/migrar-comercial-para-vendedor.sql` é um script
 > pontual de uma versão anterior do sistema (protótipo local, pré-Auth/RLS) que
