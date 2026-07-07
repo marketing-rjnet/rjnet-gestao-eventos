@@ -151,49 +151,60 @@ export function FormBuilderTab() {
             <input required maxLength={120} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Cadastro Feirão de Carros" autoFocus />
           </div>
           <div className="big-field" style={{ marginBottom: 14 }}>
-            <label>Campos</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {CAMPOS_FORMULARIO.map((c) => (
-                <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                    <input type="checkbox" checked={campos.includes(c.key)} onChange={() => toggleCampo(c.key)} />
-                    {c.label}
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-3)' }}>
-                    <input
-                      type="checkbox"
-                      disabled={!campos.includes(c.key)}
-                      checked={obrigatorios.includes(c.key)}
-                      onChange={() => toggleObrigatorio(c.key)}
-                    />
-                    obrigatório
-                  </label>
-                </div>
-              ))}
+            <div className="campo-section-head">
+              <label>Campos</label>
+              <span className="campo-count">{campos.length} selecionado{campos.length !== 1 ? 's' : ''}</span>
+            </div>
+            <p className="campo-hint">Marque os campos que o formulário deve pedir e ative "obrigatório" nos que não podem ficar em branco.</p>
+            <div className="campo-list">
+              {CAMPOS_FORMULARIO.map((c) => {
+                const ativo = campos.includes(c.key);
+                const obrigatorio = obrigatorios.includes(c.key);
+                return (
+                  <div key={c.key} className={`campo-row${ativo ? ' active' : ''}`}>
+                    <label className="campo-main">
+                      <input type="checkbox" checked={ativo} onChange={() => toggleCampo(c.key)} />
+                      <span>{c.label}</span>
+                    </label>
+                    <label className={`campo-obrig${ativo ? '' : ' disabled'}`}>
+                      <span>Obrigatório</span>
+                      <span
+                        className={`toggle-switch${obrigatorio ? ' on' : ''}`}
+                        onClick={() => ativo && toggleObrigatorio(c.key)}
+                      />
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {camposPersonalizadosAtivos.length > 0 && (
             <div className="big-field" style={{ marginBottom: 14 }}>
-              <label>Campos personalizados</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {camposPersonalizadosAtivos.map((c) => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <input type="checkbox" checked={camposPersonalizadosIds.includes(c.id)} onChange={() => togglePersonalizado(c.id)} />
-                      {c.label}
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-3)' }}>
-                      <input
-                        type="checkbox"
-                        disabled={!camposPersonalizadosIds.includes(c.id)}
-                        checked={camposPersonalizadosObrigatorios.includes(c.id)}
-                        onChange={() => togglePersonalizadoObrigatorio(c.id)}
-                      />
-                      obrigatório
-                    </label>
-                  </div>
-                ))}
+              <div className="campo-section-head">
+                <label>Campos personalizados</label>
+                <span className="campo-count">{camposPersonalizadosIds.length} selecionado{camposPersonalizadosIds.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="campo-list">
+                {camposPersonalizadosAtivos.map((c) => {
+                  const ativo = camposPersonalizadosIds.includes(c.id);
+                  const obrigatorio = camposPersonalizadosObrigatorios.includes(c.id);
+                  return (
+                    <div key={c.id} className={`campo-row${ativo ? ' active' : ''}`}>
+                      <label className="campo-main">
+                        <input type="checkbox" checked={ativo} onChange={() => togglePersonalizado(c.id)} />
+                        <span>{c.label}</span>
+                      </label>
+                      <label className={`campo-obrig${ativo ? '' : ' disabled'}`}>
+                        <span>Obrigatório</span>
+                        <span
+                          className={`toggle-switch${obrigatorio ? ' on' : ''}`}
+                          onClick={() => ativo && togglePersonalizadoObrigatorio(c.id)}
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
