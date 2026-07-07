@@ -10,6 +10,7 @@ const darkScale = {
 };
 
 const pad2 = (n) => String(n).padStart(2, "0");
+const fmtHora = (isoStr) => new Date(isoStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 // Chave local (não UTC) do dia do lead — evita virar o dia errado perto da meia-noite.
 const diaKey = (isoStr) => {
@@ -59,7 +60,9 @@ export default function MesDetail({ mesReferencia, onBack }) {
       if (!map.has(key)) map.set(key, { key, leads: [] });
       map.get(key).leads.push(l);
     });
-    return Array.from(map.values()).sort((a, b) => b.key.localeCompare(a.key));
+    return Array.from(map.values())
+      .map((g) => ({ ...g, leads: g.leads.slice().sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm)) }))
+      .sort((a, b) => b.key.localeCompare(a.key));
   }, [mesLeads]);
 
   // Ao trocar de mês (ou quando os leads terminam de carregar), abre só o dia mais recente por padrão.
@@ -128,46 +131,51 @@ export default function MesDetail({ mesReferencia, onBack }) {
                 if (buscaAtiva && leadsFiltrados.length === 0) return null;
                 const isOpen = buscaAtiva || diasAbertos.has(grupo.key);
                 return (
-                  <div className="card" key={grupo.key} style={{ padding: 0, overflow: "hidden" }}>
-                    <button
-                      onClick={() => toggleDia(grupo.key)}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        width: "100%", padding: "14px 16px", gap: 10,
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600 }}>
-                        <span style={{
-                          display: "inline-flex",
-                          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-                          transition: "transform .15s ease",
-                        }}>
-                          <Icon name="arrow_right" size={13} stroke="var(--text-3)" />
+                  <div className="card" key={grupo.key} style={{ padding: 0 }}>
+                    {/* overflow:hidden isolado num wrapper interno — combinar com box-shadow do .card
+                        no mesmo elemento causa artefato de sombra preta sólida no Chrome mobile. */}
+                    <div style={{ overflow: "hidden", borderRadius: "var(--radius)" }}>
+                      <button
+                        onClick={() => toggleDia(grupo.key)}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          width: "100%", padding: "14px 16px", gap: 10,
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600 }}>
+                          <span style={{
+                            display: "inline-flex",
+                            transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+                            transition: "transform .15s ease",
+                          }}>
+                            <Icon name="arrow_right" size={13} stroke="var(--text-3)" />
+                          </span>
+                          {diaLabel(grupo.key)}
                         </span>
-                        {diaLabel(grupo.key)}
-                      </span>
-                      <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
-                        {grupo.leads.length} lead{grupo.leads.length !== 1 ? "s" : ""}
-                      </span>
-                    </button>
-                    {isOpen && (
-                      <div className="tbl-wrap" style={{ boxShadow: "none", borderRadius: 0, borderTop: "1px solid var(--border)" }}>
-                        <table>
-                          <thead><tr><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Serviço</th><th>Vendedor</th></tr></thead>
-                          <tbody>
-                            {leadsFiltrados.map((l) => (
-                              <tr key={l.id}>
-                                <td className="strong">{l.nome}</td>
-                                <td className="mono">{l.telefone}</td>
-                                <td>{l.endereco}</td>
-                                <td><span className="badge badge-tipo">{servicoLabel(l.servicoInteresse)}</span></td>
-                                <td>{l.vendedorNome}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                        <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
+                          {grupo.leads.length} lead{grupo.leads.length !== 1 ? "s" : ""}
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <div className="tbl-wrap" style={{ boxShadow: "none", borderRadius: 0, borderTop: "1px solid var(--border)" }}>
+                          <table>
+                            <thead><tr><th>Horário</th><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Serviço</th><th>Vendedor</th></tr></thead>
+                            <tbody>
+                              {leadsFiltrados.map((l) => (
+                                <tr key={l.id}>
+                                  <td className="mono">{fmtHora(l.criadoEm)}</td>
+                                  <td className="strong">{l.nome}</td>
+                                  <td className="mono">{l.telefone}</td>
+                                  <td>{l.endereco}</td>
+                                  <td><span className="badge badge-tipo">{servicoLabel(l.servicoInteresse)}</span></td>
+                                  <td>{l.vendedorNome}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

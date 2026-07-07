@@ -2259,6 +2259,26 @@ Os grupos são derivados inteiramente dos leads já carregados (`diaKey(l.criado
 
 ---
 
+### [D-068] — Correção pós-D-066: horário do lead na tabela por dia + bug de sombra preta (box-shadow + overflow:hidden)
+
+**Data:** 2026-07-07
+**Tipo:** Bugfix / UX
+
+**Decisão / Duas partes:**
+
+1. **Coluna "Horário" na tabela de leads de `MesDetail.jsx`:** cada linha ganha o horário de captação (`HH:MM`, extraído de `criadoEm`) como primeira coluna, e os leads dentro de cada grupo de dia passam a ser ordenados do mais recente para o mais antigo (antes seguiam a ordem de chegada do array `mesLeads`, sem ordenação explícita). Pedido do responsável pelo sistema para "acompanhamento milimétrico" da captação ao vivo.
+2. **Correção de artefato visual "sombra preta sólida"** relatado em produção (mobile): o cartão de cada dia (`className="card"`, que carrega `box-shadow: var(--shadow-card)` via CSS) tinha `overflow: "hidden"` aplicado inline no **mesmo elemento** (introduzido em D-066). Combinar `box-shadow` e `overflow: hidden` no mesmo elemento é uma combinação problemática em navegadores mobile Chromium/Samsung Internet — o compositor de GPU falha ao recortar a própria sombra do elemento junto do conteúdo, e em vez da sombra suave pinta um retângulo preto sólido, sobretudo durante o scroll. Corrigido isolando o `overflow: hidden` num `<div>` wrapper interno (sem `box-shadow`), mantendo o `box-shadow` só no `.card` externo (sem `overflow: hidden`). Confirmado por grep que essa era a única ocorrência no repositório inteiro combinando as duas propriedades no mesmo elemento — explica por que o artefato aparecia repetido "em vários lugares": cada cartão de dia do próprio accordion reproduzia o mesmo bug.
+
+**Motivação:** Ambos os itens surgiram de feedback do responsável pelo sistema testando D-066 em produção — o segundo por captura de tela mostrando o artefato visual.
+
+**Arquivos Afetados:** `src/features/leads/MesDetail.jsx` (único arquivo alterado — mudança 100% frontend, sem migração de banco).
+
+**Riscos:** Nenhum. Regra geral para sessões futuras: nunca combinar `box-shadow` e `overflow: hidden` no mesmo elemento — usar um wrapper interno para o `overflow: hidden` quando ambos forem necessários.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

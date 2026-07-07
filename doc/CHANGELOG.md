@@ -4,6 +4,23 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.12] — MesDetail: horário do lead na tabela por dia + fix de sombra preta
+**Data:** 2026-07-07
+**Branch:** `claude/leads-daily-dropdown-atidjl`
+
+**O que mudou**
+
+- **`src/features/leads/MesDetail.jsx`** — tabela de cada dia (accordion, v5.10) ganha coluna "Horário" (HH:MM extraído de `criadoEm`) como primeira coluna; leads dentro de cada dia passam a ser ordenados do mais recente para o mais antigo.
+- Corrigido artefato visual de "sombra preta sólida" reportado em produção (mobile): o cartão de cada dia combinava `box-shadow` (via `.card`) e `overflow: hidden` inline no mesmo elemento — combinação que causa esse exato tipo de glitch em navegadores mobile Chromium/Samsung Internet durante o scroll. O `overflow: hidden` foi isolado num wrapper interno, sem `box-shadow`.
+
+**Por que mudou**
+- Feedback direto do responsável pelo sistema testando a v5.10 em produção: pediu o horário exato de cada lead para acompanhamento "milimétrico", e reportou (com captura de tela) uma sombra preta cobrindo parte da tabela.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança 100% frontend.
+
+---
+
 ## [v5.11] — Moderação e mitigação de abuso no formulário público
 **Data:** 2026-07-07
 **Branch:** `claude/google-forms-integration-impact-60eu7j`
