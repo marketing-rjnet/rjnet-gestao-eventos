@@ -2229,6 +2229,36 @@ Os grupos são derivados inteiramente dos leads já carregados (`diaKey(l.criado
 
 ---
 
+### [D-067] — Moderação e mitigação de abuso no formulário público (link, IP, rate limit, exclusão, processo)
+
+**Data:** 2026-07-07
+**Tipo:** Segurança / LGPD
+
+**Contexto:** O único ponto do sistema onde qualquer pessoa sem autenticação grava dado direto no banco é a captação pública do Form Builder (`FormularioPublico.jsx` → Edge Function `submeter-formulario`, D-062). Avaliada e descartada a ideia de terceirizar a captação para o Google Forms como forma de transferir responsabilidade legal por conteúdo impróprio submetido por terceiros (ver discussão de sessão) — o operador do formulário continua sendo quem tem acesso às respostas e o dever de agir, independentemente de quem hospeda a infraestrutura; e o Form Builder atual não tem upload de arquivo (o único ponto onde a varredura automática do Google teria efeito real). Decisão: reforçar o formulário próprio em vez de trocar de plataforma.
+
+**Decisão / Cinco partes:**
+
+1. **Bloqueio de link em texto livre:** `containsLink()` (nova, `src/lib/security.js`) rejeita valores contendo URL nos campos `nome`/`endereco`/`bairro` e nos campos personalizados — tanto no client (`FormularioPublico.jsx`, feedback imediato) quanto, de forma decisiva, na Edge Function (`submeter-formulario/index.ts`, duplicando a mesma regex em Deno — mesmo padrão dos outros validadores desse conector).
+2. **IP de origem:** nova coluna `leads.origem_ip` (`migracao-moderacao-formulario.sql`), preenchida só pela Edge Function via `x-forwarded-for`, nunca pelo app autenticado. Fecha o gap "IP do aceite de consentimento: AUSENTE" documentado em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` §3.3. Sem retenção própria — apagado junto do lead pela retenção já existente (`migracao-qrcode-retencao.sql`, por `criado_em`).
+3. **Rate limit por IP:** a própria Edge Function conta, antes de cada insert, quantos leads aquele `origem_ip` já gerou nos últimos 10 minutos (`leads` mesmo, sem tabela nova); acima de 5, rejeita com 429. Depende da coluna do item 2.
+4. **Exclusão na fila de distribuição:** `FilaDistribuicao` (`LeadsTab.jsx`) ganha um botão "Excluir" por linha, confirmação em dois passos (mesmo padrão de `EstoqueTab.jsx`), usando `db.removeLead` (Supabase) ou `removeLead` do contexto (modo local) — permite descartar um lead suspeito sem precisar atribuí-lo antes.
+5. **Processo documentado:** novo `doc/SEGURANCA_MODERACAO.md` — passos de remoção/denúncia (SaferNet Brasil, Disque 100) para conteúdo ilegal, e o porquê da responsabilidade não ser transferível pra terceiro que hospeda a ferramenta.
+
+**Motivação:** Formulário público sem sessão é vetor de abuso (spam, dado ofensivo, link malicioso). As proteções existentes (honeypot, sanitização de tag HTML, CORS restrito) não cobriam link em texto livre, não davam rastreabilidade por IP, não tinham rate limit, e não davam ao marketing uma forma de descartar um lead ruim sem primeiro atribuí-lo a um vendedor.
+
+**Alternativas Avaliadas:**
+- **Migrar a captação para Google Forms** (motivador original da discussão desta sessão) — descartada: não transfere responsabilidade legal (quem opera o formulário, não quem hospeda, responde por conteúdo submetido — Marco Civil da Internet art. 21, ECA); a proteção real do Google (varredura de upload) não se aplica porque o Form Builder não tem campo de arquivo; e a migração reintroduziria exatamente a duplicação de caminho de captação que D-065 acabou de eliminar.
+- **Tabela dedicada para rate limit** (em vez de contar em `leads`) — descartada por ora: adiciona uma tabela e um índice a mais para o mesmo resultado; reavaliar se o volume de submissões justificar.
+- **Bloqueio de conteúdo ofensivo em geral (não só link)** — fora de escopo: exigiria lista de bloqueio/moderação de linguagem natural, desproporcional para um formulário de captação comercial; a fila de distribuição (item 4) já dá um ponto de revisão humana antes do lead virar ativo.
+
+**Impactos:** `src/lib/security.js`, `src/public/FormularioPublico.jsx`, `supabase/functions/submeter-formulario/index.ts`, `supabase/migracao-moderacao-formulario.sql` (novo), `src/lib/dataService.js` (`LEADS_COLS`, `leadFromDb`/`leadToDb`), `src/features/leads/LeadsTab.jsx`, `doc/SEGURANCA_MODERACAO.md` (novo).
+
+**Riscos:** Rate limit por IP pode falsear positivo para várias pessoas atrás do mesmo IP (CGNAT, Wi-Fi compartilhado) enviando o formulário quase ao mesmo tempo — mitigado pelo limite generoso (5/10min). Regex de link é heurística (`http`, `www.`, TLDs comuns) — pode deixar passar ofuscação deliberada (ex: espaços no meio da URL); aceito como primeira camada, não solução completa.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

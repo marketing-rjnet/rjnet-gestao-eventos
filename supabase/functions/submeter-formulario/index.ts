@@ -74,6 +74,25 @@ function validarTelefone(tel: unknown): boolean {
   return d.length >= 10 && d.length <= 11;
 }
 
+// Campos de texto livre público (nome, endereço, bairro, campos
+// personalizados) não deveriam conter link — vetor comum de spam/abuso em
+// formulário sem sessão. Não é moderação de conteúdo em geral, só bloqueia
+// URL.
+function containsLink(str: string): boolean {
+  return /https?:\/\/|www\.|\.(com|net|org|br|io|co|me|xyz|info|link)\b/i.test(str);
+}
+
+// Rate limit simples por IP: reaproveita a própria tabela leads (sem tabela
+// nova) contando quantos leads esse IP já gerou na janela recente.
+const RATE_LIMIT_JANELA_MIN = 10;
+const RATE_LIMIT_MAX_SUBMISSOES = 5;
+
+function getClientIp(req: Request): string | null {
+  const fwd = req.headers.get('x-forwarded-for');
+  if (!fwd) return null;
+  return fwd.split(',')[0].trim().slice(0, 45) || null;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -98,6 +117,19 @@ Deno.serve(async (req) => {
     const url = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+    const clientIp = getClientIp(req);
+    if (clientIp) {
+      const desde = new Date(Date.now() - RATE_LIMIT_JANELA_MIN * 60_000).toISOString();
+      const { count, error: rateErro } = await admin
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('origem_ip', clientIp)
+        .gte('criado_em', desde);
+      if (!rateErro && (count ?? 0) >= RATE_LIMIT_MAX_SUBMISSOES) {
+        return json({ error: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.' }, 429, corsHeaders);
+      }
+    }
 
     const { data: formulario, error: formErro } = await admin
       .from('formularios')
@@ -142,6 +174,9 @@ Deno.serve(async (req) => {
       if (obrigatorio && !texto) {
         return json({ error: `Campo obrigatório ausente: ${campo}.` }, 400, corsHeaders);
       }
+      if (tipo === 'texto' && texto && containsLink(texto)) {
+        return json({ error: `Campo "${campo}" não pode conter link.` }, 400, corsHeaders);
+      }
       valores[campo] = texto;
     }
 
@@ -169,6 +204,9 @@ Deno.serve(async (req) => {
         if (obrigatoriosPersonalizados.includes(def.id) && !texto) {
           return json({ error: `Preencha o campo "${def.label}".` }, 400, corsHeaders);
         }
+        if (texto && containsLink(texto)) {
+          return json({ error: `Campo "${def.label}" não pode conter link.` }, 400, corsHeaders);
+        }
         if (texto) camposExtras[def.key] = texto;
       }
     }
@@ -181,6 +219,7 @@ Deno.serve(async (req) => {
       vendedor_id: null,
       vendedor_nome: null,
       origem: 'formulario',
+      origem_ip: clientIp,
       formulario_id: formularioId,
       nome: valores.nome as string,
       telefone: (valores.telefone as string) || null,

@@ -21,6 +21,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/BOAS_PRATICAS.md` | **Boas práticas e dicas do sistema** — fluxo de desenvolvimento, git, preview Vercel, commits atômicos, princípios de UX | Referência geral; ao iniciar qualquer sessão de desenvolvimento |
 | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
 | `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
+| `doc/SEGURANCA_MODERACAO.md` | **Moderação da captação pública** — processo de remoção/denúncia para conteúdo ilegal submetido via formulário público, proteções técnicas em vigor (D-067) | Antes de alterar o formulário público ou lidar com um lead suspeito/ilegal |
 | `doc/architecture/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
 | `doc/architecture/ARCHITECTURE_FIX_PLAN.md` | Plano de correções arquiteturais pós-auditoria (D-030) — desvios identificados e corrigidos | Antes de qualquer refatoração estrutural ou auditoria de conformidade arquitetural |
 | `doc/performance/TECHNICAL_BACKLOG.md` | **Backlog técnico de performance** — TB-001 a TB-012 priorizados (Crítico/Alto/Médio/Baixo) | Antes de qualquer sprint de performance |
@@ -142,11 +143,12 @@ supabase/
 ├── migracao-qrcode-retencao.sql   # Retenção LGPD para leads sem evento/mês (D-061)
 ├── migracao-form-builder.sql      # Tabela formularios + RLS anon (D-062)
 ├── migracao-campos-personalizados.sql # Tabela campos_personalizados + RLS anon + leads.campos_extras (D-063)
+├── migracao-moderacao-formulario.sql  # Coluna leads.origem_ip + índice para rate limit (D-067)
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
     ├── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
-    └── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder (D-062, D-063)
+    └── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder; bloqueio de link, IP e rate limit (D-062, D-063, D-067)
 
 tests/
 ├── security.test.js      # E2E: SQL injection, XSS
@@ -373,7 +375,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/features/leads/MesDetail.jsx` | ~180 | Detalhe do mês: leads por vendedor + tabela agrupada por dia num accordion (`"Hoje"`/`"Ontem"`, dia mais recente aberto por padrão, busca expande dias com match), espelha `EventDetail.jsx` sem materiais (D-060, D-066) |
 | `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065) |
-| `src/public/FormularioPublico.jsx` | ~235 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063) |
+| `src/public/FormularioPublico.jsx` | ~242 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063); bloqueio de link em texto livre no client (D-067) |
 | `src/lib/localPublicSubmit.js` | ~37 | Fallback local (sem Supabase) para páginas públicas, dev/teste only (D-061, D-062) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
@@ -385,10 +387,10 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/ids.js` | ~2 | `genId(prefix)` — gerador de IDs temporários para modo local |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
-| `src/lib/dataService.js` | ~745 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058) |
+| `src/lib/dataService.js` | ~890 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058); `origem_ip` em `LEADS_COLS`/`leadFromDb`/`leadToDb` (D-067) |
 | `src/lib/activityLog.js` | ~100 | Buffer localStorage + Supabase Realtime broadcast + receiveActivityLog (D-044, D-045, D-046) |
 | `src/features/monitoring/MonitoringTab.jsx` | ~460 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards com status de atividade, feed 9 tipos, perf tiers, toolbar sessão, limpar log (D-044–D-051) |
-| `src/lib/security.js` | ~50 | Sanitização de inputs |
+| `src/lib/security.js` | ~57 | Sanitização de inputs; `containsLink()` detecta URL em texto livre (D-067) |
 | `supabase/schema.sql` | ~135 | Schema e seed |
 | `supabase/migracao-auth.sql` | ~195 | RLS e Auth |
 | `supabase/migracao-ofertas.sql` | ~75 | Tabelas ofertas/oferta_envios, RLS e bucket Storage (D-057) |
@@ -398,6 +400,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-qrcode-retencao.sql` | ~86 | Retenção LGPD para leads sem evento/mês (D-061) |
 | `supabase/migracao-form-builder.sql` | ~78 | Tabela `formularios`, colunas `formulario_id`/`bairro` em `leads`, RLS `anon` (D-062) |
 | `supabase/migracao-campos-personalizados.sql` | ~63 | Tabela `campos_personalizados`, colunas em `formularios`/`leads`, RLS `anon` (D-063) |
-| `supabase/functions/submeter-formulario/index.ts` | ~212 | Edge Function pública — submissão do Form Builder + campos personalizados (D-062, D-063) |
+| `supabase/functions/submeter-formulario/index.ts` | ~251 | Edge Function pública — submissão do Form Builder + campos personalizados (D-062, D-063); bloqueio de link, captura de IP e rate limit (D-067) |
+| `supabase/migracao-moderacao-formulario.sql` | ~40 | Coluna `leads.origem_ip` + índice para rate limit (D-067) |
 | `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrite SPA para `/f/:path*` (D-062; a rewrite `/qr/:path*` foi retirada em D-065) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

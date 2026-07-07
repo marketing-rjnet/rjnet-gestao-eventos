@@ -4,6 +4,30 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.11] — Moderação e mitigação de abuso no formulário público
+**Data:** 2026-07-07
+**Branch:** `claude/google-forms-integration-impact-60eu7j`
+
+**O que mudou**
+
+- **`src/lib/security.js`** — nova `containsLink()`: detecta URL em texto livre.
+- **`supabase/functions/submeter-formulario/index.ts`** — rejeita `nome`/`endereco`/`bairro`/campos personalizados contendo link; captura IP do requisitante (`x-forwarded-for`) em `origem_ip`; rate limit de 5 submissões / 10 min por IP (conta direto em `leads`, sem tabela nova).
+- **`src/public/FormularioPublico.jsx`** — mesma checagem de link no client, para feedback imediato (a validação decisiva continua sendo a da Edge Function).
+- **`supabase/migracao-moderacao-formulario.sql`** (novo) — coluna `leads.origem_ip` + índice `(origem_ip, criado_em)`.
+- **`src/lib/dataService.js`** — `origem_ip` incluída em `LEADS_COLS`, `leadFromDb`/`leadToDb`.
+- **`src/features/leads/LeadsTab.jsx`** — `FilaDistribuicao` ganha botão "Excluir" por linha (confirmação em dois passos, mesmo padrão de `EstoqueTab.jsx`), pra descartar lead suspeito sem precisar atribuí-lo antes.
+- **`doc/SEGURANCA_MODERACAO.md`** (novo) — processo de remoção/denúncia para conteúdo ilegal submetido via formulário público.
+
+**Por que mudou**
+- Formulário público sem sessão é o único ponto do sistema onde qualquer pessoa grava dado direto no banco sem autenticação — vetor de spam/link malicioso/abuso. Avaliada e descartada a migração para Google Forms como forma de "terceirizar" responsabilidade legal por conteúdo submetido por terceiros (não transfere responsabilidade — Marco Civil da Internet art. 21/ECA — e a proteção real do Google é sobre upload de arquivo, que este sistema não tem). Ver D-067 em `DECISIONS.md`.
+
+**Ações manuais necessárias**
+- Executar `supabase/migracao-moderacao-formulario.sql` no SQL Editor do Supabase.
+- Rodar `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema).
+- Fazer redeploy da Edge Function `submeter-formulario` (código mudou).
+
+---
+
 ## [v5.10] — Leads da Atividade do Mês agrupados por dia (accordion)
 **Data:** 2026-07-07
 **Branch:** `claude/leads-daily-dropdown-atidjl`
