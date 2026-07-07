@@ -27,6 +27,16 @@ export function sanitizeText(str, maxLength = 255) {
 }
 
 /**
+ * Detecta URL/link em texto livre — usado nos campos do Form Builder que
+ * não deveriam conter endereço web (nome, endereço, bairro, campos
+ * personalizados). Não é filtro de conteúdo impróprio em geral, só de link.
+ */
+export function containsLink(str) {
+  if (typeof str !== 'string') return false;
+  return /https?:\/\/|www\.|\.(com|net|org|br|io|co|me|xyz|info|link)\b/i.test(str);
+}
+
+/**
  * Valida e sanitiza e-mail.
  * @returns {string|null} e-mail sanitizado ou null se inválido
  */

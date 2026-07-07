@@ -185,6 +185,7 @@ const leadFromDb = (r) => ({
   // operacional novo, sempre paralelos a evento_id/mes_referencia (que
   // continuam XOR entre si)
   origem: r.origem ?? null,
+  origemIp: r.origem_ip ?? null,
   qrCodeId: r.qr_code_id ?? null,
   qrCodeLabel: r.qr_code_label ?? null,
   formularioId: r.formulario_id ?? null,
@@ -209,6 +210,7 @@ const leadToDb = (l) => ({
   versao_termo: l.consentimentoColetado ? (l.versaoTermo || 'v1.0') : null,
   // QR Code / Form Builder: atributos de proveniência (ver leadFromDb)
   origem: l.origem ?? null,
+  origem_ip: l.origemIp ?? null,
   qr_code_id: l.qrCodeId ?? null,
   qr_code_label: l.qrCodeLabel ?? null,
   formulario_id: l.formularioId ?? null,
@@ -267,7 +269,7 @@ const ofertaToDb = (o) => ({
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
-const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,qr_code_id,qr_code_label,formulario_id,bairro,campos_extras';
+const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,origem_ip,qr_code_id,qr_code_label,formulario_id,bairro,campos_extras';
 
 // TB-004: busca apenas materiais, eventos e perfis no boot.
 // Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.

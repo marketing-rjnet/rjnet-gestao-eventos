@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
+import { Icon } from '../../components/ui';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
 import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
 import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, db } from '../../lib/dataService';
@@ -12,8 +13,9 @@ const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário' };
 // manualmente — a mesma operação de negócio pra qualquer origem, sem regra
 // nova por canal.
 function FilaDistribuicao() {
-  const { vendedores, leads: leadsCompartilhados, updateLead, camposPersonalizados } = useApp();
+  const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados } = useApp();
   const [leadsRemotos, setLeadsRemotos] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
   // campos_extras é guardado por `key` (não por id) — mapeia pra legenda
   // legível sem precisar redesenhar a tela a cada campo novo criado.
@@ -44,6 +46,20 @@ function FilaDistribuicao() {
     } else {
       updateLead(leadId, { vendedorNome: v.nome, vendedorId: v.id });
     }
+  };
+
+  // Moderação: descarta um lead frio (ex: spam, dado suspeito) sem
+  // precisar atribuir a ninguém antes. Mesmo padrão de acesso direto ao
+  // db do resto deste componente — leadsRemotos não está no array
+  // compartilhado do contexto em modo Supabase.
+  const excluir = (leadId) => {
+    if (isSupabaseMode()) {
+      db.removeLead(leadId);
+      setLeadsRemotos((prev) => prev.filter((l) => l.id !== leadId));
+    } else {
+      removeLead(leadId);
+    }
+    setConfirmDelete(null);
   };
 
   if (leadsFrios === null) return null;
@@ -85,14 +101,43 @@ function FilaDistribuicao() {
                 </td>
                 <td>{l.vendedorNome || <span style={{ color: 'var(--text-3)' }}>Não atribuído</span>}</td>
                 <td>
-                  <select
-                    value={l.vendedorId ?? ''}
-                    onChange={(e) => { if (e.target.value) atribuir(l.id, e.target.value); }}
-                    style={{ fontSize: 12 }}
-                  >
-                    <option value="">Atribuir a...</option>
-                    {vendedoresAtivos.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
-                  </select>
+                  <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <select
+                      value={l.vendedorId ?? ''}
+                      onChange={(e) => { if (e.target.value) atribuir(l.id, e.target.value); }}
+                      style={{ fontSize: 12 }}
+                    >
+                      <option value="">Atribuir a...</option>
+                      {vendedoresAtivos.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                    </select>
+                    {confirmDelete === l.id ? (
+                      <>
+                        <button
+                          className="btn-ghost"
+                          style={{ fontSize: 11, padding: '2px 6px', color: 'var(--red)' }}
+                          onClick={() => excluir(l.id)}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          className="btn-ghost"
+                          style={{ fontSize: 11, padding: '2px 6px' }}
+                          onClick={() => setConfirmDelete(null)}
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="btn-ghost"
+                        style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-3)' }}
+                        title="Excluir lead (spam, dado suspeito)"
+                        onClick={() => setConfirmDelete(l.id)}
+                      >
+                        <Icon name="trash" size={14} />
+                      </button>
+                    )}
+                  </span>
                 </td>
               </tr>
             ))}

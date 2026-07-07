@@ -5,6 +5,7 @@ import { CAMPOS_FORMULARIO } from '../lib/constants';
 import { SERVICO_LABEL } from '../utils/format';
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
+import { containsLink } from '../lib/security';
 
 // Página pública dinâmica do Form Builder — sem sessão, sem AppContext.
 // Renderiza os campos que o formulário escolheu: do catálogo fixo
@@ -81,11 +82,17 @@ export default function FormularioPublico({ slug }) {
       if (campo.tipo !== 'servico' && campo.tipo !== 'telefone' && !String(valores[key] || '').trim()) {
         setErro(`Preencha o campo "${campo.label}".`); return;
       }
+      if (campo.tipo === 'texto' && containsLink(String(valores[key] || ''))) {
+        setErro(`Campo "${campo.label}" não pode conter link.`); return;
+      }
     }
     for (const def of definicoesPersonalizadas) {
       const obrigatorio = (formulario.camposPersonalizadosObrigatorios || []).includes(def.id);
       if (obrigatorio && !String(valoresPersonalizados[def.id] || '').trim()) {
         setErro(`Preencha o campo "${def.label}".`); return;
+      }
+      if (containsLink(String(valoresPersonalizados[def.id] || ''))) {
+        setErro(`Campo "${def.label}" não pode conter link.`); return;
       }
     }
     if (!consentimentoColetado) { setErro('É necessário confirmar o uso dos seus dados para continuar.'); return; }

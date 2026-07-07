@@ -469,7 +469,7 @@ Nenhuma funcionalidade planejada formalmente documentada foi identificada no rep
 | Política de privacidade exibida ao titular | ❌ **AUSENTE** | Não existe no sistema |
 | Termos de uso exibidos ao titular | ❌ **AUSENTE** | Não existe no sistema |
 | Registro de consentimento (data/hora) | ❌ **AUSENTE** | Nenhuma coluna na tabela `leads` |
-| IP do aceite de consentimento | ❌ **AUSENTE** | Não capturado |
+| IP do aceite de consentimento | ~~❌ AUSENTE~~ **✅ RESOLVIDO — D-067 (2026-07-07):** `leads.origem_ip` capturado na submissão do formulário público (`submeter-formulario/index.ts` via `x-forwarded-for`); ausente ainda no formulário mediado pelo vendedor em `VendedorApp.jsx` (não é submissão direta do titular) | `supabase/migracao-moderacao-formulario.sql` |
 | Versão do termo aceito | ❌ **AUSENTE** | Não existe |
 | Informação ao titular sobre finalidade | ❌ **AUSENTE** | Não existe |
 | Informação ao titular sobre direitos | ❌ **AUSENTE** | Não existe |
