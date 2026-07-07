@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 17 de 22 ações concluídas (PA-22 adicionado em 2026-07-07, D-067). Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
+> **Status geral:** 🟡 EM PROGRESSO — 12 de 22 ações concluídas (🟢 no "Painel de Status Consolidado" abaixo; PA-22 adicionado em 2026-07-07, D-067). Restam 10 ações em aberto ou em progresso (🟡/🔴 na tabela) — PA-10/PA-11/PA-13 (migrações prontas, pendentes de execução em produção — ver nota ¹ na tabela) e PA-04/PA-14/PA-17/PA-18/PA-19/PA-20/PA-21 (administrativas/jurídicas/produto).
 
 ---
 
@@ -1028,10 +1028,10 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-07 | Rastreabilidade do soft delete (quem/quando) | 2 | ALTA | 🟢 | 2026-07-16 |
 | PA-08 | Pseudonimizar/criptografar CPF | 2 | ALTA | 🟢 | 2026-07-16 |
 | PA-09 | Corrigir stack trace na Edge Function | 2 | MÉDIA | 🟢 | 2026-07-16 |
-| PA-10 | Política de retenção e exclusão automática | 3 | ALTA | 🟢 | 2026-09-16 |
-| PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🟢 | 2026-09-16 |
+| PA-10 | Política de retenção e exclusão automática | 3 | ALTA | 🟡¹ | 2026-09-16 |
+| PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🟡¹ | 2026-09-16 |
 | PA-12 | Habilitar MFA para usuários marketing | 3 | MÉDIA | 🟢 | 2026-09-16 |
-| PA-13 | Tabela de auditoria de operações | 3 | ALTA | 🟢 | 2026-09-16 |
+| PA-13 | Tabela de auditoria de operações | 3 | ALTA | 🟡¹ | 2026-09-16 |
 | PA-14 | Assinar DPA com Supabase | 3 | ALTA | 🟡 | 2026-09-16 |
 | PA-15 | Processo DSAR para direitos de titulares | 3 | ALTA | 🟢 | 2026-09-16 |
 | PA-16 | Elaborar política de privacidade | 4 | ALTA | 🟢 | 2026-12-16 |
@@ -1041,6 +1041,8 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-20 | Plano de resposta a incidentes | 4 | MÉDIA | 🟡 | 2026-12-16 |
 | PA-21 | Avaliar e remover campos excessivos | 4 | MÉDIA | 🔴 | 2026-12-16 |
 | PA-22 | Moderação e mitigação de abuso no formulário público | — | ALTA | 🟢 | 2026-07-07 |
+
+> ¹ **PA-10/PA-11/PA-13 rebaixadas de 🟢 para 🟡** (auditoria de consistência, confirmado pelo responsável do sistema): o código/migração está pronto (`migracao-retencao.sql`, `migracao-rls-vendedor-leads.sql`, `migracao-audit-log.sql`), mas a execução em produção ainda está pendente — consistente com `doc/architecture/SUPABASE.md` (linhas 9–11 da tabela de ordem de migrações), que já marcava essas três como "⚠️ Pendente execução em produção". Risco enquanto pendente: vendedores continuam lendo dados pessoais de leads de outros vendedores (PA-11) e não há retenção automática (PA-10) nem tabela de auditoria (PA-13) ativas em produção.
 
 ---
 
@@ -1073,7 +1075,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 ---
 
-> **Status geral:** 🟡 EM PROGRESSO — 17 de 22 ações concluídas (PA-22 adicionado em 2026-07-07, D-067). Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
+> **Status geral:** 🟡 EM PROGRESSO — 12 de 22 ações concluídas (🟢 no "Painel de Status Consolidado" abaixo; PA-22 adicionado em 2026-07-07, D-067). Restam 10 ações em aberto ou em progresso (🟡/🔴 na tabela) — PA-10/PA-11/PA-13 (migrações prontas, pendentes de execução em produção — ver nota ¹ na tabela) e PA-04/PA-14/PA-17/PA-18/PA-19/PA-20/PA-21 (administrativas/jurídicas/produto).
 
 ---
 
