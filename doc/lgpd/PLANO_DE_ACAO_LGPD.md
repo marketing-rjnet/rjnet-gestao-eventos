@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 12 de 22 ações concluídas (🟢 no "Painel de Status Consolidado" abaixo; PA-22 adicionado em 2026-07-07, D-067). Restam 10 ações em aberto ou em progresso (🟡/🔴 na tabela) — PA-10/PA-11/PA-13 (migrações prontas, pendentes de execução em produção — ver nota ¹ na tabela) e PA-04/PA-14/PA-17/PA-18/PA-19/PA-20/PA-21 (administrativas/jurídicas/produto).
+> **Status geral:** 🟡 EM PROGRESSO — 13 de 22 ações concluídas (🟢 no "Painel de Status Consolidado" abaixo; PA-11 confirmado aplicado em produção em 2026-07-07 via `migracao-rls-vendedor-leads-v2.sql`; PA-22 adicionado em 2026-07-07, D-067). Restam 9 ações em aberto ou em progresso (🟡/🔴 na tabela) — PA-10/PA-13 (migrações prontas, pendentes de execução em produção — ver nota ¹ na tabela) e PA-04/PA-14/PA-17/PA-18/PA-19/PA-20/PA-21 (administrativas/jurídicas/produto).
 
 ---
 
@@ -652,6 +652,10 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 - [x] `supabase/migracao-auth.sql` ou novo SQL
 - [x] `doc/architecture/SUPABASE.md`
 - [x] `doc/CHANGELOG.md`
+
+> **Atualização (2026-07-07, auditoria de consistência):** `migracao-rls-vendedor-leads.sql` nunca foi executada em produção (ver nota ¹ abaixo). Nesse intervalo, `migracao-comercial.sql` (D-059) e `migracao-qrcode.sql` (D-061) — trabalho de feature não relacionado a este PA — reescreveram a mesma policy `leads_select` do zero, sem essa restrição. A versão que ficou vigente (`migracao-qrcode.sql`) usava `vendedor_id is not null`, que **não** restringia o vendedor ao próprio lead — reintroduzia exatamente a não conformidade que este PA corrige (SB-04). `supabase/migracao-rls-vendedor-leads-v2.sql` reaplica `vendedor_id = auth.uid()` por cima da versão atual, preservando a leitura total de marketing/comercial adicionada por D-059. Impacto verificado no frontend: `VendedorApp.jsx` já filtra os leads recebidos por `vendedorNome` antes de exibir, e o ranking usa RPC `security definer` (ignora RLS) — nenhuma tela quebra.
+>
+> **Confirmado aplicado em produção em 2026-07-07.** Verificação pós-aplicação (`SELECT policyname, qual FROM pg_policies WHERE tablename = 'leads' AND policyname = 'leads_select'`) retornou `vendedor_id = auth.uid()` na condição do vendedor, confirmando o fechamento do gap. Não conformidade SB-04 encerrada.
 - [x] `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`
 
 **Evidência de conclusão:**
@@ -1029,7 +1033,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-08 | Pseudonimizar/criptografar CPF | 2 | ALTA | 🟢 | 2026-07-16 |
 | PA-09 | Corrigir stack trace na Edge Function | 2 | MÉDIA | 🟢 | 2026-07-16 |
 | PA-10 | Política de retenção e exclusão automática | 3 | ALTA | 🟡¹ | 2026-09-16 |
-| PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🟡¹ | 2026-09-16 |
+| PA-11 | Restringir SELECT de leads para vendedores | 3 | MÉDIA | 🟢 | 2026-09-16 |
 | PA-12 | Habilitar MFA para usuários marketing | 3 | MÉDIA | 🟢 | 2026-09-16 |
 | PA-13 | Tabela de auditoria de operações | 3 | ALTA | 🟡¹ | 2026-09-16 |
 | PA-14 | Assinar DPA com Supabase | 3 | ALTA | 🟡 | 2026-09-16 |
@@ -1042,7 +1046,9 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-21 | Avaliar e remover campos excessivos | 4 | MÉDIA | 🔴 | 2026-12-16 |
 | PA-22 | Moderação e mitigação de abuso no formulário público | — | ALTA | 🟢 | 2026-07-07 |
 
-> ¹ **PA-10/PA-11/PA-13 rebaixadas de 🟢 para 🟡** (auditoria de consistência, confirmado pelo responsável do sistema): o código/migração está pronto (`migracao-retencao.sql`, `migracao-rls-vendedor-leads.sql`, `migracao-audit-log.sql`), mas a execução em produção ainda está pendente — consistente com `doc/architecture/SUPABASE.md` (linhas 9–11 da tabela de ordem de migrações), que já marcava essas três como "⚠️ Pendente execução em produção". Risco enquanto pendente: vendedores continuam lendo dados pessoais de leads de outros vendedores (PA-11) e não há retenção automática (PA-10) nem tabela de auditoria (PA-13) ativas em produção.
+> ¹ **PA-10/PA-13 seguem rebaixadas de 🟢 para 🟡** (auditoria de consistência, confirmado pelo responsável do sistema): o código/migração está pronto (`migracao-retencao.sql`, `migracao-audit-log.sql`), mas a execução em produção ainda está pendente — consistente com `doc/architecture/SUPABASE.md` (linhas 10–11 da tabela de ordem de migrações), que já marcava essas duas como "⚠️ Pendente execução em produção". Risco enquanto pendente: não há retenção automática (PA-10) nem tabela de auditoria (PA-13) ativas em produção.
+>
+> **PA-11 resolvido em 2026-07-07:** estava nesta mesma nota até então — o arquivo original (`migracao-rls-vendedor-leads.sql`) havia sido superado por `migracao-comercial.sql`/`migracao-qrcode.sql` (feature work posterior, D-059/D-061) antes de ser aplicado. `migracao-rls-vendedor-leads-v2.sql` foi escrita por cima do estado vigente e confirmada aplicada em produção (verificação via `pg_policies` retornou `vendedor_id = auth.uid()`). Ver nota na seção PA-11 acima.
 
 ---
 
@@ -1070,12 +1076,13 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | `supabase/migracao-soft-delete-audit.sql` | PA-07 | 🟢 |
 | `supabase/migracao-audit-log.sql` | PA-13 | 🟢 |
 | `supabase/migracao-retencao.sql` | PA-10 | 🟢 |
-| `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟢 |
+| `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟡 (substituída por v2, nunca aplicada isoladamente) |
+| `supabase/migracao-rls-vendedor-leads-v2.sql` | PA-11 | 🟢 (aplicada em produção em 2026-07-07) |
 | `supabase/migracao-moderacao-formulario.sql` | PA-22 | 🟢 |
 
 ---
 
-> **Status geral:** 🟡 EM PROGRESSO — 12 de 22 ações concluídas (🟢 no "Painel de Status Consolidado" abaixo; PA-22 adicionado em 2026-07-07, D-067). Restam 10 ações em aberto ou em progresso (🟡/🔴 na tabela) — PA-10/PA-11/PA-13 (migrações prontas, pendentes de execução em produção — ver nota ¹ na tabela) e PA-04/PA-14/PA-17/PA-18/PA-19/PA-20/PA-21 (administrativas/jurídicas/produto).
+> **Status geral:** 🟡 EM PROGRESSO — 13 de 22 ações concluídas (🟢 no "Painel de Status Consolidado" abaixo; PA-11 confirmado aplicado em produção em 2026-07-07 via `migracao-rls-vendedor-leads-v2.sql`; PA-22 adicionado em 2026-07-07, D-067). Restam 9 ações em aberto ou em progresso (🟡/🔴 na tabela) — PA-10/PA-13 (migrações prontas, pendentes de execução em produção — ver nota ¹ na tabela) e PA-04/PA-14/PA-17/PA-18/PA-19/PA-20/PA-21 (administrativas/jurídicas/produto).
 
 ---
 

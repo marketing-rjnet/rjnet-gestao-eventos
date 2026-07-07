@@ -153,6 +153,21 @@ export function AppProvider({ children }) {
   const { addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado } =
     createCampoPersonalizadoApi({ camposPersonalizados, setCamposPersonalizados });
 
+  // TB-009: antes recalculava o flatMap sobre eventos/materiais a cada
+  // chamada de getMateriaisDisponiveis() (EstoqueTab, Dashboard, EventDetail
+  // chamam em todo render). Memoizado por [materiais, eventos] — a função
+  // exposta no contexto só retorna o valor já calculado.
+  const materiaisDisponiveis = useMemo(() =>
+    materiais.map((mat) => {
+      const emCampo = eventos
+        .filter((e) => e.status === STATUS_EVENTO.ATIVO || e.status === STATUS_EVENTO.PLANEJADO)
+        .flatMap((e) => e.materiais)
+        .filter((mm) => mm.materialId === mat.id && !mm.retornado)
+        .reduce((acc, mm) => acc + mm.quantidade, 0);
+      return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
+    }),
+  [materiais, eventos]);
+
   const value = useMemo(() => ({
     materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados,
     isLoading, syncStatus,
@@ -173,17 +188,9 @@ export function AppProvider({ children }) {
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
     getOferta: (servico) => ofertas.find((o) => o.servico === servico),
     ofertaJaEnviada: (leadId, servico) => ofertasEnviadas.some((o) => o.leadId === leadId && o.servico === servico),
-    getMateriaisDisponiveis: () =>
-      materiais.map((mat) => {
-        const emCampo = eventos
-          .filter((e) => e.status === STATUS_EVENTO.ATIVO || e.status === STATUS_EVENTO.PLANEJADO)
-          .flatMap((e) => e.materiais)
-          .filter((mm) => mm.materialId === mat.id && !mm.retornado)
-          .reduce((acc, mm) => acc + mm.quantidade, 0);
-        return { material: mat, emCampo, disponivel: mat.quantidade - emCampo };
-      }),
+    getMateriaisDisponiveis: () => materiaisDisponiveis,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, isLoading, syncStatus]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, isLoading, syncStatus, materiaisDisponiveis]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
