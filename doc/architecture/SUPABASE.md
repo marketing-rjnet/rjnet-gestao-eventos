@@ -53,7 +53,8 @@ Cada pessoa entra com o próprio e-mail e senha. O papel define a área:
 | Papel | Área | Permissões no banco |
 |---|---|---|
 | `marketing` | Painel completo + gestão de usuários | Tudo |
-| `vendedor` | Tela de registro de leads | Insere/vê/edita **apenas os próprios leads**; placar da equipe vem agregado do servidor |
+| `comercial` | Início/Eventos/Ofertas/Relatórios (`ComercialApp.jsx`) | Mesmo nível de `marketing` em `eventos`/`ofertas`/`leads` (inclusive leads de qualquer vendedor); **sem** escrita em `materiais` (estoque) nem em `perfis` (gestão de equipe) — D-059 |
+| `vendedor` | Tela de registro de leads | Insere/vê/edita **apenas os próprios leads**; placar da equipe vem agregado do servidor; leads de QR Code/Formulário sem `vendedor_id` ficam invisíveis até a distribuição manual (D-061) |
 
 ### Como ativar (depois do schema.sql)
 
@@ -99,13 +100,24 @@ Editor para ativar os perfis:
 
 > **Atenção**: use estas credenciais apenas em projetos de teste. Nunca reutilize
 > senhas de exemplo em produção.
+>
+> **Gap conhecido:** `supabase/seed-usuarios-teste.sql` ainda não ativa um perfil `comercial` (D-059) — para testar esse papel, crie o usuário manualmente no Dashboard e rode `update public.perfis set papel = 'comercial', ativo = true where email = '...'`.
 
 ## Segurança
 
-Com a migração de auth aplicada, **a anon key sozinha não dá acesso a nada**:
-todas as policies exigem usuário autenticado e ativo, e o que cada um vê/edita
-é decidido pelo banco (RLS), não pelo front. Quem se auto-cadastrar pela API
-fica com perfil inativo até o marketing ativar.
+Com a migração de auth aplicada, **a anon key sozinha não dá acesso a leads,
+eventos, materiais ou perfis**: todas as policies dessas tabelas exigem usuário
+autenticado e ativo, e o que cada um vê/edita é decidido pelo banco (RLS), não
+pelo front. Quem se auto-cadastrar pela API fica com perfil inativo até o
+marketing ativar.
+
+**Exceção deliberada (D-062):** `formularios` e `campos_personalizados` têm
+policies `anon` de **leitura**, restritas a `ativo=true` — são as primeiras
+(e únicas) tabelas do projeto com acesso anônimo, necessárias para a página
+pública `/f/:slug` renderizar sem sessão. Não expõem dado pessoal de titular
+(só metadado do formulário: nome, campos habilitados). A **escrita** de leads
+públicos nunca passa pela `anon key` — vai pela Edge Function
+`submeter-formulario`, que usa `service_role` no servidor.
 
 Nunca use a **service_role key** no front-end.
 
@@ -151,7 +163,10 @@ SELECT tablename, policyname, roles
 FROM pg_policies
 WHERE schemaname = 'public'
   AND roles @> ARRAY['anon'];
--- Resultado esperado em produção: zero linhas
+-- Resultado esperado em produção (após D-062): só policies de leitura em
+-- `formularios` e `campos_personalizados` (restritas a ativo=true).
+-- Qualquer outra tabela com policy `anon` é um problema — migração de auth
+-- não aplicada corretamente ou vazamento de acesso.
 ```
 
 ---
@@ -195,6 +210,31 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 10 | `supabase/migracao-audit-log.sql` | ⚠️ Pendente execução em produção (PA-13) | Tabela `audit_log` + trigger em leads |
 | 11 | `supabase/migracao-retencao.sql` | ⚠️ Pendente execução em produção (PA-10) | Retenção automática via pg_cron |
 | 12 | `supabase/migracao-ofertas.sql` | ⚠️ Pendente execução em produção (D-057) | Tabelas `ofertas`/`oferta_envios`, RLS e bucket Storage `ofertas` (público) |
+| 13 | `supabase/migracao-leads-mensais.sql` | ⚠️ Pendente execução em produção (D-058) | Coluna `leads.mes_referencia`, constraint de exclusividade com `evento_id`, RPC `ranking_mes()`, 3º bloco de retenção |
+| 14 | `supabase/migracao-comercial.sql` | ⚠️ Pendente execução em produção (D-059) | Papel `comercial` + RLS de `eventos`/`ofertas`/`leads`/bucket Storage |
+| 15 | `supabase/migracao-qrcode.sql` | ⚠️ Pendente execução em produção (D-061) | Colunas `origem`/`qr_code_id`/`qr_code_label` em `leads`; relaxa constraint de exclusividade para aceitar lead sem evento nem mês; RLS de `vendedor` passa a exigir `vendedor_id is not null`. **Vestigial desde D-065** (gerador standalone removido), mas continua ativo — compartilhado com `origem='formulario'` |
+| 16 | `supabase/migracao-qrcode-retencao.sql` | ⚠️ Pendente execução em produção (D-061/D-064) | 4º bloco de retenção: leads sem `evento_id` nem `mes_referencia` expiram por `criado_em` |
+| 17 | `supabase/migracao-form-builder.sql` | ⚠️ Pendente execução em produção (D-062) | Tabela `formularios`, colunas `formulario_id`/`bairro` em `leads`, **primeiras policies `anon`** do projeto (leitura, `ativo=true`) |
+| 18 | `supabase/migracao-campos-personalizados.sql` | ⚠️ Pendente execução em produção (D-063) | Tabela `campos_personalizados`, RLS `anon` de leitura, coluna `leads.campos_extras` (jsonb) |
+| 19 | `supabase/migracao-moderacao-formulario.sql` | ⚠️ Pendente execução em produção (D-067) | Coluna `leads.origem_ip` + índice para rate limit (5 submissões/10min por IP no formulário público) |
+
+> Status "⚠️ Pendente execução em produção" nas linhas 9–19 reflete o que estava
+> registrado antes destas migrações existirem — **confirme o estado real em
+> produção** (via `verificar-migracao-auth.sql` ou consulta direta) antes de
+> assumir que algo já foi aplicado ou não.
+>
+> **Nota histórica:** `supabase/migrar-comercial-para-vendedor.sql` é um script
+> pontual de uma versão anterior do sistema (protótipo local, pré-Auth/RLS) que
+> **removia** um papel `comercial` então somente-leitura — não confundir com o
+> papel `comercial` atual, reintroduzido pela migração 14 (D-059) com escrita
+> real via RLS. Não execute o script antigo depois da migração 14.
+>
+> **Scripts de performance, sem ordem fixa (idempotentes, aplicar quando
+> conveniente):** `supabase/fix-ranking-deletado.sql` (QW-001/PA-NEW-001 —
+> `ranking_evento()` passa a filtrar `deletado = false`) e
+> `supabase/perf-indices-compostos.sql` (QW-002/PA-007 — índices compostos
+> `(evento_id, deletado)` para as queries mais frequentes). Não dependem de
+> nenhuma migração desta lista nem são pré-requisito de outra.
 
 > Auditorias e conformidade completa: `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md`  
 > Plano de ação LGPD: `doc/lgpd/PLANO_DE_ACAO_LGPD.md`
@@ -211,3 +251,34 @@ Primeiro uso de **Supabase Storage** no projeto. `supabase/migracao-ofertas.sql`
 **Passo extra além de rodar o SQL**: a `INSERT INTO storage.buckets` no script cria o bucket automaticamente, mas confirme no Dashboard (**Storage**) que ele aparece como público após a migração. Sem isso, ou sem a migração aplicada, a aba "Ofertas" do marketing funciona normalmente para texto, mas o upload de imagem falha silenciosamente (erro só visível no console do navegador).
 
 **CSP:** `vercel.json` tem `img-src` ampliado para `https://*.supabase.co` — necessário para as imagens do bucket renderizarem em produção/preview (CSP não existe em `npm run dev`).
+
+---
+
+## Mês de referência, papel comercial e QR Code (D-058, D-059, D-061)
+
+- **`migracao-leads-mensais.sql`** (D-058): coluna `leads.mes_referencia` (date, primeiro dia do mês), RPC `ranking_mes(mref)` espelhando `ranking_evento()`, coluna `oferta_envios.mes_referencia`, e um 3º bloco de retenção em `limpar_leads_expirados()` para leads de mês encerrado há mais de `retencao_leads_mensais_dias` (365 por padrão).
+- **`migracao-comercial.sql`** (D-059): novo papel `comercial` no check constraint de `perfis`; estende `eventos_write`/`ofertas_write`/bucket `ofertas`/`leads_insert`/`leads_update`/`leads_delete` para aceitar `papel_atual() in ('marketing', 'comercial')`. `materiais_write` e as policies de `perfis` continuam exclusivas de `marketing`. A migração original só estendeu a **escrita** de `leads` — a leitura (`leads_select`, de `protecao-dados.sql`) ficou restrita a `marketing`/`vendedor` até ser corrigida (ver nota abaixo).
+- **`migracao-qrcode.sql`** (D-061): colunas `origem`/`qr_code_id`/`qr_code_label` em `leads`; relaxa a constraint `leads_evento_xor_mes` de `= 1` para `<= 1` (agora aceita lead sem `evento_id` nem `mes_referencia`); RLS de `vendedor` passa a exigir `vendedor_id is not null` — leads de QR Code/Formulário ficam invisíveis ao vendedor até serem distribuídos manualmente. **Vestigial desde D-065**: o gerador standalone de QR Code que produzia `origem='qrcode'` foi removido, mas a coluna e o pipeline de distribuição continuam ativos, compartilhados com `origem='formulario'`.
+
+**Bug pós-implementação corrigido depois:** `leads_select` e `oferta_envios_select` não haviam sido estendidas para `comercial` junto com a escrita — resultado em produção: o card "Mês/Dia a dia" do Início mostrava contagem certa (via `ranking_mes()`, `security definer`, ignora RLS), mas as telas de detalhe (`MesDetail`/`EventDetail`, SELECT direto) vinham vazias para o comercial. Corrigido em `migracao-comercial.sql` (idempotente, pode rodar de novo).
+
+---
+
+## Form Builder e campos personalizados (D-062, D-063)
+
+- **`migracao-form-builder.sql`** (D-062): tabela `formularios` (`campos`/`campos_obrigatorios`, `slug` único, `ativo`); colunas `formulario_id`/`bairro` em `leads`. **Primeiras policies `anon` do projeto** — leitura restrita a `ativo=true`, sem dado sensível — necessárias para a página pública `/f/:slug` renderizar sem sessão. Escrita restrita a `marketing`/`comercial`.
+- **`migracao-campos-personalizados.sql`** (D-063): tabela `campos_personalizados` (catálogo de campos de texto livre reutilizáveis, `ativo`), RLS `anon` de leitura no mesmo padrão de `formularios`, coluna `leads.campos_extras` (jsonb, chave = `key` do campo).
+- Escrita pública de leads (Edge Function `supabase/functions/submeter-formulario/index.ts`) usa `service_role` — nunca a `anon key` — e replica no servidor (Deno) a mesma validação/sanitização do catálogo fixo `CAMPOS_FORMULARIO` do frontend.
+- **Gotcha conhecido** (mesmo do D-057): depois de rodar qualquer uma dessas duas migrações, rode `NOTIFY pgrst, 'reload schema';` (ou Dashboard → Settings → API → Reload schema) — sem isso, colunas/tabelas novas não ficam visíveis para o PostgREST imediatamente.
+
+---
+
+## Moderação do formulário público (D-067)
+
+**`migracao-moderacao-formulario.sql`** adiciona `leads.origem_ip` (capturado via `x-forwarded-for` na Edge Function pública, sem retenção própria — apagado junto do lead pela retenção D-064) e um índice para o rate limit. `submeter-formulario` é a **única escrita não-autenticada** do sistema; três camadas de proteção, além do honeypot/sanitização já existentes:
+
+1. `containsLink()` (duplicada em Deno na Edge Function) rejeita link em texto livre (`nome`/`endereco`/`bairro`/campos personalizados)
+2. Rate limit de 5 submissões/10min por IP, contado direto em `leads` (sem tabela nova) antes de cada insert
+3. `origem_ip` capturado para permitir investigação manual de abuso
+
+Processo de remoção/denúncia de conteúdo ilegal: `doc/SEGURANCA_MODERACAO.md`. Alternativa de migrar a captação para Google Forms foi avaliada e **descartada** — não transfere a responsabilidade legal, e reintroduziria a duplicação de caminho de captação que D-065 acabou de eliminar.

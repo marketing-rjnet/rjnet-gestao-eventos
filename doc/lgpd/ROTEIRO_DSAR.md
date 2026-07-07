@@ -14,27 +14,16 @@ O titular pode solicitar quais dados a RJNet possui sobre ele.
 
 ```sql
 SELECT
-  l.id,
-  l.nome,
-  l.telefone,
-  l.cpf,
-  l.endereco,
-  l.servico_interesse,
-  l.temperatura,
-  l.observacao,
-  l.ja_cliente_rjnet,
-  l.consentimento_coletado,
-  l.consentimento_em,
-  l.versao_termo,
-  l.criado_em,
-  e.nome AS evento,
-  l.vendedor_nome
+  l.*,
+  e.nome AS evento
 FROM public.leads l
 LEFT JOIN public.eventos e ON l.evento_id = e.id
 WHERE l.telefone = '(XX) XXXXX-XXXX'  -- substituir pelo telefone do titular
    OR l.cpf      = 'XXX.XXX.XXX-XX'   -- ou pelo CPF
 ORDER BY l.criado_em DESC;
 ```
+
+> **Use `l.*`, não uma lista fixa de colunas.** `leads` ganhou colunas novas ao longo do tempo (`mes_referencia`, `origem`, `qr_code_id`, `qr_code_label`, `formulario_id`, `bairro`, `campos_extras`, `origem_ip` — D-058, D-061 a D-063, D-067) e uma lista fixa sub-relataria dados de um titular capturado por QR Code/Formulário público, que não tem `evento_id`. Se precisar excluir colunas puramente técnicas/internas da resposta ao titular (ex.: `deletado`, `deletado_por`), remova-as explicitamente do resultado antes de exportar — não do SELECT.
 
 **Resposta:** exportar resultado como CSV e enviar ao titular por e-mail.
 
@@ -73,9 +62,7 @@ O titular pode solicitar seus dados em formato estruturado.
 
 ```sql
 SELECT row_to_json(dados) FROM (
-  SELECT l.nome, l.telefone, l.cpf, l.endereco,
-         l.servico_interesse, l.temperatura, l.criado_em,
-         e.nome AS evento
+  SELECT l.*, e.nome AS evento
   FROM public.leads l
   LEFT JOIN public.eventos e ON l.evento_id = e.id
   WHERE l.telefone = '(XX) XXXXX-XXXX'

@@ -5,7 +5,7 @@
 > **Criado em:** 2026-06-16  
 > **Origem:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — auditoria completa de LGPD, segurança e governança  
 > **Responsável:** A definir (DPO / responsável técnico)  
-> **Status geral:** 🟡 EM PROGRESSO — 16 de 21 ações concluídas. Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
+> **Status geral:** 🟡 EM PROGRESSO — 17 de 22 ações concluídas (PA-22 adicionado em 2026-07-07, D-067). Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
 
 ---
 
@@ -298,6 +298,8 @@
 > **Nota 2026-07-02 — D-057 (Área de Ofertas):** nova feature permite ao vendedor enviar, manualmente e 1:1 via WhatsApp, uma oferta pronta (imagem+copy) ao lead. O seletor prioriza o serviço de interesse já cadastrado, mas permite escolher qualquer uma das ofertas configuradas — cobre também interesse percebido na conversa, não só o declarado na captação; a decisão de qual oferta enviar continua sendo do vendedor em cada contato, não automatizada. Não introduz dado pessoal novo do titular (nome/telefone continuam só em `leads`; `oferta_envios` só referencia `lead_id` via FK com `ON DELETE CASCADE`) e não altera nem resolve o status de PA-04 — a pendência de consentimento segue a mesma acima. Por ser contato pontual iniciado pelo vendedor que já abordou o titular no evento (não campanha automatizada/segmentada em massa), é o uso mais alinhado à finalidade "contato comercial para apresentação de serviços" já redigida no termo suspenso — reforça, mas não substitui, a necessidade de destravar a decisão externa sobre o processo de coleta de consentimento.
 
 > **Atualização 2026-07-06 — D-061/D-062/D-063 (QR Code e Form Builder):** os dois novos canais de captação pública sem sessão implementam consentimento digital **próprio e ativo**, independente da suspensão do D-043. `QrCapturaPublica.jsx` (`src/public/QrCapturaPublica.jsx:35`) e `FormularioPublico.jsx` (`src/public/FormularioPublico.jsx:91`) exigem um checkbox obrigatório com o mesmo texto ("Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a utilizá-los para contato comercial, conforme a LGPD") e **bloqueiam o envio** se não marcado — validado tanto no frontend quanto nas Edge Functions públicas (`captar-lead-qrcode`, `submeter-formulario`), que rejeitam a submissão sem `consentimentoColetado === true`. Isso **não reativa PA-04 como um todo**: cobre apenas os leads de origem QR Code/Formulário (colunas `origem`/`qr_code_id`/`formulario_id` — D-061/D-062); leads capturados presencialmente pelo vendedor (evento ou mês de referência) continuam com o checkbox oculto/suspenso do D-043. PA-04 deve ser tratado como **parcialmente reativado**: 🟢 para os canais digitais públicos, 🟡 para a captação presencial em campo, até a definição externa do processo de ficha física ser finalizada.
+
+> **Atualização 2026-07-06 — D-065 (unificação de QR Code com Form Builder):** o gerador de QR Code standalone (`QrCodeGeradorTab.jsx`, rota pública `/qr/:id`, página `QrCapturaPublica.jsx` e Edge Function `captar-lead-qrcode` citados no parágrafo acima) foi **removido** por redundância — o Form Builder já cobre o mesmo catálogo de campos e já gera QR Code/link por formulário. Todo QR Code novo nasce de um formulário do Form Builder (`FormularioPublico.jsx` + `submeter-formulario`), com `origem='formulario'`. O checkbox de consentimento e a validação descritos acima continuam existindo, só que hoje só por esse único caminho — leads antigos com `origem='qrcode'` permanecem no banco normalmente.
 
 ---
 
@@ -984,6 +986,33 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 
 **Evidência de conclusão:** _Decisão registrada em DECISIONS.md + campos removidos se aplicável_
 
+> **Nota 2026-07-06/07 — D-062/D-063:** o Form Builder introduziu dois candidatos adicionais a esta revisão: `bairro` (campo fixo do catálogo, granularidade menor que endereço completo — risco baixo) e `campos_extras` (campos personalizados de texto livre, definidos ad hoc pelo marketing por formulário, **sem catálogo fixo de tipos** — mesma categoria de risco do campo "observações" já listado acima, mas com superfície potencialmente maior por poder crescer sem limite). Adicionar `campos_extras` à reunião de avaliação do item 1 quando ela ocorrer.
+
+---
+
+### PA-22 — Moderação e mitigação de abuso no formulário público
+
+| Campo | Valor |
+|-------|-------|
+| **Status** | 🟢 Concluído |
+| **Prioridade** | ALTA |
+| **ID Auditoria** | — (identificado após D-062 abrir o primeiro endpoint de escrita não-autenticado do sistema) |
+| **Não conformidade** | Formulário público (`submeter-formulario`) sem nenhuma defesa contra abuso — spam, coleta de dados de terceiros sem consentimento, conteúdo ilegal em campos de texto livre, sem IP de origem para investigação |
+| **Responsável** | Técnico |
+| **Prazo** | 2026-07-07 |
+| **Data de conclusão** | 2026-07-07 (D-067) |
+
+**O que foi feito:**
+
+1. `containsLink()` (`src/lib/security.js`, duplicada em Deno na Edge Function) rejeita link em texto livre (`nome`/`endereco`/`bairro`/campos personalizados)
+2. `leads.origem_ip` capturado via `x-forwarded-for` na submissão pública, sem retenção própria — apagado junto do lead pela retenção já existente (PA-10/D-064). Fecha o gap "IP do aceite de consentimento: AUSENTE" apontado em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` §3.3
+3. Rate limit de 5 submissões/10min por IP, contado direto em `leads` (sem tabela nova) antes de cada insert
+4. `FilaDistribuicao` (`LeadsTab.jsx`) ganha exclusão em dois passos para descartar lead suspeito sem atribuí-lo a um vendedor antes
+5. Processo de remoção/denúncia de conteúdo ilegal documentado em `doc/SEGURANCA_MODERACAO.md`
+6. Avaliada e **descartada** a migração da captação para Google Forms como forma de transferir responsabilidade legal — não transfere (a proteção real do Google é sobre upload de arquivo, que este sistema não tem), e reintroduziria a duplicação de caminho de captação que D-065 acabou de eliminar
+
+**Evidência de conclusão:** `supabase/migracao-moderacao-formulario.sql`; `doc/architecture/DECISIONS.md` — D-067; `doc/SEGURANCA_MODERACAO.md`
+
 ---
 
 ## Painel de Status Consolidado
@@ -1011,6 +1040,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | PA-19 | Nomear DPO | 4 | MÉDIA | 🔴 | 2026-12-16 |
 | PA-20 | Plano de resposta a incidentes | 4 | MÉDIA | 🟡 | 2026-12-16 |
 | PA-21 | Avaliar e remover campos excessivos | 4 | MÉDIA | 🔴 | 2026-12-16 |
+| PA-22 | Moderação e mitigação de abuso no formulário público | — | ALTA | 🟢 | 2026-07-07 |
 
 ---
 
@@ -1025,6 +1055,7 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | `doc/lgpd/ROPA.md` | DPO | PA-18 | 🟡 |
 | `doc/lgpd/DPA_FORNECEDORES.md` | Jurídico | PA-14 | 🟡 |
 | `doc/lgpd/PLANO_INCIDENTES.md` | DPO + Técnico | PA-20 | 🟡 |
+| `doc/SEGURANCA_MODERACAO.md` | Técnico | PA-22 | 🟢 |
 
 ---
 
@@ -1038,10 +1069,11 @@ return json({ error: 'Erro interno. Contate o suporte.' }, 500);
 | `supabase/migracao-audit-log.sql` | PA-13 | 🟢 |
 | `supabase/migracao-retencao.sql` | PA-10 | 🟢 |
 | `supabase/migracao-rls-vendedor-leads.sql` | PA-11 | 🟢 |
+| `supabase/migracao-moderacao-formulario.sql` | PA-22 | 🟢 |
 
 ---
 
-> **Status geral:** 🟡 EM PROGRESSO — 16 de 21 ações concluídas. Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
+> **Status geral:** 🟡 EM PROGRESSO — 17 de 22 ações concluídas (PA-22 adicionado em 2026-07-07, D-067). Implementação técnica encerrada. Restam 4 ações administrativas/jurídicas (ver tabela abaixo).
 
 ---
 

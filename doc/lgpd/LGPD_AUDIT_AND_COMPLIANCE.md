@@ -145,7 +145,9 @@ Nenhuma funcionalidade planejada formalmente documentada foi identificada no rep
 
 ### 1.14 O que o sistema NÃO FAZ
 
-- Não coleta consentimento dos titulares (leads captados sem aceite explícito)
+> Snapshot da auditoria original (2026-06-16). Desde então, D-061/D-062 (2026-07-06) introduziram consentimento digital **próprio e ativo** para os canais públicos (QR Code/Form Builder) — ver atualização em `doc/lgpd/PLANO_DE_ACAO_LGPD.md` PA-04. O item abaixo permanece verdadeiro só para a captação presencial mediada por vendedor (suspensa desde D-043).
+
+- Não coleta consentimento dos titulares (leads captados sem aceite explícito) — **exceto nos canais públicos QR Code/Formulário, que já exigem checkbox de consentimento desde D-062**
 - Não exibe política de privacidade para titulares dos dados
 - Não permite que titulares (leads) exerçam seus direitos LGPD (acesso, correção, exclusão)
 - Não registra log de exportações de dados
