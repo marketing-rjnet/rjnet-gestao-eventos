@@ -1,19 +1,20 @@
 # RJNet Gestão de Eventos
 
-Sistema de gerenciamento de eventos de campo **e do dia a dia comercial** da RJNet. Permite que o time de marketing crie e gerencie eventos, estoque, ofertas e equipe, enquanto vendedores capturam leads — em eventos de campo ou na atividade comercial mensal, fora de eventos — e acompanham desempenho em tempo real. Tudo em um único SPA React com suporte offline e sincronização automática via Supabase.
+Sistema de gerenciamento de eventos de campo **e do dia a dia comercial** da RJNet. Permite que o time de marketing (e, no mesmo nível para eventos/ofertas/relatórios, o time comercial) crie e gerencie eventos, estoque, ofertas, formulários públicos de captação e equipe, enquanto vendedores capturam leads — em eventos de campo, na atividade comercial mensal ou via formulário público/QR Code — e acompanham desempenho em tempo real. Tudo em um único SPA React com suporte offline e sincronização automática via Supabase.
 
 ---
 
 ## Visão Geral
 
-O sistema nasceu para resolver um problema operacional concreto: eventos de campo da RJNet envolviam equipes de vendedores capturando leads em locais com conexão instável, e um time de marketing que precisava acompanhar resultados e controlar materiais em tempo real. Ele evoluiu para cobrir também o **dia a dia do vendedor fora de eventos** (D-058): o vendedor alterna livremente entre o contexto "Evento" (campo) e "Atividade do Mês" (comercial contínuo, por mês de referência), sem precisar de um evento ativo para registrar um lead.
+O sistema nasceu para resolver um problema operacional concreto: eventos de campo da RJNet envolviam equipes de vendedores capturando leads em locais com conexão instável, e um time de marketing que precisava acompanhar resultados e controlar materiais em tempo real. Ele evoluiu para cobrir também o **dia a dia do vendedor fora de eventos** (D-058) — o vendedor alterna livremente entre o contexto "Evento" (campo) e "Atividade do Mês" (comercial contínuo, por mês de referência) — e, mais recentemente, um **canal de captação público sem sessão** via Form Builder (D-062, D-063): formulários configuráveis pelo marketing, cada um com seu próprio QR Code/link, que convergem para o mesmo Lead.
 
-**Dois perfis de acesso:**
+**Três perfis de acesso:**
 
 | Perfil | O que faz |
 |--------|-----------|
-| `marketing` | Cria eventos, gerencia estoque de materiais, mantém as ofertas prontas por serviço, acompanha KPIs, exporta leads (por evento e por mês), gerencia equipe |
-| `vendedor` | Registra leads em campo ou no dia a dia mensal, acompanha ranking, gerencia os próprios leads, envia ofertas prontas por WhatsApp |
+| `marketing` | Cria eventos, gerencia estoque de materiais, mantém as ofertas prontas por serviço, cria formulários de captação (Form Builder), acompanha KPIs, exporta leads (por evento e por mês), distribui leads sem vendedor, gerencia equipe |
+| `comercial` | Mesmo nível do marketing em eventos, ofertas e relatórios de leads; **sem** acesso a estoque, equipe ou Monitor (D-059) |
+| `vendedor` | Registra leads em campo ou no dia a dia mensal, acompanha ranking, gerencia os próprios leads, envia ofertas prontas por WhatsApp; leads vindos de QR Code/Formulário aparecem só depois de distribuídos pelo marketing/comercial |
 
 **Dois modos de operação:**
 
@@ -44,6 +45,8 @@ Supabase (PostgreSQL + RLS)
 AppProvider re-sincroniza estado
 ```
 
+**Fluxo paralelo — captação pública sem sessão (D-062):** a página `/f/:slug` (`src/public/FormularioPublico.jsx`) não passa por `AppProvider`/`useApp()`. Em modo Supabase ela chama a Edge Function pública `submeter-formulario` diretamente via `fetch()`; em modo local/preview, `src/lib/localPublicSubmit.js` grava direto no `localStorage` (nunca é o caminho de produção). Em ambos os casos o lead cai na mesma tabela `leads`, só que sem `vendedor_id` — fica visível na fila "Leads sem vendedor" do marketing/comercial até ser distribuído manualmente.
+
 **Decisões arquiteturais chave:**
 
 - **Updates otimistas** (D-006): a UI muda na hora; o banco sincroniza em segundo plano. Falhas são indicadas pelo `SyncBadge`.
@@ -59,28 +62,33 @@ AppProvider re-sincroniza estado
 
 ```
 src/
-├── main.jsx                    # Ponto de entrada (~35 linhas) — só ErrorBoundary + createRoot
+├── main.jsx                    # Ponto de entrada (~35 linhas) — ErrorBoundary + createRoot; desvio mínimo pra /f/:slug ANTES do AppProvider (D-062)
 ├── index.css                   # Estilos globais (tema dark/light via CSS variables)
 │
 ├── apps/
 │   ├── Root.jsx                # Detecta modo (Supabase/local) e dark mode
-│   ├── MarketingApp.jsx        # Shell do marketing: 7 tabs + navegação
-│   └── VendedorApp.jsx         # Shell do vendedor: 4 tabs + seletor Evento/Atividade do Mês (D-058)
+│   ├── MarketingApp.jsx        # Shell do marketing: 3 tabs diretas + "Mais" agrupado por categoria (D-065)
+│   ├── ComercialApp.jsx        # Shell do comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059)
+│   └── VendedorApp.jsx         # Shell do vendedor: 4 tabs + seletor Evento/Atividade do Mês/QR Code (D-058, D-061)
 │
 ├── auth/
-│   ├── RootAuth.jsx / RootLegacy.jsx   # Roteadores de auth por modo
+│   ├── RootAuth.jsx / RootLegacy.jsx   # Roteadores de auth por modo (RootAuth cobre 3 papéis, D-059)
 │   ├── LoginAuth.jsx / Login.jsx       # Formulários de login
 │   ├── NovaSenha.jsx                   # Redefinição de senha por link
 │   └── index.js
 │
 ├── features/
-│   ├── events/        # Dashboard (KPIs + gráfico), EventosTab (lista), EventDetail (detalhe)
+│   ├── events/        # Dashboard (KPIs + cards clicáveis Evento/Mês, D-060), EventosTab (lista), EventDetail (detalhe)
 │   ├── inventory/     # EstoqueTab (gestão de materiais por nível, importação em lote)
-│   ├── offers/        # OfertasTab — oferta ativa por serviço, marketing only (D-057)
-│   ├── leads/         # LeadsTab (filtros, gráfico, export CSV por evento e por mês)
+│   ├── offers/        # OfertasTab — oferta ativa por serviço, marketing/comercial (D-057, D-059)
+│   ├── leads/         # LeadsTab (filtros, gráfico, export CSV, fila "Leads sem vendedor"), MesDetail (detalhe do mês por dia, D-060, D-066)
 │   ├── checkin/       # CheckinTab (busca de lead por CPF)
-│   ├── team/          # EquipeTab (modo local) / EquipeAuthTab (modo Supabase + RBAC)
-│   └── monitoring/    # MonitoringTab — diagnóstico ao vivo de sincronização e atividade (D-044+)
+│   ├── team/          # EquipeTab (modo local) / EquipeAuthTab (modo Supabase + RBAC) — marketing only
+│   ├── monitoring/    # MonitoringTab — diagnóstico ao vivo de sincronização e atividade, marketing only (D-044+)
+│   └── formularios/   # FormBuilderTab — Form Builder: catálogo fixo de campos + campos personalizados, gera QR Code/link por formulário, marketing only (D-062, D-063, D-065)
+│
+├── public/
+│   └── FormularioPublico.jsx   # Página pública dinâmica (`/f/:slug`), sem sessão, sem AppContext (D-062)
 │
 ├── components/
 │   ├── ui.jsx          # Icon, StatusBadge, TipoBadge, Kpi, ChartView
@@ -93,12 +101,14 @@ src/
 │   └── index.js
 │
 ├── api/
-│   ├── eventoApi.js    # createEventoApi — add, update, remove, patch
-│   ├── leadApi.js      # createLeadApi — add, update, remove, obterRanking/obterRankingMes
-│   ├── materialApi.js  # createMaterialApi — add, update, addEvento, removeEvento, toggleRetornado
-│   ├── vendedorApi.js  # createVendedorApi — add, update, toggle
-│   ├── ofertaApi.js    # createOfertaApi — saveOferta, removeOferta, registrarOfertaEnviada (D-057)
-│   └── equipeApi.js    # createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
+│   ├── eventoApi.js               # createEventoApi — add, update, remove, patch
+│   ├── leadApi.js                 # createLeadApi — add, update, remove, obterRanking/obterRankingMes
+│   ├── materialApi.js             # createMaterialApi — add, update, addEvento, removeEvento, toggleRetornado
+│   ├── vendedorApi.js             # createVendedorApi — add, update, toggle
+│   ├── ofertaApi.js               # createOfertaApi — saveOferta, removeOferta, registrarOfertaEnviada (D-057)
+│   ├── equipeApi.js               # createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
+│   ├── formularioApi.js           # createFormularioApi — CRUD de formulários do Form Builder (D-062)
+│   └── campoPersonalizadoApi.js   # createCampoPersonalizadoApi — CRUD de campos personalizados reutilizáveis (D-063)
 │
 ├── hooks/
 │   ├── useApp.js        # Único ponto de consumo do AppContext
@@ -113,14 +123,15 @@ src/
 │   └── mockData.js  # MOCK_* para modo local
 │
 └── lib/
-    ├── supabase.js      # Cliente Supabase + supabaseEnabled (feature flag)
-    ├── mode.js          # isSupabaseMode(), getMode(), MODE — fonte única de verdade do modo
-    ├── dataService.js   # Queries, auth, realtime, retry, fila offline, camelCase↔snake_case
-    ├── activityLog.js   # Log de atividade (Monitor): buffer local + broadcast Realtime
-    ├── crypto.js        # AES-GCM + PBKDF2 para a fila offline no localStorage (LGPD)
-    ├── security.js      # sanitizeText() — sanitização de inputs
-    ├── cache.js         # Cache em memória com TTL (30s para rankings)
-    └── constants.js     # Constantes globais: STATUS_EVENTO, NIVEL_ESTOQUE, META_*, limites
+    ├── supabase.js          # Cliente Supabase + supabaseEnabled (feature flag)
+    ├── mode.js              # isSupabaseMode(), getMode(), MODE — fonte única de verdade do modo
+    ├── dataService.js       # Queries, auth, realtime, retry, fila offline, camelCase↔snake_case
+    ├── activityLog.js       # Log de atividade (Monitor): buffer local + broadcast Realtime
+    ├── crypto.js            # AES-GCM + PBKDF2 para a fila offline no localStorage (LGPD)
+    ├── security.js          # sanitizeText() + containsLink() — sanitização e bloqueio de link em texto livre (D-067)
+    ├── cache.js             # Cache em memória com TTL (30s para rankings)
+    ├── constants.js         # Constantes globais: STATUS_EVENTO, NIVEL_ESTOQUE, META_*, CAMPOS_FORMULARIO (D-062)
+    └── localPublicSubmit.js # Fallback local (sem Supabase) pra página pública do Form Builder — dev/teste only (D-062)
 ```
 
 ---
@@ -131,7 +142,7 @@ Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/arc
 
 | Regra | Por quê |
 |-------|---------|
-| Todo CRUD passa por `src/api/`, nunca direto ao `dataService` | Isola domínios, facilita teste e rastreamento |
+| Todo CRUD passa por `src/api/`, nunca direto ao `dataService` | Isola domínios, facilita teste e rastreamento. Exceção documentada: `LeadsTab.jsx` (fila de distribuição) e `FormularioPublico.jsx` (sem sessão) chamam `dataService` direto (D-062/D-064) |
 | `useApp()` é o único ponto de consumo do `AppContext` | Evita acoplamento direto ao contexto em componentes |
 | `supabaseEnabled` de `src/lib/supabase.js` + `src/lib/mode.js` é a única fonte de verdade do modo | Centraliza a lógica de detecção; nenhum arquivo acessa `VITE_SUPABASE_URL` diretamente |
 | `sanitizeText()` em todos os inputs antes de gravar | Previne XSS armazenado |
@@ -139,6 +150,8 @@ Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/arc
 | `servicoInteresse` é sempre `string[]` no frontend | `leadFromDb` normaliza strings legadas; `leadToDb` serializa como JSON string na coluna TEXT existente |
 | `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` em `constants.js` | `META_DIARIA` é alias de `META_OURO` para backward-compat |
 | Sem lógica de negócio em componentes UI | Componentes chamam operações via `useApp()`, sem acesso ao banco |
+| `CAMPOS_FORMULARIO` é o catálogo fixo de campos do Form Builder | Nunca um motor de campo genérico — o cliente nunca decide o `tipo` de um campo (D-062) |
+| QR Code/origem do lead é atributo de proveniência, nunca um terceiro contexto operacional | `origem`/`qr_code_id` são colunas paralelas a `evento_id`/`mes_referencia`, não substituem o modelo de ranking/meta ao vivo (D-061) |
 
 ---
 
@@ -149,11 +162,13 @@ Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/arc
 | Tabela | Descrição |
 |--------|-----------|
 | `eventos` | Eventos (datas, local, tipo, status, materiais JSONB) |
-| `leads` | Leads capturados por vendedor, vinculados a **evento OU mês de referência** — mutuamente exclusivos (D-058); soft delete via `deletado` |
+| `leads` | Leads capturados por vendedor, vinculados a **evento OU mês de referência** — mutuamente exclusivos (D-058); atributos de proveniência `origem`/`qr_code_id`/`qr_code_label`/`formulario_id`/`campos_extras`/`origem_ip` (D-061–D-063, D-067); soft delete via `deletado` |
 | `materiais` | Estoque de materiais promocionais |
-| `perfis` | Perfis de usuários Auth (papel: `marketing` / `vendedor`) |
+| `perfis` | Perfis de usuários Auth (papel: `marketing` / `comercial` / `vendedor` — D-059) |
 | `ofertas` | Oferta ativa por serviço (imagem + copy), `servico` como chave primária — máx. 5 linhas (D-057) |
 | `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega (D-057) |
+| `formularios` | Formulários do Form Builder — campos do catálogo fixo + campos personalizados vinculados, `slug` único (D-062) |
+| `campos_personalizados` | Catálogo de campos de texto livre reutilizáveis entre formulários (D-063) |
 
 ### Enums de domínio
 
@@ -161,13 +176,17 @@ Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/arc
 - **tipo evento:** `sinalizacao` · `presenca_comercial` · `ativacao_especial`
 - **temperatura lead:** `frio` · `morno` · `quente` · `convertido`
 - **serviços:** `internet_residencial` · `internet_empresarial` · `rjnet_movel` · `streamings` · `outro`
+- **papel perfil:** `marketing` · `comercial` · `vendedor` (D-059)
+- **origem do lead:** `evento` · `mes` · `qrcode` · `formulario` (D-061)
 
 ### RLS (Row Level Security)
 
 - `marketing`: acesso total a todas as tabelas
-- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`)
+- `comercial`: mesmo nível de `marketing` em `eventos`/`ofertas`/`leads`; **sem** escrita em `materiais` ou `perfis` (D-059)
+- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`); leads de QR Code/Formulário sem `vendedor_id` ficam invisíveis até a distribuição manual (D-061)
+- `anon`: leitura pública restrita a `formularios`/`campos_personalizados` com `ativo=true` — primeiras policies `anon` do projeto, necessárias pra página pública `/f/:slug` renderizar sem sessão (D-062); escrita de leads públicos passa pela Edge Function `submeter-formulario` com `service_role`, nunca pela `anon key` direto
 
-A `anon key` sozinha não acessa nada após a migração de auth — todas as policies exigem usuário autenticado e ativo.
+A `anon key` sozinha não acessa nada além disso após a migração de auth — todas as demais policies exigem usuário autenticado e ativo.
 
 ### Realtime e performance
 
@@ -282,7 +301,14 @@ export function createExemploApi({ itens, setItens }) {
 
 | Versão | Data | Mudança principal |
 |--------|------|-------------------|
-| v5.5 | Jul/2026 | Captação de leads por mês de referência, fora de eventos — dia a dia comercial (D-058) |
+| v5.11 | 07/Jul/2026 | Moderação do formulário público: bloqueio de link, captura de IP, rate limit por IP (D-067) |
+| v5.10 | 06/Jul/2026 | Leads da Atividade do Mês agrupados por dia num accordion (D-066) |
+| v5.9 | 06/Jul/2026 | Navegação do marketing reorganizada (3 diretos + "Mais"); gerador de QR Code standalone retirado, absorvido pelo Form Builder (D-065) |
+| v5.8 | 06/Jul/2026 | Campos personalizados: extensão self-service do Form Builder (D-063) |
+| v5.7 | 06/Jul/2026 | Form Builder: formulários dinâmicos com QR Code/link próprio (D-062) |
+| v5.6 | 06/Jul/2026 | Captação de leads via QR Code — atributo de proveniência, sem sessão (D-061) |
+| — | 06/Jul/2026 | Terceiro perfil `comercial` (novo shell `ComercialApp.jsx`, D-059) e cards clicáveis "Evento"/"Mês" no Início com `MesDetail.jsx` (D-060) — sem bump de versão dedicado no `CHANGELOG.md` |
+| v5.5 | 02/Jul/2026 | Captação de leads por mês de referência, fora de eventos — dia a dia comercial (D-058) |
 | v5.x | Jun–Jul/2026 | Área de Ofertas: imagem+copy prontas por serviço, envio manual via WhatsApp pelo vendedor (D-057) |
 | v3.x–v4.x | Jun/2026 | Ciclo de conformidade LGPD: criptografia da fila offline, retenção automática, remoção de CPF do check-in, auditoria de exportação |
 | v2.x | Jun/2026 | Redesign visual V3 (versão de UI atual); aba Monitor com diagnóstico de sincronização ao vivo (D-044+) |
@@ -325,6 +351,7 @@ Com a base modular estabilizada, as evoluções mais naturais são:
 | `doc/CHANGELOG.md` | Histórico completo de mudanças por versão |
 | `doc/BOAS_PRATICAS.md` | Fluxo de desenvolvimento, git, convenção de commits, onde registrar cada tipo de mudança |
 | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` + `PLANO_DE_ACAO_LGPD.md` | Auditoria e plano de ação de conformidade LGPD |
+| `doc/SEGURANCA_MODERACAO.md` | Moderação da captação pública — processo de remoção/denúncia, proteções técnicas do formulário público (D-067) |
 | `doc/performance/TECHNICAL_BACKLOG.md` | Backlog técnico de performance priorizado |
 | `doc/ui/UI_VERSIONS.md` | Catálogo de versões de UI/UX — V3 é a versão atual |
 | `CLAUDE.md` | Instruções para sessões de IA (stack, scripts, variáveis, banco) |
