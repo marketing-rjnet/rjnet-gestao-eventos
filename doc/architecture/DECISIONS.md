@@ -2328,6 +2328,38 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-071] — Fecha drift do PA-11 (RLS de leads) e adianta 3 quick wins de performance (TB-009/010/011)
+
+**Data:** 2026-07-07
+**Tipo:** Segurança / Performance
+
+**Contexto:** Durante uma sessão de avaliação de "prontidão para venda" do sistema, uma auditoria cruzada entre `doc/lgpd/PENDENCIAS_POS_AUDITORIA.md` e o SQL real de produção revelou um caso de *drift* entre trabalho de conformidade e trabalho de feature: `supabase/migracao-rls-vendedor-leads.sql` (PA-11, escrita em 2026-06-16, restringia `leads_select` a `vendedor_id = auth.uid()`) nunca foi aplicada em produção. Nesse intervalo, `migracao-comercial.sql` (D-059) e `migracao-qrcode.sql` (D-061) — trabalho de feature não relacionado — reescreveram a mesma policy do zero, sem essa restrição; a versão que ficou vigente usava `vendedor_id is not null`, que permite a qualquer vendedor ler nome/CPF/telefone/endereço de leads de colegas. Separadamente, revisitando `doc/performance/TECHNICAL_BACKLOG.md`, três itens (TB-009, TB-010, TB-011) estavam sinalizados para depois do teste de carga (ainda não executado), mas são mudanças de baixo risco sem dependência de dado real de produção — não havia motivo pra esperar.
+
+**Decisão:**
+1. `supabase/migracao-rls-vendedor-leads-v2.sql`: reaplica `vendedor_id = auth.uid()` em `leads_select` por cima da versão vigente, preservando a leitura total de marketing/comercial adicionada por D-059. Aplicada e confirmada em produção em 2026-07-07 (verificação via `pg_policies` retornou a condição esperada).
+2. TB-009: `getMateriaisDisponiveis()` memoizado via `useMemo([materiais, eventos])` em `AppProvider.jsx` — antes recalculava o `flatMap` de eventos/materiais a cada chamada (EstoqueTab/Dashboard/EventDetail chamam em todo render).
+3. TB-011: `useRanking.js` trocou `setInterval` fixo de 60s por `setTimeout` recursivo com backoff — espaça para 120s (`RANKING_POLL_INATIVO_MS`) quando não há lead novo há mais de 2min (`RANKING_POLL_INATIVO_APOS_MS`), volta ao ritmo normal assim que a atividade retorna.
+4. TB-010 (QW-006): confirmado que já estava implementado em `LeadsTab.jsx` (`carregando`/`carregandoMes` já desabilitavam os botões de export durante o fetch) — sem mudança de código, só correção do backlog, que estava desatualizado.
+
+**Motivação:** O drift do PA-11 só foi descoberto porque a auditoria cruzou dois documentos que normalmente são lidos separadamente (plano de LGPD vs. SQL de feature) — é o tipo de gap que só aparece quando alguém lê os dois lados juntos, especialmente relevante num projeto mantido por uma única pessoa, sem segundo revisor. Os TBs foram adiantados porque a "ordem de execução recomendada" original (esperar o teste de carga) fazia sentido para mudanças estruturais de maior risco (TB-005, TB-008, TB-012), mas não para memoização/backoff de baixo risco.
+
+**Alternativas Avaliadas:**
+- **Aplicar só a v1 do PA-11** — descartada: a versão vigente da policy já não era mais a de `migracao-auth.sql`/`protecao-dados.sql` que a v1 assumia como ponto de partida; aplicar a v1 isoladamente, seguindo a ordem numérica original da tabela de migrações, seria imediatamente desfeita pelas migrações de comercial/qrcode que vêm depois na mesma ordem.
+- **Esperar o teste de carga pra aplicar TB-009/010/011** — descartada: nenhum dos três depende de dado de carga real pra ser seguro; adiar não reduzia risco, só atrasava um ganho sem custo.
+
+**Impactos:**
+- Não conformidade SB-04 (LGPD, minimização de acesso) encerrada em produção.
+- Redução de recomputação em `getMateriaisDisponiveis()` e de RPCs de ranking em períodos de baixa atividade — sem mudança de comportamento visível para o usuário.
+- Três documentos de LGPD (`SUPABASE.md`, `PLANO_DE_ACAO_LGPD.md`, `PENDENCIAS_POS_AUDITORIA.md`) e dois de performance (`TECHNICAL_BACKLOG.md`, `QUICK_WINS.md`) atualizados para refletir o estado real, fechando a divergência que motivou a auditoria.
+
+**Arquivos Afetados:** `supabase/migracao-rls-vendedor-leads-v2.sql` (novo), `src/context/AppProvider.jsx`, `src/hooks/useRanking.js`, `src/lib/constants.js`, `doc/lgpd/PLANO_DE_ACAO_LGPD.md`, `doc/lgpd/PENDENCIAS_POS_AUDITORIA.md`, `doc/architecture/SUPABASE.md`, `doc/performance/TECHNICAL_BACKLOG.md`, `doc/performance/QUICK_WINS.md`.
+
+**Riscos:** Nenhum funcional identificado. RLS: `VendedorApp.jsx` já filtrava leads recebidos por `vendedorNome` antes de exibir, e o ranking usa RPC `security definer` (ignora RLS) — nenhuma tela depende de leitura ampla. Performance: build (`npm run build`) e os 55 testes unitários passaram sem falha após as três mudanças.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

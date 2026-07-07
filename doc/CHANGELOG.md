@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.15] — Fecha drift do PA-11 (RLS de leads) + 3 quick wins de performance
+**Data:** 2026-07-07
+**Branch:** `claude/system-sales-readiness-4sbgqq`
+
+**O que mudou**
+
+- **`supabase/migracao-rls-vendedor-leads-v2.sql`** (novo) — reaplica `vendedor_id = auth.uid()` na policy `leads_select`, restringindo cada vendedor a ler apenas os próprios leads. Aplicada e confirmada em produção nesta sessão.
+- **`src/context/AppProvider.jsx`** — `getMateriaisDisponiveis()` memoizado via `useMemo([materiais, eventos])` (TB-009); antes recalculava o `flatMap` de eventos/materiais a cada chamada.
+- **`src/hooks/useRanking.js`** + **`src/lib/constants.js`** — polling do ranking troca `setInterval` fixo de 60s por backoff adaptativo: espaça para 120s sem lead novo há mais de 2min, volta ao ritmo normal quando a atividade retorna (TB-011).
+- **`doc/lgpd/PLANO_DE_ACAO_LGPD.md`, `doc/lgpd/PENDENCIAS_POS_AUDITORIA.md`, `doc/architecture/SUPABASE.md`, `doc/performance/TECHNICAL_BACKLOG.md`, `doc/performance/QUICK_WINS.md`** — atualizados para refletir o estado real (PA-11 concluído; TB-009/010/011 concluídos, TB-010 já estava implementado e só não estava documentado).
+
+**Por que mudou**
+- Auditoria cruzada entre o plano de ação LGPD e o SQL de produção revelou que `migracao-comercial.sql` (D-059) e `migracao-qrcode.sql` (D-061) — trabalho de feature não relacionado — haviam sobrescrito a policy `leads_select` sem a restrição do PA-11 (escrita em 2026-06-16, nunca aplicada em produção antes das duas migrações posteriores). O gap: qualquer vendedor lia dados pessoais de leads de colegas. Ver `doc/architecture/DECISIONS.md` [D-071] para o registro completo.
+- TB-009/010/011 estavam sinalizados para depois do teste de carga, mas são mudanças de baixo risco sem dependência de dado real — adiantados nesta sessão.
+
+**Ações manuais necessárias**
+- Nenhuma pendente — a migration de RLS já foi aplicada e verificada em produção via SQL Editor. As mudanças de performance seguem o ciclo normal (PR → preview Vercel → merge → deploy automático).
+
+---
+
 ## [v5.14] — Removido indicador de scroll de tabela que cobria texto ("sombra preta")
 **Data:** 2026-07-07
 **Branch:** `claude/leads-daily-dropdown-atidjl`
