@@ -217,7 +217,7 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 17 | `supabase/migracao-form-builder.sql` | ⚠️ Pendente execução em produção (D-062) | Tabela `formularios`, colunas `formulario_id`/`bairro` em `leads`, **primeiras policies `anon`** do projeto (leitura, `ativo=true`) |
 | 18 | `supabase/migracao-campos-personalizados.sql` | ⚠️ Pendente execução em produção (D-063) | Tabela `campos_personalizados`, RLS `anon` de leitura, coluna `leads.campos_extras` (jsonb) |
 | 19 | `supabase/migracao-moderacao-formulario.sql` | ⚠️ Pendente execução em produção (D-067) | Coluna `leads.origem_ip` + índice para rate limit (5 submissões/10min por IP no formulário público) |
-| 20 | `supabase/migracao-rls-vendedor-leads-v2.sql` | ⚠️ Pendente execução em produção (PA-11 v2) | RLS: reaplica `vendedor_id = auth.uid()` em `leads_select` por cima da versão vigente (linha 15). **Deve ser a última migração de RLS de `leads` a rodar** — qualquer script futuro que reescreva `leads_select` sem essa condição reabre o mesmo gap |
+| 20 | `supabase/migracao-rls-vendedor-leads-v2.sql` | ✅ Aplicado em produção em 2026-07-07 (PA-11 v2) | RLS: reaplica `vendedor_id = auth.uid()` em `leads_select` por cima da versão vigente (linha 15). Confirmado via `pg_policies` pós-aplicação. **Qualquer migração futura que reescreva `leads_select` sem essa condição reabre o mesmo gap** — checar esta linha antes de tocar nessa policy de novo |
 
 > Status "⚠️ Pendente execução em produção" nas linhas 9–19 reflete o que estava
 > registrado antes destas migrações existirem — **confirme o estado real em

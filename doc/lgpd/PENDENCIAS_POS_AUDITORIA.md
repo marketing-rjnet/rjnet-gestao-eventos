@@ -20,7 +20,7 @@
 
 ---
 
-### 1.1 Aplicar migration de RLS para vendedores
+### 1.1 Aplicar migration de RLS para vendedores — ✅ CONCLUÍDO em 2026-07-07
 
 **Arquivo:** `supabase/migracao-rls-vendedor-leads-v2.sql` (não a v1 — ver nota abaixo)
 **Onde executar:** Supabase Dashboard → SQL Editor → Run  
@@ -37,6 +37,9 @@ WHERE tablename = 'leads' AND policyname = 'leads_select';
 -- Deve conter "vendedor_id = auth.uid()" na condição do vendedor,
 -- não "vendedor_id is not null"
 ```
+
+**Confirmado em produção (2026-07-07):** verificação pós-aplicação retornou
+`((deletado = false) AND ((papel_atual() = ANY (ARRAY['marketing'::text, 'comercial'::text])) OR ((papel_atual() = 'vendedor'::text) AND (vendedor_id = auth.uid()))))` — gap fechado.
 
 ---
 
@@ -214,7 +217,7 @@ Os **70 leads em produção** (coletados antes de 2026-06-16) têm `consentiment
 ```
 BLOCO 1 — TÉCNICO (executar no Supabase Dashboard / terminal)
 ═══════════════════════════════════════════════════════════════
-[ ] 1.1  Executar migracao-rls-vendedor-leads.sql        ~5 min
+[x] 1.1  Executar migracao-rls-vendedor-leads-v2.sql      ~5 min — CONCLUÍDO 2026-07-07
 [ ] 1.2  Executar migracao-audit-log.sql                 ~5 min
 [ ] 1.3  Habilitar pg_cron + executar migracao-retencao.sql  ~10 min
 [ ] 1.4  Configurar secret CORS_ALLOWED_ORIGINS + deploy Edge Function  ~15 min
