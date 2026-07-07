@@ -1,7 +1,7 @@
 # UX/UI V2 — Plano de Implementação
 
 > **Status:** APROVADO — implementação autorizada em fases.
-> **Baseado em:** `doc/ui/UX_UI_V2_PROPOSAL.md`
+> **Baseado em:** `doc/ui/historico/UX_UI_V2_PROPOSAL.md`
 > **Data:** 2026-06-18
 > **Cor de marca atualizada:** `#ffcb00` (RJNet amarelo oficial) — substituiu `#f5c000` em todos os arquivos fonte.
 
@@ -695,5 +695,5 @@ Nenhuma mudança em JSX — apenas CSS.
 | Documento | Papel |
 |-----------|-------|
 | `doc/ui/UI_VERSIONS.md` | Baseline da V1 — preservado como referência |
-| `doc/ui/UX_UI_V2_PROPOSAL.md` | Proposta aprovada — origem deste plano |
+| `doc/ui/historico/UX_UI_V2_PROPOSAL.md` | Proposta aprovada — origem deste plano |
 | `doc/architecture/SYSTEM_MAP.md` | Restrições arquiteturais — consultar antes de cada etapa |

@@ -562,7 +562,7 @@ O arquivo monolítico atingiu um tamanho (~2.354 linhas) que torna qualquer alte
 
 **Arquivos Afetados:**
 - `src/main.jsx` (arquivo de origem)
-- Todos os arquivos criados ao longo das etapas (ver REFATORAÇÃO.md)
+- Todos os arquivos criados ao longo das etapas (ver doc/architecture/historico/REFATORAÇÃO.md)
 
 **Riscos:**
 - Imports circulares temporários entre etapas (especialmente Etapa 7 e 16)
@@ -1474,7 +1474,7 @@ Raiz com 6 arquivos `.md` soltos dificultava a identificação de arquivos de c�
 
 **Arquivos Afetados:**
 - `doc/` (criado)
-- `doc/CHANGELOG.md`, `doc/architecture/DECISIONS.md`, `doc/architecture/REFATORAÇÃO.md`, `doc/architecture/SUPABASE.md`, `doc/architecture/SYSTEM_MAP.md` (movidos da raiz)
+- `doc/CHANGELOG.md`, `doc/architecture/DECISIONS.md`, `doc/architecture/historico/REFATORAÇÃO.md`, `doc/architecture/SUPABASE.md`, `doc/architecture/SYSTEM_MAP.md` (movidos da raiz)
 - `CLAUDE.md` (adicionado `@doc/architecture/SYSTEM_MAP.md`; tabela de referência atualizada com caminhos e coluna "Quando ler")
 - `doc/architecture/SYSTEM_MAP.md` (nota de localização adicionada no cabeçalho)
 - `doc/CHANGELOG.md` (entrada adicionada)
@@ -2283,7 +2283,7 @@ Os grupos são derivados inteiramente dos leads já carregados (`diaKey(l.criado
 
 Sempre que uma etapa da refatoração for concluída:
 
-1. Atualizar `REFATORAÇÃO.md` (marcar etapa como concluída, registrar observações)
+1. Atualizar `doc/architecture/historico/REFATORAÇÃO.md` (marcar etapa como concluída, registrar observações)
 2. Atualizar `CLAUDE.md` (ajustar estrutura de diretórios se necessário)
 3. Verificar se houve decisão arquitetural relevante
 4. Caso sim, registrar no `DECISIONS.md` seguindo o template acima
@@ -2298,7 +2298,7 @@ Antes de executar qualquer alteração no projeto, uma nova sessão de IA deve:
 
 1. Ler `SYSTEM_MAP.md` — arquitetura viva: estrutura, fluxo de dados, regras técnicas e restrições
 2. Ler `CLAUDE.md` — stack, scripts, variáveis de ambiente, banco de dados
-3. Ler `REFATORAÇÃO.md` — estado atual da refatoração, próxima etapa pendente
+3. Ler `doc/architecture/historico/REFATORAÇÃO.md` — estado atual da refatoração, próxima etapa pendente
 4. Ler `DECISIONS.md` (este arquivo) — decisões anteriores que devem ser respeitadas
 5. Respeitar decisões previamente registradas
 6. Não substituir decisões existentes sem criar um novo registro (`[D-NNN]`) justificando a mudança

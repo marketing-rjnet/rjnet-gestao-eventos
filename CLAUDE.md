@@ -19,27 +19,43 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/architecture/SUPABASE.md` | Configuração detalhada do Supabase (schema, RLS, Edge Functions) | Antes de qualquer alteração no banco ou schema |
 | `doc/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
 | `doc/BOAS_PRATICAS.md` | **Boas práticas e dicas do sistema** — fluxo de desenvolvimento, git, preview Vercel, commits atômicos, princípios de UX | Referência geral; ao iniciar qualquer sessão de desenvolvimento |
-| `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
-| `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status | Ao implementar qualquer correção de conformidade ou segurança |
 | `doc/SEGURANCA_MODERACAO.md` | **Moderação da captação pública** — processo de remoção/denúncia para conteúdo ilegal submetido via formulário público, proteções técnicas em vigor (D-067) | Antes de alterar o formulário público ou lidar com um lead suspeito/ilegal |
-| `doc/architecture/REFATORAÇÃO.md` | Estado da refatoração (18/18 concluídas) | Raramente — refatoração encerrada |
 | `doc/architecture/ARCHITECTURE_FIX_PLAN.md` | Plano de correções arquiteturais pós-auditoria (D-030) — desvios identificados e corrigidos | Antes de qualquer refatoração estrutural ou auditoria de conformidade arquitetural |
+| 🗂️ `doc/architecture/historico/REFATORAÇÃO.md` | **HISTÓRICO.** Estado da refatoração original de `main.jsx` (18/18 concluídas) | Raramente — refatoração encerrada |
+| `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
+| `doc/lgpd/PLANO_DE_ACAO_LGPD.md` | **Plano de ação executável** — checklist rastreável de todas as correções LGPD/segurança com status (PA-01 a PA-22) | Ao implementar qualquer correção de conformidade ou segurança |
+| `doc/lgpd/RIPD.md` | PA-17/LGPD — Relatório de Impacto à Proteção de Dados Pessoais | Antes de avaliar risco de um novo tratamento de dados pessoais |
+| `doc/lgpd/ROPA.md` | PA-18/LGPD — Registro de Operações de Tratamento de Dados Pessoais | Antes de mapear ou alterar um fluxo de dados pessoais |
+| `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` | PA-16/LGPD — Política de Privacidade RJNet Telecomunicações | Antes de alterar o texto público de privacidade ou o consentimento exibido ao titular |
+| `doc/lgpd/PLANO_INCIDENTES.md` | PA-20/LGPD — Plano de Resposta a Incidentes de Dados Pessoais | Em caso de incidente/vazamento, ou antes de alterar o processo de resposta |
+| `doc/lgpd/ROTEIRO_DSAR.md` | PA-15/LGPD — Procedimentos para exercício dos direitos do art. 18 da LGPD (acesso, correção, exclusão) | Ao atender uma solicitação de titular |
+| `doc/lgpd/DPA_FORNECEDORES.md` | PA-14/LGPD — Registro de acordos de processamento de dados com fornecedores que recebem dados pessoais de titulares brasileiros | Antes de contratar/alterar um fornecedor que processe dados pessoais |
+| `doc/lgpd/PENDENCIAS_POS_AUDITORIA.md` | Checklist de pendências pós-auditoria (gerado em 2026-06-16) — blocos técnico/organizacional/decisão especial; **contém itens ainda em aberto** (ver PA-04, PA-14, PA-19, PA-21 em `PLANO_DE_ACAO_LGPD.md`) — não mover para histórico enquanto isso não for resolvido | Ao planejar o fechamento das pendências organizacionais/jurídicas de LGPD |
 | `doc/performance/TECHNICAL_BACKLOG.md` | **Backlog técnico de performance** — TB-001 a TB-012 priorizados (Crítico/Alto/Médio/Baixo) | Antes de qualquer sprint de performance |
 | `doc/performance/PERFORMANCE_AUDIT.md` | Auditoria estática de performance — findings PA-001 a PA-NEW-001 | Referência histórica de findings |
+| `doc/performance/PERFORMANCE_REVIEW.md` | Revisão/validação de cada achado de `PERFORMANCE_AUDIT.md` (confirmado/falso positivo/parcial) | Depois de `PERFORMANCE_AUDIT.md`, antes de priorizar um achado |
 | `doc/performance/QUICK_WINS.md` | Quick wins de performance — QW-001 a QW-006 com status de implementação | Antes de implementar melhorias de performance |
+| `doc/performance/ARCHITECTURE_TEST_SUMMARY.md` | Resumo arquitetural para testes de performance, baseado em SYSTEM_MAP/DECISIONS/SUPABASE/CLAUDE.md | Antes de preparar um cenário de teste de carga |
 | `doc/performance/HOMOLOGATION_CHECKLIST.md` | Checklist de preparação do ambiente de homologação para testes de carga | Antes de executar qualquer cenário de teste |
 | `doc/performance/LOAD_TEST_PLAN.md` | Plano de testes de carga — 4 cenários k6 (Normal, Pico, Crítico, Estresse) | Antes de executar testes |
-| `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A |
+| `doc/performance/LOAD_TEST_COST_ESTIMATE.md` | Estimativa de impacto e custo dos testes de carga no ambiente de homologação (Supabase Free Tier) | Antes de autorizar a execução de um cenário de teste |
+| `tests/load/README.md` | Instruções de execução dos testes de carga k6 — pré-requisitos, comandos por cenário, cleanup obrigatório | Ao executar fisicamente um cenário de teste de carga |
+| `doc/performance/LOAD_TEST_REPORT.md` | Template de relatório de resultados dos testes de carga — preencher após cada execução | Após cada execução de testes; ⏸️ ainda não preenchido |
+| `doc/performance/HYPOTHESIS_VALIDATION.md` | Hipóteses a validar no Cenário A — template de preenchimento pós-execução | Após execução do Cenário A; ⏸️ ainda não preenchido |
+| `doc/performance/PERFORMANCE_HISTORY.md` | Histórico de evolução da performance ao longo do tempo — atualizar após cada execução de testes de carga | Após cada execução de testes; ⏸️ ainda não preenchido |
 | `doc/ui/UI_VERSIONS.md` | **Catálogo de versões de UI/UX** — paleta, navegação, telas, componentes, padrões de UX por versão. **V3 é a versão atual em produção** (redesign visual, 2026-06-18); V2 foi implementada por completo (22/22 etapas) e depois superada pela V3 no mesmo dia | Antes de qualquer mudança de interface; ao iniciar nova versão de UI |
-| `doc/ui/UX_UI_V2_PROPOSAL.md` | Proposta estratégica da V2 — auditoria, problemas, proposta por tela, design system, roadmap em 3 fases. **Histórico:** totalmente implementada e já superada pela V3; mantida como referência de diagnóstico de UX, não como pendência | Consulta histórica de diagnóstico de UX |
-| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | Plano de implementação da V2 — 22 etapas em 3 fases (A: CSS, B: reorganização, C: componentes). **Status: 22/22 concluídas** (ver changelog) | Consulta histórica |
-| `doc/ui/UX_UI_V2_CHANGELOG.md` | Changelog de implementação da V2 — cada etapa com hash git, arquivos alterados, status e comandos de rollback. **22/22 etapas concluídas em 2026-06-18**, nenhuma revertida | Consulta histórica / rollback pontual de um item específico da V2 |
+| `doc/ui/UX_UI_V3_PROPOSAL.md` | Proposta de redesign visual da V3 — **versão atual em produção** | Antes de qualquer mudança visual na interface corrente |
+| `doc/ui/UX_UI_V3_IMPLEMENTATION_PLAN.md` | Plano de implementação da V3 — fases de execução do redesign vigente | Antes de qualquer mudança visual na interface corrente |
+| `doc/ui/UX_UI_V3_CHANGELOG.md` | Changelog de implementação da V3 — hashes git, arquivos alterados, comandos de rollback | Referência para rollback pontual de um item da V3 |
+| 🗂️ `doc/ui/historico/UX_UI_V2_PROPOSAL.md` | **HISTÓRICO.** Proposta estratégica da V2 — auditoria, problemas, proposta por tela, design system, roadmap em 3 fases. Totalmente implementada e já superada pela V3; mantida como referência de diagnóstico de UX, não como pendência | Consulta histórica de diagnóstico de UX |
+| 🗂️ `doc/ui/historico/UX_UI_V2_IMPLEMENTATION_PLAN.md` | **HISTÓRICO.** Plano de implementação da V2 — 22 etapas em 3 fases (A: CSS, B: reorganização, C: componentes). Status: 22/22 concluídas (ver changelog) | Consulta histórica |
+| 🗂️ `doc/ui/historico/UX_UI_V2_CHANGELOG.md` | **HISTÓRICO.** Changelog de implementação da V2 — cada etapa com hash git, arquivos alterados, status e comandos de rollback. 22/22 etapas concluídas em 2026-06-18, nenhuma revertida | Consulta histórica / rollback pontual de um item específico da V2 |
 
 ---
 
 ## Estrutura do Projeto
 
-> **Refatoração concluída** — 18/18 etapas executadas. Ver `doc/architecture/REFATORAÇÃO.md`.
+> **Refatoração concluída** — 18/18 etapas executadas. Ver `doc/architecture/historico/REFATORAÇÃO.md`.
 
 ```
 src/

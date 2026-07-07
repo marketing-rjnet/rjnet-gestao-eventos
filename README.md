@@ -325,7 +325,7 @@ export function createExemploApi({ itens, setItens }) {
 
 O projeto nasceu como um único `main.jsx` com ~2.354 linhas. Foi decomposto em 18 etapas progressivas sem alterar nenhum comportamento. Cada etapa gerou um commit independente. Resultado: 25+ módulos com responsabilidades únicas, zero importações circulares.
 
-Detalhes completos em `doc/architecture/REFATORAÇÃO.md`.
+Detalhes completos em `doc/architecture/historico/REFATORAÇÃO.md`.
 
 ---
 

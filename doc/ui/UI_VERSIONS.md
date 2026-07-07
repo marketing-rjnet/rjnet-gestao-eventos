@@ -135,7 +135,7 @@ Nenhuma destas mudanças alterou paleta, radius ou o sistema de design em si —
 **Status:** `anterior`
 **Data:** 2026-06-18
 **PR:** #44 — `claude/v2-ux-ui` → `main`
-**Documentação:** `doc/ui/UX_UI_V2_PROPOSAL.md` | `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | `doc/ui/UX_UI_V2_CHANGELOG.md`
+**Documentação:** `doc/ui/historico/UX_UI_V2_PROPOSAL.md` | `doc/ui/historico/UX_UI_V2_IMPLEMENTATION_PLAN.md` | `doc/ui/historico/UX_UI_V2_CHANGELOG.md`
 
 22 itens em 3 fases (A: CSS foundation, B: reorganização UX, C: componentes). Melhorias técnicas corretas, sem impacto visual percebido pelo usuário final — motivou a criação da V3.
 
@@ -423,7 +423,7 @@ Tabela de preços hardcoded, dividida em seções:
 
 | Versão | Status | Planejado para | Escopo previsto |
 |--------|--------|----------------|-----------------|
-| v2.0 | `proposta` | Após aprovação | Ver `doc/ui/UX_UI_V2_PROPOSAL.md` |
+| v2.0 | `proposta` | Após aprovação | Ver `doc/ui/historico/UX_UI_V2_PROPOSAL.md` |
 
 ---
 

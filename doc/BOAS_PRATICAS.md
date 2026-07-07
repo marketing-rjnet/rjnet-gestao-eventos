@@ -106,7 +106,7 @@ git push
 ### Voltar ao estado de produção estável (opção segura)
 
 ```bash
-# Substitua o hash pelo ponto de restauração desejado (ver doc/ui/UX_UI_V2_CHANGELOG.md)
+# Substitua o hash pelo ponto de restauração desejado (ver doc/ui/historico/UX_UI_V2_CHANGELOG.md)
 git revert <hash-inicio-das-mudancas>..HEAD --no-edit
 git push
 ```
@@ -123,7 +123,7 @@ git push --force
 
 ## 4. Pontos de Restauração
 
-Consulte `doc/ui/UI_VERSIONS.md` para o catálogo vigente de versões (V3 é a versão atual em produção); `doc/ui/UX_UI_V2_CHANGELOG.md` para a lista histórica detalhada da V2 (22/22 etapas concluídas, superada pela V3 no mesmo dia).
+Consulte `doc/ui/UI_VERSIONS.md` para o catálogo vigente de versões (V3 é a versão atual em produção); `doc/ui/historico/UX_UI_V2_CHANGELOG.md` para a lista histórica detalhada da V2 (22/22 etapas concluídas, superada pela V3 no mesmo dia).
 
 | Nome | Descrição |
 |------|-----------|
@@ -203,9 +203,9 @@ Os três documentos abaixo são o **histórico da V2** (22/22 etapas concluídas
 
 | Documento | Conteúdo histórico |
 |-----------|-----------|
-| `doc/ui/UX_UI_V2_PROPOSAL.md` | Auditoria e proposta que originaram a V2 |
-| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | Plano detalhado por etapa da V2 |
-| `doc/ui/UX_UI_V2_CHANGELOG.md` | O que foi feito na V2, hashes e status |
+| `doc/ui/historico/UX_UI_V2_PROPOSAL.md` | Auditoria e proposta que originaram a V2 |
+| `doc/ui/historico/UX_UI_V2_IMPLEMENTATION_PLAN.md` | Plano detalhado por etapa da V2 |
+| `doc/ui/historico/UX_UI_V2_CHANGELOG.md` | O que foi feito na V2, hashes e status |
 
 Os equivalentes da V3 (`doc/ui/UX_UI_V3_PROPOSAL.md`, `UX_UI_V3_IMPLEMENTATION_PLAN.md`, `UX_UI_V3_CHANGELOG.md`) seguem o mesmo padrão para a versão atual.
 
