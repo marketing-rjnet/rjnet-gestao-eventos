@@ -2305,6 +2305,29 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-070] — Removido o "TableScrollHint" (`.tbl-wrap::after`): era a real causa da sombra preta em tabelas roláveis
+
+**Data:** 2026-07-07
+**Tipo:** Bugfix
+
+**Contexto:** Mesmo após D-069, o responsável pelo sistema reportou (com duas capturas de tela — `LeadsTab.jsx` "Exportar Leads" e `MesDetail.jsx`) que a sombra preta persistia, especificamente "em todos os locais que é possível movimentar/arrastar para o lado" — ou seja, tabelas com scroll horizontal no mobile. Isso apontava pra uma causa diferente de D-068/D-069: `.tbl-wrap::after` (regra de mobile em `src/index.css`, dentro do bloco de media query) desenhava um gradiente `linear-gradient(to right, transparent, var(--bg))` de 32px de largura, fixo na borda direita do container `.tbl-wrap` (`position: absolute; right: 0`), como um indicador visual de "tem mais conteúdo, arraste". Dois problemas: (1) por ser fixo na borda do **container visível**, não do conteúdo, ele cobria texto real de células sempre que a última coluna visível chegava perto da borda direita — nas capturas, cortava o início de "RJNET Móvel"/"Internet Residencial" na coluna Serviço e sobrepunha a data na coluna Início; (2) como `var(--bg)` é quase preto (`#090909`), o gradiente não lia como um "fade" sutil, e sim como uma sombra sólida colada no texto — presente permanentemente (não é removido depois de rolar até o fim, é CSS estático, sem lógica de scroll). Confirmado por grep que `.tbl-wrap` é usado em `LeadsTab.jsx`, `MesDetail.jsx` e `EventDetail.jsx` — batendo exatamente com os locais reportados.
+
+**Decisão:** Removida a regra `.tbl-wrap::after` (e o `position: relative` que só existia para sustentá-la) do bloco de media query mobile em `src/index.css`. O scroll horizontal das tabelas continua funcionando normalmente por gesto de toque (`overflow-x: auto` em `.tbl-wrap` já existia antes e não foi tocado) — só o indicador visual de fade foi retirado, já que ele causava mais problema (obscurecer conteúdo real) do que benefício (affordance de scroll, que em touch devices já é razoavelmente descoberto por gesto).
+
+**Motivação:** Terceira rodada de feedback do responsável pelo sistema sobre a mesma queixa visual ("sombra preta") — as duas correções anteriores (D-068, D-069) eram bugs reais, mas não a causa raiz deste padrão específico; esta é a causa raiz confirmada visualmente (captura de tela antes/depois, rodando localmente com `npm run dev`).
+
+**Alternativas Avaliadas:**
+- **Tornar o gradiente dinâmico via JS (esconder quando `scrollLeft + clientWidth >= scrollWidth`)** — descartada: adiciona listener de scroll a cada tabela do app pra recuperar um affordance de baixo valor (usuários já reconhecem tabelas com `overflow-x` roláveis pelo hábito de touch); a causa raiz do incômodo (cobrir texto real) continuaria existindo enquanto não estivesse totalmente rolado.
+- **Reduzir a largura/opacidade do gradiente em vez de remover** — descartada: mesmo mais sutil, ainda cobriria texto real na borda; dado que já é a terceira reclamação da mesma natureza, preferiu-se eliminar de vez.
+
+**Arquivos Afetados:** `src/index.css` (remoção de 3 linhas dentro do bloco `@media` mobile — `.tbl-wrap { position: relative }` e `.tbl-wrap::after { ... }`).
+
+**Riscos:** Nenhum funcional — comportamento de scroll das tabelas não muda, só o indicador visual de fade desaparece. Se o responsável pelo sistema quiser recuperar algum tipo de affordance no futuro, reavaliar com uma abordagem que não sobreponha conteúdo real (ex: seta/ícone fora da área de texto).
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

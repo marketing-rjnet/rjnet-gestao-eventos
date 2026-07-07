@@ -4,6 +4,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.14] — Removido indicador de scroll de tabela que cobria texto ("sombra preta")
+**Data:** 2026-07-07
+**Branch:** `claude/leads-daily-dropdown-atidjl`
+
+**O que mudou**
+
+- **`src/index.css`** — removida a regra `.tbl-wrap::after` ("TableScrollHint", bloco de media query mobile): um gradiente fixo de 32px na borda direita de toda tabela rolável (`LeadsTab.jsx` "Exportar Leads", `MesDetail.jsx`, `EventDetail.jsx`), pensado como indicador de scroll, mas que na prática cobria permanentemente texto real das células (datas, nomes de serviço) por usar `var(--bg)` quase preto num gradiente que nunca desaparecia, mesmo com a tabela totalmente rolada.
+
+**Por que mudou**
+- Terceira rodada de feedback do responsável pelo sistema sobre "sombra preta", agora com duas capturas de tela apontando especificamente tabelas roláveis. As correções anteriores (v5.12, v5.13) resolveram bugs reais, mas não esta causa raiz específica. Validado visualmente rodando o app localmente: a mesma tela "Exportar Leads" sem o gradiente mostra a coluna "Início" totalmente legível.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança de CSS puro. Scroll horizontal das tabelas continua funcionando normalmente por gesto de toque.
+
+---
+
 ## [v5.13] — Sombras globais do tema escuro suavizadas
 **Data:** 2026-07-07
 **Branch:** `claude/leads-daily-dropdown-atidjl`
