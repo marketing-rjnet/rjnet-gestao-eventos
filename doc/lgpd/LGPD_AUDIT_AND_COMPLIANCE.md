@@ -874,7 +874,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | BD-01 | Policies anônimas (`to anon using (true)`) no `schema.sql` — acesso total se migração não aplicada | **CRÍTICA** |
 | BD-02 | CPF armazenado em texto plano sem criptografia ou pseudonimização — **⚠️ PARCIAL:** coluna reintroduzida como opcional com finalidade declarada; risco residual aceito documentado em D-035 | **ALTA** |
 | BD-03 | Telefone armazenado em texto plano sem criptografia | **ALTA** |
-| BD-04 | ~~Sem tabela de auditoria (audit log) de operações em dados pessoais~~ ✅ RESOLVIDO — PA-13 (2026-06-16): tabela audit_log + trigger audit_leads | **ALTA** |
+| BD-04 | Sem tabela de auditoria (audit log) de operações em dados pessoais — 🟡 EM PROGRESSO: PA-13 implementada em código (tabela `audit_log` + trigger `audit_leads`), execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) | **ALTA** |
 | BD-05 | Soft delete não elimina os dados — apenas oculta da leitura | **ALTA** |
 | BD-06 | ~~Sem `updated_at` ou `deleted_at` + `deleted_by` na tabela `leads` para rastreabilidade de soft delete~~ **✅ RESOLVIDO — PA-07 (2026-06-16):** colunas `deletado_em` e `deletado_por` adicionadas | **MÉDIA** |
 | BD-07 | Tabela `vendedores` mantida sem justificativa clara em produção (tabela legada duplicada) | **BAIXA** |
@@ -886,7 +886,7 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | SB-01 | Sem verificação de que `migracao-auth.sql` foi aplicado em produção antes do go-live | **CRÍTICA** |
 | SB-02 | Sem plano de backup e recuperação documentado | **ALTA** |
 | SB-03 | Retentividade de logs do Supabase Auth não configurada/verificada | **MÉDIA** |
-| SB-04 | ~~Vendedor lê CPF, telefone e endereço de leads de colegas~~ ✅ RESOLVIDO — PA-11 (2026-06-16): leads_select restrita a vendedor_id = auth.uid() | **MÉDIA** |
+| SB-04 | Vendedor lê CPF, telefone e endereço de leads de colegas — 🟡 EM PROGRESSO: PA-11 implementada em código (`leads_select` restrita a `vendedor_id = auth.uid()`), execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) | **MÉDIA** |
 
 ### 8.5 Integrações
 
@@ -910,10 +910,10 @@ A policy `leads_select` permite que um vendedor veja **todos os leads não delet
 | ID | Não Conformidade | Classificação |
 |----|-----------------|--------------|
 | A-01 | ~~Sem log de exportações CSV~~ **✅ RESOLVIDO — PA-06 (2026-06-16):** tabela `audit_exportacoes` com RLS + `db.registrarExportacao()` | **ALTA** |
-| A-02 | ~~Sem histórico de alterações em dados de leads~~ ✅ RESOLVIDO — PA-13 (2026-06-16): trigger audit_leads registra UPDATE com dados antes/depois em JSONB | **ALTA** |
+| A-02 | Sem histórico de alterações em dados de leads — 🟡 EM PROGRESSO: PA-13 implementada em código (trigger `audit_leads` registra UPDATE com dados antes/depois em JSONB), execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) | **ALTA** |
 | A-03 | ~~Sem registro de quem realizou soft delete e quando~~ **✅ RESOLVIDO — PA-07 (2026-06-16):** `db.removeLead()` grava `deletado_em` e `deletado_por` automaticamente | **ALTA** |
-| A-04 | ~~Sem log de acesso a dados individuais de leads~~ ✅ RESOLVIDO — PA-13 (2026-06-16): audit_log + trigger audit_leads cobre INSERT/UPDATE/DELETE | **ALTA** |
-| A-05 | ~~Sem log de alterações de papel/permissão de usuários~~ ✅ RESOLVIDO — PA-13 (2026-06-16): audit_log disponível para registrar alterações de perfil | **ALTA** |
+| A-04 | Sem log de acesso a dados individuais de leads — 🟡 EM PROGRESSO: PA-13 implementada em código (`audit_log` + trigger `audit_leads` cobre INSERT/UPDATE/DELETE), execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) | **ALTA** |
+| A-05 | Sem log de alterações de papel/permissão de usuários — 🟡 EM PROGRESSO: PA-13 implementada em código (`audit_log` disponível para registrar alterações de perfil), execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) | **ALTA** |
 | A-06 | Erros logados apenas em `console.error` (efêmero) — sem persistência | **MÉDIA** |
 
 ---
@@ -1153,14 +1153,14 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 ### 12.4 Fase 3 — Conformidade estrutural (30–90 dias)
 
-**Status:** 🟡 Em progresso (5/6 concluído — PA-14 pendente assinatura DPA)
+**Status:** 🟡 Em progresso (2/6 concluído — PA-10/PA-11/PA-13 implementadas em código, execução em produção pendente; PA-14 pendente assinatura DPA)
 
 | ID | Ação | NC Sanada | Status | Data | Evidência |
 |----|------|-----------|--------|------|-----------|
-| PA-10 | Política de retenção com exclusão automática | L-04, BD-05, L-06 | 🟢 | 2026-06-16 | pg_cron + configuracoes_retencao + limpar_leads_expirados() |
-| PA-11 | Restringir SELECT de leads para vendedores | RLS minimização | 🟢 | 2026-06-16 | leads_select restrita a vendedor_id = auth.uid() |
+| PA-10 | Política de retenção com exclusão automática | L-04, BD-05, L-06 | 🟡 | — | pg_cron + configuracoes_retencao + limpar_leads_expirados() implementados em código (`supabase/migracao-retencao.sql`); execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) |
+| PA-11 | Restringir SELECT de leads para vendedores | RLS minimização | 🟡 | — | leads_select restrita a vendedor_id = auth.uid() implementada em código (`supabase/migracao-rls-vendedor-leads.sql`); execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) |
 | PA-12 | Habilitar MFA para usuários marketing | S-03 | 🟢 | 2026-06-16 | UI TOTP em LoginAuth.jsx + auth.verifyMfa() em dataService |
-| PA-13 | Tabela de auditoria de operações em dados | A-02, A-04, A-05, BD-04 | 🟢 | 2026-06-16 | audit_log + trigger audit_leads |
+| PA-13 | Tabela de auditoria de operações em dados | A-02, A-04, A-05, BD-04 | 🟡 | — | audit_log + trigger audit_leads implementados em código (`supabase/migracao-audit-log.sql`); execução em produção pendente (ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md`) |
 | PA-14 | Assinar DPA com Supabase Inc. | L-07, I-01 | 🟡 | — | doc/lgpd/DPA_FORNECEDORES.md criado; assinatura DPA pendente (jurídico) |
 | PA-15 | Processo DSAR — direitos dos titulares | L-05 | 🟢 | 2026-06-16 | doc/lgpd/ROTEIRO_DSAR.md com queries SQL para todos os direitos do art. 18 |
 
@@ -1168,9 +1168,9 @@ A ausência de auditabilidade (logs de operações) é o segundo ponto mais crí
 
 | Artefato | Tipo | PA | Status |
 |---------|------|----|--------|
-| `supabase/migracao-audit-log.sql` | SQL | PA-13 | 🟢 |
-| `supabase/migracao-retencao.sql` | SQL | PA-10 | 🟢 |
-| `supabase/migracao-rls-vendedor-leads.sql` | SQL | PA-11 | 🟢 |
+| `supabase/migracao-audit-log.sql` | SQL | PA-13 | 🟡 (pronto, execução em produção pendente) |
+| `supabase/migracao-retencao.sql` | SQL | PA-10 | 🟡 (pronto, execução em produção pendente) |
+| `supabase/migracao-rls-vendedor-leads.sql` | SQL | PA-11 | 🟡 (pronto, execução em produção pendente) |
 | `supabase/functions/limpar-dados-expirados/index.ts` | Edge Function (nova) | PA-10 | 🟢 |
 | `doc/POLITICA_RETENCAO.md` | Documento (novo) | PA-10 | 🟢 |
 | `doc/lgpd/ROTEIRO_DSAR.md` | Documento (novo) | PA-15 | 🟢 |

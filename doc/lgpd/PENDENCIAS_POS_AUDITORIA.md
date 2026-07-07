@@ -4,8 +4,7 @@
 > **Gerado em:** 2026-06-16  
 > **Origem:** Auditoria de validação pós-implementação (Claude Code)  
 > **Referência completa:** `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` + `doc/lgpd/PLANO_DE_ACAO_LGPD.md`  
-> **Nota atual:** 6,2 / 10 — Nível Intermediário  
-> **Nota esperada após conclusão:** 9,1 / 10 — Nível Avançado
+> **Nota de conformidade:** ver "NOTA GERAL" em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` — fonte oficial do diagnóstico e da pontuação; não repetida aqui para evitar divergência entre os dois documentos.
 
 ---
 
@@ -235,9 +234,10 @@ BLOCO 3 — DECISÃO ESPECIAL
 
 ## IMPACTO ESPERADO NA NOTA DE CONFORMIDADE
 
+> A nota de "situação atual" não é repetida aqui — ver "NOTA GERAL" em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` (fonte oficial). As estimativas de nota após cada bloco abaixo são projeções deste documento (2026-06-16), não recalculadas desde então.
+
 | Após concluir | Nota estimada | Nível |
 |---|:---:|---|
-| Situação atual | 6,2 / 10 | Intermediário |
 | Bloco 1 (técnico) concluído | 7,9 / 10 | Avançado |
 | Bloco 1 + Bloco 2 + Bloco 3 concluídos | 9,1 / 10 | Avançado |
 
