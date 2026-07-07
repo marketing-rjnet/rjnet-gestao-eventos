@@ -2206,6 +2206,29 @@ Campos personalizados ainda não aparecem em exportação CSV/relatórios estrut
 
 ---
 
+### [D-066] — Leads da Atividade do Mês agrupados por dia (accordion)
+
+**Data:** 2026-07-07
+**Tipo:** UX
+
+**Decisão:** `MesDetail.jsx` deixa de renderizar uma única tabela plana com todos os leads do mês e passa a agrupá-los por dia real de captação (`criadoEm`), num accordion — um cartão colapsável por dia (`"Hoje"`, `"Ontem"` ou `"DD/MM — dia da semana"`), com a contagem de leads no cabeçalho. Por padrão só o dia mais recente (`grupos[0]`, tipicamente "Hoje") vem aberto; os demais ficam colapsados até o usuário clicar. A busca por nome ignora o estado de aberto/fechado e expande automaticamente qualquer dia que tenha lead correspondente, ocultando os que não têm.
+
+Os grupos são derivados inteiramente dos leads já carregados (`diaKey(l.criadoEm)`), sem gerar dias vazios: um dia sem lead nenhum simplesmente não aparece no accordion (nem os que ainda vão ocorrer, nem os que já passaram sem captação). Um dia novo aparece sozinho, automaticamente, assim que o primeiro lead daquele dia é gravado — sem qualquer job, cron ou manutenção manual.
+
+**Motivação:** Com a captação por "Atividade do Mês" (D-058) rodando dia após dia, a lista de leads do mês crescia como uma tabela única e cada vez mais longa, misturando "hoje" com dias anteriores já revisados ("leads de ontem ficam em fila junto com os de hoje"). Separar por dia deixa o dia corrente em evidência e reduz o scroll para revisar/exportar um dia específico.
+
+**Alternativas Avaliadas:**
+- **Gerar um grupo vazio para cada dia do mês (1 a 31), incluindo dias futuros:** rejeitada explicitamente pelo responsável pelo sistema — dias sem lead (passados ou futuros) não devem aparecer; o grupo só nasce quando o primeiro lead do dia é capturado.
+- **Coluna de banco dedicada para "dia" (`dia_referencia`) espelhando `mes_referencia`:** descartada — `criadoEm` já contém a granularidade de dia, uma coluna nova seria redundante e exigiria migração sem ganho.
+
+**Arquivos Afetados:** `src/features/leads/MesDetail.jsx` (único arquivo alterado — mudança 100% frontend, sem migração de banco, sem alteração de RLS).
+
+**Riscos:** Nenhum de dados. Risco de UX mitigado: dia mais recente aberto por padrão evita esconder os leads mais relevantes atrás de um clique extra.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

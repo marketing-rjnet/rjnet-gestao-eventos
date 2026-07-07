@@ -92,7 +92,7 @@ src/
 │   │   └── index.js          # Re-export de offers (D-057)
 │   ├── leads/
 │   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
-│   │   ├── MesDetail.jsx     # Detalhe do mês: leads por vendedor + tabela, espelha EventDetail sem materiais (D-060)
+│   │   ├── MesDetail.jsx     # Detalhe do mês: leads por vendedor + tabela agrupada por dia (accordion), espelha EventDetail sem materiais (D-060, D-066)
 │   │   └── index.js          # Re-export de leads (etapa 11)
 │   ├── checkin/
 │   │   ├── CheckinTab.jsx    # Busca de lead por CPF em evento (etapa 11)
@@ -371,7 +371,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/Dashboard.jsx` | ~175 | KPIs, gráfico donut, próximos eventos; 2 hero cards clicáveis Evento/Mês via `obterRanking`/`obterRankingMes`; card de mês abre `MesDetail` embutido, sem trocar de aba (etapa 10, D-060) |
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
-| `src/features/leads/MesDetail.jsx` | ~94 | Detalhe do mês: leads por vendedor + tabela, espelha `EventDetail.jsx` sem materiais (D-060) |
+| `src/features/leads/MesDetail.jsx` | ~180 | Detalhe do mês: leads por vendedor + tabela agrupada por dia num accordion (`"Hoje"`/`"Ontem"`, dia mais recente aberto por padrão, busca expande dias com match), espelha `EventDetail.jsx` sem materiais (D-060, D-066) |
 | `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065) |
 | `src/public/FormularioPublico.jsx` | ~235 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063) |
 | `src/lib/localPublicSubmit.js` | ~37 | Fallback local (sem Supabase) para páginas públicas, dev/teste only (D-061, D-062) |

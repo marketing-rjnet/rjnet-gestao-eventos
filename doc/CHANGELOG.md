@@ -4,6 +4,23 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.10] — Leads da Atividade do Mês agrupados por dia (accordion)
+**Data:** 2026-07-07
+**Branch:** `claude/leads-daily-dropdown-atidjl`
+
+**O que mudou**
+
+- **`src/features/leads/MesDetail.jsx`** — a tabela única de leads do mês virou um accordion agrupado por dia real de captação (`criadoEm`): cada dia é um cartão colapsável (`"Hoje"`, `"Ontem"` ou `"DD/MM — dia da semana"`) com a contagem de leads no cabeçalho. Só o dia mais recente vem aberto por padrão; os demais ficam colapsados até o clique. A busca por nome expande automaticamente os dias com resultado e oculta os sem match.
+- Dias sem lead nenhum (passados ou futuros) não aparecem — os grupos nascem só de leads já existentes; um dia novo surge sozinho assim que o primeiro lead dele é capturado, sem job/cron nem manutenção manual.
+
+**Por que mudou**
+- Com a captação diária via "Atividade do Mês" (D-058), a lista de leads do mês virava uma tabela cada vez mais longa, misturando o dia corrente com dias anteriores já revisados. Separar por dia deixa "hoje" em evidência e reduz o scroll.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança 100% frontend, sem migração de banco nem alteração de RLS.
+
+---
+
 ## [v5.9] — Navegação do Marketing em 3 diretos + "Mais"; unificação de QR Code com Form Builder
 **Data:** 2026-07-06
 **Branch:** `claude/exciting-heisenberg-eiiuig`
