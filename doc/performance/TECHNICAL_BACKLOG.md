@@ -116,7 +116,7 @@
 **Impacto:** Médio — chamada frequente em contexts de alto volume  
 **Complexidade:** Baixa — adicionar `useMemo` em volta do cálculo com `[materiais, eventos]` como deps  
 **Dependências:** Nenhuma  
-**Recomendação:** Quick win após os testes confirmarem o gargalo
+**Status:** ✅ **Implementado** em 2026-07-07 — `AppProvider.jsx` calcula `materiaisDisponiveis` via `useMemo([materiais, eventos])`; `getMateriaisDisponiveis()` passa a retornar o valor já calculado em vez de recalcular a cada chamada (EstoqueTab/Dashboard/EventDetail chamam em todo render)
 
 ---
 
@@ -127,6 +127,7 @@
 **Impacto:** Baixo-médio — UX (prevenção de double-click) + clareza do estado  
 **Complexidade:** Baixa — adicionar `useState(false)` em `LeadsTab`  
 **Dependências:** Nenhuma
+**Status:** ✅ **Já implementado** (confirmado em 2026-07-07, sem mudança de código necessária) — `LeadsTab.jsx` já usa `carregando`/`carregandoMes` para desabilitar os 4 botões de exportação e mostrar "Carregando..." durante o fetch (a parte lenta de rede); o item ficou pendente só porque o backlog não tinha sido atualizado após a implementação
 
 ---
 
@@ -138,7 +139,8 @@
 
 **Impacto:** Baixo — cache de 30s já mitiga o impacto  
 **Complexidade:** Baixa — adicionar contador de inatividade no `useRanking`  
-**Dependências:** Nenhuma
+**Dependências:** Nenhuma  
+**Status:** ✅ **Implementado** em 2026-07-07 — `useRanking.js` troca `setInterval` fixo por `setTimeout` recursivo; `RANKING_POLL_MS` (60s) normal, `RANKING_POLL_INATIVO_MS` (120s) quando `leadsCount` não muda há mais de `RANKING_POLL_INATIVO_APOS_MS` (2min); volta ao ritmo normal assim que um lead novo chega
 
 ---
 
@@ -163,18 +165,20 @@ Fase 1 — Imediata (sem testes, zero risco):
   TB-007  debounce 1500ms ✅ implementado
 
 Fase 2 — Após Cenário A (validar hipóteses):
-  TB-004  paginação/filtro temporal de leads
-  TB-009  memoizar getMateriaisDisponiveis
+  TB-004  paginação/filtro temporal de leads ✅ implementado
+  TB-009  memoizar getMateriaisDisponiveis ✅ implementado (2026-07-07, antecipado — baixo risco, não precisou esperar o teste de carga)
 
 Fase 3 — Após Cenário B/C (com métricas reais):
   TB-005  delta em vez de refetch
   TB-008  sub-contextos React
-  TB-010  loading CSV
+  TB-010  loading CSV ✅ já estava implementado (confirmado 2026-07-07)
 
 Fase 4 — Otimizações finas:
-  TB-011  backoff adaptativo no ranking
+  TB-011  backoff adaptativo no ranking ✅ implementado (2026-07-07, antecipado — baixo risco)
   TB-012  canais realtime por entidade
 ```
+
+> **Nota (2026-07-07):** TB-009, TB-010 e TB-011 foram adiantados fora da ordem de fase original — são mudanças de baixo risco, sem dependência de dados de carga real, então não havia motivo pra esperar o Cenário A/B/C. TB-005, TB-008 e TB-012 continuam corretamente adiados até haver métrica real de produção, por serem refatorações estruturais de maior risco.
 
 ---
 

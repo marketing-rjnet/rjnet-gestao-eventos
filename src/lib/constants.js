@@ -21,6 +21,11 @@ export const REALTIME_DEBOUNCE_MS = 1500;
 export const TOAST_DURATION_MS = 5000;
 export const RANKING_DEBOUNCE_MS = 3000;
 export const RANKING_POLL_MS = 60_000;
+// TB-011: sem lead novo há mais de RANKING_POLL_INATIVO_APOS_MS, o polling
+// espaça para RANKING_POLL_INATIVO_MS — reduz RPCs em eventos de baixa
+// atividade sem atrasar a atualização durante captura ativa.
+export const RANKING_POLL_INATIVO_APOS_MS = 120_000;
+export const RANKING_POLL_INATIVO_MS = 120_000;
 
 // Enums de domínio
 export const SYNC_STATUS = { IDLE: 'idle', SYNCING: 'syncing', ERROR: 'error' };

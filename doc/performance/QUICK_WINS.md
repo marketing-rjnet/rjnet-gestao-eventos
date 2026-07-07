@@ -15,7 +15,7 @@
 | QW-003 | Timeout de 15s em `fetchAll` via `AbortSignal` | 🟠 Alto | Baixo | Mínimo | ✅ Implementado |
 | QW-004 | Pruning de colunas no `fetchAll` | 🟡 Médio | Baixo | Baixo | ✅ Implementado |
 | QW-005 | Aumentar debounce realtime de 400ms para 1500ms | 🟡 Médio | Mínimo | Baixo | ✅ Implementado |
-| QW-006 | Indicador de loading na exportação CSV | 🟢 Baixo | Baixo | Mínimo | Backlog |
+| QW-006 | Indicador de loading na exportação CSV | 🟢 Baixo | Baixo | Mínimo | ✅ Já implementado |
 
 ---
 
