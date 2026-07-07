@@ -4,6 +4,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.13] — Sombras globais do tema escuro suavizadas
+**Data:** 2026-07-07
+**Branch:** `claude/leads-daily-dropdown-atidjl`
+
+**O que mudou**
+
+- **`src/index.css`** — variáveis `--shadow-card`, `--shadow-float` e `--shadow-glow` (`:root`) tiveram o alpha do preto reduzido (`.5`→`.25`, `.7`→`.35`, `.4`→`.2`), mantendo offset/blur originais. Afeta todo componente com elevação: `.card`, `.kpi`, `.event-card`, `.vendor-card`, dropdown, modal, toast.
+
+**Por que mudou**
+- O fundo do tema escuro é quase preto (`#090909`/`#111111`, decisão V3). Sombra preta com alpha alto sobre fundo quase preto não lê como sombra suave — lê como bloco preto sólido, reportado pelo responsável pelo sistema como "sombra preta no meio da página, em todos os elementos, mobile e web" mesmo depois da correção pontual da v5.12 (que resolveu um bug de renderização diferente, específico do accordion de `MesDetail.jsx`). Validado visualmente rodando o app localmente antes/depois da mudança.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança de CSS puro, efeito imediato em produção após deploy.
+
+---
+
 ## [v5.12] — MesDetail: horário do lead na tabela por dia + fix de sombra preta
 **Data:** 2026-07-07
 **Branch:** `claude/leads-daily-dropdown-atidjl`

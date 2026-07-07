@@ -2279,6 +2279,32 @@ Os grupos são derivados inteiramente dos leads já carregados (`diaKey(l.criado
 
 ---
 
+### [D-069] — Sombras globais do tema escuro suavizadas (`--shadow-card`/`--shadow-float`/`--shadow-glow`)
+
+**Data:** 2026-07-07
+**Tipo:** Bugfix / Design System
+
+**Contexto:** Após corrigir o artefato pontual de D-068, o responsável pelo sistema reportou que a "sombra preta" continuava aparecendo — dessa vez em praticamente todos os componentes com elevação (`.card`, `.kpi`, `.event-card`, `.vendor-card`, dropdown, modal), tanto mobile quanto web. Investigação em `src/index.css` mostrou que não era mais um bug de renderização isolado: era o próprio valor das variáveis de sombra do tema escuro. `--bg: #090909` e `--surface: #111111` são quase pretos (decisão de design da V3, `doc/ui/UI_VERSIONS.md`: "fundos mais escuros — mais profundidade"), mas `--shadow-card`/`--shadow-float`/`--shadow-glow` usavam preto com alpha alto (até `.5`/`.7`). Sombra preta sobre fundo quase preto não degrada suavemente como aconteceria sobre uma superfície clara — o resultado visual é uma mancha escura sólida, mais evidente onde cards ficam próximos ou empilhados (ex: o accordion por dia de D-066/D-068). O tema claro (`.light .card`, linha ~522) já usava um valor proporcional (`rgba(0,0,0,.08)`) — só o tema escuro estava desproporcional.
+
+**Decisão:** Reduzido o alpha das 3 variáveis de sombra em `:root` (`src/index.css`), mantendo a mesma estrutura (offset/blur) da V3 — a intenção de elevação por `box-shadow` real (em vez de borda `0 0 0 1px`) é mantida, só a intensidade muda:
+- `--shadow-card`: `rgba(0,0,0,.5)`/`.3` → `.25`/`.15`
+- `--shadow-float`: `.7`/`.4` → `.35`/`.2`
+- `--shadow-glow`: `.4` → `.2`
+
+Validado visualmente rodando o app em modo local (`npm run dev` + captura de tela) antes e depois da mudança — a sombra deixa de aparecer como bloco preto sólido nos cards do Dashboard.
+
+**Alternativas Avaliadas:**
+- **Remover `box-shadow` por completo, voltando ao padrão V2 (`box-shadow: 0 0 0 1px var(--border)`)** — rejeitada: reverteria uma decisão de design deliberada da V3 (elevação real substituindo borda simples); suavizar o alpha resolve o problema visual sem descartar a direção de design já em produção. Se o responsável pelo sistema preferir remover de vez após ver o resultado suavizado, é um ajuste de uma linha.
+- **Ajustar só `--shadow-card` (mais usado) e deixar `--shadow-float`/`--shadow-glow` como estavam** — descartada: o mesmo desproporção bg-quase-preto vs. sombra-preta-alta se aplica às três, e são usadas em conjunto (ex: `.kpi:hover` troca `--shadow-card` por `--shadow-float`).
+
+**Arquivos Afetados:** `src/index.css` (3 variáveis em `:root`, linhas ~23–25) — mudança global de CSS, sem tocar em nenhum componente individualmente; efeito automático em todo elemento que já usa essas variáveis.
+
+**Riscos:** Nenhum funcional. Risco de UX: cards podem parecer com "menos profundidade" que antes para quem já estava acostumado ao visual anterior — aceito, já que o visual anterior era o próprio problema relatado.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
