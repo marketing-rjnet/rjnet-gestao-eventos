@@ -58,6 +58,8 @@ Sempre verificar:
 - [ ] Responsivo: testar em mobile (DevTools → modo responsivo)
 - [ ] Ação principal da tela funciona (criar evento, registrar lead, etc.)
 - [ ] Nenhuma tela em branco ou erro de JS no console
+- [ ] Login e fluxo principal testados nos três papéis quando a mudança pode afetá-los: `marketing`, `comercial` e `vendedor` (o `comercial` tem shell próprio, `ComercialApp.jsx`, sem estoque/equipe/monitor — D-059)
+- [ ] Se a mudança tocar o Form Builder ou o formulário público: testar `/f/:slug` sem login (aba anônima), incluindo o bloqueio de link em texto livre e a mensagem de rate limit (D-067)
 
 ---
 
@@ -121,12 +123,13 @@ git push --force
 
 ## 4. Pontos de Restauração
 
-Consulte `doc/ui/UX_UI_V2_CHANGELOG.md` para a lista completa e atualizada.
+Consulte `doc/ui/UI_VERSIONS.md` para o catálogo vigente de versões (V3 é a versão atual em produção); `doc/ui/UX_UI_V2_CHANGELOG.md` para a lista histórica detalhada da V2 (22/22 etapas concluídas, superada pela V3 no mesmo dia).
 
 | Nome | Descrição |
 |------|-----------|
 | **V1 produção estável** | Estado antes de qualquer mudança de UI/UX V2 |
 | **Início da V2** | Após cor `#ffcb00` e plano de implementação |
+| **V3 produção estável** | Redesign visual completo (2026-06-18) — versão vigente; evoluções incrementais desde então (papel comercial, Form Builder/QR Code, navegação "Mais" agrupada) estão documentadas em `doc/ui/UI_VERSIONS.md` § "O que mudou depois do lançamento da V3" |
 
 ---
 
@@ -194,33 +197,35 @@ Uma feature típica (como D-057/D-058) toca DECISIONS + CHANGELOG + SYSTEM_MAP +
 
 ## 6. Documentação Obrigatória por Fase
 
-Antes de implementar qualquer mudança de interface:
+Antes de implementar qualquer mudança de interface, ler `doc/ui/UI_VERSIONS.md` — é o catálogo **vigente** (paleta, navegação, telas, componentes por versão; V3 é a versão atual em produção). Depois de implementar, atualizar essa mesma seção do arquivo com o que mudou.
 
-| Documento | Quando ler |
+Os três documentos abaixo são o **histórico da V2** (22/22 etapas concluídas em 2026-06-18, superada pela V3 no mesmo dia) — mantidos como referência de processo e de diagnóstico de UX, não como leitura obrigatória para novas mudanças:
+
+| Documento | Conteúdo histórico |
 |-----------|-----------|
-| `doc/ui/UI_VERSIONS.md` | Entender o estado atual da interface (V1 baseline) |
-| `doc/ui/UX_UI_V2_PROPOSAL.md` | Entender o que foi proposto e aprovado |
-| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | Ver o plano detalhado por etapa |
-| `doc/ui/UX_UI_V2_CHANGELOG.md` | Ver o que já foi feito, hashes e status |
+| `doc/ui/UX_UI_V2_PROPOSAL.md` | Auditoria e proposta que originaram a V2 |
+| `doc/ui/UX_UI_V2_IMPLEMENTATION_PLAN.md` | Plano detalhado por etapa da V2 |
+| `doc/ui/UX_UI_V2_CHANGELOG.md` | O que foi feito na V2, hashes e status |
 
-Após implementar qualquer mudança:
-- Atualizar o `UX_UI_V2_CHANGELOG.md` com o hash, data e status.
+Os equivalentes da V3 (`doc/ui/UX_UI_V3_PROPOSAL.md`, `UX_UI_V3_IMPLEMENTATION_PLAN.md`, `UX_UI_V3_CHANGELOG.md`) seguem o mesmo padrão para a versão atual.
 
 ---
 
 ## 7. Hierarquia de Aprovação
 
+Modelo de processo usado nos redesigns V2 e V3 — reaplicar em qualquer redesign visual futuro (proposta → plano → implementação por fase → validação em preview → merge):
+
 ```
-Proposta (doc/ui/UX_UI_V2_PROPOSAL.md)
+Proposta (doc/ui/UX_UI_VN_PROPOSAL.md)
     ↓ aprovação explícita necessária
-Plano de implementação (UX_UI_V2_IMPLEMENTATION_PLAN.md)
+Plano de implementação (UX_UI_VN_IMPLEMENTATION_PLAN.md)
     ↓ aprovação explícita necessária
-Implementação por fase (A → B → C)
+Implementação por fase
     ↓ validação em preview antes do merge
 Merge na main → produção
 ```
 
-**Nunca pular etapas.** A V1 é sempre o baseline de segurança.
+**Nunca pular etapas.** A versão de produção vigente (hoje V3) é sempre o baseline de segurança. Mudanças incrementais que não são um redesign completo (ex.: papel comercial, Form Builder) não precisam desse ciclo completo — só registrar em `DECISIONS.md`/`SYSTEM_MAP.md`/`UI_VERSIONS.md` conforme a tabela da seção 5.
 
 ---
 
@@ -241,7 +246,7 @@ Tamanhos importantes para testar:
 | Tablet | 768px |
 | Desktop | 1280px |
 
-O app do Vendedor foi projetado para **375–480px** — sempre testar nessa faixa.
+O app do Vendedor e a página pública do formulário (`/f/:slug`, `FormularioPublico.jsx`) foram projetados para **375–480px** — sempre testar nessa faixa. `MarketingApp` e `ComercialApp` (D-059) são shells desktop-first, mas ambos têm bottom nav mobile (72px) — testar os dois em pelo menos um tamanho de mobile também.
 
 ---
 

@@ -1,6 +1,6 @@
 # Política de Privacidade — RJNet Telecomunicações
 
-> **Versão:** 1.0  
+> **Versão:** 1.1  
 > **Vigência:** a partir de _data a preencher_  
 > **PA-16/LGPD** — Elaborada como parte do Plano de Ação LGPD da RJNet.  
 > **Controlador:** RJNet Telecomunicações Ltda.  
@@ -24,9 +24,12 @@ Para fins desta política, o sistema **RJNet Gestão de Eventos** é a plataform
 | Telefone | Contato para apresentação de serviços | Consentimento (art. 7°, I) |
 | CPF | Visita técnica e formalização de contrato (opcional) | Consentimento (art. 7°, I) |
 | Endereço | Verificação de cobertura de rede (opcional) | Consentimento (art. 7°, I) |
+| Bairro | Segmentação geográfica de campanhas de captação (formulário público) | Consentimento (art. 7°, I) |
 | Serviço de interesse | Personalização da abordagem comercial | Consentimento (art. 7°, I) |
 | Temperatura do lead | Priorização interna da equipe — não compartilhado | Legítimo interesse (art. 7°, IX) |
 | Observações do vendedor | Contexto para follow-up — uso interno | Legítimo interesse (art. 7°, IX) |
+| Campos adicionais do formulário (quando aplicável) | Definidos conforme o formulário público preenchido — sempre informados no próprio formulário antes do envio | Consentimento (art. 7°, I) |
+| Endereço IP (apenas em envios pelo formulário público) | Prevenção de abuso/spam no formulário público; não é usado para fins comerciais e é excluído junto com o dado do lead | Legítimo interesse (art. 7°, IX) |
 | E-mail (usuários internos) | Autenticação no sistema | Execução de contrato (art. 7°, V) |
 
 ### Dados que não coletamos
@@ -41,7 +44,8 @@ Para fins desta política, o sistema **RJNet Gestão de Eventos** é a plataform
 Os dados são coletados:
 
 - **Presencialmente**, em eventos de campo ou na atividade comercial do dia a dia dos vendedores (D-058), por vendedores da RJNet. O titular assina uma ficha de consentimento antes da coleta.
-- **Digitalmente**, mediante preenchimento de formulário no sistema interno, sempre com apresentação do termo de consentimento e confirmação do titular.
+- **Digitalmente, mediado por um vendedor**, no sistema interno, sempre com apresentação do termo de consentimento e confirmação do titular.
+- **Digitalmente, diretamente pelo titular**, por meio de um formulário público (acessado por link ou QR Code de divulgação da RJNet) — o próprio titular preenche e envia seus dados, sem intermediação de um vendedor. O formulário exige confirmação de um checkbox de consentimento antes de permitir o envio.
 
 ---
 
@@ -75,6 +79,8 @@ Não vendemos, alugamos nem cedemos dados pessoais a terceiros para fins comerci
 | Lead excluído pelo vendedor (soft delete) | 90 dias, depois exclusão definitiva automática |
 | Lead de evento encerrado | 365 dias após encerramento do evento, depois exclusão definitiva |
 | Lead do dia a dia sem evento (D-058) | 365 dias após o fim do mês de referência, depois exclusão definitiva |
+| Lead do formulário público, sem evento nem mês associado | Contado a partir da data de envio, mesmo prazo de retenção padrão; exclusão definitiva automática |
+| Endereço IP capturado no formulário público | Sem retenção própria — excluído junto do dado do lead ao qual está associado |
 | Dados de usuários internos (ex-colaboradores) | Até revogação de acesso pelo administrador |
 
 A exclusão definitiva é realizada automaticamente pelo sistema via rotina agendada diária.
@@ -131,6 +137,7 @@ Esta política pode ser atualizada periodicamente. A versão vigente estará sem
 | Versão | Data | Alterações |
 |--------|------|-----------|
 | 1.0 | 2026-06-16 | Versão inicial — PA-16/LGPD |
+| 1.1 | 2026-07-07 | Adiciona o formulário público de captação sem intermediação de vendedor (bairro, campos adicionais, IP de origem para prevenção de abuso) — D-062, D-063, D-067 |
 
 ---
 

@@ -1,7 +1,7 @@
 # UI_VERSIONS.md — RJNet Gestão de Eventos
 
 > Catálogo de versões da interface. Registra o estado de cada versão, o que mudou, por quê, e o status atual.
-> Atualizado em: 2026-06-18
+> Atualizado em: 2026-07-07 — V3 (2026-06-18) segue sendo a versão vigente; a seção "O que mudou depois do lançamento" cobre as evoluções incrementais D-059–D-067 sobre o mesmo sistema visual (sem novo redesign)
 
 ---
 
@@ -9,7 +9,7 @@
 
 | Versão | Status | Data | Resumo |
 |--------|--------|------|--------|
-| [v3.0](#v30--redesign-visual-v3) | **atual** | 2026-06-18 | Redesign visual completo — identidade forte, wizard vendedor, bottom nav mobile |
+| [v3.0](#v30--redesign-visual-v3) | **atual** | 2026-06-18 (evoluída até 2026-07-07) | Redesign visual completo — identidade forte, wizard vendedor, bottom nav mobile; depois ganhou papel comercial, Form Builder/QR Code, cards clicáveis do Início e nova navegação "Mais" agrupada (D-059–D-067, sem novo redesign) |
 | [v2.0](#v20--refinamentos-v2) | anterior | 2026-06-18 | Refinamentos técnicos — 22 itens CSS/JSX (Fases A, B, C) |
 | [v1.0](#v10--baseline) | anterior | 2026-06-18 | Interface baseline — dark mode, 2 perfis, 6 tabs marketing |
 
@@ -62,10 +62,12 @@ Redesign visual real — sem alteração de lógica de negócio. Objetivo: inter
 
 #### Navegação — Marketing (mobile)
 - Bottom nav reestruturado: 4 itens principais + "Mais ⋯"
-- "Mais" abre bottom sheet com Estoque, Relatórios e Monitor
+- "Mais" abre bottom sheet
 - Altura: 72px (era 62px)
 - Item ativo: pill amarela `::after` embaixo (era `border-top`)
 - Toque mínimo: 64px por item
+
+> **Superada em D-065** — ver "O que mudou depois do lançamento da V3" abaixo: o agrupamento do "Mais" mudou de uma lista plana (Estoque, Relatórios, Monitor) para 4 categorias, e os itens diretos também mudaram (Início/Eventos/Relatórios).
 
 #### Navegação — Vendedor (mobile)
 - Mesmo redesign: 72px, pill amarela, fundo `var(--surface)`
@@ -93,12 +95,38 @@ Redesign visual real — sem alteração de lógica de negócio. Objetivo: inter
 - `border-left: 3px solid var(--green)`
 - Botão Desfazer: `border: 1px solid var(--yellow)`
 
+### O que mudou depois do lançamento da V3 (D-059–D-067, sem novo redesign)
+
+Nenhuma destas mudanças alterou paleta, radius ou o sistema de design em si — são evoluções incrementais de navegação/telas sobre a mesma V3. Datas: 2026-07-02 a 2026-07-07.
+
+**Terceiro perfil `comercial` (D-059, 2026-07-06)** — novo shell `ComercialApp.jsx`, mesma casca visual do `MarketingApp` (header, tema, `SyncBadge`). 4 tabs diretas, sem dropdown "Mais": Início, Eventos, Ofertas, Relatórios — mesmo nível de escrita do marketing nesses domínios, sem Estoque/Equipe/Monitor (nem no menu, nem na RLS).
+
+**Cards clicáveis "Evento"/"Mês" no Início + `MesDetail.jsx` (D-060, 2026-07-06)** — `Dashboard.jsx` (marketing e comercial) ganha 2 hero cards lado a lado (`grid-2`): "Evento Ativo" (já existia, agora clicável) e "Mês/Dia a dia" (novo). O card Evento troca de aba para Eventos e abre `EventDetail`. O card Mês **não troca de aba** — abre `MesDetail.jsx` embutido no próprio Início (estado local do `Dashboard`), mantendo "Início" ativo no menu. Paleta: ambos os cards usam o amarelo padrão (`--yellow`) — uma primeira versão usava azul para diferenciar, corrigida a pedido do responsável pelo sistema (a marca é amarela).
+
+**QR Code como seletor read-only no Vendedor (D-061, 2026-07-06)** — `VendedorApp.jsx` ganha uma 3ª opção no seletor de contexto sempre visível: "QR Code", ao lado de "Evento" e "Atividade do Mês". Só leitura — sem formulário de registro manual; mensagem informativa explica que leads de QR Code chegam sozinhos e são distribuídos pelo marketing/comercial.
+
+**Form Builder (D-062, D-063, D-065; 2026-07-06)** — nova tab "Formulários" (`FormBuilderTab.jsx`), agrupada em "Mais → Captação" no marketing (ver navegação abaixo). Cria formulários escolhendo campos de um catálogo fixo + campos personalizados de texto livre cadastrados pela própria equipe; cada formulário já gera seu próprio QR Code (componente `qrcode`) + link de divulgação. Página pública associada: `/f/:slug` (`FormularioPublico.jsx`), sem header/nav do app, sem sessão — renderiza só os campos habilitados do formulário. **Absorve e substitui** o antigo gerador de QR Code standalone (rota `/qr/:id`, retirada em D-065) por ser superconjunto funcional.
+
+**Navegação do Marketing reorganizada (D-065, 2026-07-06)** — substitui a estrutura "4 itens + Mais" descrita acima (era: Estoque, Relatórios, Monitor num "Mais" plano) por:
+- **3 tabs diretas**, sempre visíveis no header (desktop) e bottom nav (mobile): Início, Eventos, Relatórios
+- **Botão "Mais"**, agrupado em 4 categorias — mesmo array `MORE_GROUPS` alimenta o dropdown desktop (`.nav-more-dropdown`, ancorado no header) e o bottom sheet mobile (`.more-sheet`):
+  - **Captação:** Formulários
+  - **Comercial:** Ofertas
+  - **Operação:** Estoque, Check-in
+  - **Sistema:** Equipe, Monitor
+
+`ComercialApp` não ganhou esse padrão — com só 4 tabs, todas continuam diretas (decisão explícita).
+
+**MesDetail agrupado por dia (D-066, 2026-07-06)** — `MesDetail.jsx` passa a agrupar os leads da Atividade do Mês num accordion por dia (`"Hoje"`/`"Ontem"`/`"DD/MM — dia da semana"`, mais recente primeiro, dia mais recente aberto por padrão). Busca por nome expande só os dias com resultado. Mudança 100% frontend.
+
+**Moderação do formulário público (D-067, 2026-07-07)** — sem tela nova, mas `FormularioPublico.jsx` passa a rejeitar (mensagem inline) texto com link em campos livres, e a fila de distribuição (`LeadsTab.jsx`) ganha um botão de exclusão em dois passos para descartar lead suspeito sem atribuí-lo antes.
+
 ### Responsividade
 
 | Breakpoint | Comportamento |
 |------------|---------------|
-| > 760px (desktop) | Header nav completo (7 tabs), bottom nav oculto |
-| ≤ 760px (mobile) | Bottom nav 72px, 4 itens + "Mais", grids 1 coluna |
+| > 760px (desktop) | Header nav com 3 tabs diretas + botão "Mais" (dropdown agrupado, D-065), bottom nav oculto |
+| ≤ 760px (mobile) | Bottom nav 72px, 3 itens diretos + "Mais" (bottom sheet agrupado por categoria, D-065), grids 1 coluna |
 
 ---
 
