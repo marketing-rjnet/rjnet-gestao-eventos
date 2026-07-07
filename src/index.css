@@ -552,8 +552,9 @@
       .service-bar-num { font-size: 12px; font-weight: 700; color: var(--text-2); font-family: "DM Mono", monospace; text-align: right; min-width: 20px; }
 
       /* ---------- Bottom sheet "Mais" (Marketing mobile) ---------- */
-      .more-overlay { position: fixed; inset: 0; z-index: 48; background: rgba(0,0,0,.5); }
+      .more-overlay { display: none; position: fixed; inset: 0; z-index: 48; background: rgba(0,0,0,.5); }
       .more-sheet {
+        display: none;
         position: fixed; bottom: 72px; left: 0; right: 0; z-index: 49;
         background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         border-top: 1px solid var(--border); padding: 12px 16px 20px;
@@ -613,6 +614,10 @@
 
         /* Show bottom nav */
         .bottom-nav { display: block; }
+
+        /* Mobile-only "Mais" bottom sheet (desktop uses .nav-more-dropdown) */
+        .more-overlay { display: block; }
+        .more-sheet { display: block; }
 
         /* Add bottom padding so content isn't hidden behind bottom nav */
         .page { padding: 18px 14px 88px; }
