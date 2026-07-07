@@ -262,19 +262,9 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 
 ## Arquitetura
 
-### Gerenciamento de Estado
+### Gerenciamento de Estado e Camada de Dados
 
-- `AppContext` (React Context) envolve o app inteiro
-- Hook `usePersisted()` sincroniza estado com localStorage/sessionStorage
-- Atualizações otimistas: UI muda imediatamente, sync com DB é assíncrono
-
-### Camada de Dados (`src/lib/dataService.js`)
-
-- Mapeamento automático camelCase ↔ snake_case
-- Retry com backoff exponencial (800ms inicial, 2x por tentativa)
-- Subscriptions realtime via canais Supabase (debounce de 1500ms — D-038)
-- Rastreamento de performance com alertas para requisições lentas
-- Suporte a `AbortController` para cancelamento de fetches
+Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-carregado no topo deste arquivo) — cobre `AppContext`/`AppProvider`/`usePersisted()`, atualizações otimistas, mapeamento camelCase↔snake_case, `withRetry()`, debounce de realtime e `AbortController`.
 
 ### Segurança
 

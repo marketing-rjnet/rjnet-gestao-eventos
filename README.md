@@ -179,25 +179,9 @@ Estas regras **não devem ser alteradas sem registrar uma decisão** em `doc/arc
 - **papel perfil:** `marketing` · `comercial` · `vendedor` (D-059)
 - **origem do lead:** `evento` · `mes` · `qrcode` · `formulario` (D-061)
 
-### RLS (Row Level Security)
+### RLS, realtime, performance e erros de sync
 
-- `marketing`: acesso total a todas as tabelas
-- `comercial`: mesmo nível de `marketing` em `eventos`/`ofertas`/`leads`; **sem** escrita em `materiais` ou `perfis` (D-059)
-- `vendedor`: leitura de todos os leads; escrita/edição apenas nos próprios leads (`vendedor_id = auth.uid()`); leads de QR Code/Formulário sem `vendedor_id` ficam invisíveis até a distribuição manual (D-061)
-- `anon`: leitura pública restrita a `formularios`/`campos_personalizados` com `ativo=true` — primeiras policies `anon` do projeto, necessárias pra página pública `/f/:slug` renderizar sem sessão (D-062); escrita de leads públicos passa pela Edge Function `submeter-formulario` com `service_role`, nunca pela `anon key` direto
-
-A `anon key` sozinha não acessa nada além disso após a migração de auth — todas as demais policies exigem usuário autenticado e ativo.
-
-### Realtime e performance
-
-- Subscriptions Supabase com debounce de 1500ms (evita re-renders em cascata — D-038)
-- Cache em memória com TTL de 30s para rankings (`src/lib/cache.js`)
-- `withRetry()`: backoff exponencial 800ms × 3 tentativas
-- Fila offline: leads capturados sem conexão são enfileirados em `localStorage` e sincronizados via `flushPendingQueue()` ao reconectar
-
-### Erros de sync
-
-Erros são despachados via `window.dispatchEvent(new CustomEvent('rjnet:sync-error'))` e capturados pelo `SyncBadge` exibido no header de ambos os apps.
+Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §5 "Domínios de Negócio" e §7 "Regras Técnicas Atuais" — cobre as regras de RLS por papel (`marketing`/`comercial`/`vendedor`/`anon`), debounce de realtime, cache de ranking, `withRetry()`, fila offline e o despacho de erros de sync via `rjnet:sync-error`. Detalhes de RLS a nível de banco (schema, policies, ordem de migrações): `doc/architecture/SUPABASE.md`.
 
 ---
 
