@@ -193,6 +193,14 @@ const leadFromDb = (r) => ({
   // Form Builder: respostas de campos personalizados (sempre texto livre),
   // guardadas à parte das colunas fixas — ver migracao-campos-personalizados.sql
   camposExtras: r.campos_extras ?? {},
+  // Simulador: respostas do quiz + score calculado no servidor + atribuição
+  // de tráfego (UTM) — ver migracao-simulador.sql e src/lib/simulador.js
+  simuladorId: r.simulador_id ?? null,
+  perfilConsumo: r.perfil_consumo ?? null,
+  pontuacao: r.pontuacao ?? null,
+  ofertaRecomendada: r.oferta_recomendada ?? null,
+  cidade: r.cidade ?? "",
+  utm: r.utm ?? null,
 });
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId ?? null, mes_referencia: l.mesReferencia ?? null,
@@ -216,6 +224,13 @@ const leadToDb = (l) => ({
   formulario_id: l.formularioId ?? null,
   bairro: l.bairro || null,
   campos_extras: l.camposExtras ?? {},
+  // Simulador (ver leadFromDb)
+  simulador_id: l.simuladorId ?? null,
+  perfil_consumo: l.perfilConsumo ?? null,
+  pontuacao: l.pontuacao ?? null,
+  oferta_recomendada: l.ofertaRecomendada ?? null,
+  cidade: l.cidade || null,
+  utm: l.utm ?? null,
 });
 
 // Form Builder: `campos`/`campos_obrigatorios` guardam só chaves do
@@ -248,6 +263,22 @@ const campoPersonalizadoToDb = (c) => ({
   id: c.id, label: c.label, key: c.key, ativo: c.ativo ?? true, criado_em: c.criadoEm || new Date().toISOString(),
 });
 
+// Simulador: campanha de captação gamificada — a tabela guarda só a
+// identidade (nome/slug/tipo); o questionário é catálogo fixo em código
+// (src/lib/simulador.js), mesmo princípio do Form Builder (D-062).
+const simuladorFromDb = (r) => ({
+  id: r.id, nome: r.nome, slug: r.slug,
+  tipo: r.tipo ?? 'perfil_consumo', campanha: r.campanha ?? '',
+  versaoPerguntas: r.versao_perguntas ?? 1,
+  ativo: r.ativo ?? true, criadoEm: r.criado_em,
+});
+const simuladorToDb = (s) => ({
+  id: s.id, nome: s.nome, slug: s.slug,
+  tipo: s.tipo ?? 'perfil_consumo', campanha: s.campanha || null,
+  versao_perguntas: s.versaoPerguntas ?? 1,
+  ativo: s.ativo ?? true, criado_em: s.criadoEm || new Date().toISOString(),
+});
+
 const perfilFromDb = (r) => ({
   id: r.id, email: r.email ?? "", nome: r.nome,
   papel: r.papel, ativo: r.ativo,
@@ -269,7 +300,7 @@ const ofertaToDb = (o) => ({
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
-const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,origem_ip,qr_code_id,qr_code_label,formulario_id,bairro,campos_extras';
+const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,origem_ip,qr_code_id,qr_code_label,formulario_id,bairro,campos_extras,simulador_id,perfil_consumo,pontuacao,oferta_recomendada,cidade,utm';
 
 // TB-004: busca apenas materiais, eventos e perfis no boot.
 // Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
@@ -280,7 +311,7 @@ export async function fetchAll(signal) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
-      const [materiais, perfis, eventos, ofertas, formularios, camposPersonalizados] = await Promise.all([
+      const [materiais, perfis, eventos, ofertas, formularios, camposPersonalizados, simuladores] = await Promise.all([
         supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
         supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
         supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
@@ -289,6 +320,8 @@ export async function fetchAll(signal) {
         // Form Builder: tabela pequena e estática, mesmo tratamento de ofertas
         supabase.from('formularios').select('id,nome,slug,campos,campos_obrigatorios,campos_personalizados_ids,campos_personalizados_obrigatorios,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
+        // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
+        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -312,6 +345,7 @@ export async function fetchAll(signal) {
         ofertas: ofertas.error ? [] : ofertas.data.map(ofertaFromDb),
         formularios: formularios.error ? [] : formularios.data.map(formularioFromDb),
         camposPersonalizados: camposPersonalizados.error ? [] : camposPersonalizados.data.map(campoPersonalizadoFromDb),
+        simuladores: simuladores.error ? [] : simuladores.data.map(simuladorFromDb),
         leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
@@ -446,6 +480,21 @@ export async function fetchCamposPersonalizadosPublico(ids) {
     .eq('ativo', true);
   if (error || !data) return [];
   return data.map(campoPersonalizadoFromDb);
+}
+
+// Simulador: leitura pública (anon) de uma campanha ativa pelo slug —
+// mesmo padrão de fetchFormularioPublico. RLS restringe a `ativo = true`
+// (migracao-simulador.sql).
+export async function fetchSimuladorPublico(slug) {
+  if (!isSupabaseMode() || !slug) return null;
+  const { data, error } = await supabase
+    .from('simuladores')
+    .select('id,nome,slug,tipo,campanha,versao_perguntas,ativo')
+    .eq('slug', slug)
+    .eq('ativo', true)
+    .maybeSingle();
+  if (error || !data) return null;
+  return simuladorFromDb(data);
 }
 
 // Distribuição: qualquer lead "frio" (sem vendedor ainda), não importa a
@@ -707,6 +756,10 @@ export const db = {
   // Campo personalizado: sempre texto livre — ver comentário em campoPersonalizadoFromDb.
   saveCampoPersonalizado: (c) => exec(supabase?.from('campos_personalizados').upsert(campoPersonalizadoToDb(c)), 'salvar campo personalizado'),
   removeCampoPersonalizado: (id) => exec(supabase?.from('campos_personalizados').delete().eq('id', id), 'remover campo personalizado'),
+
+  // Simulador: mesmo padrão simples de saveFormulario.
+  saveSimulador: (s) => exec(supabase?.from('simuladores').upsert(simuladorToDb(s)), 'salvar simulador'),
+  removeSimulador: (id) => exec(supabase?.from('simuladores').delete().eq('id', id), 'remover simulador'),
 
   // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
   // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).
