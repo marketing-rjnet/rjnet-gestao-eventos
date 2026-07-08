@@ -7,10 +7,15 @@
 // consentimento LGPD, e grava o Lead com service_role. vendedor_id nasce
 // nulo — Distribuição é feita depois, manualmente, por marketing/comercial.
 //
-// Mesmo padrão de captar-lead-qrcode/index.ts: CORS restrito via secret
-// CORS_ALLOWED_ORIGINS (Supabase Dashboard → Edge Functions → Secrets).
+// CORS restrito via secret CORS_ALLOWED_ORIGINS (Dashboard → Edge Functions
+// → Secrets). Sanitização/validadores/rate limit compartilhados com as
+// demais portas públicas em _shared/captacao.ts.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  getCorsHeaders, json, sanitizeText, validarTelefone, containsLink,
+  getClientIp, atingiuRateLimit,
+} from '../_shared/captacao.ts';
 
 const SERVICOS_VALIDOS = new Set([
   'internet_residencial',
@@ -36,62 +41,6 @@ const TIPO_POR_CAMPO: Record<string, string> = {
 const TAMANHO_MAX: Record<string, number> = {
   nome: 120, endereco: 200, bairro: 80, cpf: 14,
 };
-
-function getAllowedOrigins(): string[] {
-  const raw = Deno.env.get('CORS_ALLOWED_ORIGINS') ?? '';
-  const fromEnv = raw.split(',').map((o) => o.trim()).filter(Boolean);
-  return fromEnv.length > 0 ? fromEnv : ['http://localhost:3000'];
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-  const allowed = getAllowedOrigins();
-  const effectiveOrigin = allowed.includes(origin) ? origin : allowed[0];
-  return {
-    'Access-Control-Allow-Origin': effectiveOrigin,
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-  };
-}
-
-function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...headers, 'Content-Type': 'application/json' },
-  });
-}
-
-// Mesmas regras de src/lib/security.js / src/utils/masks.js — duplicadas
-// porque este conector roda em Deno, fora do bundle do app (ver mesmo
-// comentário em captar-lead-qrcode/index.ts).
-function sanitizeText(str: unknown, maxLength = 255): string {
-  if (typeof str !== 'string') return '';
-  return str.replace(/<[^>]*>/g, '').trim().slice(0, maxLength);
-}
-
-function validarTelefone(tel: unknown): boolean {
-  if (typeof tel !== 'string') return false;
-  const d = tel.replace(/\D/g, '');
-  return d.length >= 10 && d.length <= 11;
-}
-
-// Campos de texto livre público (nome, endereço, bairro, campos
-// personalizados) não deveriam conter link — vetor comum de spam/abuso em
-// formulário sem sessão. Não é moderação de conteúdo em geral, só bloqueia
-// URL.
-function containsLink(str: string): boolean {
-  return /https?:\/\/|www\.|\.(com|net|org|br|io|co|me|xyz|info|link)\b/i.test(str);
-}
-
-// Rate limit simples por IP: reaproveita a própria tabela leads (sem tabela
-// nova) contando quantos leads esse IP já gerou na janela recente.
-const RATE_LIMIT_JANELA_MIN = 10;
-const RATE_LIMIT_MAX_SUBMISSOES = 5;
-
-function getClientIp(req: Request): string | null {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (!fwd) return null;
-  return fwd.split(',')[0].trim().slice(0, 45) || null;
-}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -119,16 +68,8 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
     const clientIp = getClientIp(req);
-    if (clientIp) {
-      const desde = new Date(Date.now() - RATE_LIMIT_JANELA_MIN * 60_000).toISOString();
-      const { count, error: rateErro } = await admin
-        .from('leads')
-        .select('id', { count: 'exact', head: true })
-        .eq('origem_ip', clientIp)
-        .gte('criado_em', desde);
-      if (!rateErro && (count ?? 0) >= RATE_LIMIT_MAX_SUBMISSOES) {
-        return json({ error: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.' }, 429, corsHeaders);
-      }
+    if (await atingiuRateLimit(admin, clientIp)) {
+      return json({ error: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.' }, 429, corsHeaders);
     }
 
     const { data: formulario, error: formErro } = await admin
