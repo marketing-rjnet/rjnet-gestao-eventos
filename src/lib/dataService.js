@@ -522,11 +522,14 @@ export async function fetchLeadsSemVendedor(signal) {
   });
 }
 
-// QR Code: leads captados por esse canal — não têm evento_id nem
-// mes_referencia (não são um contexto operacional, só atribuição), então
-// não cabem em fetchLeadsEvento/fetchLeadsMes. RLS decide o que cada papel
-// enxerga: marketing/comercial veem todos (inclusive sem vendedor_id, para
-// a fila de distribuição); vendedor só vê os já distribuídos a alguém.
+// Captação digital: leads captados por canal público (QR Code, Form
+// Builder, Simulador) — não têm evento_id nem mes_referencia (não são um
+// contexto operacional, só atribuição), então não cabem em
+// fetchLeadsEvento/fetchLeadsMes. RLS decide o que cada papel enxerga:
+// marketing/comercial veem todos (inclusive sem vendedor_id, para a fila
+// de distribuição); vendedor só vê os já distribuídos a alguém.
+// (Nome mantido por compatibilidade histórica — o contexto "QR Code" do
+// VendedorApp passou a cobrir todas as origens digitais no Simulador.)
 export async function fetchLeadsQrCode(signal) {
   if (!isSupabaseMode()) return null;
   return trackPerf('fetchLeadsQrCode', () =>
@@ -535,7 +538,7 @@ export async function fetchLeadsQrCode(signal) {
       const { data, error } = await supabase
         .from('leads')
         .select(LEADS_COLS)
-        .eq('origem', 'qrcode')
+        .in('origem', ['qrcode', 'formulario', 'simulador'])
         .eq('deletado', false)
         .order('criado_em', { ascending: false })
         .abortSignal(signal);
