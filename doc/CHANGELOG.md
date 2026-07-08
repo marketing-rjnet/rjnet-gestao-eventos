@@ -4,6 +4,33 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.16] — Simulador de Perfil de Consumo: captação gamificada via link (tráfego pago) + QR Code
+**Data:** 2026-07-08
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-simulador.sql`** (novo) — tabela `simuladores` (campanhas: nome/slug/tipo/agrupador, RLS `anon` restrita a `ativo=true`, mesmo precedente do Form Builder) + colunas aditivas em `leads` (`simulador_id`, `perfil_consumo`, `pontuacao`, `oferta_recomendada`, `cidade`, `utm`) + índices.
+- **`src/lib/simulador.js`** (novo) — catálogo FIXO versionado de perguntas (`PERGUNTAS_SIMULADOR`) + scoring (`calcularPerfil`: soma ponderada → pontuação, temperatura frio/morno/quente, oferta recomendada) — sem imports de propósito, testável standalone e espelhado em Deno.
+- **`supabase/functions/_shared/captacao.ts`** (novo) — CORS, sanitização, validadores e rate limit por IP extraídos de `submeter-formulario` (que foi refatorada pra importar de lá — comportamento idêntico, **requer redeploy**).
+- **`supabase/functions/submeter-simulador/index.ts`** (novo) — porta pública do Simulador: valida respostas contra o catálogo, **recalcula o score no servidor** (cliente nunca manda score pronto), sanitiza UTM (whitelist), honeypot + rate limit; lead nasce com `origem='simulador'`, `vendedor_id` nulo, `versao_termo` `simulador-v1`.
+- **`src/public/SimuladorPublico.jsx`** (novo) + rota `/s/:slug` (`main.jsx`, `vercel.json`) — wizard gamificado mobile-first: 1 pergunta por tela, barra de progresso, pergunta condicional, tela "Analisando...", recomendação personalizada ANTES de pedir contato, captura de `utm_*` da URL.
+- **`src/features/simulador/SimuladorTab.jsx`** (novo, grupo Captação do "Mais") — CRUD de campanhas; cada uma gera QR (com `utm_source=qrcode&utm_medium=impresso` embutido) e link copiável pra colar no gerenciador de anúncios.
+- **`src/features/leads/LeadsTab.jsx`** — fila "Leads sem vendedor" ordenada por pontuação (quentes primeiro), nova coluna Perfil (pts + temperatura + resumo do quiz), origem detalhada (campanha + utm_campaign), bairro/cidade no card.
+- **`src/apps/VendedorApp.jsx`** + **`dataService.js`** — contexto "QR Code" generalizado pra **"Captação"**: agora cobre `qrcode`/`formulario`/`simulador` (corrige lacuna em que leads de formulário distribuídos não apareciam pro vendedor); card do lead exibe o perfil de consumo declarado.
+- **Testes:** `tests/simulador.unit.test.js` (40 asserts, catálogo+scoring, incluído em `npm run test:unit`) e `tests/simulador.test.js` (6 E2E do wizard em modo local).
+- **Docs:** D-072 em `DECISIONS.md`, `SYSTEM_MAP.md`, `CLAUDE.md`, plano em `doc/simulador/SIMULADOR_IMPLEMENTATION_PLAN.md` (F0–F4 ✅).
+
+**Por que mudou**
+- Pedido do responsável pelo sistema: transformar a captura de contato em lead qualificado (quem é, como usa internet, qual produto faz sentido, nível de intenção), com o mesmo link servindo campanhas de tráfego pago geolocalizadas e QR em material impresso — tudo acoplado ao CRM existente, nunca um sistema separado. Base pronta pra fase territorial (F5, mapa interno de demanda por cidade/bairro).
+
+**Ações manuais necessárias (ordem importa)**
+1. Rodar `supabase/migracao-simulador.sql` no SQL Editor + `NOTIFY pgrst, 'reload schema';` — **ANTES do merge/deploy do frontend** (`LEADS_COLS`/`leadToDb` referenciam as colunas novas).
+2. Deploy das Edge Functions `submeter-simulador` (nova) e `submeter-formulario` (refatorada) — depois, smoke test do formulário público existente.
+3. LGPD antes do 1º go-live de campanha: linha nova no RIPD/ROPA + menção na Política de Privacidade (perfil comportamental + UTM) — ver §10 do plano.
+
+---
+
 ## [v5.15] — Fecha drift do PA-11 (RLS de leads) + 3 quick wins de performance
 **Data:** 2026-07-07
 **Branch:** `claude/system-sales-readiness-4sbgqq`

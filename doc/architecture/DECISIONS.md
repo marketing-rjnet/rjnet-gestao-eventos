@@ -2360,6 +2360,37 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-072] — Simulador de Perfil de Consumo: captação gamificada via link (tráfego pago) + QR Code, com scoring de intenção no servidor
+
+**Data:** 2026-07-08
+**Tipo:** Feature / Arquitetura de Captação
+
+**Contexto:** O responsável pelo sistema pediu uma terceira porta de entrada pública de captação (ao lado do Form Builder): um quiz gamificado de perfil de consumo de internet, acessado por link (campanhas de tráfego pago — Meta/Google Ads, inclusive geolocalizadas) e por QR Code em material impresso. A pessoa responde 4–6 perguntas, recebe uma recomendação personalizada ("valor antes do dado") e só então deixa contato — o lead nasce qualificado: perfil declarado, pontuação de intenção, temperatura calculada e oferta recomendada. Plano completo em `doc/simulador/SIMULADOR_IMPLEMENTATION_PLAN.md` (fases F0–F4 implementadas; F5 territorial planejada — mesma entrada, questionário reduzido).
+
+**Decisão:**
+- **Mesmo pipeline público do Form Builder, nunca um paralelo:** página sem sessão (`/s/:slug`, `SimuladorPublico.jsx`) → Edge Function `submeter-simulador` (service_role) → insert em `leads` com `vendedor_id` nulo → fila "Leads sem vendedor" → distribuição manual. `origem='simulador'` é só mais um valor no eixo de proveniência (D-061).
+- **Catálogo de perguntas FIXO e versionado em código** (`src/lib/simulador.js` — `PERGUNTAS_SIMULADOR`, mesmo princípio do `CAMPOS_FORMULARIO`/D-062): a tabela `simuladores` guarda só a identidade da campanha (nome/slug/agrupador). Nunca um motor de quiz genérico em runtime.
+- **Scoring no servidor:** a Edge Function RECALCULA pontuação/temperatura/oferta a partir das respostas brutas (espelho Deno de `calcularPerfil`) — o cliente nunca envia score pronto. Score exibido na página é só UX. Respostas gravadas em `leads.perfil_consumo` (jsonb, `{versao, respostas}`) — na linha do lead de propósito: a retenção LGPD D-064 expurga tudo junto.
+- **Temperatura como ponte com o fluxo existente:** o score mapeia para o enum `temperatura` (≥60 quente, 30–59 morno, <30 frio) que vendedor/relatórios já entendem — nenhuma tela precisou aprender um conceito novo pra priorizar.
+- **Um link por campanha, dois canais via UTM:** a página captura `utm_*` da URL (whitelist de 5 chaves, sanitizadas no servidor) e grava em `leads.utm`; o QR gerado pela `SimuladorTab` embute `utm_source=qrcode&utm_medium=impresso` — a MESMA campanha distingue scan físico de clique em anúncio, e cada anúncio/conjunto é atribuível pelos próprios UTMs.
+- **`_shared/captacao.ts`:** CORS/sanitização/validadores/rate-limit extraídos de `submeter-formulario` para módulo compartilhado entre as Edge Functions públicas (elimina a duplicação admitida em D-067). `submeter-formulario` refatorada para importar de lá — comportamento idêntico, requer redeploy.
+- **Contexto "QR Code" do vendedor generalizado para "Captação":** `fetchLeadsQrCode` passa a filtrar `origem in ('qrcode','formulario','simulador')` — corrige de quebra a lacuna em que leads de formulário distribuídos não apareciam no seletor do vendedor. Card do lead exibe o perfil (`resumoPerfil`, labels sempre derivados do catálogo).
+- **Fila de distribuição ordenada por pontuação** (desc, sem score por último) com coluna "Perfil" (pts + temperatura + resumo) e origem detalhada (campanha + utm_campaign) — o marketing distribui os quentes primeiro.
+
+**Alternativas Avaliadas:**
+- **Estender `formularios` com `tipo='simulador'`** — rejeitada: a forma da config é diferente (identidade de campanha vs. lista de campos); tabela irmã `simuladores` mantém cada domínio com escopo próprio (sem "god table").
+- **Perguntas configuráveis no banco (motor de quiz)** — rejeitada pelo mesmo racional do D-062: custo de validação arbitrária no servidor + UI genérica sem necessidade atual. Mudar pergunta = commit + bump de `PERGUNTAS_SIMULADOR_VERSAO`.
+- **Exibir a oferta real (imagem+copy da tabela `ofertas`) na tela de resultado** — adiada: exigiria abrir leitura `anon` em `ofertas` (a copy é redigida pro contexto WhatsApp do vendedor, não pra página pública). v1 usa headlines por nível de demanda em código (`RECOMENDACAO_POR_NIVEL`); reavaliar com policy `anon` explícita se o marketing quiser a arte real na página.
+- **Pixel de conversão (Meta/GA) na página** — rejeitada na v1: exigiria afrouxar CSP + banner de cookies + entrada LGPD. Atribuição por UTM + leads/cliques da plataforma cobre a leitura de performance.
+
+**Arquivos Afetados:** `supabase/migracao-simulador.sql` (novo), `supabase/functions/_shared/captacao.ts` (novo), `supabase/functions/submeter-simulador/index.ts` (novo), `supabase/functions/submeter-formulario/index.ts` (refatorada), `src/lib/simulador.js` (novo), `src/lib/dataService.js`, `src/public/SimuladorPublico.jsx` (novo), `src/api/simuladorApi.js` (novo), `src/context/AppProvider.jsx`, `src/features/simulador/SimuladorTab.jsx` (novo), `src/apps/MarketingApp.jsx`, `src/apps/VendedorApp.jsx`, `src/features/leads/LeadsTab.jsx`, `src/main.jsx`, `vercel.json`, `src/index.css`, `tests/simulador.unit.test.js` (novo, 40 asserts), `tests/simulador.test.js` (novo, 6 E2E).
+
+**Riscos:** (1) **Ordem de deploy**: `migracao-simulador.sql` + `NOTIFY pgrst` DEVEM rodar antes do merge do frontend — `LEADS_COLS`/`leadToDb` referenciam as colunas novas e quebrariam leitura/escrita de leads sem elas (mesmo requisito de D-062/D-063). (2) Redeploy de `submeter-formulario` (refatoração `_shared/`): comportamento idêntico, mas exige smoke test do formulário público após o deploy. (3) LGPD: novo tratamento (perfil comportamental + UTM) — RIPD/ROPA precisam de linha nova e a Política deve citar a finalidade antes do primeiro go-live de campanha (`versao_termo: 'simulador-v1'` já gravada); retenção já coberta pelo bloco D-064 (lead sem evento/mês expira por `criado_em`). (4) `submeter-simulador` vira a segunda escrita não autenticada do sistema — herda todas as camadas do D-067 (honeypot, containsLink, rate limit 5/10min por IP, origem_ip) via `_shared/`.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

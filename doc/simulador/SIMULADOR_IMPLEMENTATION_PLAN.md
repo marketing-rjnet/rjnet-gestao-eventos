@@ -2,10 +2,12 @@
 
 > Plano de implementação da nova camada de captação gamificada ("Simulador"),
 > acoplada ao pipeline público existente do sistema (Form Builder, D-062–D-067).
-> Status geral: ⏸️ **planejado, não iniciado**.
+> Status geral: ✅ **F0–F4 implementadas em 2026-07-08 (D-072)** — perfil de consumo completo,
+> ponta a ponta (migração → Edge Function → página pública → gestão → fila/vendedor).
+> ⏸️ Pendentes: F5 (campanha territorial) e itens LGPD/documentais da F6 (RIPD/ROPA/Política —
+> **gate obrigatório antes do primeiro go-live de campanha**, ver §10).
 > Criado em: 2026-07-08. Branch de desenvolvimento: `claude/rjnet-lead-simulator-x2p3kk`.
-> Ao implementar, registrar decisão em `doc/architecture/DECISIONS.md` (próximo ID livre)
-> e atualizar `SYSTEM_MAP.md` + `CLAUDE.md` a cada fase concluída.
+> Decisão registrada em `DECISIONS.md` (D-072); `SYSTEM_MAP.md` + `CLAUDE.md` atualizados.
 
 ---
 
@@ -415,11 +417,11 @@ Não iniciar uma fase com a anterior quebrada.
 
 | Fase | Entrega | Arquivos principais | Risco | Status |
 |---|---|---|---|---|
-| **F0 — Fundação sem UI** | `migracao-simulador.sql` (tabela + colunas + RLS + índices + `NOTIFY pgrst`); `PERGUNTAS_SIMULADOR` + `scoring.js` + `tests/scoring.unit.test.js`; colunas em `LEADS_COLS`/`leadFromDb`/`leadToDb` | `supabase/migracao-simulador.sql`, `src/lib/constants.js`, `src/lib/scoring.js`, `src/lib/dataService.js`, `tests/` | Zero (nada renderiza) | ⏸️ |
-| **F1 — `_shared/` + Edge Function** | Extração do miolo comum; `submeter-simulador`; redeploy + smoke test do formulário público existente | `supabase/functions/_shared/captacao.ts`, `supabase/functions/submeter-simulador/index.ts`, `supabase/functions/submeter-formulario/index.ts` | Médio (única fase que toca código público existente — por isso isolada) | ⏸️ |
-| **F2 — Página pública** | Wizard `/s/:slug` + desvio no boot + rewrite + captura de UTM + fallback local + E2E Playwright do fluxo completo. **Gate: itens LGPD do §10 prontos antes do go-live** | `src/public/SimuladorPublico.jsx`, `src/main.jsx`, `vercel.json`, `src/lib/localPublicSubmit.js`, `tests/simulador.test.js` | Baixo (sem campanha ativa, rota responde "não encontrado") | ⏸️ |
-| **F3 — Gestão** | `SimuladorTab` no grupo Captação + factory `createSimuladorApi` + link/QR com UTM + ativar/desativar. A partir daqui o marketing roda piloto real | `src/features/simulador/`, `src/api/simuladorApi.js`, `src/context/AppProvider.jsx`, `src/apps/MarketingApp.jsx` | Baixo | ⏸️ |
-| **F4 — Integração comercial** | Fila enriquecida + ordenação por score; contexto "Captação Digital" no vendedor (generaliza filtro `qrcode`); selo no `OfertaPickerModal`; perfil legível no card do lead | `src/features/leads/LeadsTab.jsx`, `src/lib/dataService.js`, `src/apps/VendedorApp.jsx` | Baixo | ⏸️ |
+| **F0 — Fundação sem UI** | `migracao-simulador.sql` (tabela + colunas + RLS + índices + `NOTIFY pgrst`); `PERGUNTAS_SIMULADOR` + `scoring.js` + `tests/scoring.unit.test.js`; colunas em `LEADS_COLS`/`leadFromDb`/`leadToDb` | `supabase/migracao-simulador.sql`, `src/lib/constants.js`, `src/lib/scoring.js`, `src/lib/dataService.js`, `tests/` | Zero (nada renderiza) | ✅ |
+| **F1 — `_shared/` + Edge Function** | Extração do miolo comum; `submeter-simulador`; redeploy + smoke test do formulário público existente | `supabase/functions/_shared/captacao.ts`, `supabase/functions/submeter-simulador/index.ts`, `supabase/functions/submeter-formulario/index.ts` | Médio (única fase que toca código público existente — por isso isolada) | ✅ |
+| **F2 — Página pública** | Wizard `/s/:slug` + desvio no boot + rewrite + captura de UTM + fallback local + E2E Playwright do fluxo completo. **Gate: itens LGPD do §10 prontos antes do go-live** | `src/public/SimuladorPublico.jsx`, `src/main.jsx`, `vercel.json`, `src/lib/localPublicSubmit.js`, `tests/simulador.test.js` | Baixo (sem campanha ativa, rota responde "não encontrado") | ✅ |
+| **F3 — Gestão** | `SimuladorTab` no grupo Captação + factory `createSimuladorApi` + link/QR com UTM + ativar/desativar. A partir daqui o marketing roda piloto real | `src/features/simulador/`, `src/api/simuladorApi.js`, `src/context/AppProvider.jsx`, `src/apps/MarketingApp.jsx` | Baixo | ✅ |
+| **F4 — Integração comercial** | Fila enriquecida + ordenação por score; contexto "Captação Digital" no vendedor (generaliza filtro `qrcode`); selo no `OfertaPickerModal`; perfil legível no card do lead | `src/features/leads/LeadsTab.jsx`, `src/lib/dataService.js`, `src/apps/VendedorApp.jsx` | Baixo | ✅ |
 | **F5 — Territorial** | `tipo='territorial'` na página (questionário reduzido); RPC `demanda_por_regiao()`; seção de demanda em Relatórios + export CSV | `supabase/migracao-demanda.sql`, `src/features/leads/LeadsTab.jsx`, `src/utils/csv.js` | Baixo | ⏸️ |
 | **F6 — Fechamento documental** | `SYSTEM_MAP.md`, `DECISIONS.md` (registrar decisões), `CLAUDE.md`, `doc/CHANGELOG.md`, RIPD/ROPA/Política, `SEGURANCA_MODERACAO.md` | `doc/` | Zero | ⏸️ |
 
