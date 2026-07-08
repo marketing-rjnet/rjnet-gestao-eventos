@@ -68,445 +68,7 @@ Riscos conhecidos.
 
 ---
 
-### [D-051] — Monitor: correção da contagem de leads ao encerrar sessão
-
-**Data:** 2026-06-18
-**Tipo:** Bugfix
-
-**Decisão:** `handleEncerrarSessao` deve contar `lead_add - lead_remove` apenas dentro do escopo temporal da sessão atual (desde o último `session_start`), com `Math.max(0, ...)` como guarda.
-
-**Causa raiz:** A implementação original usava `logs.filter(l => l.type === 'lead_add').length` — sem escopo de sessão e sem subtrair remoções. Dois bugs independentes:
-1. Contava leads de sessões anteriores ou do histórico do dia.
-2. Não descontava leads excluídos pelo vendedor durante a sessão.
-
-**Solução:**
-```js
-const lastStart = [...logs].reverse().find(l => l.type === 'session_start');
-const sessionLogs = logs.filter(l => !lastStart || l.ts >= lastStart.ts);
-const count = Math.max(0,
-  sessionLogs.filter(l => l.type === 'lead_add').length -
-  sessionLogs.filter(l => l.type === 'lead_remove').length,
-);
-```
-
-**Invariante:** `Math.max(0, ...)` evita contagem negativa quando um lead adicionado antes da sessão (em outra sessão do mesmo dia) é removido dentro dela.
-
-**Arquivos Afetados:**
-- `src/features/monitoring/MonitoringTab.jsx` — `handleEncerrarSessao`
-
-**Status:** Ativa (substitui implementação incorreta de D-048)
-
----
-
-### [D-050] — Monitor: status de atividade do vendedor nos cards
-
-**Data:** 2026-06-18
-**Tipo:** Feature
-
-**Decisão:** Inferir status de atividade do vendedor a partir do `lastTs` (timestamp da última entrada no log) em vez de implementar presença WebSocket via Supabase Realtime Presence.
-
-**Motivação:** O marketing precisa saber, em campo, quais vendedores estão ativos e quais pararam de usar o app. Os dados necessários já existem no log (timestamp da última ação por vendedor).
-
-**Alternativas Avaliadas:**
-- **Supabase Realtime Presence:** estado "online" real baseado na conexão WebSocket ativa. Rejeitado: celulares suspendem WebSockets em segundo plano (iOS/Android background limits) — geraria falsos negativos constantes (vendedor "offline" por ter minimizado o app para tirar uma foto).
-- **Status inferido do log (escolhida):** usa `lastTs` já calculado no `vendedores` useMemo. 4 tiers por elapsed time. Sem novo dado, sem nova conexão, sem false alarms por background.
-
-**Tiers de status:**
-
-| Elapsed | Label | Cor |
-|---|---|---|
-| < 5 min | ativo agora | #22c55e (verde) |
-| < 30 min | há Xmin | #eab308 (amarelo) |
-| < 24h | há Xh | cinza |
-| ≥ 24h | inativo | cinza |
-
-**Impactos:**
-- `VendedorCard` ganha tick de 30s via `setInterval` interno — cada card atualiza seu próprio status independentemente sem re-executar o `vendedores` useMemo.
-- Sem novo estado no contexto, sem nova query ao Supabase.
-- `timeAgo` removido (único uso era no card).
-
-**Arquivos Afetados:**
-- `src/features/monitoring/MonitoringTab.jsx` — `vendorStatus()`, VendedorCard com tick e ponto de status
-
-**Status:** Ativa
-
----
-
-### [D-049] — Monitor: sync_ok para removeLead e severidade dinâmica de perf_warn
-
-**Data:** 2026-06-18
-**Tipo:** Feature / Bugfix
-
-**Decisão 1 — sync_ok para removeLead:** Estender `db.removeLead` com 3º param `onSuccess`, seguindo o padrão já estabelecido em `db.saveLead`. `leadApi.removeLead` passa callback que dispara `lead_sync_ok` após confirmação do Supabase.
-
-**Decisão 2 — severidade dinâmica de perf_warn:** Substituir label/cor estáticos de `perf_warn` por função `getPerfCfg(ms)` que retorna tiers visuais distintos conforme a gravidade do atraso.
-
-**Motivação:**
-- `lead_remove` era o único dos 3 tipos de mutação sem confirmação do servidor — loop incompleto, a mensagem "aguardando confirmação" ficava sem resposta.
-- `perf_warn` com 236160ms (4 min, provável timeout) aparecia idêntico a 1053ms (leve lentidão) — sem distinção de gravidade.
-
-**Tiers de perf_warn:**
-
-| ms | Label | Cor |
-|---|---|---|
-| ≥ 60 000 | timeout de rede (✗) | var(--red) |
-| ≥ 30 000 | possível timeout (⚡) | var(--red) |
-| ≥ 5 000 | req. muito lenta (⚡) | #f97316 |
-| ≥ 1 000 | req. lenta (⚡) | var(--yellow) |
-
-**Regras mantidas:**
-- `onFail` de `removeLead` (rollback de estado) preservado sem alteração.
-- Padrão `exec(promise, acao, onFail, onSuccess)` não foi alterado.
-- Tiers de perf_warn são puramente visuais (MonitoringTab) — não afetam o dado gravado em `logActivity`.
-
-**Arquivos Afetados:**
-- `src/lib/dataService.js` — `db.removeLead` aceita 3º param `onSuccess`
-- `src/api/leadApi.js` — `removeLead` passa `onSuccess` para `db.removeLead`
-- `src/features/monitoring/MonitoringTab.jsx` — `getPerfCfg(ms)`, FeedEntry com cfg dinâmico
-
-**Status:** Ativa
-
----
-
-### [D-048] — Monitor: marcadores de sessão de evento e limpeza de log
-
-**Data:** 2026-06-18
-**Tipo:** Feature
-
-**Decisão:** Adicionar marcadores visuais de início/fim de sessão de evento no feed do Monitor e botão de limpeza do log do dia corrente com confirmação em dois cliques.
-
-**Motivação:** O log persiste 30 dias, mas sem delimitadores não é possível saber onde um evento começa e termina no histórico. O operador de marketing precisa: (1) demarcar o início do monitoramento para separá-lo de dados de teste, (2) encerrar o registro formalmente com resumo de leads, (3) limpar dados fictícios antes do evento real.
-
-**Alternativas Avaliadas:**
-- **Filtro por horário:** exigiria UI de seleção de intervalo — complexidade desproporcional.
-- **Log por evento (eventoId como chave de storage):** quebraria o modelo de chave por data (D-045); misturaria com o Realtime que já usa a chave diária.
-- **Marcadores de sessão como tipo de entrada no log (escolhida):** reutiliza toda a infraestrutura existente — `logActivity()`, buffer localStorage, Realtime broadcast, feed. Zero mudança de schema.
-
-**Impactos:**
-- Dois novos tipos no `TYPE_CFG` do MonitoringTab: `session_start` e `session_end`. São ignorados automaticamente pelos filtros Leads/Sync/Perf (não batem em nenhum padrão existente), pelos stats e pelos cards de vendedor.
-- `clearActivityDay(null)` já existia e já disparava o `CustomEvent` — o botão de limpeza apenas chama essa função com confirmação de dois cliques.
-- `hasActiveSession` é derivado do estado `logs` em memória — sem nova chamada ao localStorage.
-- `activeEvento` detectado por `eventos.find(e => e.status === 'ativo')` — sem nova query ao Supabase; usa o contexto já carregado pelo AppProvider.
-- Toolbar visível apenas em modo "Hoje" — histórico é somente leitura (invariante existente mantida).
-
-**Regras mantidas:**
-- Sem acesso direto ao `dataService` — `logActivity()` é a API pública de `activityLog.js`.
-- Sem estado novo no `AppContext`.
-- `confirmClear` reseta ao trocar de dia, evitando estado fantasma.
-
-**Arquivos Afetados:**
-- `src/features/monitoring/MonitoringTab.jsx` — toolbar, SessionMarker, novos tipos, handlers
-
-**Status:** Ativa
-
----
-
-### [D-047] — Monitor: canal Realtime único (fix do conflito de canais duplicados)
-
-**Data:** 2026-06-18
-**Tipo:** Bugfix Arquitetural (incremento sobre D-046)
-
-**Decisão:** Consolidar em um único canal Supabase Realtime por cliente. `activityLog.js` é o dono exclusivo do canal `rjnet-monitor` — tanto para envio quanto para recepção. `MonitoringTab` não cria canal próprio; registra callbacks via `subscribeToRemoteLogs(callback)`.
-
-**Motivação:** D-046 introduziu um bug sutil: tanto `activityLog.js` quanto `MonitoringTab.jsx` chamavam `supabase.channel('rjnet-monitor')`, criando dois objetos de canal distintos no mesmo cliente Supabase. Pelo design do Supabase JS v2, `.on('broadcast')` só recebe eventos se registrado **antes** de `.subscribe()` — em ambos os canais isso não estava sendo respeitado. Resultado observado: broadcasts chegavam ao servidor Supabase (a tela do marketing atualizava via DB Realtime) mas nunca eram entregues ao feed do Monitor.
-
-**Causa Raiz Detalhada:**
-1. `activityLog.js` channel: chamava `.subscribe()` sem `.on('broadcast')` — não recebia nada
-2. `MonitoringTab.jsx` channel: chamava `.subscribe()` sem `.on('broadcast')` antes — não recebia nada  
-3. Dois canais com mesmo nome no mesmo cliente = conflito interno no Supabase JS v2
-
-**Solução:**
-- `activityLog.js`: canal único com `.on('broadcast', { event: 'log' }, handler)` registrado ANTES de `.subscribe()`. Array `_listeners` para callbacks externos. `_queue` acumula envios até `SUBSCRIBED`.
-- `MonitoringTab.jsx`: usa `subscribeToRemoteLogs(callback)` — zero canais, apenas register/unregister de callback.
-
-**Regra Estabelecida:** Em Supabase JS v2, toda chamada `.on('broadcast')` DEVE preceder `.subscribe()`. Nunca criar dois canais com o mesmo nome no mesmo cliente.
-
-**Arquivos Afetados:**
-- `src/lib/activityLog.js` — canal único, novo export `subscribeToRemoteLogs(callback)`, `_listeners`, `_queue`
-- `src/features/monitoring/MonitoringTab.jsx` — removido canal próprio, usa `subscribeToRemoteLogs()`; removidos imports `supabase` e `receiveActivityLog`
-
-**Status:** Ativa (substitui implementação parcial de D-046)
-
----
-
-### [D-046] — Monitor: Supabase Realtime Broadcast para cobertura entre dispositivos
-
-**Data:** 2026-06-17
-**Tipo:** Feature (incremento sobre D-045)
-
-**Decisão:** Adicionar broadcast Supabase Realtime em cada `logActivity()` para transmitir eventos de atividade entre dispositivos diferentes, cobrindo o cenário principal de uso: marketing monitorando pelo celular enquanto vendedores cadastram nos próprios celulares em campo.
-
-**Motivação:** `CustomEvent` e `storage` event são isolados por dispositivo/browser. Sem comunicação entre dispositivos, o Monitor só funcionava no cenário de duas abas no mesmo aparelho. O caso de uso real é um dispositivo por pessoa em campo.
-
-**Alternativas Avaliadas:**
-- **Tabela `activity_log` no Supabase + Realtime de DB:** rejeitada — requer migration, RLS, dados de sessão no banco, implicações de LGPD.
-- **Polling periódico de uma tabela:** rejeitada — latência alta, overhead de queries, complexidade de schema.
-- **WebSocket próprio / servidor intermediário:** rejeitada — infraestrutura extra desnecessária dado que o Supabase Realtime já está no projeto.
-- **Supabase Realtime Broadcast (escolhida):** sem schema, sem banco, transiente (não persiste no servidor), multiplexa na WebSocket já existente — zero custo de infraestrutura adicional.
-
-**Impactos:**
-- `activityLog.js` agora importa `supabase` — quebra o princípio original de zero dependências do módulo (D-044). Aceito: `supabase.js` não cria dependência circular.
-- Canal `rjnet-monitor` aberto no carregamento do módulo em qualquer perfil (inclusive VendedorApp). O vendedor transmite mas nunca recebe — WebSocket multiplexado, sem custo extra perceptível.
-- `receiveActivityLog(record)` persiste evento externo no localStorage do marketing com dedup por ID — histórico acumulado mesmo de outros dispositivos.
-- `MonitoringTab` assina `rjnet-monitor` apenas quando visualizando "Hoje" — subscription limpa no unmount.
-- Cobertura completa: 3 camadas (CustomEvent → storage → Realtime) cobrem todos os cenários de acesso.
-
-**Riscos e Limitações:**
-- Canal público (anon key): sem controle de quem assina. Aceitável para equipe interna; revisar em escala multi-cliente.
-- Sem garantia de entrega em queda de rede — broadcast não é retransmitido. `lead_sync_ok` cobre a confirmação posterior quando a fila offline processa.
-- Limite Supabase Free: 200 conexões simultâneas — muito acima do uso esperado (5–15 vendedores).
-
-**Arquivos Afetados:**
-- `src/lib/activityLog.js` — broadcast em `logActivity()`, novo export `receiveActivityLog()`
-- `src/features/monitoring/MonitoringTab.jsx` — terceiro listener Realtime, remoção do botão Limpar
-
-**Status:** Ativa
-
----
-
-### [D-045] — Monitor: persistência por dia via localStorage com chave por data
-
-**Data:** 2026-06-17  
-**Tipo:** Feature (incremento sobre D-044 e D-044b)
-
-**Decisão:** Migrar o buffer de atividade de `sessionStorage` para `localStorage` usando chaves no formato `rjnet_activity_YYYY-MM-DD`. Cada dia de evento gera sua própria chave. O MonitoringTab exibe um seletor de dias anteriores e carrega o log correspondente sob demanda.
-
-**Motivação:** O criador do sistema monitora eventos ao vivo e depois analisa o que aconteceu no dia seguinte (ou horas depois). Com `sessionStorage`, o histórico apagava ao fechar a aba. A necessidade é pontual — só dias de evento — mas o valor de ter o log preservado é alto (identificar padrões de falha, confirmar que todos os leads foram sincronizados, entender por que o app travou no horário de pico).
-
-**Alternativas Avaliadas:**
-- **Manter sessionStorage + botão de export JSON:** rejeitado — exige que o usuário lembre de exportar antes de fechar. Histórico depende de ação manual.
-- **Tabela `activity_log` no Supabase:** rejeitado — requer migration, RLS, e levanta questões de LGPD (dados comportamentais de vendedores no servidor precisam de finalidade documentada). Overhead desproporcional para uso pontual.
-- **IndexedDB:** rejeitado — API mais complexa, sem benefício sobre localStorage para volumes de 200 entradas/dia.
-
-**Impactos:**
-- `activityLog.js` agora escreve em `localStorage` com chave diária. Dados do dia corrente persistem entre reloads e fechamentos de aba.
-- Auto-purge de dias > 30 dias na primeira chamada de `logActivity()` por sessão (guard `_pruned` evita execução repetida).
-- `getActivityDays()` itera as chaves do `localStorage` e retorna apenas as que começam com `rjnet_activity_` — sem conflito com outras chaves do app.
-- `MonitoringTab`: real-time listener (`rjnet:activity`) ativo apenas quando visualizando "Hoje". Ao trocar para dia passado, o feed é somente leitura.
-- "Limpar" em dia passado: remove a chave do localStorage e retorna para Hoje. "Limpar" em Hoje: comportamento idêntico ao anterior.
-- Espaço estimado: ~60 KB/dia (200 entradas × ~300 bytes). 30 dias = ~1,8 MB — bem dentro do limite de 5–10 MB do localStorage.
-
-**Arquivos Afetados:**
-- `src/lib/activityLog.js` — reescrito: `sessionStorage` → `localStorage`, novos exports `getActivityLogsForDay`, `getActivityDays`, `clearActivityDay`
-- `src/features/monitoring/MonitoringTab.jsx` — seletor de dias, banner histórico, real-time condicional
-
-**Riscos:** `localStorage.length` e `localStorage.key(i)` são síncronos e percorrem todas as chaves (não apenas as nossas). Em dispositivos com muitas extensões de browser que também usam localStorage, pode haver lentidão mínima. O try/catch em `getActivityDays()` e `pruneOldDays()` isola falhas em modo privado ou com storage bloqueado.
-
-**Status:** Ativa
-
----
-
-### [D-044] — Aba Monitor: diagnóstico ao vivo baseado em buffer de sessão
-
-**Data:** 2026-06-17  
-**Tipo:** Feature
-
-**Decisão:** Implementar aba "Monitor" no perfil marketing usando um buffer circular em `sessionStorage` (`src/lib/activityLog.js`) em vez de persistência no banco ou integração com serviço de logging externo.
-
-**Motivação:** O criador do sistema monitora eventos ao vivo pelo perfil marketing e precisava saber onde o app quebra para o vendedor (sync errors, leads offline, req. lentas) sem depender de DevTools ou logs de servidor.
-
-**Alternativas Avaliadas:**
-- **Banco de dados / tabela de audit_monitor:** rejeitada — LGPD concerns (dados de sessão não deveriam ir ao banco sem finalidade definida), latência de escrita, overhead de schema.
-- **Serviço externo (Sentry, LogRocket):** rejeitada — dependência externa, custo, escopo de dados desproporcionalmente amplo para a necessidade.
-- **localStorage permanente:** rejeitada — acumula dados entre sessões sem utilidade; `sessionStorage` é mais adequado (escopo da sessão = escopo do evento monitorado).
-- **Melhorias pontuais no SyncBadge:** considerada primeiro, mas o criador do sistema tem necessidade de diagnóstico mais amplo (por vendedor, por operação) que um popover de erro não cobre.
-
-**Impactos:**
-- `logActivity()` é chamado em 6 pontos de instrumentação: `trackPerf` (perf_warn), `exec` (sync_error), `addToQueue` (offline_queue), `addLead`, `updateLead`, `removeLead` (lead_add/update/remove com vendedorNome).
-- Correlação vendor → sync_error: heurística de janela temporal de 5 s (se houve sync_error dentro de 5 s da última ação de um vendedor, o card dele exibe `⚠ erro`). Imperfeita mas útil na prática.
-- Dados somem ao fechar a aba — comportamento intencional, logs de sessão não devem ser permanentes.
-- Funciona em ambos os modos (Supabase e local).
-
-**Arquivos Afetados:**
-- `src/lib/activityLog.js` (novo)
-- `src/features/monitoring/MonitoringTab.jsx` (novo)
-- `src/features/monitoring/index.js` (novo)
-- `src/lib/dataService.js` — 3 chamadas adicionadas
-- `src/api/leadApi.js` — 3 chamadas adicionadas
-- `src/components/ui.jsx` — ícone `activity` adicionado
-- `src/apps/MarketingApp.jsx` — tab Monitor adicionada
-
-**Riscos:** Nenhum crítico. `sessionStorage.setItem` pode falhar silenciosamente em modo de navegação privada com storage cheio (tratado com try/catch). O overhead de serialização JSON para 200 entradas é negligenciável.
-
-**Status:** Ativa — atualizado em D-044b com melhorias de campo
-
----
-
-### [D-044b] — Monitor v2: sync confirmado, descrições legíveis e filtros separados
-
-**Data:** 2026-06-17  
-**Tipo:** Feature (incremento sobre D-044)
-
-**Decisão:** Adicionar tipo `lead_sync_ok` via callback `onSuccess` em `exec()`, reescrever `MonitoringTab` com descrições em linguagem de campo e separar filtros `Sync` / `Perf`.
-
-**Motivação:** Em produção, o botão "Erros (3)" mostrava 3 `perf_warn` (req. lentas), não falhas reais de sync — enganoso em campo. Além disso, o usuário não conseguia entender o impacto de cada evento sem abrir DevTools.
-
-**Alternativas Avaliadas:**
-- Manter `level === 'error'` como critério de filtro: rejeitado — `perf_warn` usa `level: 'info'` mas ainda aparecia no agrupamento "Erros" original, confundindo lentidão tolerável com dado perdido.
-- Adicionar tooltips no hover: rejeitado — em campo (mobile, evento barulhento) hover não é viável.
-
-**Impactos:**
-- `exec(promise, acao, onFail, onSuccess)` — 4º param opcional, zero breaking change (todos os callsites existentes continuam funcionando sem ele).
-- `db.saveLead` é o único método que recebe `onSuccess` — o único ponto de escrita onde a identidade do vendedor está disponível no callsite.
-- Feed agora mostra linha `↳ descrição` para todos os 7 tipos de evento; vendedor consegue ler "confirmado no servidor — dado salvo com segurança" ou "lista de leads demorou — vendedor aguardou para ver seus registros" sem interpretação técnica.
-- Card de vendedor mostra total real do contexto (leads carregados em memória filtrados por `vendedorNome`) quando maior que o total da sessão — resolve discrepância visual para leads cadastrados antes da sessão atual.
-
-**Arquivos Afetados:**
-- `src/lib/dataService.js` — `exec()` + `db.saveLead()` modificados
-- `src/api/leadApi.js` — `addLead` e `updateLead` passam `onSuccess` callback
-- `src/features/monitoring/MonitoringTab.jsx` — reescrita completa
-
-**Riscos:** Nenhum novo. `onSuccess` nunca é chamado se `exec` não completa com sucesso, portanto `lead_sync_ok` nunca é um falso positivo.
-
-**Status:** Ativa
-
----
-
-### [D-043] — Suspensão temporária do campo de consentimento LGPD na UI
-
-**Data:** 2026-06-17  
-**Contexto:** O campo de consentimento LGPD (checkbox "Consentimento LGPD — o titular assinou a ficha...") foi implementado em PA-04/D-033. A validação bloqueava o envio do formulário caso não estivesse marcado. A decisão de qual processo externo adotar (ficha física, termo digital, fluxo de coleta) ainda não foi tomada pelos stakeholders.  
-**Decisão:** Ocultar o campo da UI e suspender a validação de bloqueio enquanto as decisões externas não estiverem definidas.  
-**O que NÃO mudou:**
-- Colunas `consentimento_coletado`, `consentimento_em` e `versao_termo` permanecem no banco (sem rollback de schema)
-- `leadFromDb` / `leadToDb` em `dataService.js` continuam mapeando os campos
-- `FORM_VAZIO` mantém `consentimentoColetado: false` — ao reativar, basta descomentar o bloco e a validação
-**Motivação:** Expor o campo sem que o processo externo esteja definido cria obrigações legais (LGPD art. 7°, I) que o sistema ainda não está preparado para cumprir completamente. Pior do que não coletar é coletar e não honrar o processo.  
-**Como reativar:** Remover o comentário `{/* D-043 */}` em `VendedorApp.jsx` (linha ~339) e reintroduzir a validação `if (!f.consentimentoColetado)`. Registrar nova decisão com o processo definido.  
-**Status:** Ativa
-
----
-
-### [D-035] — PA-08: CPF endereçado — remoção do check-in por CPF + reintrodução como campo opcional com finalidade declarada
-
-**Data:** 2026-06-16  
-**Contexto:** PA-08 exige endereçar CPF em texto plano na tabela `leads`. O plano oferecia 3 opções: remover, criptografar (pgcrypto) ou hash (SHA-256). O check-in usava CPF como identificador.  
-**Decisão em duas partes:**
-1. **Check-in migrado** para busca por substring de **nome** dentro do evento — CPF removido do fluxo de identificação.
-2. **CPF reintroduzido como campo opcional** no formulário de captura com finalidade declarada no label: *"opcional — para visita técnica e contrato"*. Ver D-042 para a decisão detalhada de reintrodução.
-
-**Justificativa da remoção do check-in por CPF:** O evento filtra os leads; o nome é suficiente para identificar presença no contexto de check-in. Coletar CPF sem finalidade obrigatória violaria o princípio da minimização (art. 6°, III da LGPD).  
-**Alternativas rejeitadas (para o check-in):**
-- Hash SHA-256 — perde a busca por prefixo parcial; CPF ainda seria coletado (risco na transmissão)
-- pgcrypto — chave precisa ser acessível ao app; não elimina risco de coleta  
-**Consequências:** `CheckinTab` reescrito com busca por substring de nome (permanente). CPF como campo opcional no formulário de captura e edição inline — ver D-042. Risco residual (texto plano) aceito e documentado.
-
----
-
-### [D-034] — PA-05: Derivação de chave PBKDF2 a partir do userId para criptografia da fila offline
-
-**Data:** 2026-06-16  
-**Contexto:** PA-05 exige criptografar o localStorage da fila offline de leads. A chave precisa ser acessível durante a sessão e descartada no logout, sem necessidade de senha extra do usuário.  
-**Decisão:** Derivar a chave AES-GCM 256 bits do `userId` via PBKDF2-SHA256 (100.000 iterações, salt público fixo por versão). A chave fica cacheada em memória (Map) e é descartada ao fazer logout ou ao recarregar a página.  
-**Alternativas consideradas:**
-- Chave aleatória por sessão persistida no sessionStorage — descartada ao fechar a aba, mas sessionStorage também é acessível por JS local (mesma limitação)
-- Prompt de senha adicional do usuário — rejeitado: UX inaceitável para vendedores em campo
-- Sem criptografia — rejeitado: NC S-02 da auditoria LGPD  
-
-**Limitação aceita:** Proteção derivada do `userId` (não de senha), portanto não protege contra quem conhece o `userId`. O objetivo é proteger contra acesso físico ao dispositivo por terceiro que não conhece o `userId`. Documentado em `src/lib/crypto.js`.  
-**Consequências:** `getQueue()`/`saveQueue()` tornadas assíncronas; fallback silencioso para texto plano quando `crypto.subtle` não estiver disponível (ambientes SSR ou muito antigos).
-
----
-
-### [D-033] — PA-04: Opção A (ficha física) para consentimento LGPD na captação de leads
-
-**Data:** 2026-06-16  
-**Contexto:** PA-04 do Plano de Ação LGPD (NC L-01, L-02, L-03) — dados pessoais coletados sem consentimento documentado do titular, sem informação sobre finalidade ou controlador.
-
-**Decisão:** Implementar **Opção A — Ficha física de consentimento**, com registro digital no sistema.
-- O vendedor apresenta ficha física ao titular no evento (a ser impressa pelo marketing)
-- O titular assina a ficha; o vendedor marca o checkbox no app antes de registrar
-- Os campos `consentimento_coletado`, `consentimento_em` e `versao_termo` são gravados no banco
-
-**Alternativas consideradas:**
-- **Opção B (QR Code / formulário digital):** mais robusto (IP, timestamp no próprio dispositivo do titular), mas requer desenvolvimento de rota pública, política de privacidade publicada e infraestrutura adicional — escopo da Fase 4 (PA-16). Não descartada para evolução futura.
-
-**Motivação da escolha:** A Opção A é a mais rápida de implementar e válida juridicamente — o consentimento pode ser coletado em papel (art. 7º, I, LGPD não exige formato digital). A ficha física é prática no contexto de eventos de rua. O registro digital garante rastreabilidade no banco.
-
-**Versão do termo:** `v1.0` — referencia `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` (a ser criado em PA-16).
-
-**Arquivos Afetados:**
-- `supabase/migracao-consentimento.sql` (novo)
-- `src/lib/dataService.js` — `leadFromDb` e `leadToDb`
-- `src/apps/VendedorApp.jsx` — checkbox obrigatório + validação
-
-**Status:** Ativa
-
----
-
-### [D-032] — PA-01: Estratégia de proteção de credenciais legadas do bundle JavaScript
-
-**Data:** 2026-06-16  
-**Contexto:** PA-01 do Plano de Ação LGPD (NC S-01) — `VITE_MARKETING_PASS` era lida em escopo de módulo em `src/auth/Login.jsx` e incorporada literalmente no bundle JavaScript público pelo Vite (substituição estática em build time).
-
-**Decisão:** Proteção em duas camadas:
-1. **Guard de build** (`vite.config.js`): plugin `lgpdCredentialGuard` que aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida — impede deploys acidentais com credenciais no bundle
-2. **Guard de runtime** (`src/auth/Login.jsx`): `console.error` crítico quando `import.meta.env.PROD && import.meta.env.VITE_MARKETING_PASS` — camada secundária para detectar casos onde a variável passou pelo build
-
-**Alternativas consideradas:**
-- **Hash da senha no bundle** (SHA-256 de `VITE_MARKETING_PASS`): mitigaria exposição direta, mas continuaria vulnerável a rainbow tables para senhas fracas. Descartada — complexidade sem garantia de segurança adequada.
-- **Edge Function de autenticação legada**: exige Supabase ativo — incompatível com o modo legado que existe justamente quando Supabase não está configurado. Descartada — contradição arquitetural.
-- **Remoção total do modo legado**: eliminaria S-01 completamente, mas quebraria o fluxo de demo/desenvolvimento local. Descartada — impacto operacional sem benefício proporcional em ambientes onde a variável não é definida.
-
-**Motivação da escolha:** A raiz do problema é operacional (alguém definir `VITE_MARKETING_PASS` nas variáveis de produção da Vercel), não apenas técnica. A solução mais eficaz é impedir que o build complete nessa condição — o código não chega ao deployment. O guard de runtime é defesa em profundidade.
-
-**Restrição documentada:** O modo legado (`RootLegacy` → `Login`) é **estritamente para desenvolvimento local** e nunca deve ter `VITE_MARKETING_PASS` definida em ambientes com `NODE_ENV=production`.
-
-**Arquivos Afetados:**
-- `vite.config.js` — plugin `lgpdCredentialGuard` adicionado
-- `src/auth/Login.jsx` — objeto `AUTH` removido; guard de runtime adicionado; credenciais lidas em handler `submit()`
-- `src/auth/index.js` — re-export de `AUTH` removido
-- `.env.example` — aviso de segurança adicionado
-
-**Status:** Ativa
-
----
-
-### [D-031] — Auditoria de LGPD, segurança e governança de dados
-
-**Data:** 2026-06-16
-
-**Tipo:** Segurança / Governança / Compliance
-
-**Decisão:**
-Realização de auditoria completa de LGPD, segurança da informação, governança de dados e arquitetura Supabase do sistema. Os resultados foram documentados em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` como fonte oficial de conformidade. Um plano de ação executável com 21 itens foi criado em `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
-
-**Motivação:**
-O sistema trata dados pessoais de cidadãos (titulares externos) capturados durante eventos comerciais, sem mecanismo de consentimento implementado. A auditoria foi necessária para identificar e priorizar as não conformidades com a LGPD (Lei 13.709/2018) e com as boas práticas de segurança da informação.
-
-**Principais não conformidades identificadas:**
-- Ausência total de consentimento LGPD para coleta de dados de leads (L-01)
-- Senha de marketing exposta no bundle JavaScript público via `VITE_MARKETING_PASS` (S-01)
-- Policies anônimas no `schema.sql` que concedem acesso total sem autenticação se `migracao-auth.sql` não estiver aplicado (BD-01)
-- CORS aberto na Edge Function administrativa (S-04)
-- Sem log de exportações CSV contendo dados pessoais (A-01)
-- Sem política de retenção de dados (L-04)
-- Transferência internacional de dados sem DPA com Supabase Inc. (L-07)
-
-**Nota geral de conformidade obtida:** 4,2 / 10
-
-**Plano de ação:** 21 ações organizadas em 4 fases (imediata, curto, médio e longo prazo). Ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md` para o plano completo com responsáveis, prazos e evidências.
-
-**Alternativas Avaliadas:**
-Correção pontual de itens críticos sem auditoria formal — descartada pois não garante visão completa dos riscos nem conformidade sistêmica.
-
-**Impactos:**
-- Cria a base documental obrigatória para eventual fiscalização pela ANPD
-- Define roteiro técnico claro para elevar a nota de conformidade de 4,2 para 8,7 (após Fase 4)
-- Incorpora `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` e `doc/lgpd/PLANO_DE_ACAO_LGPD.md` como documentos obrigatórios de referência no `CLAUDE.md`
-
-**Arquivos afetados:**
-- `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` (criado)
-- `doc/lgpd/PLANO_DE_ACAO_LGPD.md` (criado)
-- `CLAUDE.md` (atualizado — tabela de referência de documentação)
-
-**Riscos:**
-- Ações do plano não implementadas geram risco regulatório contínuo
-- Sem DPO nomeado, a execução do plano pode ficar sem responsável formal
-
-**Status:** Ativa
-
----
+> **Nota de reorganização (2026-07-08):** esta seção foi reordenada para ordem cronológica ascendente (D-001 → D-071), substituindo a ordem anterior (recente-primeiro para D-043–D-051, depois ascendente do zero para D-001–D-042, depois ascendente de novo para D-055 em diante) que misturava as duas convenções e dificultava a leitura linear da evolução do sistema. Quatro lacunas de numeração (D-052, D-053, D-054, D-056) foram preenchidas com registros reconstruídos a partir de `CLAUDE.md`/`SYSTEM_MAP.md` (ver nota de reconstrução em cada uma). **Convenção daí em diante: toda nova decisão é adicionada ao final da lista, em ordem crescente de ID.**
 
 ### [D-001] — Arquitetura monolítica inicial em `src/main.jsx`
 
@@ -1576,6 +1138,137 @@ Eliminar os 6 desvios arquiteturais identificados na auditoria, garantindo que n
 
 ---
 
+### [D-031] — Auditoria de LGPD, segurança e governança de dados
+
+**Data:** 2026-06-16
+
+**Tipo:** Segurança / Governança / Compliance
+
+**Decisão:**
+Realização de auditoria completa de LGPD, segurança da informação, governança de dados e arquitetura Supabase do sistema. Os resultados foram documentados em `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` como fonte oficial de conformidade. Um plano de ação executável com 21 itens foi criado em `doc/lgpd/PLANO_DE_ACAO_LGPD.md`.
+
+**Motivação:**
+O sistema trata dados pessoais de cidadãos (titulares externos) capturados durante eventos comerciais, sem mecanismo de consentimento implementado. A auditoria foi necessária para identificar e priorizar as não conformidades com a LGPD (Lei 13.709/2018) e com as boas práticas de segurança da informação.
+
+**Principais não conformidades identificadas:**
+- Ausência total de consentimento LGPD para coleta de dados de leads (L-01)
+- Senha de marketing exposta no bundle JavaScript público via `VITE_MARKETING_PASS` (S-01)
+- Policies anônimas no `schema.sql` que concedem acesso total sem autenticação se `migracao-auth.sql` não estiver aplicado (BD-01)
+- CORS aberto na Edge Function administrativa (S-04)
+- Sem log de exportações CSV contendo dados pessoais (A-01)
+- Sem política de retenção de dados (L-04)
+- Transferência internacional de dados sem DPA com Supabase Inc. (L-07)
+
+**Nota geral de conformidade obtida:** 4,2 / 10
+
+**Plano de ação:** 21 ações organizadas em 4 fases (imediata, curto, médio e longo prazo). Ver `doc/lgpd/PLANO_DE_ACAO_LGPD.md` para o plano completo com responsáveis, prazos e evidências.
+
+**Alternativas Avaliadas:**
+Correção pontual de itens críticos sem auditoria formal — descartada pois não garante visão completa dos riscos nem conformidade sistêmica.
+
+**Impactos:**
+- Cria a base documental obrigatória para eventual fiscalização pela ANPD
+- Define roteiro técnico claro para elevar a nota de conformidade de 4,2 para 8,7 (após Fase 4)
+- Incorpora `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` e `doc/lgpd/PLANO_DE_ACAO_LGPD.md` como documentos obrigatórios de referência no `CLAUDE.md`
+
+**Arquivos afetados:**
+- `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` (criado)
+- `doc/lgpd/PLANO_DE_ACAO_LGPD.md` (criado)
+- `CLAUDE.md` (atualizado — tabela de referência de documentação)
+
+**Riscos:**
+- Ações do plano não implementadas geram risco regulatório contínuo
+- Sem DPO nomeado, a execução do plano pode ficar sem responsável formal
+
+**Status:** Ativa
+
+---
+
+### [D-032] — PA-01: Estratégia de proteção de credenciais legadas do bundle JavaScript
+
+**Data:** 2026-06-16  
+**Contexto:** PA-01 do Plano de Ação LGPD (NC S-01) — `VITE_MARKETING_PASS` era lida em escopo de módulo em `src/auth/Login.jsx` e incorporada literalmente no bundle JavaScript público pelo Vite (substituição estática em build time).
+
+**Decisão:** Proteção em duas camadas:
+1. **Guard de build** (`vite.config.js`): plugin `lgpdCredentialGuard` que aborta `npm run build` com `NODE_ENV=production` se `VITE_MARKETING_PASS` estiver definida — impede deploys acidentais com credenciais no bundle
+2. **Guard de runtime** (`src/auth/Login.jsx`): `console.error` crítico quando `import.meta.env.PROD && import.meta.env.VITE_MARKETING_PASS` — camada secundária para detectar casos onde a variável passou pelo build
+
+**Alternativas consideradas:**
+- **Hash da senha no bundle** (SHA-256 de `VITE_MARKETING_PASS`): mitigaria exposição direta, mas continuaria vulnerável a rainbow tables para senhas fracas. Descartada — complexidade sem garantia de segurança adequada.
+- **Edge Function de autenticação legada**: exige Supabase ativo — incompatível com o modo legado que existe justamente quando Supabase não está configurado. Descartada — contradição arquitetural.
+- **Remoção total do modo legado**: eliminaria S-01 completamente, mas quebraria o fluxo de demo/desenvolvimento local. Descartada — impacto operacional sem benefício proporcional em ambientes onde a variável não é definida.
+
+**Motivação da escolha:** A raiz do problema é operacional (alguém definir `VITE_MARKETING_PASS` nas variáveis de produção da Vercel), não apenas técnica. A solução mais eficaz é impedir que o build complete nessa condição — o código não chega ao deployment. O guard de runtime é defesa em profundidade.
+
+**Restrição documentada:** O modo legado (`RootLegacy` → `Login`) é **estritamente para desenvolvimento local** e nunca deve ter `VITE_MARKETING_PASS` definida em ambientes com `NODE_ENV=production`.
+
+**Arquivos Afetados:**
+- `vite.config.js` — plugin `lgpdCredentialGuard` adicionado
+- `src/auth/Login.jsx` — objeto `AUTH` removido; guard de runtime adicionado; credenciais lidas em handler `submit()`
+- `src/auth/index.js` — re-export de `AUTH` removido
+- `.env.example` — aviso de segurança adicionado
+
+**Status:** Ativa
+
+---
+
+### [D-033] — PA-04: Opção A (ficha física) para consentimento LGPD na captação de leads
+
+**Data:** 2026-06-16  
+**Contexto:** PA-04 do Plano de Ação LGPD (NC L-01, L-02, L-03) — dados pessoais coletados sem consentimento documentado do titular, sem informação sobre finalidade ou controlador.
+
+**Decisão:** Implementar **Opção A — Ficha física de consentimento**, com registro digital no sistema.
+- O vendedor apresenta ficha física ao titular no evento (a ser impressa pelo marketing)
+- O titular assina a ficha; o vendedor marca o checkbox no app antes de registrar
+- Os campos `consentimento_coletado`, `consentimento_em` e `versao_termo` são gravados no banco
+
+**Alternativas consideradas:**
+- **Opção B (QR Code / formulário digital):** mais robusto (IP, timestamp no próprio dispositivo do titular), mas requer desenvolvimento de rota pública, política de privacidade publicada e infraestrutura adicional — escopo da Fase 4 (PA-16). Não descartada para evolução futura.
+
+**Motivação da escolha:** A Opção A é a mais rápida de implementar e válida juridicamente — o consentimento pode ser coletado em papel (art. 7º, I, LGPD não exige formato digital). A ficha física é prática no contexto de eventos de rua. O registro digital garante rastreabilidade no banco.
+
+**Versão do termo:** `v1.0` — referencia `doc/lgpd/POLITICA_DE_PRIVACIDADE.md` (a ser criado em PA-16).
+
+**Arquivos Afetados:**
+- `supabase/migracao-consentimento.sql` (novo)
+- `src/lib/dataService.js` — `leadFromDb` e `leadToDb`
+- `src/apps/VendedorApp.jsx` — checkbox obrigatório + validação
+
+**Status:** Ativa
+
+---
+
+### [D-034] — PA-05: Derivação de chave PBKDF2 a partir do userId para criptografia da fila offline
+
+**Data:** 2026-06-16  
+**Contexto:** PA-05 exige criptografar o localStorage da fila offline de leads. A chave precisa ser acessível durante a sessão e descartada no logout, sem necessidade de senha extra do usuário.  
+**Decisão:** Derivar a chave AES-GCM 256 bits do `userId` via PBKDF2-SHA256 (100.000 iterações, salt público fixo por versão). A chave fica cacheada em memória (Map) e é descartada ao fazer logout ou ao recarregar a página.  
+**Alternativas consideradas:**
+- Chave aleatória por sessão persistida no sessionStorage — descartada ao fechar a aba, mas sessionStorage também é acessível por JS local (mesma limitação)
+- Prompt de senha adicional do usuário — rejeitado: UX inaceitável para vendedores em campo
+- Sem criptografia — rejeitado: NC S-02 da auditoria LGPD  
+
+**Limitação aceita:** Proteção derivada do `userId` (não de senha), portanto não protege contra quem conhece o `userId`. O objetivo é proteger contra acesso físico ao dispositivo por terceiro que não conhece o `userId`. Documentado em `src/lib/crypto.js`.  
+**Consequências:** `getQueue()`/`saveQueue()` tornadas assíncronas; fallback silencioso para texto plano quando `crypto.subtle` não estiver disponível (ambientes SSR ou muito antigos).
+
+---
+
+### [D-035] — PA-08: CPF endereçado — remoção do check-in por CPF + reintrodução como campo opcional com finalidade declarada
+
+**Data:** 2026-06-16  
+**Contexto:** PA-08 exige endereçar CPF em texto plano na tabela `leads`. O plano oferecia 3 opções: remover, criptografar (pgcrypto) ou hash (SHA-256). O check-in usava CPF como identificador.  
+**Decisão em duas partes:**
+1. **Check-in migrado** para busca por substring de **nome** dentro do evento — CPF removido do fluxo de identificação.
+2. **CPF reintroduzido como campo opcional** no formulário de captura com finalidade declarada no label: *"opcional — para visita técnica e contrato"*. Ver D-042 para a decisão detalhada de reintrodução.
+
+**Justificativa da remoção do check-in por CPF:** O evento filtra os leads; o nome é suficiente para identificar presença no contexto de check-in. Coletar CPF sem finalidade obrigatória violaria o princípio da minimização (art. 6°, III da LGPD).  
+**Alternativas rejeitadas (para o check-in):**
+- Hash SHA-256 — perde a busca por prefixo parcial; CPF ainda seria coletado (risco na transmissão)
+- pgcrypto — chave precisa ser acessível ao app; não elimina risco de coleta  
+**Consequências:** `CheckinTab` reescrito com busca por substring de nome (permanente). CPF como campo opcional no formulário de captura e edição inline — ver D-042. Risco residual (texto plano) aceito e documentado.
+
+---
+
 ### [D-036] — QW-003: AbortSignal.timeout(15s) em fetchAll para evitar loading infinito
 
 **Data:** 2026-06-17  
@@ -1798,6 +1491,425 @@ CPF armazenado em texto plano (sem criptografia). O risco é menor do que na sit
 
 ---
 
+### [D-043] — Suspensão temporária do campo de consentimento LGPD na UI
+
+**Data:** 2026-06-17  
+**Contexto:** O campo de consentimento LGPD (checkbox "Consentimento LGPD — o titular assinou a ficha...") foi implementado em PA-04/D-033. A validação bloqueava o envio do formulário caso não estivesse marcado. A decisão de qual processo externo adotar (ficha física, termo digital, fluxo de coleta) ainda não foi tomada pelos stakeholders.  
+**Decisão:** Ocultar o campo da UI e suspender a validação de bloqueio enquanto as decisões externas não estiverem definidas.  
+**O que NÃO mudou:**
+- Colunas `consentimento_coletado`, `consentimento_em` e `versao_termo` permanecem no banco (sem rollback de schema)
+- `leadFromDb` / `leadToDb` em `dataService.js` continuam mapeando os campos
+- `FORM_VAZIO` mantém `consentimentoColetado: false` — ao reativar, basta descomentar o bloco e a validação
+**Motivação:** Expor o campo sem que o processo externo esteja definido cria obrigações legais (LGPD art. 7°, I) que o sistema ainda não está preparado para cumprir completamente. Pior do que não coletar é coletar e não honrar o processo.  
+**Como reativar:** Remover o comentário `{/* D-043 */}` em `VendedorApp.jsx` (linha ~339) e reintroduzir a validação `if (!f.consentimentoColetado)`. Registrar nova decisão com o processo definido.  
+**Status:** Ativa
+
+---
+
+### [D-044] — Aba Monitor: diagnóstico ao vivo baseado em buffer de sessão
+
+**Data:** 2026-06-17  
+**Tipo:** Feature
+
+**Decisão:** Implementar aba "Monitor" no perfil marketing usando um buffer circular em `sessionStorage` (`src/lib/activityLog.js`) em vez de persistência no banco ou integração com serviço de logging externo.
+
+**Motivação:** O criador do sistema monitora eventos ao vivo pelo perfil marketing e precisava saber onde o app quebra para o vendedor (sync errors, leads offline, req. lentas) sem depender de DevTools ou logs de servidor.
+
+**Alternativas Avaliadas:**
+- **Banco de dados / tabela de audit_monitor:** rejeitada — LGPD concerns (dados de sessão não deveriam ir ao banco sem finalidade definida), latência de escrita, overhead de schema.
+- **Serviço externo (Sentry, LogRocket):** rejeitada — dependência externa, custo, escopo de dados desproporcionalmente amplo para a necessidade.
+- **localStorage permanente:** rejeitada — acumula dados entre sessões sem utilidade; `sessionStorage` é mais adequado (escopo da sessão = escopo do evento monitorado).
+- **Melhorias pontuais no SyncBadge:** considerada primeiro, mas o criador do sistema tem necessidade de diagnóstico mais amplo (por vendedor, por operação) que um popover de erro não cobre.
+
+**Impactos:**
+- `logActivity()` é chamado em 6 pontos de instrumentação: `trackPerf` (perf_warn), `exec` (sync_error), `addToQueue` (offline_queue), `addLead`, `updateLead`, `removeLead` (lead_add/update/remove com vendedorNome).
+- Correlação vendor → sync_error: heurística de janela temporal de 5 s (se houve sync_error dentro de 5 s da última ação de um vendedor, o card dele exibe `⚠ erro`). Imperfeita mas útil na prática.
+- Dados somem ao fechar a aba — comportamento intencional, logs de sessão não devem ser permanentes.
+- Funciona em ambos os modos (Supabase e local).
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` (novo)
+- `src/features/monitoring/MonitoringTab.jsx` (novo)
+- `src/features/monitoring/index.js` (novo)
+- `src/lib/dataService.js` — 3 chamadas adicionadas
+- `src/api/leadApi.js` — 3 chamadas adicionadas
+- `src/components/ui.jsx` — ícone `activity` adicionado
+- `src/apps/MarketingApp.jsx` — tab Monitor adicionada
+
+**Riscos:** Nenhum crítico. `sessionStorage.setItem` pode falhar silenciosamente em modo de navegação privada com storage cheio (tratado com try/catch). O overhead de serialização JSON para 200 entradas é negligenciável.
+
+**Status:** Ativa — atualizado em D-044b com melhorias de campo
+
+---
+
+### [D-044b] — Monitor v2: sync confirmado, descrições legíveis e filtros separados
+
+**Data:** 2026-06-17  
+**Tipo:** Feature (incremento sobre D-044)
+
+**Decisão:** Adicionar tipo `lead_sync_ok` via callback `onSuccess` em `exec()`, reescrever `MonitoringTab` com descrições em linguagem de campo e separar filtros `Sync` / `Perf`.
+
+**Motivação:** Em produção, o botão "Erros (3)" mostrava 3 `perf_warn` (req. lentas), não falhas reais de sync — enganoso em campo. Além disso, o usuário não conseguia entender o impacto de cada evento sem abrir DevTools.
+
+**Alternativas Avaliadas:**
+- Manter `level === 'error'` como critério de filtro: rejeitado — `perf_warn` usa `level: 'info'` mas ainda aparecia no agrupamento "Erros" original, confundindo lentidão tolerável com dado perdido.
+- Adicionar tooltips no hover: rejeitado — em campo (mobile, evento barulhento) hover não é viável.
+
+**Impactos:**
+- `exec(promise, acao, onFail, onSuccess)` — 4º param opcional, zero breaking change (todos os callsites existentes continuam funcionando sem ele).
+- `db.saveLead` é o único método que recebe `onSuccess` — o único ponto de escrita onde a identidade do vendedor está disponível no callsite.
+- Feed agora mostra linha `↳ descrição` para todos os 7 tipos de evento; vendedor consegue ler "confirmado no servidor — dado salvo com segurança" ou "lista de leads demorou — vendedor aguardou para ver seus registros" sem interpretação técnica.
+- Card de vendedor mostra total real do contexto (leads carregados em memória filtrados por `vendedorNome`) quando maior que o total da sessão — resolve discrepância visual para leads cadastrados antes da sessão atual.
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` — `exec()` + `db.saveLead()` modificados
+- `src/api/leadApi.js` — `addLead` e `updateLead` passam `onSuccess` callback
+- `src/features/monitoring/MonitoringTab.jsx` — reescrita completa
+
+**Riscos:** Nenhum novo. `onSuccess` nunca é chamado se `exec` não completa com sucesso, portanto `lead_sync_ok` nunca é um falso positivo.
+
+**Status:** Ativa
+
+---
+
+### [D-045] — Monitor: persistência por dia via localStorage com chave por data
+
+**Data:** 2026-06-17  
+**Tipo:** Feature (incremento sobre D-044 e D-044b)
+
+**Decisão:** Migrar o buffer de atividade de `sessionStorage` para `localStorage` usando chaves no formato `rjnet_activity_YYYY-MM-DD`. Cada dia de evento gera sua própria chave. O MonitoringTab exibe um seletor de dias anteriores e carrega o log correspondente sob demanda.
+
+**Motivação:** O criador do sistema monitora eventos ao vivo e depois analisa o que aconteceu no dia seguinte (ou horas depois). Com `sessionStorage`, o histórico apagava ao fechar a aba. A necessidade é pontual — só dias de evento — mas o valor de ter o log preservado é alto (identificar padrões de falha, confirmar que todos os leads foram sincronizados, entender por que o app travou no horário de pico).
+
+**Alternativas Avaliadas:**
+- **Manter sessionStorage + botão de export JSON:** rejeitado — exige que o usuário lembre de exportar antes de fechar. Histórico depende de ação manual.
+- **Tabela `activity_log` no Supabase:** rejeitado — requer migration, RLS, e levanta questões de LGPD (dados comportamentais de vendedores no servidor precisam de finalidade documentada). Overhead desproporcional para uso pontual.
+- **IndexedDB:** rejeitado — API mais complexa, sem benefício sobre localStorage para volumes de 200 entradas/dia.
+
+**Impactos:**
+- `activityLog.js` agora escreve em `localStorage` com chave diária. Dados do dia corrente persistem entre reloads e fechamentos de aba.
+- Auto-purge de dias > 30 dias na primeira chamada de `logActivity()` por sessão (guard `_pruned` evita execução repetida).
+- `getActivityDays()` itera as chaves do `localStorage` e retorna apenas as que começam com `rjnet_activity_` — sem conflito com outras chaves do app.
+- `MonitoringTab`: real-time listener (`rjnet:activity`) ativo apenas quando visualizando "Hoje". Ao trocar para dia passado, o feed é somente leitura.
+- "Limpar" em dia passado: remove a chave do localStorage e retorna para Hoje. "Limpar" em Hoje: comportamento idêntico ao anterior.
+- Espaço estimado: ~60 KB/dia (200 entradas × ~300 bytes). 30 dias = ~1,8 MB — bem dentro do limite de 5–10 MB do localStorage.
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` — reescrito: `sessionStorage` → `localStorage`, novos exports `getActivityLogsForDay`, `getActivityDays`, `clearActivityDay`
+- `src/features/monitoring/MonitoringTab.jsx` — seletor de dias, banner histórico, real-time condicional
+
+**Riscos:** `localStorage.length` e `localStorage.key(i)` são síncronos e percorrem todas as chaves (não apenas as nossas). Em dispositivos com muitas extensões de browser que também usam localStorage, pode haver lentidão mínima. O try/catch em `getActivityDays()` e `pruneOldDays()` isola falhas em modo privado ou com storage bloqueado.
+
+**Status:** Ativa
+
+---
+
+### [D-046] — Monitor: Supabase Realtime Broadcast para cobertura entre dispositivos
+
+**Data:** 2026-06-17
+**Tipo:** Feature (incremento sobre D-045)
+
+**Decisão:** Adicionar broadcast Supabase Realtime em cada `logActivity()` para transmitir eventos de atividade entre dispositivos diferentes, cobrindo o cenário principal de uso: marketing monitorando pelo celular enquanto vendedores cadastram nos próprios celulares em campo.
+
+**Motivação:** `CustomEvent` e `storage` event são isolados por dispositivo/browser. Sem comunicação entre dispositivos, o Monitor só funcionava no cenário de duas abas no mesmo aparelho. O caso de uso real é um dispositivo por pessoa em campo.
+
+**Alternativas Avaliadas:**
+- **Tabela `activity_log` no Supabase + Realtime de DB:** rejeitada — requer migration, RLS, dados de sessão no banco, implicações de LGPD.
+- **Polling periódico de uma tabela:** rejeitada — latência alta, overhead de queries, complexidade de schema.
+- **WebSocket próprio / servidor intermediário:** rejeitada — infraestrutura extra desnecessária dado que o Supabase Realtime já está no projeto.
+- **Supabase Realtime Broadcast (escolhida):** sem schema, sem banco, transiente (não persiste no servidor), multiplexa na WebSocket já existente — zero custo de infraestrutura adicional.
+
+**Impactos:**
+- `activityLog.js` agora importa `supabase` — quebra o princípio original de zero dependências do módulo (D-044). Aceito: `supabase.js` não cria dependência circular.
+- Canal `rjnet-monitor` aberto no carregamento do módulo em qualquer perfil (inclusive VendedorApp). O vendedor transmite mas nunca recebe — WebSocket multiplexado, sem custo extra perceptível.
+- `receiveActivityLog(record)` persiste evento externo no localStorage do marketing com dedup por ID — histórico acumulado mesmo de outros dispositivos.
+- `MonitoringTab` assina `rjnet-monitor` apenas quando visualizando "Hoje" — subscription limpa no unmount.
+- Cobertura completa: 3 camadas (CustomEvent → storage → Realtime) cobrem todos os cenários de acesso.
+
+**Riscos e Limitações:**
+- Canal público (anon key): sem controle de quem assina. Aceitável para equipe interna; revisar em escala multi-cliente.
+- Sem garantia de entrega em queda de rede — broadcast não é retransmitido. `lead_sync_ok` cobre a confirmação posterior quando a fila offline processa.
+- Limite Supabase Free: 200 conexões simultâneas — muito acima do uso esperado (5–15 vendedores).
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` — broadcast em `logActivity()`, novo export `receiveActivityLog()`
+- `src/features/monitoring/MonitoringTab.jsx` — terceiro listener Realtime, remoção do botão Limpar
+
+**Status:** Ativa
+
+---
+
+### [D-047] — Monitor: canal Realtime único (fix do conflito de canais duplicados)
+
+**Data:** 2026-06-18
+**Tipo:** Bugfix Arquitetural (incremento sobre D-046)
+
+**Decisão:** Consolidar em um único canal Supabase Realtime por cliente. `activityLog.js` é o dono exclusivo do canal `rjnet-monitor` — tanto para envio quanto para recepção. `MonitoringTab` não cria canal próprio; registra callbacks via `subscribeToRemoteLogs(callback)`.
+
+**Motivação:** D-046 introduziu um bug sutil: tanto `activityLog.js` quanto `MonitoringTab.jsx` chamavam `supabase.channel('rjnet-monitor')`, criando dois objetos de canal distintos no mesmo cliente Supabase. Pelo design do Supabase JS v2, `.on('broadcast')` só recebe eventos se registrado **antes** de `.subscribe()` — em ambos os canais isso não estava sendo respeitado. Resultado observado: broadcasts chegavam ao servidor Supabase (a tela do marketing atualizava via DB Realtime) mas nunca eram entregues ao feed do Monitor.
+
+**Causa Raiz Detalhada:**
+1. `activityLog.js` channel: chamava `.subscribe()` sem `.on('broadcast')` — não recebia nada
+2. `MonitoringTab.jsx` channel: chamava `.subscribe()` sem `.on('broadcast')` antes — não recebia nada  
+3. Dois canais com mesmo nome no mesmo cliente = conflito interno no Supabase JS v2
+
+**Solução:**
+- `activityLog.js`: canal único com `.on('broadcast', { event: 'log' }, handler)` registrado ANTES de `.subscribe()`. Array `_listeners` para callbacks externos. `_queue` acumula envios até `SUBSCRIBED`.
+- `MonitoringTab.jsx`: usa `subscribeToRemoteLogs(callback)` — zero canais, apenas register/unregister de callback.
+
+**Regra Estabelecida:** Em Supabase JS v2, toda chamada `.on('broadcast')` DEVE preceder `.subscribe()`. Nunca criar dois canais com o mesmo nome no mesmo cliente.
+
+**Arquivos Afetados:**
+- `src/lib/activityLog.js` — canal único, novo export `subscribeToRemoteLogs(callback)`, `_listeners`, `_queue`
+- `src/features/monitoring/MonitoringTab.jsx` — removido canal próprio, usa `subscribeToRemoteLogs()`; removidos imports `supabase` e `receiveActivityLog`
+
+**Status:** Ativa (substitui implementação parcial de D-046)
+
+---
+
+### [D-048] — Monitor: marcadores de sessão de evento e limpeza de log
+
+**Data:** 2026-06-18
+**Tipo:** Feature
+
+**Decisão:** Adicionar marcadores visuais de início/fim de sessão de evento no feed do Monitor e botão de limpeza do log do dia corrente com confirmação em dois cliques.
+
+**Motivação:** O log persiste 30 dias, mas sem delimitadores não é possível saber onde um evento começa e termina no histórico. O operador de marketing precisa: (1) demarcar o início do monitoramento para separá-lo de dados de teste, (2) encerrar o registro formalmente com resumo de leads, (3) limpar dados fictícios antes do evento real.
+
+**Alternativas Avaliadas:**
+- **Filtro por horário:** exigiria UI de seleção de intervalo — complexidade desproporcional.
+- **Log por evento (eventoId como chave de storage):** quebraria o modelo de chave por data (D-045); misturaria com o Realtime que já usa a chave diária.
+- **Marcadores de sessão como tipo de entrada no log (escolhida):** reutiliza toda a infraestrutura existente — `logActivity()`, buffer localStorage, Realtime broadcast, feed. Zero mudança de schema.
+
+**Impactos:**
+- Dois novos tipos no `TYPE_CFG` do MonitoringTab: `session_start` e `session_end`. São ignorados automaticamente pelos filtros Leads/Sync/Perf (não batem em nenhum padrão existente), pelos stats e pelos cards de vendedor.
+- `clearActivityDay(null)` já existia e já disparava o `CustomEvent` — o botão de limpeza apenas chama essa função com confirmação de dois cliques.
+- `hasActiveSession` é derivado do estado `logs` em memória — sem nova chamada ao localStorage.
+- `activeEvento` detectado por `eventos.find(e => e.status === 'ativo')` — sem nova query ao Supabase; usa o contexto já carregado pelo AppProvider.
+- Toolbar visível apenas em modo "Hoje" — histórico é somente leitura (invariante existente mantida).
+
+**Regras mantidas:**
+- Sem acesso direto ao `dataService` — `logActivity()` é a API pública de `activityLog.js`.
+- Sem estado novo no `AppContext`.
+- `confirmClear` reseta ao trocar de dia, evitando estado fantasma.
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — toolbar, SessionMarker, novos tipos, handlers
+
+**Status:** Ativa
+
+---
+
+### [D-049] — Monitor: sync_ok para removeLead e severidade dinâmica de perf_warn
+
+**Data:** 2026-06-18
+**Tipo:** Feature / Bugfix
+
+**Decisão 1 — sync_ok para removeLead:** Estender `db.removeLead` com 3º param `onSuccess`, seguindo o padrão já estabelecido em `db.saveLead`. `leadApi.removeLead` passa callback que dispara `lead_sync_ok` após confirmação do Supabase.
+
+**Decisão 2 — severidade dinâmica de perf_warn:** Substituir label/cor estáticos de `perf_warn` por função `getPerfCfg(ms)` que retorna tiers visuais distintos conforme a gravidade do atraso.
+
+**Motivação:**
+- `lead_remove` era o único dos 3 tipos de mutação sem confirmação do servidor — loop incompleto, a mensagem "aguardando confirmação" ficava sem resposta.
+- `perf_warn` com 236160ms (4 min, provável timeout) aparecia idêntico a 1053ms (leve lentidão) — sem distinção de gravidade.
+
+**Tiers de perf_warn:**
+
+| ms | Label | Cor |
+|---|---|---|
+| ≥ 60 000 | timeout de rede (✗) | var(--red) |
+| ≥ 30 000 | possível timeout (⚡) | var(--red) |
+| ≥ 5 000 | req. muito lenta (⚡) | #f97316 |
+| ≥ 1 000 | req. lenta (⚡) | var(--yellow) |
+
+**Regras mantidas:**
+- `onFail` de `removeLead` (rollback de estado) preservado sem alteração.
+- Padrão `exec(promise, acao, onFail, onSuccess)` não foi alterado.
+- Tiers de perf_warn são puramente visuais (MonitoringTab) — não afetam o dado gravado em `logActivity`.
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` — `db.removeLead` aceita 3º param `onSuccess`
+- `src/api/leadApi.js` — `removeLead` passa `onSuccess` para `db.removeLead`
+- `src/features/monitoring/MonitoringTab.jsx` — `getPerfCfg(ms)`, FeedEntry com cfg dinâmico
+
+**Status:** Ativa
+
+---
+
+### [D-050] — Monitor: status de atividade do vendedor nos cards
+
+**Data:** 2026-06-18
+**Tipo:** Feature
+
+**Decisão:** Inferir status de atividade do vendedor a partir do `lastTs` (timestamp da última entrada no log) em vez de implementar presença WebSocket via Supabase Realtime Presence.
+
+**Motivação:** O marketing precisa saber, em campo, quais vendedores estão ativos e quais pararam de usar o app. Os dados necessários já existem no log (timestamp da última ação por vendedor).
+
+**Alternativas Avaliadas:**
+- **Supabase Realtime Presence:** estado "online" real baseado na conexão WebSocket ativa. Rejeitado: celulares suspendem WebSockets em segundo plano (iOS/Android background limits) — geraria falsos negativos constantes (vendedor "offline" por ter minimizado o app para tirar uma foto).
+- **Status inferido do log (escolhida):** usa `lastTs` já calculado no `vendedores` useMemo. 4 tiers por elapsed time. Sem novo dado, sem nova conexão, sem false alarms por background.
+
+**Tiers de status:**
+
+| Elapsed | Label | Cor |
+|---|---|---|
+| < 5 min | ativo agora | #22c55e (verde) |
+| < 30 min | há Xmin | #eab308 (amarelo) |
+| < 24h | há Xh | cinza |
+| ≥ 24h | inativo | cinza |
+
+**Impactos:**
+- `VendedorCard` ganha tick de 30s via `setInterval` interno — cada card atualiza seu próprio status independentemente sem re-executar o `vendedores` useMemo.
+- Sem novo estado no contexto, sem nova query ao Supabase.
+- `timeAgo` removido (único uso era no card).
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — `vendorStatus()`, VendedorCard com tick e ponto de status
+
+**Status:** Ativa
+
+---
+
+### [D-051] — Monitor: correção da contagem de leads ao encerrar sessão
+
+**Data:** 2026-06-18
+**Tipo:** Bugfix
+
+**Decisão:** `handleEncerrarSessao` deve contar `lead_add - lead_remove` apenas dentro do escopo temporal da sessão atual (desde o último `session_start`), com `Math.max(0, ...)` como guarda.
+
+**Causa raiz:** A implementação original usava `logs.filter(l => l.type === 'lead_add').length` — sem escopo de sessão e sem subtrair remoções. Dois bugs independentes:
+1. Contava leads de sessões anteriores ou do histórico do dia.
+2. Não descontava leads excluídos pelo vendedor durante a sessão.
+
+**Solução:**
+```js
+const lastStart = [...logs].reverse().find(l => l.type === 'session_start');
+const sessionLogs = logs.filter(l => !lastStart || l.ts >= lastStart.ts);
+const count = Math.max(0,
+  sessionLogs.filter(l => l.type === 'lead_add').length -
+  sessionLogs.filter(l => l.type === 'lead_remove').length,
+);
+```
+
+**Invariante:** `Math.max(0, ...)` evita contagem negativa quando um lead adicionado antes da sessão (em outra sessão do mesmo dia) é removido dentro dela.
+
+**Arquivos Afetados:**
+- `src/features/monitoring/MonitoringTab.jsx` — `handleEncerrarSessao`
+
+**Status:** Ativa (substitui implementação incorreta de D-048)
+
+---
+
+### [D-052] — Monitor: timeout de 15s em escritas, meta de vendedor/evento em sync_error e contagem líquida de leads
+
+> **Nota de reconstrução (2026-07-08):** esta decisão foi implementada e documentada em `CLAUDE.md`/`SYSTEM_MAP.md` na época, mas nunca recebeu registro formal neste arquivo — o ID ficou como lacuna na numeração. Reconstruída retroativamente a partir da documentação já existente (sem acesso ao raciocínio original de alternativas descartadas, que pode ter sido mais amplo do que o listado abaixo).
+
+**Data:** 2026-06-20
+**Tipo:** Feature / Bugfix
+
+**Decisão:**
+1. `exec(promise, acao, onFail, onSuccess, meta = {})` ganha timeout de 15s por tentativa via `Promise.race` — escritas travadas no Supabase viram `sync_error` visível em vez de penderem silenciosamente.
+2. 5º parâmetro `meta` é espalhado (`spread`) no `logActivity` do `sync_error`, permitindo atribuição direta ao vendedor/evento sem heurística de timestamp. `db.saveLead`/`db.removeLead` passam `{ vendedor: l.vendedorNome, eventoId: l.eventoId }`.
+3. `stats.leads` do Monitor passa a ser líquido (`lead_add − lead_remove`, com `Math.max(0, ...)`) em vez de contar só `lead_add`.
+4. Filtro "Sync" do feed passa a incluir tanto `sync_error` quanto `lead_sync_ok` — botão verde com contagem de confirmações quando não há erro, vermelho com contagem de falhas quando há.
+
+**Motivação:**
+Escritas que travavam (rede instável em campo) ficavam "pendentes" indefinidamente sem sinal visível para o marketing; a contagem de leads no header do Monitor não refletia exclusões feitas durante a sessão; o filtro Sync só mostrava erros, escondendo confirmações bem-sucedidas.
+
+**Alternativas Avaliadas:**
+- Timeout global único no cliente Supabase — descartado, afetaria toda leitura/escrita do app, não só o fluxo instrumentado pelo Monitor
+- Heurística de timestamp para atribuir `sync_error` a um vendedor — descartada em favor do parâmetro `meta` explícito, mais confiável
+
+**Impactos:**
+- `sync_error` no feed do Monitor passa a mostrar vendedor/evento diretamente, sem inferência
+- `stats.leads` no header reflete o saldo real da sessão
+- Botão Sync vira indicador de saúde (verde/vermelho), não só contador de erro
+
+**Arquivos Afetados:**
+- `src/lib/dataService.js` — `exec()` com 5º param `meta`, `Promise.race` com timeout de 15s
+- `src/api/leadApi.js` — `addLead`/`updateLead`/`removeLead` passam `meta`
+- `src/features/monitoring/MonitoringTab.jsx` — `stats.leads` líquido, filtro Sync combinado
+
+**Riscos:**
+- Timeout de 15s pode gerar `sync_error` falso-positivo em redes muito lentas onde a escrita eventualmente teria sucesso (mitigado pelo retry já existente em `withRetry`)
+
+**Status:** Ativa
+
+---
+
+### [D-053] — Estoque: importação em lote via checklist + exclusão de material
+
+> **Nota de reconstrução (2026-07-08):** esta decisão foi implementada e documentada em `CLAUDE.md`/`SYSTEM_MAP.md` na época, mas nunca recebeu registro formal neste arquivo — o ID ficou como lacuna na numeração. Reconstruída retroativamente a partir da documentação já existente (sem acesso ao raciocínio original de alternativas descartadas, que pode ter sido mais amplo do que o listado abaixo).
+
+**Data:** 2026-06-29
+**Tipo:** Feature
+
+**Contexto:**
+O cadastro de materiais era item a item via `MaterialModal`, lento para o volume inicial de inventário físico (14 itens padrão da RJNet).
+
+**Decisão:**
+1. `MaterialChecklistModal` (novo) lista 14 itens pré-definidos do inventário físico, com seleção múltipla e ajuste de quantidade por item; confirmar importa todos os selecionados chamando `addMaterial()` sequencialmente — sem endpoint especial de batch.
+2. Exclusão de material por linha em `EstoqueTab`, com confirmação inline em dois passos.
+3. Ambas operações restritas ao perfil marketing (proteção dupla UI+RLS: a tab Estoque só existe no shell do marketing, e a policy RLS de `materiais` só concede INSERT/DELETE a `papel_atual() = 'marketing'`).
+
+**Motivação:**
+Reduzir o atrito de cadastro inicial (14 cliques + formulários viram 1 fluxo de checklist) sem introduzir uma rota de API nova — reaproveita `addMaterial()`/`removeMaterial()` já existentes em `materialApi.js`.
+
+**Alternativas Avaliadas:**
+- Endpoint/RPC de batch insert no Supabase — descartado por desproporcional ao volume (14 itens, operação pouco frequente)
+- Import via CSV/planilha — descartado por complexidade (parsing, validação) sem ganho real sobre uma lista fixa conhecida
+
+**Impactos:**
+- Cadastro inicial de estoque de um evento novo cai de ~14 formulários para 1 checklist
+- `removeMaterial` ganha atualização otimista local + `db.removeMaterial()` assíncrono, mesmo padrão de outras remoções do sistema
+
+**Arquivos Afetados:**
+- `src/components/modals/MaterialChecklistModal.jsx` (novo)
+- `src/features/inventory/EstoqueTab.jsx` — botão de importação em lote, exclusão por linha
+- `src/api/materialApi.js` — `removeMaterial`
+
+**Riscos:**
+- Lista de 14 itens é hardcoded no componente — mudança no inventário físico padrão exige alteração de código, não é configurável pela UI (aceito: baixa frequência de mudança)
+
+**Status:** Ativa (rascunho do checklist ganhou persistência em D-054, sem substituir esta decisão)
+
+---
+
+### [D-054] — Estoque: checklist de importação persistente em localStorage
+
+> **Nota de reconstrução (2026-07-08):** esta decisão foi implementada e documentada em `CLAUDE.md`/`SYSTEM_MAP.md` na época, mas nunca recebeu registro formal neste arquivo — o ID ficou como lacuna na numeração. Reconstruída retroativamente a partir da documentação já existente (sem acesso ao raciocínio original de alternativas descartadas, que pode ter sido mais amplo do que o listado abaixo).
+
+**Data:** 2026-06-30
+**Tipo:** Feature / UX
+
+**Contexto:**
+O rascunho de seleção do `MaterialChecklistModal` (D-053) vivia em `useState` — fechar o modal ou recarregar a página perdia itens marcados, quantidades ajustadas e itens customizados adicionados.
+
+**Decisão:**
+1. `MaterialChecklistModal` troca `useState` por `usePersisted('rjnet_checklist_estoque', ...)` — o rascunho sobrevive ao fechar o modal e a recarregar a página.
+2. Formulário inline para adicionar itens livres (nome + quantidade) além dos 14 pré-definidos do D-053, com botão de remoção individual por item do rascunho.
+3. Ao confirmar a importação, apenas os itens selecionados são removidos do rascunho (via `addMaterial()`) — os desmarcados permanecem salvos para uma importação futura.
+
+**Motivação:**
+O fluxo real de uso é interrompido (trocar de aba, sair para conferir estoque físico) — perder o progresso a cada fechamento tornava o checklist do D-053 pouco prático em campo.
+
+**Alternativas Avaliadas:**
+- Persistir o rascunho no Supabase — descartado: é dado de rascunho local, sem valor multi-dispositivo nem dado pessoal; `usePersisted`/localStorage já é o padrão do projeto para esse tipo de estado (`hooks/usePersisted.js`)
+
+**Impactos:**
+- Nenhuma migração de banco — mudança 100% frontend
+- Rascunho não contém dado pessoal (só nome/quantidade de material), sem implicação de LGPD
+
+**Arquivos Afetados:**
+- `src/components/modals/MaterialChecklistModal.jsx` — `usePersisted`, formulário de item livre, remoção por linha
+
+**Riscos:**
+- Rascunho é por navegador/dispositivo (localStorage) — não sincroniza entre marketing usando mais de um dispositivo (aceito, mesmo trade-off de todo uso de `usePersisted` no projeto)
+
+**Status:** Ativa
+
+---
+
 ### [D-055] — Exclusão de leads por vendedor: DELETE físico em vez de soft delete
 
 > **Nota de renumeração (2026-06-30):** esta decisão foi registrada originalmente como "D-043", duplicando o ID já usado pela decisão de Suspensão do consentimento LGPD (linha ~365). Renumerada para D-055 (próximo ID livre após D-054) para eliminar a colisão. Conteúdo original preservado sem alteração de mérito.
@@ -1832,6 +1944,39 @@ A policy `leads_delete` usa apenas `USING` (sem `WITH CHECK`), contornando compl
 **Riscos:**
 - Leads excluídos por vendedor não são recuperáveis via `deletado=false` (hard delete); recuperação só via `audit_log`
 - Colunas `deletado_em` e `deletado_por` não são preenchidas para exclusões de vendedor (preenchidas apenas quando marketing faz soft delete via UPDATE direto no banco)
+
+**Status:** Ativa
+
+---
+
+### [D-056] — Estoque: edição de nome e quantidade de material existente
+
+> **Nota de reconstrução (2026-07-08):** esta decisão foi implementada e documentada em `CLAUDE.md`/`SYSTEM_MAP.md` na época, mas nunca recebeu registro formal neste arquivo — o ID ficou como lacuna na numeração. Reconstruída retroativamente a partir da documentação já existente (sem acesso ao raciocínio original de alternativas descartadas, que pode ter sido mais amplo do que o listado abaixo).
+
+**Data:** 2026-06-30
+**Tipo:** Feature
+
+**Contexto:**
+`MaterialModal` só criava materiais novos — corrigir nome/quantidade de um item já cadastrado exigia excluir e recriar, perdendo o vínculo com eventos que já o alocaram.
+
+**Decisão:**
+`MaterialModal` aceita prop opcional `material` — quando presente, pré-preenche o formulário (`nome`, `quantidade`, `descricao`) e o submit chama `updateMaterial(id, patch)` em vez de `addMaterial()`; título e label do botão mudam para "Editar Material"/"Salvar". `EstoqueTab` ganha um botão de edição (ícone `edit`) ao lado do botão de exclusão em cada linha, abrindo `MaterialModal` com o material selecionado via estado `editMaterial`.
+
+**Motivação:**
+Reaproveitar 100% o componente e a operação `updateMaterial` já existentes em `materialApi.js` (sem mudança na API/backend) em vez de criar um modal de edição separado.
+
+**Alternativas Avaliadas:**
+- Modal de edição dedicado (`MaterialEditModal`) — descartado: duplicaria campos/validação já presentes em `MaterialModal` sem necessidade real de layout diferente
+
+**Impactos:**
+- Corrigir um erro de cadastro não exige mais excluir+recriar o material, preservando o vínculo com eventos que já o alocaram
+
+**Arquivos Afetados:**
+- `src/components/modals/MaterialModal.jsx` — modo dual create/edit via prop `material`
+- `src/features/inventory/EstoqueTab.jsx` — botão de edição, estado `editMaterial`
+
+**Riscos:**
+- Nenhum risco novo — reaproveita RLS e proteção dupla já em vigor desde D-053 (marketing only)
 
 **Status:** Ativa
 
