@@ -2,7 +2,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/f/:path*", "destination": "/index.html" }
+    { "source": "/f/:path*", "destination": "/index.html" },
+    { "source": "/s/:path*", "destination": "/index.html" }
   ],
   "headers": [
     {
