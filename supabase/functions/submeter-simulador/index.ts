@@ -7,10 +7,14 @@
 // nulo — distribuição manual por marketing/comercial, mesma fila do Form
 // Builder ("Leads sem vendedor" em LeadsTab.jsx).
 //
-// D-076: 2 fluxos independentes por campanha (tipo), nunca mais
-// encadeados na mesma sessão:
-// - 'oferta': perfil de uso (D-074, fixo) → pacote + combo de upsell.
-//   Lead sempre nasce temperatura='quente', pontuacao=null.
+// D-076/D-077: 2 fluxos independentes por campanha (tipo), nunca mais
+// encadeados na mesma sessão — cada campanha só carrega e só usa a config
+// do SEU próprio tipo:
+// - 'oferta': quiz FIXO de qualificação (PERGUNTAS_OFERTA) — o perfil de
+//   uso (e portanto o pacote) é DEDUZIDO das respostas via
+//   perfilPorRespostasOferta(), nunca escolhido/enviado pelo cliente
+//   (D-077) → pacote + combo de upsell (apps, upgrade, plano Móvel). Lead
+//   sempre nasce temperatura='quente', pontuacao=null.
 // - 'demanda': perguntas configuráveis DAQUELA CAMPANHA (D-075, texto +
 //   peso por opção, editadas pelo marketing) → pontuação/temperatura
 //   calculadas no servidor. Substitui o antigo tipo 'territorial'
@@ -43,6 +47,13 @@ const PERFIS_SIMULADOR: Record<string, number> = {
   basico: 120, streaming: 240, home_office: 240, gamer: 420,
 };
 
+// Espelho de PLANOS_MOVEL em src/lib/simulador.js (D-077) — upsell de
+// plano Móvel no combo; `key` é a única coisa que o cliente manda, preço
+// sempre vem daqui.
+const PLANOS_MOVEL: Record<string, number> = {
+  pre_2gb: 29.90, controle_10gb: 39.90, controle_24gb: 54.90, controle_35gb: 69.90,
+};
+
 function pacotePorMega(mega: number) {
   return PACOTES_INTERNET.find((p) => p.mega === mega) || null;
 }
@@ -51,7 +62,7 @@ function pacoteUpgrade(mega: number) {
   return idx >= 0 && idx < PACOTES_INTERNET.length - 1 ? PACOTES_INTERNET[idx + 1] : null;
 }
 
-function montarCombo(perfilKey: string, opcoes: { yellow?: boolean; black?: boolean; upgrade?: boolean }) {
+function montarCombo(perfilKey: string, opcoes: { yellow?: boolean; black?: boolean; upgrade?: boolean; movel?: string }) {
   const pacoteMega = PERFIS_SIMULADOR[perfilKey];
   if (!pacoteMega) return null;
   const pacote = pacotePorMega(pacoteMega)!;
@@ -59,18 +70,72 @@ function montarCombo(perfilKey: string, opcoes: { yellow?: boolean; black?: bool
   const yellow = opcoes.yellow === true;
   const black = opcoes.black === true;
   const upgrade = opcoes.upgrade === true && !!upgradePacote;
+  const movelKey = typeof opcoes.movel === 'string' && PLANOS_MOVEL[opcoes.movel] !== undefined ? opcoes.movel : null;
 
   let valorTotal = pacote.preco;
   if (yellow) valorTotal += APPS_PRECO.yellow;
   if (black) valorTotal += APPS_PRECO.black;
   if (upgrade) valorTotal += upgradePacote!.preco - pacote.preco;
+  if (movelKey) valorTotal += PLANOS_MOVEL[movelKey];
 
   return {
     perfil: perfilKey, pacoteMega, pacotePreco: pacote.preco,
-    yellow, black, upgrade,
+    yellow, black, upgrade, movel: movelKey,
     pacoteFinalMega: upgrade ? upgradePacote!.mega : pacoteMega,
     valorTotal: Math.round(valorTotal * 100) / 100,
   };
+}
+
+// D-077: quiz FIXO de qualificação do Simulador de Oferta — espelho de
+// PERGUNTAS_OFERTA em src/lib/simulador.js. Sem construtor/edição pelo
+// marketing (ao contrário das perguntas de 'demanda').
+function perguntasOferta(): Pergunta[] {
+  return [
+    { id: 'dispositivos', texto: 'Quantos dispositivos estão conectados na sua rede atual?', tipo: 'single', opcoes: [
+      { id: 'poucos', texto: 'Poucos (1 a 3)', peso: 0 },
+      { id: 'alguns', texto: 'Alguns (4 a 7)', peso: 0 },
+      { id: 'muitos', texto: 'Muitos (8 ou mais)', peso: 0 },
+    ] },
+    { id: 'usos', texto: 'Como vocês usam a internet?', tipo: 'multi', opcoes: [
+      { id: 'streaming', texto: 'Streaming (Netflix, filmes, séries)', peso: 0 },
+      { id: 'jogos', texto: 'Jogos online', peso: 0 },
+      { id: 'home_office', texto: 'Trabalho / home office', peso: 0 },
+      { id: 'estudos', texto: 'Estudos', peso: 0 },
+      { id: 'redes', texto: 'Redes sociais', peso: 0 },
+      { id: 'muitos_disp', texto: 'Muitos dispositivos ao mesmo tempo', peso: 0 },
+    ] },
+    { id: 'equipamentos', texto: 'Quais equipamentos usam a internet aí?', tipo: 'multi', opcoes: [
+      { id: 'smart_tv', texto: 'Smart TV', peso: 0 },
+      { id: 'pc', texto: 'Computadores / notebooks', peso: 0 },
+      { id: 'console', texto: 'Videogames / consoles', peso: 0 },
+      { id: 'celular', texto: 'Celulares', peso: 0 },
+      { id: 'iot', texto: 'Câmeras / dispositivos inteligentes', peso: 0 },
+    ] },
+    { id: 'tem_internet', texto: 'Você já tem internet em casa?', tipo: 'single', opcoes: [
+      { id: 'sim', texto: 'Sim, já tenho', peso: 0 },
+      { id: 'nao', texto: 'Ainda não tenho', peso: 0 },
+    ] },
+    { id: 'dificuldade', texto: 'Qual a sua maior dificuldade hoje?', tipo: 'single', opcoes: [
+      { id: 'lenta', texto: 'Internet lenta', peso: 0 },
+      { id: 'oscilacao', texto: 'Oscilação / quedas', peso: 0 },
+      { id: 'velocidade', texto: 'Pouca velocidade pro que eu preciso', peso: 0 },
+      { id: 'preco', texto: 'Preço', peso: 0 },
+      { id: 'satisfeito', texto: 'Estou satisfeito(a) com o serviço atual', peso: 0 },
+    ] },
+  ];
+}
+
+// Espelho de perfilPorRespostasOferta em src/lib/simulador.js — deduz o
+// perfil por REGRA de prioridade a partir das respostas JÁ normalizadas
+// (nunca aceita perfil pronto do cliente, D-077).
+function perfilPorRespostasOferta(respostas: Record<string, string | string[]>): string {
+  const usos = Array.isArray(respostas.usos) ? respostas.usos : [];
+  const muitosDispositivos = respostas.dispositivos === 'muitos' || usos.includes('muitos_disp');
+
+  if (usos.includes('jogos') || muitosDispositivos) return 'gamer';
+  if (usos.includes('home_office')) return 'home_office';
+  if (usos.includes('streaming')) return 'streaming';
+  return 'basico';
 }
 
 // D-075: molde padrão — mesmo conteúdo de perguntasPadrao() em
@@ -247,7 +312,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Bairro/cidade não podem conter link.' }, 400, corsHeaders);
     }
 
-    // D-076: 2 fluxos independentes por tipo de campanha — nunca mais
+    // D-076/D-077: 2 fluxos independentes por tipo de campanha — nunca mais
     // encadeados na mesma sessão (ver comentário de topo do arquivo).
     let perfilConsumo: unknown = null;
     let pontuacao: number | null = null;
@@ -273,22 +338,24 @@ Deno.serve(async (req) => {
       servicosInteresse = ['internet_residencial'];
       temperatura = perfil.temperatura;
     } else {
-      // 'oferta' (D-074): perfilKey escolhido pela pessoa decide o pacote
-      // (fixo, nunca calculado); o combo (adicionais + upgrade) é sempre
-      // recalculado aqui — cliente manda só a chave do perfil e os
-      // booleans marcados. Sem quiz, sem score — lead sempre entra quente.
-      const perfilKey = sanitizeText(body.perfil, 40);
-      if (!PERFIS_SIMULADOR[perfilKey]) {
-        return json({ error: 'Selecione um perfil de uso.' }, 400, corsHeaders);
-      }
+      // 'oferta' (D-077): perfil DEDUZIDO das respostas do quiz FIXO de
+      // qualificação — nunca aceita `body.perfil` pronto do cliente. O
+      // combo (adicionais + upgrade + plano Móvel) é sempre recalculado
+      // aqui a partir só das chaves marcadas. Sem score de intenção — lead
+      // sempre entra quente (chegou até o fim do quiz + deixou contato).
+      const perguntas = perguntasOferta();
+      const respostasNormalizadas = normalizarRespostasDinamico(perguntas, body.respostas);
+      const perfilKey = perfilPorRespostasOferta(respostasNormalizadas);
+
       const comboBruto = (body.combo && typeof body.combo === 'object') ? body.combo : {};
       const combo = montarCombo(perfilKey, {
         yellow: comboBruto.yellow === true,
         black: comboBruto.black === true,
         upgrade: comboBruto.upgrade === true,
+        movel: typeof comboBruto.movel === 'string' ? comboBruto.movel : undefined,
       });
 
-      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, perfil: perfilKey, combo };
+      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: respostasNormalizadas, perfil: perfilKey, combo };
       ofertaRecomendada = 'internet_residencial';
       servicosInteresse = servicosInteressePorPerfil(perfilKey);
       temperatura = 'quente';

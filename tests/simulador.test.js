@@ -5,9 +5,10 @@ const { test, expect } = require('@playwright/test');
 // Supabase): campanha semeada em localStorage, wizard completo e lead
 // gravado em rjnet_leads com origem='simulador'.
 //
-// D-076: 2 fluxos independentes por campanha, nunca mais encadeados na
-// mesma sessão:
-// - 'oferta': perfil de uso → pacote fixo + combo de upsell → contato.
+// D-076/D-077: 2 fluxos independentes por campanha, nunca mais encadeados
+// na mesma sessão:
+// - 'oferta': quiz FIXO de qualificação → perfil DEDUZIDO das respostas →
+//   pacote fixo + combo de upsell (apps, upgrade, plano Móvel) → contato.
 // - 'demanda': perguntas configuráveis da campanha → mensagem de
 //   resultado personalizada → contato. Substitui o antigo tipo
 //   'territorial' (removido).
@@ -43,12 +44,32 @@ async function abrirSimulador(page, campanha, { query = '' } = {}) {
   await page.goto(`/s/${campanha.slug}${query}`);
 }
 
-async function escolherPerfil(page, label = 'Gamer / Casa Conectada') {
-  // match exato no label do perfil (não na descrição, que às vezes cita o
-  // nome de outro perfil dentro do texto — ex: "Gamer" descreve "streaming")
-  await page.locator('.sim-opcao-perfil')
-    .filter({ has: page.locator('.sim-opcao-perfil-label', { hasText: label, exact: true }) })
-    .click();
+// Responde o quiz FIXO de qualificação do Simulador de Oferta (D-077): 5
+// perguntas — dispositivos → usos → equipamentos → tem_internet →
+// dificuldade. O perfil (e portanto o pacote) é DEDUZIDO das respostas,
+// nunca escolhido direto. Default cai em 'básico' (uso leve, sem jogos/
+// home office/streaming declarados).
+async function responderQuizOferta(page, {
+  dispositivos = 'Poucos (1 a 3)',
+  usos = ['Redes sociais'],
+  equipamentos = ['Celulares'],
+  temInternet = 'Sim, já tenho',
+  dificuldade = 'Estou satisfeito(a) com o serviço atual',
+} = {}) {
+  // 1. dispositivos (single → avança sozinho)
+  await page.locator('.sim-opcao', { hasText: dispositivos }).click();
+  // 2. usos (multi → precisa de Continuar)
+  for (const u of usos) await page.locator('.sim-opcao', { hasText: u }).click();
+  await page.getByRole('button', { name: 'Continuar →' }).click();
+  // 3. equipamentos (multi)
+  for (const e of equipamentos) await page.locator('.sim-opcao', { hasText: e }).click();
+  await page.getByRole('button', { name: 'Continuar →' }).click();
+  // 4. tem_internet (single)
+  await page.locator('.sim-opcao', { hasText: temInternet }).click();
+  // 5. dificuldade (single)
+  await page.locator('.sim-opcao', { hasText: dificuldade }).click();
+  // Tela "Analisando..." → resultado
+  await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
 }
 
 // Responde o molde padrão completo de 'demanda' (5 perguntas): moradores →
@@ -88,26 +109,46 @@ test.describe('Simulador — página pública', () => {
   });
 
   test.describe('tipo Oferta', () => {
-    test('wizard exibe a escolha de perfil, sem perguntas de intenção depois', async ({ page }) => {
+    test('wizard vai direto pro quiz de qualificação, sem escolha direta de perfil', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_OFERTA);
-      await expect(page.locator('.card')).toContainText('Qual desses combina mais com você?');
-      // cada opção de perfil mostra label + descrição
-      await expect(page.locator('.sim-opcao-perfil', { hasText: 'Gamer / Casa Conectada' })).toContainText('jogos, streaming, vários dispositivos');
+      await expect(page.locator('.card')).toContainText('Quantos dispositivos estão conectados na sua rede atual?');
+      await expect(page.locator('.card')).toContainText('Pergunta 1 de 5');
+      await expect(page.locator('.card')).not.toContainText('Qual desses combina mais com você?');
     });
 
-    test('após escolher o perfil, vai direto pro resultado (sem etapa de perguntas)', async ({ page }) => {
+    test('jogos declarado deduz perfil Gamer, mesmo sem escolha direta', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_OFERTA);
-      await escolherPerfil(page, 'Básico');
-      await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
-      await expect(page.locator('.card')).not.toContainText('Quantas pessoas moram com você?');
+      await responderQuizOferta(page, { usos: ['Jogos online'] });
+      await expect(page.locator('.card')).toContainText('420 Mega');
+      await expect(page.locator('.card')).toContainText('Gamer / Casa Conectada');
     });
 
-    test('fluxo completo: perfil → combo → contato → lead gravado quente', async ({ page }) => {
+    test('trabalho/home office (sem jogos) deduz perfil Home Office', async ({ page }) => {
+      await abrirSimulador(page, CAMPANHA_OFERTA);
+      await responderQuizOferta(page, { usos: ['Trabalho / home office'] });
+      await expect(page.locator('.card')).toContainText('240 Mega');
+      await expect(page.locator('.card')).toContainText('Home Office:');
+    });
+
+    test('só streaming declarado (sem jogos/home office) deduz perfil Streaming', async ({ page }) => {
+      await abrirSimulador(page, CAMPANHA_OFERTA);
+      await responderQuizOferta(page, { usos: ['Streaming'] });
+      await expect(page.locator('.card')).toContainText('240 Mega');
+      await expect(page.locator('.card')).toContainText('Streaming:');
+    });
+
+    test('uso leve (só redes sociais) deduz perfil Básico', async ({ page }) => {
+      await abrirSimulador(page, CAMPANHA_OFERTA);
+      await responderQuizOferta(page, { usos: ['Redes sociais'] });
+      await expect(page.locator('.card')).toContainText('120 Mega');
+      await expect(page.locator('.card')).toContainText('Básico:');
+    });
+
+    test('fluxo completo: quiz → combo (apps + upgrade + Móvel) → contato → lead gravado quente', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_OFERTA, { query: '?utm_source=meta&utm_campaign=teste-e2e' });
-      await escolherPerfil(page, 'Gamer / Casa Conectada');
-      await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
+      await responderQuizOferta(page, { usos: ['Jogos online'], dispositivos: 'Muitos (8 ou mais)' });
 
-      // Resultado antes do contato (valor primeiro): pacote FIXO do perfil escolhido
+      // Resultado antes do contato (valor primeiro): pacote do perfil DEDUZIDO
       await expect(page.locator('.card')).toContainText('420 Mega ⭐');
       await expect(page.locator('.card')).toContainText('R$ 99,90/mês');
       await expect(page.locator('.sim-combo-total')).toContainText('R$ 99,90/mês');
@@ -117,6 +158,10 @@ test.describe('Simulador — página pública', () => {
       await expect(page.locator('.sim-combo-total')).toContainText('R$ 114,90/mês');
       await page.locator('.sim-combo-check', { hasText: 'Upgrade para 680 Mega' }).locator('input').check();
       await expect(page.locator('.sim-combo-total')).toContainText('R$ 134,90/mês');
+
+      // Plano Móvel (D-077): Controle 10GB (+39,90)
+      await page.locator('.sim-movel-chip', { hasText: 'Controle 10 GB' }).click();
+      await expect(page.locator('.sim-combo-total')).toContainText('R$ 174,80/mês');
 
       await page.getByRole('button', { name: /Quero receber essa oferta/ }).click();
 
@@ -138,36 +183,36 @@ test.describe('Simulador — página pública', () => {
       expect(lead.nome).toBe('Maria E2E');
       expect(lead.simuladorId).toBe('sim-oferta-e2e');
       expect(lead.vendedorId).toBeNull();
-      // 'oferta' não tem quiz — sempre quente, sem pontuação
+      // 'oferta' não tem score de intenção — sempre quente, sem pontuação
       expect(lead.temperatura).toBe('quente');
       expect(lead.pontuacao).toBeFalsy();
-      expect(lead.perfilConsumo.perguntas).toBeUndefined();
-      expect(lead.perfilConsumo.perfil).toBe('gamer');
+      expect(Array.isArray(lead.perfilConsumo.perguntas)).toBe(true); // snapshot do quiz fixo (D-077)
+      expect(lead.perfilConsumo.respostas.usos).toEqual(['jogos']);
+      expect(lead.perfilConsumo.perfil).toBe('gamer'); // DEDUZIDO, não escolhido
       expect(lead.perfilConsumo.combo.pacoteMega).toBe(420);
       expect(lead.perfilConsumo.combo.yellow).toBe(true);
       expect(lead.perfilConsumo.combo.black).toBe(false);
       expect(lead.perfilConsumo.combo.upgrade).toBe(true);
+      expect(lead.perfilConsumo.combo.movel).toBe('controle_10gb');
       expect(lead.perfilConsumo.combo.pacoteFinalMega).toBe(680);
-      expect(lead.perfilConsumo.combo.valorTotal).toBe(134.90);
-      // servicoInteresse deriva do PERFIL escolhido — 'gamer' não inclui 'streamings'.
+      expect(lead.perfilConsumo.combo.valorTotal).toBe(174.80);
+      // servicoInteresse deriva do PERFIL deduzido — 'gamer' não inclui 'streamings'.
       expect(lead.servicoInteresse).toEqual(['internet_residencial']);
       expect(lead.utm.utm_source).toBe('meta');
       expect(lead.utm.utm_campaign).toBe('teste-e2e');
       expect(lead.versaoTermo).toBe('simulador-v1');
     });
 
-    test('apps black ganha destaque quando o PERFIL escolhido é Streaming', async ({ page }) => {
+    test('apps black ganha destaque quando o perfil deduzido é Streaming', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_OFERTA);
-      await escolherPerfil(page, 'Streaming');
-      await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
+      await responderQuizOferta(page, { usos: ['Streaming'] });
       await expect(page.locator('.sim-combo-check.sim-combo-destaque')).toContainText('Apps Black');
       await expect(page.locator('.sim-combo-check.sim-combo-destaque')).toContainText('combina com seu perfil');
     });
 
     test('popup de apps mostra a lista de apps inclusos no combo (Yellow e Black)', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_OFERTA);
-      await escolherPerfil(page, 'Básico');
-      await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
+      await responderQuizOferta(page);
 
       await page.locator('.sim-combo-check', { hasText: 'Adicione Apps Yellow' }).locator('.sim-app-info-btn').click();
       await expect(page.locator('.sim-app-popup')).toBeVisible();
@@ -186,8 +231,7 @@ test.describe('Simulador — página pública', () => {
 
     test('validação do contato: telefone inválido e consentimento obrigatórios', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_OFERTA);
-      await escolherPerfil(page, 'Básico');
-      await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
+      await responderQuizOferta(page);
       await page.getByRole('button', { name: /Quero receber essa oferta/ }).click();
 
       await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Teste');

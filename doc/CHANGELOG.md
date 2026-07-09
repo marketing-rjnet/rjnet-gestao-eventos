@@ -4,6 +4,31 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.21] — Simulador de Oferta: perfil deduzido por quiz de qualificação + upsell de plano Móvel
+**Data:** 2026-07-09
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`src/lib/simulador.js`** — `PERGUNTAS_OFERTA` (novo catálogo fixo, 5 perguntas de qualificação: dispositivos conectados/usos/equipamentos/tem internet/dificuldade — 1ª pergunta trocada de "quantas pessoas moram" pra "quantos dispositivos estão conectados na rede atual"); `perfilPorRespostasOferta()` deduz o perfil por regra de prioridade (jogos/muitos dispositivos → Gamer; home office → Home Office; streaming → Streaming; senão Básico); `PLANOS_MOVEL` (novo catálogo: Pré 2GB, Controle 10/24/35GB) + `planoMovelPorKey()`; `montarCombo()` ganha `opcoes.movel`; `resumoPerfil()` inclui linha de plano Móvel quando marcado.
+- **`src/public/SimuladorPublico.jsx`** — reescrito: o fluxo `oferta` deixa de ser 1 tela com 4 botões de escolha direta e vira um wizard de 5 perguntas sequenciais (mesmo "esqueleto" de tela do fluxo `demanda`, reaproveitado por código — cada tipo continua carregando e mostrando só o SEU próprio questionário, sem interferência entre eles); o perfil deduzido aparece como texto informativo (não mais clicável) na tela de resultado; combo de upsell ganha seletor de plano Móvel (chips, seleção única).
+- **`supabase/functions/submeter-simulador/index.ts`** — espelha `PERGUNTAS_OFERTA`/`perfilPorRespostasOferta`/`PLANOS_MOVEL`; branch `oferta` não aceita mais `body.perfil` do cliente — deduz sempre a partir de `body.respostas`, mesmo princípio de segurança já usado no score de `demanda`.
+- **`src/apps/VendedorApp.jsx`** — tabela de planos Móvel da aba "Pacotes" passa a ler de `PLANOS_MOVEL` (era hardcoded inline) — elimina duplicação de preço entre a aba do vendedor e o Simulador.
+- **`src/features/simulador/SimuladorTab.jsx`** — texto de descrição do tipo "Simulador de Oferta" atualizado pra refletir o quiz.
+- **`src/index.css`** — `.sim-combo-movel*`, `.sim-movel-chip*` (upsell de plano Móvel).
+- **Testes:** `tests/simulador.unit.test.js` +19 asserts (`PERGUNTAS_OFERTA`, `perfilPorRespostasOferta`, combo com Móvel) — 81/81; `tests/simulador.test.js` suite `tipo Oferta` reescrita (quiz sequencial em vez de escolha direta, cenário por perfil deduzido, upsell Móvel no fluxo completo) — 15/15 E2E.
+- **Docs:** D-077 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Ao testar o D-076 (2 fluxos separados) em produção, o responsável achou o Simulador de Oferta raso demais — 1 clique direto num de 4 botões, sem nenhuma análise por trás. Pediu pra reintroduzir o quiz de qualificação que existia antes do D-074 (com a 1ª pergunta trocada) e que o sistema deduza o perfil sozinho, "pois a oferta é gerada a partir de uma análise prévia do perfil". Confirmado explicitamente que isso não reabre a fusão dos 2 tipos do D-076 — a mudança é só dentro do fluxo `oferta`. Pediu também o upsell de plano Móvel no combo, usando a mesma tabela de preços já conhecida da aba Pacotes do vendedor.
+
+**Ações manuais necessárias**
+1. Redeploy da Edge Function `submeter-simulador` (contrato mudou: `body.perfil` não é mais aceito no tipo `oferta`).
+2. Sem migração de banco nova (combo continua jsonb livre, `movel` é só mais uma chave dentro dele).
+3. Sem CLI disponível no ambiente do responsável: publicação feita colando código achatado (sem import de `_shared/`) direto no Dashboard do Supabase — mesmo caminho já usado nas rodadas anteriores.
+
+---
+
 ## [v5.20] — Simulador: 2 fluxos independentes (Oferta / Demanda), Territorial removido
 **Data:** 2026-07-09
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk`

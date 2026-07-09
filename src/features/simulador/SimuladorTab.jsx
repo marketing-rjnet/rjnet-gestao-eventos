@@ -270,7 +270,7 @@ export function SimuladorTab() {
             </div>
             <p className="campo-hint" style={{ marginTop: 6 }}>
               {tipo === 'oferta'
-                ? 'A pessoa escolhe um perfil de uso (Básico/Streaming/Home Office/Gamer) e recebe o pacote fixo + combo de upsell na hora.'
+                ? 'Quiz fixo de qualificação — o sistema deduz o perfil de uso (Básico/Streaming/Home Office/Gamer) das respostas e recomenda pacote + combo de upsell na hora.'
                 : 'Você cria as perguntas de intenção (com peso por opção) — o lead sai da fila já com pontuação e temperatura calculadas.'}
             </p>
           </div>

@@ -3,8 +3,10 @@
 //
 // D-076: o Simulador virou 2 fluxos públicos independentes por campanha,
 // nunca mais encadeados na mesma sessão:
-// - tipo 'oferta': só a pergunta fixa de perfil de uso (PERFIS_SIMULADOR,
-//   D-074) → pacote FIXO + combo de upsell. Sem perguntas de intenção.
+// - tipo 'oferta': quiz FIXO de qualificação (PERGUNTAS_OFERTA, D-077) —
+//   o perfil de uso (PERFIS_SIMULADOR, D-074) é DEDUZIDO das respostas via
+//   perfilPorRespostasOferta(), nunca escolhido por clique direto → pacote
+//   FIXO + combo de upsell (apps, upgrade, plano Móvel).
 // - tipo 'demanda': só as perguntas de intenção configuráveis por campanha
 //   (D-075, texto + peso por opção) → pontuação/temperatura → mensagem de
 //   resultado PERSONALIZADA pela campanha (mensagemResultadoPadrao() é só
@@ -43,6 +45,20 @@ export const APPS_ADICIONAIS = [
   { key: 'black',  nome: 'Black',  preco: 30, itens: ['Max', 'Disney+', 'NBA', 'Smart Fit', 'Zen', 'Queima Diária', 'Kaspersky'] },
 ];
 
+// Catálogo de planos de Internet Móvel — mesma fonte única de preço da aba
+// "Pacotes" do vendedor (VendedorApp.jsx) e do combo de upsell do Simulador
+// (D-077). Editar preço/franquia é uma mudança neste array só.
+export const PLANOS_MOVEL = [
+  { key: 'pre_2gb',       plano: 'Pré',      franquia: '2 GB',  preco: 29.90 },
+  { key: 'controle_10gb', plano: 'Controle', franquia: '10 GB', preco: 39.90 },
+  { key: 'controle_24gb', plano: 'Controle', franquia: '24 GB', preco: 54.90 },
+  { key: 'controle_35gb', plano: 'Controle', franquia: '35 GB', preco: 69.90 },
+];
+
+export function planoMovelPorKey(key) {
+  return PLANOS_MOVEL.find((p) => p.key === key) || null;
+}
+
 export function pacotePorMega(mega) {
   return PACOTES_INTERNET.find((p) => p.mega === mega) || null;
 }
@@ -54,10 +70,11 @@ export function pacoteUpgrade(mega) {
   return idx >= 0 && idx < PACOTES_INTERNET.length - 1 ? PACOTES_INTERNET[idx + 1] : null;
 }
 
-// Pergunta de perfil (nova, D-074): categoria explícita escolhida pela
-// pessoa — cada uma já tem pacote FIXO associado, nunca calculado por soma
-// de sinais. Diferente das demais perguntas do catálogo (que só alimentam
-// pontuação/temperatura da fila), esta decide sozinha o pacote recomendado.
+// Categoria de perfil de uso — cada uma tem pacote FIXO associado, nunca um
+// preço calculado por soma de sinais. Até o D-076 a pessoa escolhia direto
+// (1 clique); a partir do D-077 o perfil é DEDUZIDO das respostas do quiz
+// de qualificação (ver PERGUNTAS_OFERTA/perfilPorRespostasOferta abaixo) —
+// só o RESULTADO da dedução continua sendo uma dessas 4 categorias fixas.
 // Editar textos/pacote de um perfil é uma mudança neste array só.
 export const PERFIS_SIMULADOR = [
   { key: 'basico',      label: 'Básico',                  descricao: 'Uso o dia a dia — redes sociais, WhatsApp, pesquisas.', pacoteMega: 120 },
@@ -70,10 +87,71 @@ export function perfilPorKey(key) {
   return PERFIS_SIMULADOR.find((p) => p.key === key) || null;
 }
 
+// D-077: quiz FIXO de qualificação do Simulador de Oferta — substitui a
+// escolha direta de perfil (D-074/D-076) por uma análise prévia. Sem
+// construtor/edição pelo marketing (ao contrário das perguntas de
+// 'demanda', D-075) — é catálogo fixo em código, igual PERFIS_SIMULADOR.
+// Mesmo shape das perguntas configuráveis (id/texto/opcoes[].id/texto) pra
+// reaproveitar normalizarRespostasDinamico() e o branch de snapshot de
+// resumoPerfil() sem duplicar lógica — `peso` não é usado aqui (a dedução é
+// por regra, não soma de pontos).
+export const PERGUNTAS_OFERTA = [
+  { id: 'dispositivos', texto: 'Quantos dispositivos estão conectados na sua rede atual?', tipo: 'single', opcoes: [
+    { id: 'poucos', texto: 'Poucos (1 a 3)', peso: 0 },
+    { id: 'alguns', texto: 'Alguns (4 a 7)', peso: 0 },
+    { id: 'muitos', texto: 'Muitos (8 ou mais)', peso: 0 },
+  ] },
+  { id: 'usos', texto: 'Como vocês usam a internet?', tipo: 'multi', opcoes: [
+    { id: 'streaming', texto: 'Streaming (Netflix, filmes, séries)', peso: 0 },
+    { id: 'jogos', texto: 'Jogos online', peso: 0 },
+    { id: 'home_office', texto: 'Trabalho / home office', peso: 0 },
+    { id: 'estudos', texto: 'Estudos', peso: 0 },
+    { id: 'redes', texto: 'Redes sociais', peso: 0 },
+    { id: 'muitos_disp', texto: 'Muitos dispositivos ao mesmo tempo', peso: 0 },
+  ] },
+  { id: 'equipamentos', texto: 'Quais equipamentos usam a internet aí?', tipo: 'multi', opcoes: [
+    { id: 'smart_tv', texto: 'Smart TV', peso: 0 },
+    { id: 'pc', texto: 'Computadores / notebooks', peso: 0 },
+    { id: 'console', texto: 'Videogames / consoles', peso: 0 },
+    { id: 'celular', texto: 'Celulares', peso: 0 },
+    { id: 'iot', texto: 'Câmeras / dispositivos inteligentes', peso: 0 },
+  ] },
+  { id: 'tem_internet', texto: 'Você já tem internet em casa?', tipo: 'single', opcoes: [
+    { id: 'sim', texto: 'Sim, já tenho', peso: 0 },
+    { id: 'nao', texto: 'Ainda não tenho', peso: 0 },
+  ] },
+  { id: 'dificuldade', texto: 'Qual a sua maior dificuldade hoje?', tipo: 'single', opcoes: [
+    { id: 'lenta', texto: 'Internet lenta', peso: 0 },
+    { id: 'oscilacao', texto: 'Oscilação / quedas', peso: 0 },
+    { id: 'velocidade', texto: 'Pouca velocidade pro que eu preciso', peso: 0 },
+    { id: 'preco', texto: 'Preço', peso: 0 },
+    { id: 'satisfeito', texto: 'Estou satisfeito(a) com o serviço atual', peso: 0 },
+  ] },
+];
+
+// Deduz o perfil (e portanto o pacote) a partir das respostas normalizadas
+// do quiz de qualificação — por REGRA de prioridade, não soma de pontos
+// (D-074 continua valendo: pacote nunca é calculado por score). Prioridade:
+// jogos ou muitos dispositivos → gamer; senão home_office declarado →
+// home_office; senão streaming declarado → streaming; senão básico.
+// `respostas` deve vir de normalizarRespostasDinamico(PERGUNTAS_OFERTA, …)
+// — nunca respostas brutas não validadas.
+export function perfilPorRespostasOferta(respostas) {
+  const usos = Array.isArray(respostas?.usos) ? respostas.usos : [];
+  const muitosDispositivos = respostas?.dispositivos === 'muitos' || usos.includes('muitos_disp');
+
+  if (usos.includes('jogos') || muitosDispositivos) return 'gamer';
+  if (usos.includes('home_office')) return 'home_office';
+  if (usos.includes('streaming')) return 'streaming';
+  return 'basico';
+}
+
 // Monta o combo (pacote do perfil + adicionais marcados) e calcula o total
 // SEMPRE a partir do catálogo — nunca aceita um valorTotal pronto de fora.
-// Espelhada na Edge Function: o cliente manda só perfilKey + booleans, o
-// servidor recalcula e grava a versão dele (mesmo princípio do scoring).
+// Espelhada na Edge Function: o cliente manda só perfilKey + booleans/chave
+// do plano Móvel, o servidor recalcula e grava a versão dele (mesmo
+// princípio do scoring). `opcoes.movel` é a `key` de PLANOS_MOVEL ou null —
+// nunca o preço (D-077).
 export function montarCombo(perfilKey, opcoes = {}) {
   const perfil = perfilPorKey(perfilKey);
   if (!perfil) return null;
@@ -82,17 +160,20 @@ export function montarCombo(perfilKey, opcoes = {}) {
   const yellow = opcoes.yellow === true;
   const black = opcoes.black === true;
   const upgrade = opcoes.upgrade === true && !!upgradePacote;
+  const movelPlano = planoMovelPorKey(opcoes.movel);
 
   let valorTotal = pacote.preco;
   if (yellow) valorTotal += APPS_ADICIONAIS.find((a) => a.key === 'yellow').preco;
   if (black) valorTotal += APPS_ADICIONAIS.find((a) => a.key === 'black').preco;
   if (upgrade) valorTotal += upgradePacote.preco - pacote.preco;
+  if (movelPlano) valorTotal += movelPlano.preco;
 
   return {
     perfil: perfilKey,
     pacoteMega: perfil.pacoteMega,
     pacotePreco: pacote.preco,
     yellow, black, upgrade,
+    movel: movelPlano ? movelPlano.key : null,
     pacoteFinalMega: upgrade ? upgradePacote.mega : perfil.pacoteMega,
     valorTotal: Math.round(valorTotal * 100) / 100,
   };
@@ -307,6 +388,10 @@ export function resumoPerfil(perfilConsumo) {
     partes.push(`Pacote: ${combo.pacoteFinalMega} Mega${combo.upgrade ? ' (upgrade)' : ''}`);
     if (combo.yellow) partes.push('+ Apps Yellow');
     if (combo.black) partes.push('+ Apps Black');
+    if (combo.movel) {
+      const plano = planoMovelPorKey(combo.movel);
+      if (plano) partes.push(`+ Móvel ${plano.plano} ${plano.franquia}`);
+    }
     partes.push(`Total: ${fmtMoeda(combo.valorTotal)}/mês`);
   }
   return partes;

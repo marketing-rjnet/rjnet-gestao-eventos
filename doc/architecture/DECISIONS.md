@@ -2503,6 +2503,34 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-077] — Simulador de Oferta: perfil DEDUZIDO por quiz fixo de qualificação (não mais escolha direta); upsell de plano Móvel no combo
+
+**Data:** 2026-07-09
+**Tipo:** Feature / Reversão parcial de decisão anterior (D-074, dentro do tipo `oferta`)
+
+**Contexto:** Ao validar o D-076 (2 fluxos separados) em produção, o responsável testou o Simulador de Oferta isolado e achou o fluxo raso demais: uma única tela com 4 botões (Básico/Streaming/Home Office/Gamer) e clique direto no pacote — "não só um wizard com 4 perguntas e já cair para a oferta, pois a oferta é gerada a partir de uma análise prévia do perfil". Pediu explicitamente para reintroduzir as perguntas de qualificação que existiam antes do D-074 (moradores/usos/equipamentos/tem_internet/dificuldade), mas com a primeira pergunta trocada de "quantas pessoas moram com você" para "quantos dispositivos estão conectados na sua rede atual" — e que o sistema deduza o perfil das respostas, em vez da pessoa escolher. Pediu também que o combo de upsell (hoje Apps Yellow/Black + upgrade de pacote) ganhe uma opção de plano de Internet Móvel, usando a mesma tabela de preços já usada na aba "Pacotes" do vendedor. Confirmado explicitamente que isso NÃO reabre a fusão dos dois fluxos do D-076 — `oferta` e `demanda` continuam campanhas de tipo totalmente separado, sem interferência entre si; a mudança é só *dentro* do fluxo `oferta`.
+
+**Decisão:**
+- **Quiz FIXO de qualificação para 'oferta'** (`PERGUNTAS_OFERTA`, 5 perguntas, catálogo fixo em código — sem construtor/edição pelo marketing, ao contrário das perguntas de `demanda`): dispositivos conectados → usos → equipamentos → já tem internet → maior dificuldade. Reaproveita `normalizarRespostasDinamico()` (mesma validação hostil-safe do D-075) só pra sanitizar as respostas — sem soma de pesos (opções têm `peso: 0`, não usado).
+- **`perfilPorRespostasOferta()` — dedução por REGRA de prioridade, não soma de pontos**: jogos declarado OU muitos dispositivos → Gamer; senão home office declarado → Home Office; senão streaming declarado → Streaming; senão → Básico (fallback). Decisão deliberada de manter regra simples e explicável em vez de score com threshold arbitrário (que exigiria inventar cortes sem dado real pra calibrar) — e principalmente **não reabre o princípio do D-074** ("pacote nunca calculado por soma de sinais"): a saída continua sendo sempre uma das 4 categorias fixas com pacote associado, só a ENTRADA (perfil escolhido → perfil deduzido) mudou.
+- **Servidor deduz, nunca aceita perfil pronto do cliente**: a Edge Function `submeter-simulador` passou a receber só `respostas` no payload de `oferta` (campo `perfil` removido do contrato) — mesmo princípio de segurança já aplicado ao score de `demanda` desde o D-072/D-075, agora estendido à dedução de perfil.
+- **Tela pública "oferta" perde a etapa única de escolha e ganha 5 telas sequenciais** (mesmo "esqueleto" de wizard de `demanda` — pergunta → calculando → resultado — reaproveitado por código, não por conteúdo: cada tipo carrega e mostra só o SEU próprio questionário, nunca mistura). O perfil deduzido continua aparecendo como texto informativo na tela de resultado (label + descrição), só deixou de ser clicável.
+- **Upsell de plano Móvel**: novo catálogo `PLANOS_MOVEL` (Pré 2GB R$29,90, Controle 10/24/35GB R$39,90/54,90/69,90) — mesma fonte única de preço reaproveitada pela aba "Pacotes" do vendedor (`VendedorApp.jsx`, tabela antes hardcoded inline, agora lê do catálogo). `montarCombo()` ganha `opcoes.movel` (a `key` do plano, nunca o preço — mesmo princípio anti-cliente-hostil dos outros itens do combo). Seleção única (não checkbox — a pessoa não contrata 2 planos móveis ao mesmo tempo), UI em chips.
+- **`leads.perfil_consumo` de leads `oferta` passa a incluir `perguntas`/`respostas`** (snapshot do quiz de qualificação) além de `perfil`/`combo` — mesmo shape usado por `demanda` desde o D-075, então `resumoPerfil()` não precisou de nenhuma mudança (já tratava os dois blocos como independentes).
+
+**Alternativas Avaliadas:**
+- **Score numérico com threshold (ex: ≥50 pontos → Gamer)** — rejeitada: exigiria calibrar cortes arbitrários sem dado real de uso; a regra de prioridade por sinal declarado é mais direta de explicar e ajustar.
+- **Deixar a pessoa CONFIRMAR/ajustar o perfil deduzido antes do resultado** — não pedida pelo responsável; descartada por ora para manter o fluxo curto (pode virar um ajuste futuro se o texto informativo se mostrar insuficiente).
+- **Checkbox (múltipla escolha) pro plano Móvel, igual Apps Yellow/Black** — rejeitada: são 4 tiers de plano, não um add-on binário; contratar mais de um simultaneamente não faz sentido, por isso virou seleção única (chip).
+
+**Arquivos Afetados:** `src/lib/simulador.js` (`PERGUNTAS_OFERTA`, `perfilPorRespostasOferta()`, `PLANOS_MOVEL`, `planoMovelPorKey()`, `montarCombo()` com `opcoes.movel`, `resumoPerfil()` com linha de Móvel), `src/public/SimuladorPublico.jsx` (reescrito: fluxo `oferta` vira wizard sequencial de 5 perguntas, perfil deduzido via `useMemo`, tela de combo com seletor de plano Móvel), `supabase/functions/submeter-simulador/index.ts` (espelha `PERGUNTAS_OFERTA`/`perfilPorRespostasOferta`/`PLANOS_MOVEL`; branch `oferta` não aceita mais `body.perfil`), `src/apps/VendedorApp.jsx` (tabela Móvel da aba Pacotes passa a ler de `PLANOS_MOVEL`, elimina duplicação de preço), `src/features/simulador/SimuladorTab.jsx` (texto de descrição do tipo `oferta` atualizado), `src/index.css` (`.sim-combo-movel*`, `.sim-movel-chip*`), `tests/simulador.unit.test.js` (+19 asserts: `PERGUNTAS_OFERTA`, `perfilPorRespostasOferta`, combo com Móvel), `tests/simulador.test.js` (suite `tipo Oferta` reescrita: quiz sequencial em vez de escolha direta, cenários por perfil deduzido, upsell Móvel no fluxo completo).
+
+**Riscos:** **Redeploy obrigatório** da Edge Function `submeter-simulador` (contrato mudou: `body.perfil` não é mais aceito no tipo `oferta`, `body.respostas` passa a ser sempre enviado). Sem migração de banco nova (`perfil_consumo`/`combo` continuam jsonb livre, `movel` é só mais uma chave opcional dentro do combo já existente). Leads `oferta` gravados ANTES desta mudança não têm `perguntas`/`respostas`/`combo.movel` — `resumoPerfil()` já tolera campos ausentes (`if (combo.movel)`), não quebra histórico. Regra de dedução é opinativa (prioriza jogos/dispositivos > home office > streaming > básico) — se o responsável achar a classificação errada em algum caso real, é um ajuste pontual em `perfilPorRespostasOferta()` (client + servidor, mesma função espelhada).
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

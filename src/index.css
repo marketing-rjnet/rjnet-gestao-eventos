@@ -810,3 +810,18 @@
 .sim-app-popup-close { background: none; border: none; color: var(--text-3); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
 .sim-app-popup-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .sim-app-chip { font-size: 12.5px; padding: 6px 10px; border-radius: 999px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); color: var(--text-2); }
+
+/* Simulador: upsell de plano Móvel no combo (D-077) — escolha única entre
+   os planos do catálogo (não é checkbox, é seleção exclusiva). */
+.sim-combo-movel { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.sim-combo-movel-titulo { font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; }
+.sim-movel-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-movel-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  background: var(--bg); color: var(--text-2); box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer; border: none; transition: all .15s ease;
+}
+.sim-movel-chip.active { background: var(--rj-blue); color: #111; box-shadow: none; }
+.sim-movel-chip-nome { font-size: 12px; }
+.sim-movel-chip-preco { font-size: 11px; font-weight: 700; opacity: .8; }

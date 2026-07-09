@@ -31,6 +31,7 @@ function assert(desc, cond) {
     PERGUNTAS_SIMULADOR, PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, mensagemResultadoPadrao,
     normalizarRespostasDinamico, calcularPerfilDinamico, resumoPerfil,
     PACOTES_INTERNET, APPS_ADICIONAIS, PERFIS_SIMULADOR, pacotePorMega, pacoteUpgrade, perfilPorKey, montarCombo, fmtMoeda,
+    PLANOS_MOVEL, planoMovelPorKey, PERGUNTAS_OFERTA, perfilPorRespostasOferta,
   } = mod;
 
   // ─── Molde legado (fonte de perguntasPadrao + resumoPerfil legado) ──────
@@ -77,12 +78,41 @@ function assert(desc, cond) {
   assert('upgrade não marcado mantém pacote do perfil', comboSemUpgrade.pacoteFinalMega === 420);
   assert('input hostil em opcoes (strings truthy) não vira boolean solto', montarCombo('gamer', { yellow: 'sim' }).yellow === false);
 
+  console.log('\nmontarCombo — plano Móvel (D-077)');
+  assert('4 planos Móvel com preço', PLANOS_MOVEL.length === 4 && PLANOS_MOVEL.every((p) => p.preco > 0));
+  assert('planoMovelPorKey encontra plano existente', planoMovelPorKey('controle_24gb').preco === 54.90);
+  assert('planoMovelPorKey retorna null pra chave inexistente', planoMovelPorKey('inexistente') === null);
+  const comboMovel = montarCombo('basico', { movel: 'controle_10gb' });
+  assert('básico + móvel controle 10GB = 79,90 + 39,90 = 119,80', comboMovel.movel === 'controle_10gb' && comboMovel.valorTotal === 119.80);
+  const comboMovelInvalido = montarCombo('basico', { movel: 'hack' });
+  assert('chave de móvel inválida é ignorada (não soma preço, não quebra)', comboMovelInvalido.movel === null && comboMovelInvalido.valorTotal === 79.90);
+  const comboTudoMaisMovel = montarCombo('basico', { yellow: true, black: true, upgrade: true, movel: 'pre_2gb' });
+  assert('básico com tudo + móvel pré 2GB = 134,90 + 29,90 = 164,80', comboTudoMaisMovel.valorTotal === 164.80);
+
   console.log('\nfmtMoeda');
   assert('formata com vírgula e duas casas', fmtMoeda(99.9) === 'R$ 99,90');
   assert('formata valor inteiro', fmtMoeda(30) === 'R$ 30,00');
 
   console.log('\nmensagemResultadoPadrao (D-076, tipo demanda)');
   assert('retorna texto não vazio', typeof mensagemResultadoPadrao() === 'string' && mensagemResultadoPadrao().length > 0);
+
+  // ─── PERGUNTAS_OFERTA / perfilPorRespostasOferta (D-077) ────────────────
+
+  console.log('\nPERGUNTAS_OFERTA (quiz fixo de qualificação do Simulador de Oferta)');
+  assert('5 perguntas no quiz de oferta', PERGUNTAS_OFERTA.length === 5);
+  assert('primeira pergunta é sobre dispositivos conectados (não mais "quantas pessoas moram")', PERGUNTAS_OFERTA[0].id === 'dispositivos');
+  assert('toda pergunta tem ao menos 2 opções', PERGUNTAS_OFERTA.every((p) => p.opcoes.length >= 2));
+
+  console.log('\nperfilPorRespostasOferta (dedução por regra, D-077 — nunca soma de pontos)');
+  const respOferta = (brutas) => normalizarRespostasDinamico(PERGUNTAS_OFERTA, brutas);
+  assert('jogos declarado → gamer (prioridade máxima)', perfilPorRespostasOferta(respOferta({ usos: ['jogos'] })) === 'gamer');
+  assert('muitos dispositivos conectados → gamer, mesmo sem jogos', perfilPorRespostasOferta(respOferta({ dispositivos: 'muitos', usos: ['redes'] })) === 'gamer');
+  assert('"muitos_disp" em usos → gamer', perfilPorRespostasOferta(respOferta({ usos: ['muitos_disp'] })) === 'gamer');
+  assert('home_office declarado (sem jogos/muitos disp) → home_office', perfilPorRespostasOferta(respOferta({ usos: ['home_office', 'estudos'] })) === 'home_office');
+  assert('streaming declarado (sem jogos/home_office) → streaming', perfilPorRespostasOferta(respOferta({ usos: ['streaming'] })) === 'streaming');
+  assert('só redes sociais → básico (fallback)', perfilPorRespostasOferta(respOferta({ usos: ['redes'] })) === 'basico');
+  assert('nenhuma resposta → básico (fallback seguro)', perfilPorRespostasOferta({}) === 'basico');
+  assert('jogos tem prioridade sobre streaming quando ambos declarados', perfilPorRespostasOferta(respOferta({ usos: ['streaming', 'jogos'] })) === 'gamer');
 
   // ─── perguntasPadrao (D-075) ─────────────────────────────────────────────
 
@@ -161,6 +191,13 @@ function assert(desc, cond) {
   assert('não inclui add-on não marcado', !resumoComCombo.includes('+ Apps Black'));
   assert('inclui total formatado (420→99,90 + yellow 15 + upgrade delta 20 = 134,90)', resumoComCombo.includes('Total: R$ 134,90/mês'));
   assert('perfil inválido não quebra (chave desconhecida ignorada)', resumoPerfil({ perfil: 'hack' }).length === 0);
+
+  const resumoComMovel = resumoPerfil({
+    versao: 2, perfil: 'basico', combo: montarCombo('basico', { movel: 'controle_24gb' }),
+  });
+  assert('inclui plano Móvel marcado (D-077)', resumoComMovel.includes('+ Móvel Controle 24 GB'));
+  const resumoSemMovel = resumoPerfil({ versao: 2, perfil: 'basico', combo: montarCombo('basico', {}) });
+  assert('não inclui linha de Móvel quando não marcado', !resumoSemMovel.some((l) => l.startsWith('+ Móvel')));
 
   // ─── Resultado ──────────────────────────────────────────────────────────
   console.log(`\n${'─'.repeat(50)}`);

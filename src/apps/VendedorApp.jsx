@@ -7,7 +7,7 @@ import { SERVICO_LABEL, TIPO_LABEL, servicoLabel, mesesDoAno, mesReferenciaLabel
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
-import { resumoPerfil, PACOTES_INTERNET, APPS_ADICIONAIS } from '../lib/simulador';
+import { resumoPerfil, PACOTES_INTERNET, APPS_ADICIONAIS, PLANOS_MOVEL } from '../lib/simulador';
 import { SearchInput } from '../components/SearchInput';
 
 const TEMPERATURA_CONFIG = {
@@ -749,10 +749,9 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               <table className="pacotes-table">
                 <thead><tr><th>Plano</th><th>Franquia</th><th>Valor</th></tr></thead>
                 <tbody>
-                  <tr><td>Pré</td><td>2 GB</td><td>R$ 29,90</td></tr>
-                  <tr><td>Controle</td><td>10 GB</td><td>R$ 39,90</td></tr>
-                  <tr><td>Controle</td><td>24 GB</td><td>R$ 54,90</td></tr>
-                  <tr><td>Controle</td><td>35 GB</td><td>R$ 69,90</td></tr>
+                  {PLANOS_MOVEL.map((p) => (
+                    <tr key={p.key}><td>{p.plano}</td><td>{p.franquia}</td><td>R$ {p.preco.toFixed(2).replace('.', ',')}</td></tr>
+                  ))}
                 </tbody>
               </table>
             </div>
