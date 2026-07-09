@@ -2,27 +2,31 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
 import { fetchSimuladorPublico } from '../lib/dataService';
 import {
-  PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, calcularPerfilDinamico,
+  PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, calcularPerfilDinamico, mensagemResultadoPadrao,
   PERFIS_SIMULADOR, perfilPorKey, pacotePorMega, pacoteUpgrade, montarCombo,
   APPS_ADICIONAIS, fmtMoeda,
 } from '../lib/simulador';
 import { maskTel, validarTelefone } from '../utils/masks';
-import { SERVICO_LABEL } from '../utils/format';
 import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
 import { containsLink } from '../lib/security';
 
-// Página pública do Simulador de Perfil de Consumo — sem sessão, sem
-// AppContext (mesmo desenho do FormularioPublico). Wizard gamificado:
-// uma pergunta por tela → "analisando" → recomendação personalizada →
-// SÓ ENTÃO pede contato (valor antes do dado, decisão de produto).
+// Página pública do Simulador — sem sessão, sem AppContext (mesmo desenho
+// do FormularioPublico). Wizard gamificado: "valor antes do dado" — só
+// pede contato depois de mostrar algo pra pessoa.
 //
-// D-075: as perguntas de intenção (etapa "perguntas" abaixo) vêm da
-// PRÓPRIA campanha (`simulador.perguntas`, editada pelo marketing na
-// gestão) — não mais de um catálogo fixo importado. Campanha sem
-// `perguntas` configurada (criada antes do D-075) usa perguntasPadrao()
-// como base, sem quebrar. O score exibido aqui é só UX: a Edge Function
-// submeter-simulador busca sua PRÓPRIA cópia da config da campanha no
-// banco e recalcula tudo no servidor — nunca confia no que o cliente manda.
+// D-076: 2 fluxos públicos INDEPENDENTES por campanha, nunca mais
+// encadeados na mesma sessão (a antiga combinação confundia o marketing:
+// "Pergunta 1" no construtor aparecia como a 2ª tela do quiz, atrás da
+// etapa fixa de perfil):
+// - tipo 'oferta': perfil de uso (D-074, fixo) → pacote + combo → contato.
+//   Sem perguntas configuráveis nesse fluxo.
+// - tipo 'demanda': perguntas configuráveis da PRÓPRIA campanha (D-075) →
+//   mensagem de resultado personalizada pela campanha → contato. Sem
+//   pergunta de perfil/pacote nesse fluxo. Substitui o antigo tipo
+//   'territorial' (removido) como captação qualificada sem pacote fixo.
+// O score exibido aqui é só UX: a Edge Function submeter-simulador busca
+// sua PRÓPRIA cópia da config da campanha no banco e recalcula tudo no
+// servidor — nunca confia no que o cliente manda.
 //
 // Atribuição de tráfego: captura utm_* da URL no load — o mesmo link
 // atende anúncio pago (UTMs do gerenciador) e QR impresso (UTMs embutidos
@@ -50,24 +54,23 @@ function capturarUtm() {
 }
 
 // Serviço de interesse do Lead deriva do PERFIL escolhido (D-074, sempre
-// presente), não das perguntas de intenção (agora livres — não dá pra
-// depender de uma chave fixa tipo "usos"/"streaming" existir).
+// presente no tipo 'oferta'), não das perguntas de intenção (agora livres
+// — não dá pra depender de uma chave fixa tipo "usos"/"streaming").
 function servicosInteressePorPerfil(perfilKey) {
   return perfilKey === 'streaming' ? ['internet_residencial', 'streamings'] : ['internet_residencial'];
 }
 
 export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
-  // Perfil de consumo: perfil → perguntas → calculando → resultado → contato → enviado
-  // Territorial (D-073): territorial → contato → enviado (sem quiz/score)
-  const [fase, setFase] = useState('perfil');
-  const [perfilEscolhido, setPerfilEscolhido] = useState(null); // D-074: categoria fixa → pacote
+  // Oferta: perfil → calculando → resultado → contato → enviado
+  // Demanda: perguntas → calculando → resultado-demanda → contato → enviado
+  const [fase, setFase] = useState('carregando');
+  const [perfilEscolhido, setPerfilEscolhido] = useState(null); // D-074: categoria fixa → pacote (só 'oferta')
   const [etapa, setEtapa] = useState(0);
   const [respostas, setRespostas] = useState({});
   const [combo, setCombo] = useState({ yellow: false, black: false, upgrade: false });
   const [appInfo, setAppInfo] = useState(null); // 'yellow' | 'black' | null — popup de conteúdo do app
   const [contato, setContato] = useState({ nome: '', telefone: '', bairro: '', cidade: '' });
-  const [interesses, setInteresses] = useState([]); // só territorial
   const [consentimentoColetado, setConsentimentoColetado] = useState(false);
   const [website, setWebsite] = useState(''); // honeypot — humano nunca preenche
   const [erro, setErro] = useState('');
@@ -78,7 +81,9 @@ export default function SimuladorPublico({ slug }) {
   useEffect(() => {
     const aoCarregar = (s) => {
       setSimulador(s);
-      if (s?.tipo === 'territorial') setFase('territorial');
+      if (!s) return;
+      if (s.tipo === 'demanda') { setEtapa(0); setFase('perguntas'); }
+      else setFase('perfil');
     };
     if (!supabaseConfig.url) {
       aoCarregar(buscarSimuladorLocal(slug));
@@ -87,27 +92,25 @@ export default function SimuladorPublico({ slug }) {
     fetchSimuladorPublico(slug).then(aoCarregar);
   }, [slug]);
 
-  const territorial = simulador?.tipo === 'territorial';
+  const tipo = simulador?.tipo;
 
-  // D-075: questionário DESTA campanha — cai pro molde padrão se a
-  // campanha ainda não tiver perguntas configuradas.
+  // D-075: questionário DESTA campanha (tipo 'demanda') — cai pro molde
+  // padrão só quando a campanha nunca teve `perguntas` configurada
+  // (null/undefined, criada antes do D-075). Um array VAZIO é um estado
+  // diferente — o marketing removeu tudo — e não deve mascarar isso com o
+  // molde padrão (ver guarda de "campanha ainda sendo preparada" abaixo).
   const perguntas = useMemo(
-    () => (simulador?.perguntas?.length ? simulador.perguntas : perguntasPadrao()),
+    () => (simulador?.perguntas == null ? perguntasPadrao() : simulador.perguntas),
     [simulador],
   );
   const pergunta = perguntas[etapa];
-  // perfilCalc: só pontuação/temperatura (fila) — o pacote vem de perfilEscolhido (D-074)
-  const perfilCalc = useMemo(
-    () => (fase === 'resultado' || fase === 'contato' ? calcularPerfilDinamico(perguntas, respostas) : null),
-    [fase, perguntas, respostas],
-  );
   const perfilDef = perfilPorKey(perfilEscolhido);
   const comboCalc = useMemo(
     () => (perfilEscolhido ? montarCombo(perfilEscolhido, combo) : null),
     [perfilEscolhido, combo],
   );
-  // Ligado ao perfil escolhido (D-074, sempre presente) — não às perguntas
-  // de intenção, que agora são livres e não têm mais uma chave garantida.
+  // Ligado ao perfil escolhido (D-074) — não às perguntas de intenção, que
+  // agora são livres e não têm mais uma chave garantida.
   const streamingDeclarado = perfilEscolhido === 'streaming';
 
   const avancar = () => {
@@ -115,21 +118,14 @@ export default function SimuladorPublico({ slug }) {
       setEtapa(etapa + 1);
     } else {
       setFase('calculando');
-      setTimeout(() => setFase('resultado'), 1400);
+      setTimeout(() => setFase('resultado-demanda'), 1400);
     }
   };
 
   const escolherPerfil = (key) => {
     setPerfilEscolhido(key);
-    if (perguntas.length === 0) {
-      // Campanha sem nenhuma pergunta de intenção configurada — pula
-      // direto pro resultado (score fica 0, temperatura frio).
-      setFase('calculando');
-      setTimeout(() => setFase('resultado'), 1400);
-    } else {
-      setEtapa(0);
-      setFase('perguntas');
-    }
+    setFase('calculando');
+    setTimeout(() => setFase('resultado'), 1400);
   };
 
   const responderSingle = (opcaoId) => {
@@ -146,7 +142,6 @@ export default function SimuladorPublico({ slug }) {
 
   const voltar = () => {
     if (etapa > 0) setEtapa(etapa - 1);
-    else setFase('perfil');
   };
 
   const submit = async (e) => {
@@ -162,23 +157,25 @@ export default function SimuladorPublico({ slug }) {
     if (!consentimentoColetado) { setErro('É necessário confirmar o uso dos seus dados para continuar.'); return; }
 
     if (!supabaseConfig.url) {
-      if (territorial) {
-        salvarLeadPublicoLocal({
-          origem: 'simulador', simuladorId: simulador.id,
-          nome: contato.nome, telefone: contato.telefone,
-          bairro: contato.bairro, cidade: contato.cidade,
-          temperatura: 'morno', servicoInteresse: interesses,
-          utm, versaoTermo: 'simulador-v1',
-        });
-      } else {
+      if (tipo === 'demanda') {
         const p = calcularPerfilDinamico(perguntas, respostas);
         salvarLeadPublicoLocal({
           origem: 'simulador', simuladorId: simulador.id,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
-          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: p.respostas, perfil: perfilEscolhido, combo: comboCalc },
-          pontuacao: p.pontuacao, ofertaRecomendada: 'internet_residencial',
-          temperatura: p.temperatura, servicoInteresse: servicosInteressePorPerfil(perfilEscolhido),
+          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: p.respostas },
+          pontuacao: p.pontuacao, servicoInteresse: ['internet_residencial'],
+          temperatura: p.temperatura,
+          utm, versaoTermo: 'simulador-v1',
+        });
+      } else {
+        salvarLeadPublicoLocal({
+          origem: 'simulador', simuladorId: simulador.id,
+          nome: contato.nome, telefone: contato.telefone,
+          bairro: contato.bairro, cidade: contato.cidade,
+          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, perfil: perfilEscolhido, combo: comboCalc },
+          ofertaRecomendada: 'internet_residencial',
+          temperatura: 'quente', servicoInteresse: servicosInteressePorPerfil(perfilEscolhido),
           utm, versaoTermo: 'simulador-v1',
         });
       }
@@ -197,10 +194,9 @@ export default function SimuladorPublico({ slug }) {
         },
         body: JSON.stringify({
           simuladorId: simulador.id,
-          respostas: territorial ? undefined : respostas,
-          perfil: territorial ? undefined : perfilEscolhido,
-          combo: territorial ? undefined : combo,
-          servicoInteresse: territorial ? interesses : undefined,
+          respostas: tipo === 'demanda' ? respostas : undefined,
+          perfil: tipo === 'oferta' ? perfilEscolhido : undefined,
+          combo: tipo === 'oferta' ? combo : undefined,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
           utm, consentimentoColetado, website,
@@ -222,6 +218,9 @@ export default function SimuladorPublico({ slug }) {
   if (!simulador) {
     return <div className="qr-public-shell"><div className="card" style={{ textAlign: 'center', padding: 40 }}>Simulação não encontrada ou encerrada.</div></div>;
   }
+  if (tipo === 'demanda' && perguntas.length === 0) {
+    return <div className="qr-public-shell"><div className="card" style={{ textAlign: 'center', padding: 40 }}>Essa campanha ainda está sendo preparada. Volte em instantes.</div></div>;
+  }
 
   // ─── Enviado ──────────────────────────────────────────────────
   if (fase === 'enviado') {
@@ -231,8 +230,8 @@ export default function SimuladorPublico({ slug }) {
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
-            {territorial
-              ? 'Seu interesse foi registrado. Quando a RJNet tiver novidade pra sua região, você recebe no WhatsApp.'
+            {tipo === 'demanda'
+              ? 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'
               : 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
         </div>
@@ -247,64 +246,32 @@ export default function SimuladorPublico({ slug }) {
         <div className="card sim-calculando">
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 24 }} />
           <div className="sim-spinner" aria-hidden="true" />
-          <div style={{ fontSize: 16, fontWeight: 700, marginTop: 18 }}>Analisando seu perfil...</div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginTop: 18 }}>Analisando suas respostas...</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>Encontrando a conexão ideal pra sua casa</div>
         </div>
       </div>
     );
   }
 
-  // ─── Territorial (D-073): cidade/bairro/interesse, sem quiz ───
-  if (fase === 'territorial') {
-    const avancarTerritorial = () => {
-      setErro('');
-      if (!contato.cidade.trim() || !contato.bairro.trim()) { setErro('Informe cidade e bairro.'); return; }
-      if (containsLink(contato.cidade) || containsLink(contato.bairro)) { setErro('Cidade/bairro não podem conter link.'); return; }
-      if (interesses.length === 0) { setErro('Selecione ao menos um interesse.'); return; }
-      setFase('contato');
-    };
+  // ─── Resultado — Demanda (D-076): mensagem personalizada da campanha ──
+  if (fase === 'resultado-demanda') {
     return (
       <div className="qr-public-shell">
-        <div className="card" style={{ padding: '24px 22px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, marginBottom: 14 }} />
-          <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>
-            Quer internet RJNet na sua região?
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 12 }}>
-            Conta pra gente onde você mora e o que procura — quanto mais gente da sua região se registrar, mais rápido chegamos aí.
-          </div>
-          <div className="big-field" style={{ marginBottom: 10 }}>
-            <label>Cidade *</label>
-            <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} autoFocus />
-          </div>
-          <div className="big-field" style={{ marginBottom: 12 }}>
-            <label>Bairro *</label>
-            <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
-          </div>
-          <div className="big-field" style={{ marginBottom: 4 }}>
-            <label>O que você procura? *</label>
-          </div>
-          <div className="sim-opcoes">
-            {Object.keys(SERVICO_LABEL).map((s) => (
-              <button
-                type="button" key={s}
-                className={'sim-opcao' + (interesses.includes(s) ? ' active' : '')}
-                onClick={() => setInteresses((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))}
-              >
-                {SERVICO_LABEL[s]}
-              </button>
-            ))}
-          </div>
-          {erro && <div className="form-erro" style={{ marginTop: 12 }}>{erro}</div>}
-          <button type="button" className="btn-primary btn-full" style={{ marginTop: 14 }} onClick={avancarTerritorial}>
-            Continuar →
+        <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 16 }} />
+          <div className="sim-resultado-badge">Obrigado por responder!</div>
+          <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5, margin: '14px 0 4px' }}>
+            {simulador.mensagemResultado || mensagemResultadoPadrao()}
+          </p>
+          <button type="button" className="btn-primary btn-full" style={{ marginTop: 16 }} onClick={() => setFase('contato')}>
+            Quero ser contatado →
           </button>
         </div>
       </div>
     );
   }
 
-  // ─── Resultado: pacote fixo do perfil + combo de upsell (D-074) ───
+  // ─── Resultado — Oferta: pacote fixo do perfil + combo de upsell (D-074) ───
   if (fase === 'resultado') {
     const pacote = pacotePorMega(perfilDef.pacoteMega);
     const upgradePacote = pacoteUpgrade(perfilDef.pacoteMega);
@@ -385,8 +352,8 @@ export default function SimuladorPublico({ slug }) {
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 14 }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
-            {territorial
-              ? 'Deixe seu contato — quando a RJNet tiver novidade pra sua região, você é o primeiro a saber.'
+            {tipo === 'demanda'
+              ? 'Deixe seu contato pra gente te chamar com a melhor solução.'
               : 'Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.'}
           </p>
 
@@ -406,19 +373,14 @@ export default function SimuladorPublico({ slug }) {
             <label>WhatsApp *</label>
             <input maxLength={15} value={contato.telefone} onChange={(e) => setContato((p) => ({ ...p, telefone: maskTel(e.target.value) }))} placeholder="(24) 99999-9999" inputMode="tel" />
           </div>
-          {/* Territorial já coletou cidade/bairro na etapa anterior */}
-          {!territorial && (
-            <>
-              <div className="big-field" style={{ marginBottom: 10 }}>
-                <label>Cidade</label>
-                <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} />
-              </div>
-              <div className="big-field" style={{ marginBottom: 10 }}>
-                <label>Bairro</label>
-                <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
-              </div>
-            </>
-          )}
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Cidade</label>
+            <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} />
+          </div>
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Bairro</label>
+            <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
+          </div>
 
           <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 14px' }}>
             <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} style={{ marginTop: 2 }} />
@@ -438,20 +400,12 @@ export default function SimuladorPublico({ slug }) {
     );
   }
 
-  // ─── Perfil de uso (D-074): primeira etapa, decide o pacote fixo ──
+  // ─── Perfil de uso (D-074, tipo 'oferta'): única etapa, decide o pacote ──
   if (fase === 'perfil') {
-    const totalPassos = 1 + perguntas.length;
-    const progresso = Math.round((1 / totalPassos) * 100);
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ padding: '24px 22px' }}>
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, marginBottom: 14 }} />
-          <div className="sim-progress" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
-            <div className="sim-progress-fill" style={{ width: `${progresso}%` }} />
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', margin: '8px 0 14px' }}>
-            Pergunta 1 de {totalPassos}
-          </div>
           <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 10 }}>
             Qual desses combina mais com você?
           </div>
@@ -468,9 +422,9 @@ export default function SimuladorPublico({ slug }) {
     );
   }
 
-  // ─── Perguntas de intenção (uma por tela, D-075: vêm da campanha) ──
-  const totalPassos = 1 + perguntas.length;
-  const progresso = Math.round(((etapa + 2) / totalPassos) * 100);
+  // ─── Perguntas de intenção (tipo 'demanda', uma por tela, D-075) ──
+  const totalPassos = perguntas.length;
+  const progresso = Math.round(((etapa + 1) / totalPassos) * 100);
   const selecionadas = pergunta.tipo === 'multi' ? (respostas[pergunta.id] || []) : [];
 
   return (
@@ -481,7 +435,7 @@ export default function SimuladorPublico({ slug }) {
           <div className="sim-progress-fill" style={{ width: `${progresso}%` }} />
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-3)', margin: '8px 0 14px' }}>
-          Pergunta {etapa + 2} de {totalPassos}
+          Pergunta {etapa + 1} de {totalPassos}
         </div>
 
         <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>{pergunta.texto}</div>
@@ -503,7 +457,7 @@ export default function SimuladorPublico({ slug }) {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button type="button" className="btn-ghost" style={{ flex: '0 0 auto' }} onClick={voltar}>← Voltar</button>
+          {etapa > 0 && <button type="button" className="btn-ghost" style={{ flex: '0 0 auto' }} onClick={voltar}>← Voltar</button>}
           {pergunta.tipo === 'multi' && (
             <button
               type="button" className="btn-primary" style={{ flex: 1 }}

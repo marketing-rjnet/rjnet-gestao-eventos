@@ -28,7 +28,7 @@ function assert(desc, cond) {
   const src = fs.readFileSync(path.join(__dirname, '../src/lib/simulador.js'), 'utf8');
   const mod = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
   const {
-    PERGUNTAS_SIMULADOR, PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao,
+    PERGUNTAS_SIMULADOR, PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, mensagemResultadoPadrao,
     normalizarRespostasDinamico, calcularPerfilDinamico, resumoPerfil,
     PACOTES_INTERNET, APPS_ADICIONAIS, PERFIS_SIMULADOR, pacotePorMega, pacoteUpgrade, perfilPorKey, montarCombo, fmtMoeda,
   } = mod;
@@ -80,6 +80,9 @@ function assert(desc, cond) {
   console.log('\nfmtMoeda');
   assert('formata com vírgula e duas casas', fmtMoeda(99.9) === 'R$ 99,90');
   assert('formata valor inteiro', fmtMoeda(30) === 'R$ 30,00');
+
+  console.log('\nmensagemResultadoPadrao (D-076, tipo demanda)');
+  assert('retorna texto não vazio', typeof mensagemResultadoPadrao() === 'string' && mensagemResultadoPadrao().length > 0);
 
   // ─── perguntasPadrao (D-075) ─────────────────────────────────────────────
 

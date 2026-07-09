@@ -1,15 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { useApp } from '../../hooks/useApp';
-import { perguntasPadrao } from '../../lib/simulador';
+import { perguntasPadrao, mensagemResultadoPadrao } from '../../lib/simulador';
 import { slugify } from '../../utils/ids';
 import { sanitizeText } from '../../lib/security';
 
-// Simulador de Perfil de Consumo — gestão de campanhas. Cada campanha do
-// tipo 'perfil_consumo' tem seu PRÓPRIO questionário de intenção — texto e
-// peso (pontos) por opção, editados aqui pelo marketing (D-075). A
-// pergunta de "perfil de uso" que decide o pacote fixo (D-074) continua
-// separada, fora deste construtor.
+// Simulador — gestão de campanhas. D-076: 2 fluxos públicos independentes,
+// nunca mais encadeados na mesma sessão:
+// - 'oferta': só a pergunta fixa de perfil de uso (D-074) → pacote + combo.
+//   Sem perguntas configuráveis, sem construtor.
+// - 'demanda': só as perguntas de intenção configuráveis (texto + peso por
+//   opção, D-075) → mensagem de resultado personalizada pela campanha
+//   (novo campo, editado no mesmo construtor). Substitui o antigo tipo
+//   'territorial' (removido) como forma de captação qualificada sem pacote
+//   fixo associado.
 //
 // Cada campanha gera DOIS artefatos do mesmo link /s/:slug:
 // - Link "limpo" pra colar no gerenciador de anúncios (os UTMs de cada
@@ -17,6 +21,8 @@ import { sanitizeText } from '../../lib/security';
 // - QR Code com utm_source=qrcode&utm_medium=impresso já embutidos — assim
 //   a MESMA campanha distingue scan de material físico de clique em anúncio
 //   sem precisar duplicar campanha.
+// Numa campanha 'demanda', o botão de QR/Link só fica disponível depois de
+// pelo menos 1 pergunta salva — antes disso o link não tem o que perguntar.
 
 function QrDoSimulador({ simulador }) {
   const canvasRef = useRef(null);
@@ -63,18 +69,20 @@ function QrDoSimulador({ simulador }) {
 }
 
 const TIPO_LABEL_SIM = {
-  perfil_consumo: 'Perfil de consumo',
-  territorial: 'Territorial (demanda)',
+  oferta: 'Simulador de Oferta',
+  demanda: 'Gerador por Demanda',
 };
 
 const genLocalId = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-// D-075: construtor do questionário de intenção de UMA campanha — pergunta
-// por pergunta, opção por opção, com peso (pontos) editável. O peso soma
-// pontuação de intenção; a temperatura da fila é um percentual da
+// D-075/D-076: construtor do questionário de intenção de UMA campanha
+// 'demanda' — pergunta por pergunta, opção por opção, com peso (pontos)
+// editável, mais a mensagem de resultado mostrada antes do contato. O peso
+// soma pontuação de intenção; a temperatura da fila é um percentual da
 // pontuação máxima possível daquela campanha (ver calcularPerfilDinamico).
 function PerguntasBuilder({ simulador, onSalvar }) {
   const [perguntas, setPerguntas] = useState(() => (simulador.perguntas?.length ? simulador.perguntas : perguntasPadrao()));
+  const [mensagemResultado, setMensagemResultado] = useState(() => simulador.mensagemResultado || mensagemResultadoPadrao());
   const [erro, setErro] = useState('');
   const [salvo, setSalvo] = useState(false);
 
@@ -126,7 +134,8 @@ function PerguntasBuilder({ simulador, onSalvar }) {
       id: p.id, texto: sanitizeText(p.texto, 200), tipo: p.tipo,
       opcoes: p.opcoes.map((o) => ({ id: o.id, texto: sanitizeText(o.texto, 150), peso: Math.max(0, Number(o.peso) || 0) })),
     }));
-    onSalvar(limpo);
+    const msgLimpa = sanitizeText(mensagemResultado, 400) || mensagemResultadoPadrao();
+    onSalvar({ perguntas: limpo, mensagemResultado: msgLimpa });
     setSalvo(true);
     setTimeout(() => setSalvo(false), 2000);
   };
@@ -178,6 +187,19 @@ function PerguntasBuilder({ simulador, onSalvar }) {
         </div>
       ))}
       <button type="button" className="btn-ghost btn-full" onClick={adicionarPergunta}>+ Adicionar pergunta</button>
+
+      <div className="big-field" style={{ marginTop: 4 }}>
+        <label>Mensagem de resultado</label>
+        <textarea
+          maxLength={400} rows={3} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+          value={mensagemResultado} onChange={(e) => setMensagemResultado(e.target.value)}
+        />
+        <p className="campo-hint" style={{ marginTop: 4 }}>
+          Aparece pra pessoa depois de responder tudo, antes de pedir o contato — é o "valor" que ela recebe nesse
+          fluxo, já que não tem pacote pra recomendar (isso é só no Simulador de Oferta).
+        </p>
+      </div>
+
       {erro && <div className="form-erro">{erro}</div>}
       <button type="button" className="btn-primary btn-full" onClick={salvar}>{salvo ? '✓ Perguntas salvas!' : 'Salvar perguntas'}</button>
     </div>
@@ -188,7 +210,7 @@ export function SimuladorTab() {
   const { simuladores, addSimulador, updateSimulador, removeSimulador } = useApp();
   const [nome, setNome] = useState('');
   const [campanha, setCampanha] = useState('');
-  const [tipo, setTipo] = useState('perfil_consumo');
+  const [tipo, setTipo] = useState('oferta');
   const [abertoId, setAbertoId] = useState(null);
   const [perguntasAbertasId, setPerguntasAbertasId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -204,8 +226,11 @@ export function SimuladorTab() {
     });
     setNome('');
     setCampanha('');
-    setTipo('perfil_consumo');
+    setTipo('oferta');
     setAbertoId(novo.id);
+    // 'demanda' nasce sem link disponível ainda (precisa configurar as
+    // perguntas primeiro) — já abre direto no construtor.
+    if (tipo === 'demanda') setPerguntasAbertasId(novo.id);
   };
 
   return (
@@ -214,10 +239,10 @@ export function SimuladorTab() {
         <div>
           <div className="page-title">Simulador</div>
           <p className="tab-desc">
-            Quiz de perfil de consumo pra captação qualificada: a pessoa responde suas perguntas, recebe
-            uma recomendação e só então deixa o contato. Você define as perguntas e o peso de cada resposta
-            em cada campanha — o peso decide a pontuação de intenção. Cada campanha gera link (tráfego pago)
-            e QR Code (material impresso) próprios.
+            Duas formas de captação qualificada, sempre com valor entregue antes do contato: o Simulador de
+            Oferta recomenda um pacote fixo por perfil de uso; o Gerador por Demanda usa perguntas que você
+            mesmo cria, cada uma com peso — o peso decide a pontuação de intenção. Cada campanha gera link
+            (tráfego pago) e QR Code (material impresso) próprios.
           </p>
         </div>
       </div>
@@ -236,17 +261,17 @@ export function SimuladorTab() {
           <div className="big-field" style={{ marginBottom: 14 }}>
             <label>Tipo</label>
             <div className="seg-control">
-              <button type="button" className={'seg-btn' + (tipo === 'perfil_consumo' ? ' active' : '')} onClick={() => setTipo('perfil_consumo')}>
-                Perfil de consumo
+              <button type="button" className={'seg-btn' + (tipo === 'oferta' ? ' active' : '')} onClick={() => setTipo('oferta')}>
+                Simulador de Oferta
               </button>
-              <button type="button" className={'seg-btn' + (tipo === 'territorial' ? ' active' : '')} onClick={() => setTipo('territorial')}>
-                Territorial
+              <button type="button" className={'seg-btn' + (tipo === 'demanda' ? ' active' : '')} onClick={() => setTipo('demanda')}>
+                Gerador por Demanda
               </button>
             </div>
             <p className="campo-hint" style={{ marginTop: 6 }}>
-              {tipo === 'perfil_consumo'
-                ? 'Quiz completo com recomendação de oferta — pro lead sair qualificado com perfil e pontuação.'
-                : 'Só cidade, bairro e interesse — pra anúncios geolocalizados alimentarem o relatório de demanda por região (Relatórios).'}
+              {tipo === 'oferta'
+                ? 'A pessoa escolhe um perfil de uso (Básico/Streaming/Home Office/Gamer) e recebe o pacote fixo + combo de upsell na hora.'
+                : 'Você cria as perguntas de intenção (com peso por opção) — o lead sai da fila já com pontuação e temperatura calculadas.'}
             </p>
           </div>
           <button type="submit" className="btn-primary btn-full" disabled={!nome.trim()}>Criar campanha</button>
@@ -268,15 +293,19 @@ export function SimuladorTab() {
                       {TIPO_LABEL_SIM[s.tipo] || s.tipo} · {s.campanha ? `${s.campanha} · ` : ''}{s.ativo ? 'ativa' : 'encerrada'}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {s.tipo === 'perfil_consumo' && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {s.tipo === 'demanda' && (
                       <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setPerguntasAbertasId(perguntasAbertasId === s.id ? null : s.id)}>
                         {perguntasAbertasId === s.id ? 'Fechar' : 'Perguntas'}
                       </button>
                     )}
-                    <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setAbertoId(abertoId === s.id ? null : s.id)}>
-                      {abertoId === s.id ? 'Fechar' : 'QR / Link'}
-                    </button>
+                    {(s.tipo === 'oferta' || s.perguntas?.length > 0) ? (
+                      <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setAbertoId(abertoId === s.id ? null : s.id)}>
+                        {abertoId === s.id ? 'Fechar' : 'QR / Link'}
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Configure as perguntas pra liberar o QR/Link</span>
+                    )}
                     <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => updateSimulador(s.id, { ativo: !s.ativo })}>
                       {s.ativo ? 'Encerrar' : 'Reativar'}
                     </button>
@@ -293,7 +322,7 @@ export function SimuladorTab() {
                 {perguntasAbertasId === s.id && (
                   <PerguntasBuilder
                     simulador={s}
-                    onSalvar={(perguntas) => updateSimulador(s.id, { perguntas })}
+                    onSalvar={(patch) => updateSimulador(s.id, patch)}
                   />
                 )}
                 {abertoId === s.id && <QrDoSimulador simulador={s} />}

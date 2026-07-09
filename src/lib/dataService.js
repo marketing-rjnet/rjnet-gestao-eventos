@@ -268,16 +268,18 @@ const campoPersonalizadoToDb = (c) => ({
 // questionário de intenção (`perguntas`, D-075) editado pelo marketing.
 const simuladorFromDb = (r) => ({
   id: r.id, nome: r.nome, slug: r.slug,
-  tipo: r.tipo ?? 'perfil_consumo', campanha: r.campanha ?? '',
+  tipo: r.tipo ?? 'oferta', campanha: r.campanha ?? '',
   versaoPerguntas: r.versao_perguntas ?? 1,
   perguntas: r.perguntas ?? null,
+  mensagemResultado: r.mensagem_resultado ?? null,
   ativo: r.ativo ?? true, criadoEm: r.criado_em,
 });
 const simuladorToDb = (s) => ({
   id: s.id, nome: s.nome, slug: s.slug,
-  tipo: s.tipo ?? 'perfil_consumo', campanha: s.campanha || null,
+  tipo: s.tipo ?? 'oferta', campanha: s.campanha || null,
   versao_perguntas: s.versaoPerguntas ?? 1,
   perguntas: s.perguntas ?? null,
+  mensagem_resultado: s.mensagemResultado ?? null,
   ativo: s.ativo ?? true, criado_em: s.criadoEm || new Date().toISOString(),
 });
 
@@ -323,7 +325,7 @@ export async function fetchAll(signal) {
         supabase.from('formularios').select('id,nome,slug,campos,campos_obrigatorios,campos_personalizados_ids,campos_personalizados_obrigatorios,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
-        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
+        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -491,7 +493,7 @@ export async function fetchSimuladorPublico(slug) {
   if (!isSupabaseMode() || !slug) return null;
   const { data, error } = await supabase
     .from('simuladores')
-    .select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,ativo')
+    .select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,ativo')
     .eq('slug', slug)
     .eq('ativo', true)
     .maybeSingle();

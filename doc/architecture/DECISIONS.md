@@ -2474,6 +2474,35 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-076] — Simulador vira 2 fluxos públicos independentes (Oferta / Demanda), nunca mais encadeados; tipo Territorial removido
+
+**Data:** 2026-07-09
+**Tipo:** Feature / Mudança de arquitetura (correção de desenho pós-D-075)
+
+**Contexto:** Ao testar o construtor de perguntas do D-075 em produção, o responsável reportou confusão: editava a "Pergunta 1" no construtor, mas ao abrir o link público ela aparecia como a 2ª tela do quiz — porque toda campanha `perfil_consumo` encadeava DUAS coisas na mesma sessão (a etapa fixa de "perfil de uso", D-074, sempre na frente; depois as perguntas configuráveis, D-075). Investigado e descartada a hipótese de bug de persistência (confirmado via teste manual: F5 + reabrir o construtor preservava a edição) — o comportamento estava correto, só contraintuitivo. Na conversa, o responsável propôs separar em 2 funcionalidades: "o gerador de oferta com base no perfil" (o que já funcionava) e "o gerador de perguntas com base nas demandas" (o construtor do D-075, mas sozinho, sem a etapa de perfil na frente) — e que o QR/Link desse tipo só devia ficar disponível depois de as perguntas estarem configuradas, já que antes disso não tem o que perguntar. Também foi decidido remover o tipo `territorial` (D-073) nesse mesmo movimento — o responsável avaliou que não usaria esse formato específico.
+
+**Decisão:**
+- **2 tipos de campanha, mutuamente exclusivos, nunca mais chained:**
+  - `oferta` (renomeado de `perfil_consumo`): só a etapa fixa de perfil de uso (D-074) → pacote fixo + combo de upsell → contato. Sem perguntas configuráveis, sem construtor — nada a configurar além da imagem/copy já cobertos por Ofertas (aba separada, sem relação). Lead sempre nasce `temperatura='quente'`, `pontuacao=null` (não há quiz de intenção nesse fluxo pra gerar score).
+  - `demanda` (novo): só as perguntas configuráveis por campanha (D-075, texto + peso por opção) → mensagem de resultado PERSONALIZADA pela campanha (novo campo `mensagem_resultado`, editável no mesmo construtor de perguntas) → contato. Sem etapa de perfil/pacote. Lead nasce com `pontuacao`/`temperatura` calculados a partir das perguntas (mesmo `calcularPerfilDinamico()` do D-075, sem mudança na fórmula).
+- **Mensagem de resultado personalizável:** como o tipo `demanda` não tem pacote pra recomendar, o "valor antes do dado" (princípio de produto do Simulador desde o D-072) passou a ser um texto livre configurado pelo marketing por campanha, com um valor padrão editável (`mensagemResultadoPadrao()`) — mesmo princípio de "nasce com molde, edita à vontade" já usado pra `perguntasPadrao()`.
+- **QR/Link gated até ter pergunta configurada:** `SimuladorTab.jsx` só mostra o botão "QR / Link" de uma campanha `demanda` quando `perguntas.length > 0` — antes disso mostra um aviso textual. Campanha `demanda` nova já abre direto no construtor de perguntas ao ser criada (UX guiada: primeiro configura, depois divulga). `oferta` nunca teve essa gate (não depende de configuração nenhuma pra estar pronta).
+- **Tipo `territorial` (D-073) removido:** não dá mais pra criar campanha desse tipo — retirado do seletor de criação e dos 2 fluxos públicos. Campanhas territoriais existentes (nenhuma em uso real até esta decisão) são desativadas por uma migração, não apagadas — lead histórico já capturado continua intacto. O relatório interno "Demanda por região" (`LeadsTab.jsx`, RPC `demanda_por_regiao()`) **não foi removido**: ele agrega qualquer lead com `cidade`/`bairro` preenchido, não só os de origem territorial (Form Builder e o próprio tipo `demanda` também alimentam cidade/bairro via contato) — continua funcionando, só deixa de receber uma fonte específica de dado.
+- **Migração de dados:** campanha de teste existente (`perfil_consumo`, sem uso real) excluída pelo responsável antes do deploy — não houve necessidade de decidir como migrar um caso real. A migração (`migracao-simulador-tipos.sql`) trata o caso genérico mesmo assim: `perfil_consumo` → `oferta` (preserva o pacote, perde perguntas porventura configuradas — que ficam órfãs no banco, não apagadas); `territorial` → desativado.
+
+**Alternativas Avaliadas:**
+- **Manter um único tipo, só reordenar as etapas (perguntas antes do perfil)** — rejeitada: não resolve a confusão de fundo (ainda seriam 2 conceitos encadeados numa sessão só) e não atende ao pedido explícito de "2 formas separadas de mandar a solicitação".
+- **Manter Territorial como 3º tipo** — era a recomendação inicial (resolve um problema diferente: mapa de demanda geolocalizada sem quiz), mas o responsável optou por remover deliberadamente ("Remover Territorial") por não ver uso prático pra esse formato específico.
+- **Tela de resultado do tipo `demanda` mostrar a pontuação/temperatura calculada** (em vez de mensagem livre) — rejeitada a favor de mensagem personalizável, que dá mais controle de copy ao marketing e evita expor um número de "score" pouco autoexplicativo pro titular do dado.
+
+**Arquivos Afetados:** `supabase/migracao-simulador-tipos.sql` (novo — migra `tipo`, troca constraint, adiciona `mensagem_resultado`), `src/lib/simulador.js` (`mensagemResultadoPadrao()`), `src/api/simuladorApi.js` (`addSimulador` semeia `perguntas`/`mensagemResultado` só pra tipo `demanda`), `src/lib/dataService.js` (coluna `mensagem_resultado` em `simuladorFromDb`/`simuladorToDb`/selects), `src/public/SimuladorPublico.jsx` (reescrito: 2 fluxos independentes, sem `territorial`), `src/features/simulador/SimuladorTab.jsx` (tipos renomeados, gate de QR/Link, textarea de mensagem no `PerguntasBuilder`), `supabase/functions/submeter-simulador/index.ts` (reescrito: branch por tipo `oferta`/`demanda`, sem `territorial`), `tests/simulador.test.js` (reescrito: suites separadas por tipo), `tests/simulador.unit.test.js` (+1 teste `mensagemResultadoPadrao`).
+
+**Riscos:** **Ordem de deploy** — `migracao-simulador-tipos.sql` + `NOTIFY pgrst` antes do redeploy da Edge Function (que agora rejeita `tipo='territorial'` implicitamente, tratando qualquer coisa que não seja `'demanda'` como `'oferta'`). Campanhas `territorial` pré-existentes (se houver, fora do ambiente de teste do responsável) são desativadas pela migração — deixam de aceitar novo lead, mas o histórico não é afetado. `resumoPerfil()` não precisou de mudança: já tratava `perfil`/`combo` e `perguntas`/`respostas` como blocos independentes desde o D-075, então um lead `oferta` (só perfil/combo) ou `demanda` (só perguntas/respostas) renderiza corretamente sem branch novo.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

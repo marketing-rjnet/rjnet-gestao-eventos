@@ -1,13 +1,17 @@
 // Simulador de Perfil de Consumo — catálogo de pacotes/perfis + motor de
 // pontuação das perguntas de intenção.
 //
-// D-075: as perguntas de intenção (as que valem ponto pra fila) deixaram
-// de ser um catálogo fixo em código (D-072) — agora cada campanha do tipo
-// 'perfil_consumo' tem seu PRÓPRIO questionário (texto + peso por opção),
-// criado/editado pelo marketing na gestão (SimuladorTab), gravado em
-// `simuladores.perguntas`. A pergunta de "perfil de uso" (D-074,
-// PERFIS_SIMULADOR) continua fixa e decide o pacote — só as de intenção
-// viram configuráveis.
+// D-076: o Simulador virou 2 fluxos públicos independentes por campanha,
+// nunca mais encadeados na mesma sessão:
+// - tipo 'oferta': só a pergunta fixa de perfil de uso (PERFIS_SIMULADOR,
+//   D-074) → pacote FIXO + combo de upsell. Sem perguntas de intenção.
+// - tipo 'demanda': só as perguntas de intenção configuráveis por campanha
+//   (D-075, texto + peso por opção) → pontuação/temperatura → mensagem de
+//   resultado PERSONALIZADA pela campanha (mensagemResultadoPadrao() é só
+//   o valor inicial editável). Sem pergunta de perfil/pacote.
+// O tipo 'territorial' (D-073) foi removido — as campanhas geolocalizadas
+// sem quiz não existem mais como opção; 'demanda' cobre esse papel de
+// captação qualificada com pontuação configurável pelo marketing.
 //
 // Módulo deliberadamente SEM imports: é carregado standalone pelo teste
 // unitário Node (tests/simulador.unit.test.js) e espelhado em Deno na Edge
@@ -17,7 +21,9 @@
 
 // Versão do formato de `leads.perfil_consumo` — bump quando a FORMA do
 // jsonb muda (não quando só o conteúdo de uma campanha muda). v2 (D-075)
-// passou a incluir `perguntas` (snapshot) e `combo`/`perfil` (D-074).
+// passou a incluir `perguntas` (snapshot) e `combo`/`perfil` (D-074); a
+// separação em 2 tipos (D-076) não mudou a forma do jsonb em si (cada lead
+// só carrega o bloco relevante ao seu tipo), então a versão continua 2.
 export const PERGUNTAS_SIMULADOR_VERSAO = 2;
 
 // Catálogo de pacotes de Internet Fibra e apps adicionais — fonte única de
@@ -249,6 +255,16 @@ export function calcularPerfilDinamico(perguntas, brutas) {
 
 export function fmtMoeda(valor) {
   return `R$ ${Number(valor).toFixed(2).replace('.', ',')}`;
+}
+
+// D-076: mensagem de resultado do tipo 'demanda' — texto livre por
+// campanha (`simuladores.mensagem_resultado`), mostrado na tela final do
+// quiz antes de pedir o contato (não existe pacote/oferta pra recomendar
+// nesse fluxo, então quem substitui o "valor antes do dado" é essa
+// mensagem). Este é só o valor inicial de uma campanha nova — o marketing
+// edita à vontade na gestão.
+export function mensagemResultadoPadrao() {
+  return 'Show! Baseado nas suas respostas, um consultor da RJNet vai entrar em contato com a melhor solução pra você.';
 }
 
 // Resumo legível do perfil ("2 a 4 pessoas · Streaming · Sem internet hoje

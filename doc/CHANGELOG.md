@@ -4,6 +4,31 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.20] — Simulador: 2 fluxos independentes (Oferta / Demanda), Territorial removido
+**Data:** 2026-07-09
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-simulador-tipos.sql`** (novo) — migra `tipo='perfil_consumo'` → `'oferta'`, desativa linhas `tipo='territorial'` (não apaga), troca a constraint pra `tipo in ('oferta', 'demanda')`, adiciona coluna `mensagem_resultado` (text).
+- **`src/public/SimuladorPublico.jsx`** — reescrito: 2 fluxos públicos totalmente independentes, nunca mais encadeados na mesma sessão. `oferta` = só perfil de uso → pacote + combo → contato (sem perguntas). `demanda` = só perguntas configuráveis da campanha → mensagem de resultado PERSONALIZADA (`simulador.mensagemResultado`) → contato (sem perfil/pacote). Tipo `territorial` removido do fluxo público.
+- **`supabase/functions/submeter-simulador/index.ts`** — reescrito com o mesmo espelhamento: branch por `tipo` (`oferta`/`demanda`), sem `territorial`. `oferta` sempre grava `temperatura='quente'`/`pontuacao=null`; `demanda` recalcula pontuação/temperatura a partir das perguntas da própria campanha, igual antes.
+- **`src/features/simulador/SimuladorTab.jsx`** — tipos renomeados na UI ("Simulador de Oferta" / "Gerador por Demanda"); botão "QR / Link" de uma campanha `demanda` só aparece depois de `perguntas.length > 0` (antes disso mostra aviso); campanha `demanda` nova já abre direto no construtor de perguntas; `PerguntasBuilder` ganha campo de "Mensagem de resultado" (textarea, salva junto com as perguntas).
+- **`src/lib/simulador.js`** — nova `mensagemResultadoPadrao()` (valor inicial editável da mensagem de resultado do tipo `demanda`).
+- **`src/api/simuladorApi.js`** / **`src/lib/dataService.js`** — `perguntas`/`mensagemResultado` só semeados pra tipo `demanda`; coluna `mensagem_resultado` mapeada em `simuladorFromDb`/`simuladorToDb`/selects.
+- **Testes:** `tests/simulador.test.js` reescrito em suites por tipo (Oferta/Demanda), 12/12 E2E; `tests/simulador.unit.test.js` +1 teste (62 asserts).
+- **Docs:** D-076 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Depois de testar o construtor de perguntas do v5.19 em produção, o responsável reportou confusão: editava a "Pergunta 1", mas ela aparecia como a 2ª tela do quiz público — porque toda campanha encadeava a etapa fixa de perfil (D-074) na frente das perguntas configuráveis (D-075) na mesma sessão. Investigado e descartada a hipótese de bug de persistência (edição realmente salvava, só a ordem das telas confundia). Na conversa, decidido separar em 2 funcionalidades sempre independentes — "o gerador de oferta com base no perfil" e "o gerador de perguntas com base nas demandas" — e remover o tipo Territorial (D-073), que o responsável avaliou não ter uso prático nesse momento.
+
+**Ações manuais necessárias**
+1. Rodar `supabase/migracao-simulador-tipos.sql` (após `migracao-simulador-perguntas.sql`) + `NOTIFY pgrst, 'reload schema';`.
+2. Redeploy da Edge Function `submeter-simulador` (branch de tipo mudou de `perfil_consumo`/`territorial` pra `oferta`/`demanda`).
+3. Sem CLI disponível no ambiente do responsável: publicação feita colando código achatado (sem import de `_shared/`) direto no Dashboard do Supabase — mesmo caminho já usado nas rodadas anteriores.
+
+---
+
 ## [v5.19] — Simulador: perguntas de intenção configuráveis por campanha + popup de apps
 **Data:** 2026-07-09
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk`

@@ -1,14 +1,20 @@
 // Edge Function: submeter-simulador
-// Porta pública de Captação do Simulador de Perfil de Consumo: recebe as
-// respostas do quiz + contato que o próprio titular preenche na página
-// pública (sem sessão), valida as respostas contra a config DE PERGUNTAS
-// DAQUELA CAMPANHA (D-075 — cada campanha tem seu próprio questionário,
-// editado pelo marketing), RECALCULA pontuação/temperatura/oferta no
-// servidor (o cliente nunca manda score pronto — formulário público é
-// input hostil, D-067), exige consentimento LGPD e grava o Lead com
-// service_role. vendedor_id nasce nulo — distribuição manual por
-// marketing/comercial, mesma fila do Form Builder ("Leads sem vendedor"
-// em LeadsTab.jsx).
+// Porta pública de Captação do Simulador: recebe as respostas do quiz +
+// contato que o próprio titular preenche na página pública (sem sessão),
+// RECALCULA pontuação/temperatura/oferta no servidor (o cliente nunca
+// manda score pronto — formulário público é input hostil, D-067), exige
+// consentimento LGPD e grava o Lead com service_role. vendedor_id nasce
+// nulo — distribuição manual por marketing/comercial, mesma fila do Form
+// Builder ("Leads sem vendedor" em LeadsTab.jsx).
+//
+// D-076: 2 fluxos independentes por campanha (tipo), nunca mais
+// encadeados na mesma sessão:
+// - 'oferta': perfil de uso (D-074, fixo) → pacote + combo de upsell.
+//   Lead sempre nasce temperatura='quente', pontuacao=null.
+// - 'demanda': perguntas configuráveis DAQUELA CAMPANHA (D-075, texto +
+//   peso por opção, editadas pelo marketing) → pontuação/temperatura
+//   calculadas no servidor. Substitui o antigo tipo 'territorial'
+//   (removido) como captação qualificada sem pacote fixo.
 //
 // O motor de scoring abaixo ESPELHA src/lib/simulador.js — duplicado
 // porque este código roda em Deno, fora do bundle do app (mesmo padrão dos
@@ -21,16 +27,6 @@ import {
 } from '../_shared/captacao.ts';
 
 const PERGUNTAS_SIMULADOR_VERSAO = 2;
-
-// Serviços aceitos no interesse declarado do tipo 'territorial' — mesmo
-// enum de servicoInteresse do restante do sistema.
-const SERVICOS_VALIDOS = new Set([
-  'internet_residencial',
-  'internet_empresarial',
-  'rjnet_movel',
-  'streamings',
-  'outro',
-]);
 
 type Opcao = { id: string; texto: string; peso: number };
 type Pergunta = { id: string; texto: string; tipo: 'single' | 'multi'; opcoes: Opcao[] };
@@ -78,8 +74,8 @@ function montarCombo(perfilKey: string, opcoes: { yellow?: boolean; black?: bool
 }
 
 // D-075: molde padrão — mesmo conteúdo de perguntasPadrao() em
-// src/lib/simulador.js. Usado como fallback quando a campanha ainda não
-// tem `perguntas` configurada (criada antes do D-075).
+// src/lib/simulador.js. Usado como fallback quando a campanha 'demanda'
+// ainda não tem `perguntas` configurada.
 function perguntasPadraoFallback(): Pergunta[] {
   return [
     { id: 'moradores', texto: 'Quantas pessoas moram com você?', tipo: 'single', opcoes: [
@@ -173,8 +169,8 @@ function calcularPerfilDinamico(perguntas: Pergunta[], brutas: unknown) {
   return { pontuacao, pontuacaoMaxima, temperatura, respostas };
 }
 
-// Serviço de interesse do Lead deriva do PERFIL escolhido (D-074, sempre
-// presente) — não das perguntas de intenção, que agora são livres e não
+// Serviço de interesse do Lead deriva do PERFIL escolhido (D-074, tipo
+// 'oferta') — não das perguntas de intenção, que agora são livres e não
 // têm mais uma chave garantida tipo "usos"/"streaming".
 function servicosInteressePorPerfil(perfilKey: string): string[] {
   return perfilKey === 'streaming' ? ['internet_residencial', 'streamings'] : ['internet_residencial'];
@@ -251,32 +247,36 @@ Deno.serve(async (req) => {
       return json({ error: 'Bairro/cidade não podem conter link.' }, 400, corsHeaders);
     }
 
-    // D-073: tipo 'territorial' — questionário reduzido (cidade/bairro/
-    // interesse), sem quiz nem scoring; alimenta o relatório interno de
-    // demanda por região (demanda_por_regiao). cidade/bairro viram
-    // obrigatórios porque SÃO o dado da campanha.
-    const territorial = simulador.tipo === 'territorial';
+    // D-076: 2 fluxos independentes por tipo de campanha — nunca mais
+    // encadeados na mesma sessão (ver comentário de topo do arquivo).
     let perfilConsumo: unknown = null;
     let pontuacao: number | null = null;
     let ofertaRecomendada: string | null = null;
     let servicosInteresse: string[];
     let temperatura: string;
 
-    if (territorial) {
-      if (!cidade || !bairro) {
-        return json({ error: 'Informe cidade e bairro.' }, 400, corsHeaders);
+    if (simulador.tipo === 'demanda') {
+      // null/undefined = campanha criada antes do D-075, cai pro molde
+      // padrão; array vazio (marketing removeu tudo) é diferente e barra
+      // a submissão abaixo, em vez de mascarar com o molde.
+      const perguntas: Pergunta[] = simulador.perguntas == null
+        ? perguntasPadraoFallback()
+        : simulador.perguntas;
+      if (perguntas.length === 0) {
+        return json({ error: 'Essa campanha ainda está sendo preparada.' }, 400, corsHeaders);
       }
-      servicosInteresse = Array.isArray(body.servicoInteresse)
-        ? body.servicoInteresse.filter((s: unknown) => typeof s === 'string' && SERVICOS_VALIDOS.has(s))
-        : [];
-      if (servicosInteresse.length === 0) {
-        return json({ error: 'Selecione ao menos um interesse.' }, 400, corsHeaders);
-      }
-      temperatura = 'morno'; // interesse declarado espontaneamente, sem score
+
+      // Score SEMPRE recalculado aqui — body.respostas é a única entrada.
+      const perfil = calcularPerfilDinamico(perguntas, body.respostas);
+      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: perfil.respostas };
+      pontuacao = perfil.pontuacao;
+      servicosInteresse = ['internet_residencial'];
+      temperatura = perfil.temperatura;
     } else {
-      // D-074: perfilKey escolhido pela pessoa decide o pacote (fixo, nunca
-      // calculado); o combo (adicionais + upgrade) é sempre recalculado
-      // aqui — cliente manda só a chave do perfil e os booleans marcados.
+      // 'oferta' (D-074): perfilKey escolhido pela pessoa decide o pacote
+      // (fixo, nunca calculado); o combo (adicionais + upgrade) é sempre
+      // recalculado aqui — cliente manda só a chave do perfil e os
+      // booleans marcados. Sem quiz, sem score — lead sempre entra quente.
       const perfilKey = sanitizeText(body.perfil, 40);
       if (!PERFIS_SIMULADOR[perfilKey]) {
         return json({ error: 'Selecione um perfil de uso.' }, 400, corsHeaders);
@@ -288,20 +288,10 @@ Deno.serve(async (req) => {
         upgrade: comboBruto.upgrade === true,
       });
 
-      // D-075: perguntas de intenção vêm da PRÓPRIA campanha (nunca do
-      // cliente) — busca a config gravada, com fallback pro molde padrão
-      // se a campanha ainda não tiver `perguntas` configurada.
-      const perguntas: Pergunta[] = Array.isArray(simulador.perguntas) && simulador.perguntas.length
-        ? simulador.perguntas
-        : perguntasPadraoFallback();
-
-      // Score SEMPRE recalculado aqui — body.respostas é a única entrada.
-      const perfil = calcularPerfilDinamico(perguntas, body.respostas);
-      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: perfil.respostas, perfil: perfilKey, combo };
-      pontuacao = perfil.pontuacao;
+      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, perfil: perfilKey, combo };
       ofertaRecomendada = 'internet_residencial';
       servicosInteresse = servicosInteressePorPerfil(perfilKey);
-      temperatura = perfil.temperatura;
+      temperatura = 'quente';
     }
 
     const utm = sanitizarUtm(body.utm);
