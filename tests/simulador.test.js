@@ -3,8 +3,14 @@ const { test, expect } = require('@playwright/test');
 
 // E2E do Simulador de Perfil de Consumo — página pública /s/:slug em modo
 // local (sem Supabase): campanha semeada em localStorage, wizard completo
-// (perguntas → resultado → contato) e lead gravado em rjnet_leads com
-// origem='simulador', perfil e pontuação.
+// (perfil → perguntas → resultado → contato) e lead gravado em
+// rjnet_leads com origem='simulador', perfil, combo e pontuação.
+//
+// D-075: as perguntas de intenção agora são um questionário PRÓPRIO por
+// campanha (editável na gestão) — sem `perguntas` seedada, a campanha usa
+// o molde padrão (perguntasPadrao(), mesmos textos/pesos do antigo
+// catálogo fixo D-072). Perguntas deixaram de ser condicionais (a
+// "dificuldade" aparece sempre agora, mesmo sem internet).
 
 const CAMPANHA = {
   id: 'sim-teste-e2e',
@@ -12,7 +18,7 @@ const CAMPANHA = {
   slug: 'campanha-teste-e2e',
   tipo: 'perfil_consumo',
   campanha: '',
-  versaoPerguntas: 1,
+  versaoPerguntas: 2,
   ativo: true,
   criadoEm: new Date().toISOString(),
 };
@@ -32,6 +38,10 @@ async function escolherPerfil(page, label = 'Gamer / Casa Conectada') {
     .click();
 }
 
+// Responde o molde padrão completo (5 perguntas, todas sempre visíveis
+// desde o D-075): moradores → usos → equipamentos → tem_internet →
+// dificuldade. pontuacao resultante = 5+16+2+30+20 = 73 de 102 máximo
+// (71,6%) → quente.
 async function responderQuiz(page, { perfil = 'Gamer / Casa Conectada' } = {}) {
   await escolherPerfil(page, perfil);
   // 1. moradores (single → avança sozinho)
@@ -43,8 +53,10 @@ async function responderQuiz(page, { perfil = 'Gamer / Casa Conectada' } = {}) {
   // 3. equipamentos (multi)
   await page.locator('.sim-opcao', { hasText: 'Smart TV' }).click();
   await page.getByRole('button', { name: 'Continuar →' }).click();
-  // 4. tem_internet → "Ainda não tenho" encerra o quiz (dificuldade é condicional)
+  // 4. tem_internet
   await page.locator('.sim-opcao', { hasText: 'Ainda não tenho' }).click();
+  // 5. dificuldade (D-075: sempre aparece, não é mais condicional)
+  await page.locator('.sim-opcao', { hasText: 'Internet lenta' }).click();
   // Tela "Analisando..." → resultado
   await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
 }
@@ -80,7 +92,7 @@ test.describe('Simulador — página pública', () => {
     await expect(page.locator('.card')).toContainText('Pergunta 2 de');
   });
 
-  test('pergunta condicional: com internet aparece a dificuldade', async ({ page }) => {
+  test('D-075: perguntas não são mais condicionais — dificuldade aparece mesmo sem internet', async ({ page }) => {
     await abrirSimulador(page);
     await escolherPerfil(page, 'Home Office');
     await page.locator('.sim-opcao', { hasText: 'Moro sozinho' }).click();
@@ -88,8 +100,43 @@ test.describe('Simulador — página pública', () => {
     await page.getByRole('button', { name: 'Continuar →' }).click();
     await page.locator('.sim-opcao', { hasText: 'Celulares' }).click();
     await page.getByRole('button', { name: 'Continuar →' }).click();
-    await page.locator('.sim-opcao', { hasText: 'Sim, já tenho' }).click();
+    await page.locator('.sim-opcao', { hasText: 'Ainda não tenho' }).click();
+    // Antes do D-075 essa pergunta era pulada quando a pessoa não tinha internet
     await expect(page.locator('.card')).toContainText('Qual a sua maior dificuldade hoje?');
+  });
+
+  test('D-075: campanha com questionário próprio usa SUAS perguntas, não o molde padrão', async ({ page }) => {
+    const custom = {
+      ...CAMPANHA, id: 'sim-custom', slug: 'campanha-custom',
+      perguntas: [
+        { id: 'futebol', texto: 'Você gosta de futebol?', tipo: 'single', opcoes: [
+          { id: 'sim', texto: 'Sim, muito', peso: 25 },
+          { id: 'nao', texto: 'Não curto', peso: 0 },
+        ] },
+      ],
+    };
+    await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, custom);
+    await page.goto('/s/campanha-custom');
+
+    await escolherPerfil(page, 'Básico');
+    await expect(page.locator('.card')).toContainText('Você gosta de futebol?');
+    await expect(page.locator('.card')).toContainText('Pergunta 2 de 2'); // 1 pergunta custom + etapa de perfil
+    await expect(page.locator('.card')).not.toContainText('Quantas pessoas moram com você?'); // molde padrão não aparece
+
+    await page.locator('.sim-opcao', { hasText: 'Sim, muito' }).click();
+    await expect(page.locator('.sim-resultado-badge')).toBeVisible({ timeout: 5_000 });
+    await page.getByRole('button', { name: /Quero receber essa oferta/ }).click();
+    await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Custom E2E');
+    await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999112233');
+    await page.locator('input[type="checkbox"]').check();
+    await page.getByRole('button', { name: 'Receber minha oferta' }).click();
+    await expect(page.locator('.card')).toContainText('Recebemos seus dados!');
+
+    const lead = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).find((l) => l.origem === 'simulador'));
+    expect(lead.perfilConsumo.respostas.futebol).toBe('sim');
+    expect(lead.perfilConsumo.perguntas[0].texto).toBe('Você gosta de futebol?');
+    expect(lead.pontuacao).toBe(25); // única pergunta, peso máximo escolhido
+    expect(lead.temperatura).toBe('quente'); // 25/25 = 100%
   });
 
   test('fluxo completo: perfil → quiz → combo → contato → lead gravado', async ({ page }) => {
@@ -128,11 +175,13 @@ test.describe('Simulador — página pública', () => {
     expect(lead.nome).toBe('Maria E2E');
     expect(lead.simuladorId).toBe('sim-teste-e2e');
     expect(lead.vendedorId).toBeNull();
-    // 2_4(+5) + streaming/jogos(+16) + sem internet(+30) = 51 → morno (pontuação
-    // de intenção continua vindo das perguntas gerais, não do perfil escolhido)
-    expect(lead.pontuacao).toBe(51);
-    expect(lead.temperatura).toBe('morno');
+    // moradores 2_4(+5) + usos streaming/jogos(+8+8) + equipamentos smart_tv(+2)
+    // + sem internet(+30) + dificuldade lenta(+20) = 73 de 102 máximo (71,6%) → quente
+    expect(lead.pontuacao).toBe(73);
+    expect(lead.temperatura).toBe('quente');
     expect(lead.perfilConsumo.respostas.tem_internet).toBe('nao');
+    expect(lead.perfilConsumo.respostas.dificuldade).toBe('lenta');
+    expect(Array.isArray(lead.perfilConsumo.perguntas)).toBe(true); // snapshot gravado na submissão (D-075)
     expect(lead.perfilConsumo.perfil).toBe('gamer');
     expect(lead.perfilConsumo.combo.pacoteMega).toBe(420);
     expect(lead.perfilConsumo.combo.yellow).toBe(true);
@@ -140,18 +189,40 @@ test.describe('Simulador — página pública', () => {
     expect(lead.perfilConsumo.combo.upgrade).toBe(true);
     expect(lead.perfilConsumo.combo.pacoteFinalMega).toBe(680);
     expect(lead.perfilConsumo.combo.valorTotal).toBe(134.90);
-    expect(lead.servicoInteresse).toContain('internet_residencial');
-    expect(lead.servicoInteresse).toContain('streamings');
+    // servicoInteresse deriva do PERFIL escolhido (D-075), não mais das
+    // perguntas de intenção — perfil 'gamer' não inclui 'streamings'.
+    expect(lead.servicoInteresse).toEqual(['internet_residencial']);
     expect(lead.utm.utm_source).toBe('meta');
     expect(lead.utm.utm_campaign).toBe('teste-e2e');
     expect(lead.versaoTermo).toBe('simulador-v1');
   });
 
-  test('apps black ganha destaque quando streaming foi declarado no quiz', async ({ page }) => {
+  test('apps black ganha destaque quando o PERFIL escolhido é Streaming', async ({ page }) => {
     await abrirSimulador(page);
-    await responderQuiz(page, { perfil: 'Streaming' }); // responderQuiz já marca "Streaming" em usos
+    // D-075: o destaque agora é ligado ao perfil de uso (D-074), não mais a
+    // uma pergunta de intenção específica (que pode nem existir na campanha).
+    await responderQuiz(page, { perfil: 'Streaming' });
     await expect(page.locator('.sim-combo-check.sim-combo-destaque')).toContainText('Apps Black');
     await expect(page.locator('.sim-combo-check.sim-combo-destaque')).toContainText('combina com seu perfil');
+  });
+
+  test('popup de apps mostra a lista de apps inclusos no combo (Yellow e Black)', async ({ page }) => {
+    await abrirSimulador(page);
+    await responderQuiz(page);
+
+    await page.locator('.sim-combo-check', { hasText: 'Adicione Apps Yellow' }).locator('.sim-app-info-btn').click();
+    await expect(page.locator('.sim-app-popup')).toBeVisible();
+    await expect(page.locator('.sim-app-popup')).toContainText('Deezer');
+    await expect(page.locator('.sim-app-popup')).toContainText('Kaspersky');
+    await page.locator('.sim-app-popup-close').click();
+    await expect(page.locator('.sim-app-popup')).toHaveCount(0);
+
+    await page.locator('.sim-combo-check', { hasText: 'Adicione Apps Black' }).locator('.sim-app-info-btn').click();
+    await expect(page.locator('.sim-app-popup')).toContainText('Max');
+    await expect(page.locator('.sim-app-popup')).toContainText('Disney+');
+    // clicar fora (overlay) também fecha
+    await page.locator('.sim-app-popup-overlay').click({ position: { x: 5, y: 5 } });
+    await expect(page.locator('.sim-app-popup')).toHaveCount(0);
   });
 
   test('territorial: cidade/bairro/interesse → contato → lead pra demanda', async ({ page }) => {

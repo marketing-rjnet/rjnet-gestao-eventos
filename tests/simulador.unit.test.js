@@ -1,9 +1,8 @@
 /**
  * Testes unitários do Simulador de Perfil de Consumo:
- * - normalização de respostas (input hostil de formulário público)
- * - cálculo de pontuação e temperatura
- * - recomendação (nível + serviços de interesse)
- * - resumo legível do perfil
+ * - catálogo de pacotes/apps/perfis (D-074) e combo de upsell
+ * - molde padrão de perguntas + motor de pontuação dinâmico (D-075)
+ * - resumo legível do perfil (leads novos com snapshot + leads legados)
  *
  * Para rodar: node tests/simulador.unit.test.js
  *
@@ -29,15 +28,16 @@ function assert(desc, cond) {
   const src = fs.readFileSync(path.join(__dirname, '../src/lib/simulador.js'), 'utf8');
   const mod = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
   const {
-    PERGUNTAS_SIMULADOR, PERGUNTAS_SIMULADOR_VERSAO, normalizarRespostas, calcularPerfil, perguntasVisiveis, resumoPerfil,
+    PERGUNTAS_SIMULADOR, PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao,
+    normalizarRespostasDinamico, calcularPerfilDinamico, resumoPerfil,
     PACOTES_INTERNET, APPS_ADICIONAIS, PERFIS_SIMULADOR, pacotePorMega, pacoteUpgrade, perfilPorKey, montarCombo, fmtMoeda,
   } = mod;
 
-  // ─── Catálogo ───────────────────────────────────────────────────────────
+  // ─── Molde legado (fonte de perguntasPadrao + resumoPerfil legado) ──────
 
-  console.log('\ncatálogo de perguntas');
-  assert('versão do catálogo definida', PERGUNTAS_SIMULADOR_VERSAO === 1);
-  assert('5 perguntas no catálogo v1', PERGUNTAS_SIMULADOR.length === 5);
+  console.log('\ncatálogo PERGUNTAS_SIMULADOR (molde padrão + resumo legado)');
+  assert('versão do formato é 2 (D-075: passou a incluir perguntas+combo)', PERGUNTAS_SIMULADOR_VERSAO === 2);
+  assert('5 perguntas no molde', PERGUNTAS_SIMULADOR.length === 5);
   assert('keys únicas', new Set(PERGUNTAS_SIMULADOR.map(p => p.key)).size === PERGUNTAS_SIMULADOR.length);
   assert('toda pergunta tem tipo single ou multi', PERGUNTAS_SIMULADOR.every(p => ['single', 'multi'].includes(p.tipo)));
   assert('toda pergunta tem ao menos 2 opções', PERGUNTAS_SIMULADOR.every(p => p.opcoes.length >= 2));
@@ -81,65 +81,75 @@ function assert(desc, cond) {
   assert('formata com vírgula e duas casas', fmtMoeda(99.9) === 'R$ 99,90');
   assert('formata valor inteiro', fmtMoeda(30) === 'R$ 30,00');
 
-  // ─── Perguntas condicionais ─────────────────────────────────────────────
+  // ─── perguntasPadrao (D-075) ─────────────────────────────────────────────
 
-  console.log('\nperguntasVisiveis');
-  assert('sem respostas, dificuldade fica oculta', !perguntasVisiveis({}).some(p => p.key === 'dificuldade'));
-  assert('com internet, dificuldade aparece', perguntasVisiveis({ tem_internet: 'sim' }).some(p => p.key === 'dificuldade'));
-  assert('sem internet, dificuldade não aparece', !perguntasVisiveis({ tem_internet: 'nao' }).some(p => p.key === 'dificuldade'));
+  console.log('\nperguntasPadrao');
+  const padrao = perguntasPadrao();
+  assert('mesmo total de perguntas do molde', padrao.length === PERGUNTAS_SIMULADOR.length);
+  assert('formato novo: id/texto/opcoes[].id/.texto/.peso', padrao.every(p => p.id && p.texto && Array.isArray(p.opcoes) && p.opcoes.every(o => o.id && o.texto && typeof o.peso === 'number')));
+  assert('ids de pergunta batem com as keys do molde legado', padrao.map(p => p.id).join(',') === PERGUNTAS_SIMULADOR.map(p => p.key).join(','));
+  assert('cópia independente — editar uma não afeta a próxima chamada', (() => {
+    const a = perguntasPadrao();
+    a[0].texto = 'MUDEI';
+    const b = perguntasPadrao();
+    return b[0].texto !== 'MUDEI';
+  })());
+  assert('sem internet pesa 30 no molde padrão', padrao.find(p => p.id === 'tem_internet').opcoes.find(o => o.id === 'nao').peso === 30);
 
-  // ─── Normalização (input hostil) ────────────────────────────────────────
+  // ─── normalizarRespostasDinamico (input hostil, por campanha) ───────────
 
-  console.log('\nnormalizarRespostas');
-  assert('input não-objeto vira vazio', Object.keys(normalizarRespostas(null)).length === 0 && Object.keys(normalizarRespostas('x')).length === 0);
-  assert('chave fora do catálogo é descartada', !('hack' in normalizarRespostas({ hack: 'x', moradores: '2_4' })));
-  assert('opção inválida em single é descartada', !('moradores' in normalizarRespostas({ moradores: 'DROP TABLE' })));
-  assert('opção válida em single passa', normalizarRespostas({ moradores: '2_4' }).moradores === '2_4');
-  assert('multi filtra opções inválidas', normalizarRespostas({ usos: ['jogos', '<script>', 'streaming'] }).usos.join(',') === 'jogos,streaming');
-  assert('multi com só inválidas é descartado', !('usos' in normalizarRespostas({ usos: ['x', 'y'] })));
-  assert('single com array é descartado', !('moradores' in normalizarRespostas({ moradores: ['2_4'] })));
-  assert('dificuldade sem tem_internet=sim é descartada', !('dificuldade' in normalizarRespostas({ dificuldade: 'lenta', tem_internet: 'nao' })));
-  assert('dificuldade com tem_internet=sim passa', normalizarRespostas({ dificuldade: 'lenta', tem_internet: 'sim' }).dificuldade === 'lenta');
+  console.log('\nnormalizarRespostasDinamico');
+  const perguntasTeste = [
+    { id: 'q1', texto: 'Pergunta 1', tipo: 'single', opcoes: [{ id: 'a', texto: 'A', peso: 0 }, { id: 'b', texto: 'B', peso: 10 }] },
+    { id: 'q2', texto: 'Pergunta 2', tipo: 'multi', opcoes: [{ id: 'x', texto: 'X', peso: 5 }, { id: 'y', texto: 'Y', peso: 5 }] },
+  ];
+  assert('perguntas não-array vira vazio', Object.keys(normalizarRespostasDinamico(null, { q1: 'a' })).length === 0);
+  assert('input não-objeto vira vazio', Object.keys(normalizarRespostasDinamico(perguntasTeste, null)).length === 0);
+  assert('id de pergunta desconhecido é descartado', !('hack' in normalizarRespostasDinamico(perguntasTeste, { hack: 'x', q1: 'a' })));
+  assert('opção inválida em single é descartada', !('q1' in normalizarRespostasDinamico(perguntasTeste, { q1: 'DROP TABLE' })));
+  assert('opção válida em single passa', normalizarRespostasDinamico(perguntasTeste, { q1: 'b' }).q1 === 'b');
+  assert('multi filtra opções inválidas', normalizarRespostasDinamico(perguntasTeste, { q2: ['x', '<script>'] }).q2.join(',') === 'x');
+  assert('multi com só inválidas é descartado', !('q2' in normalizarRespostasDinamico(perguntasTeste, { q2: ['z'] })));
+  assert('single com array é descartado', !('q1' in normalizarRespostasDinamico(perguntasTeste, { q1: ['a'] })));
 
-  // ─── Scoring ────────────────────────────────────────────────────────────
+  // ─── calcularPerfilDinamico (soma de pesos + temperatura percentual) ───
 
-  console.log('\ncalcularPerfil — pontuação');
-  assert('respostas vazias → pontuação 0, frio', (() => { const p = calcularPerfil({}); return p.pontuacao === 0 && p.temperatura === 'frio'; })());
-  assert('sem internet soma 30', calcularPerfil({ tem_internet: 'nao' }).pontuacao === 30);
-  assert('dor ativa (oscilação) soma 20', calcularPerfil({ tem_internet: 'sim', dificuldade: 'oscilacao' }).pontuacao === 20);
-  assert('preço soma 15', calcularPerfil({ tem_internet: 'sim', dificuldade: 'preco' }).pontuacao === 15);
-  assert('satisfeito subtrai (clamp em 0)', calcularPerfil({ tem_internet: 'sim', dificuldade: 'satisfeito' }).pontuacao === 0);
-  assert('cada uso de alta demanda soma 8 (redes/estudos não)', calcularPerfil({ usos: ['jogos', 'home_office', 'redes', 'estudos'] }).pontuacao === 16);
-  assert('5+ moradores soma 10', calcularPerfil({ moradores: '5_mais' }).pontuacao === 10);
-  assert('2 a 4 moradores soma 5', calcularPerfil({ moradores: '2_4' }).pontuacao === 5);
-  assert('3+ equipamentos soma 5', calcularPerfil({ equipamentos: ['smart_tv', 'pc', 'celular'] }).pontuacao === 5);
-  assert('2 equipamentos não soma', calcularPerfil({ equipamentos: ['smart_tv', 'pc'] }).pontuacao === 0);
+  console.log('\ncalcularPerfilDinamico');
+  assert('sem perguntas → pontuação 0, frio', (() => { const p = calcularPerfilDinamico([], {}); return p.pontuacao === 0 && p.pontuacaoMaxima === 0 && p.temperatura === 'frio'; })());
+  const p1 = calcularPerfilDinamico(perguntasTeste, { q1: 'b' }); // 10 de 10(q1) + 10(q2 max) = 10/20 = 50%
+  assert('single: soma o peso da opção escolhida', p1.pontuacao === 10);
+  assert('máxima soma o maior peso de single + soma total de multi', p1.pontuacaoMaxima === 20); // max(0,10)=10 + (5+5)=10
+  assert('50% → morno (30–59%)', p1.temperatura === 'morno');
+  const p2 = calcularPerfilDinamico(perguntasTeste, { q1: 'b', q2: ['x', 'y'] }); // 10+5+5=20 de 20 = 100%
+  assert('multi soma todas as opções marcadas', p2.pontuacao === 20);
+  assert('100% → quente', p2.temperatura === 'quente');
+  const p3 = calcularPerfilDinamico(perguntasTeste, { q1: 'a' }); // 0 de 20 = 0%
+  assert('0% → frio', p3.temperatura === 'frio');
+  assert('não responder nada não quebra (pontuação 0)', calcularPerfilDinamico(perguntasTeste, {}).pontuacao === 0);
 
-  console.log('\ncalcularPerfil — temperatura');
-  const quente = calcularPerfil({ tem_internet: 'nao', usos: ['streaming', 'jogos', 'home_office'], moradores: '5_mais' }); // 30+24+10 = 64
-  assert('perfil pesado sem internet → quente (>=60)', quente.pontuacao === 64 && quente.temperatura === 'quente');
-  const morno = calcularPerfil({ tem_internet: 'sim', dificuldade: 'lenta', usos: ['streaming'], moradores: '2_4' }); // 20+8+5 = 33
-  assert('dor ativa + uso médio → morno (30–59)', morno.pontuacao === 33 && morno.temperatura === 'morno');
-  const frio = calcularPerfil({ tem_internet: 'sim', dificuldade: 'satisfeito', usos: ['redes'], moradores: '1' }); // 0
-  assert('satisfeito + uso leve → frio (<30)', frio.pontuacao === 0 && frio.temperatura === 'frio');
-
-  console.log('\ncalcularPerfil — recomendação');
-  assert('oferta recomendada é sempre um serviço válido', calcularPerfil({}).ofertaRecomendada === 'internet_residencial');
-  assert('interesse base é residencial', calcularPerfil({}).servicosInteresse.join(',') === 'internet_residencial');
-  assert('streaming declarado vira interesse secundário', calcularPerfil({ usos: ['streaming'] }).servicosInteresse.join(',') === 'internet_residencial,streamings');
+  console.log('\ncalcularPerfilDinamico — replica o molde padrão (equivalência com o scoring antigo)');
+  const quente = calcularPerfilDinamico(padrao, { tem_internet: 'nao', usos: ['streaming', 'jogos', 'home_office'], moradores: '5_mais' });
+  assert('perfil pesado sem internet → pontuação alta e quente', quente.pontuacao === 30 + 8 + 8 + 8 + 10 && quente.temperatura === 'quente');
+  const frioPadrao = calcularPerfilDinamico(padrao, { tem_internet: 'sim', dificuldade: 'satisfeito', usos: ['redes'], moradores: '1' });
+  assert('satisfeito + uso leve → 0 pontos, frio', frioPadrao.pontuacao === 0 && frioPadrao.temperatura === 'frio');
 
   // ─── Resumo legível ─────────────────────────────────────────────────────
 
-  console.log('\nresumoPerfil');
+  console.log('\nresumoPerfil — leads novos (snapshot de perguntas, D-075)');
   assert('perfil vazio → resumo vazio', resumoPerfil(null).length === 0 && resumoPerfil({}).length === 0);
-  const perfil = calcularPerfil({ moradores: '2_4', usos: ['streaming', 'jogos'], tem_internet: 'nao' });
-  const resumo = resumoPerfil({ versao: 1, respostas: perfil.respostas });
-  assert('resumo usa labels do catálogo', resumo.includes('2 a 4 pessoas') && resumo.includes('Jogos online'));
-  assert('sem internet vira "Sem internet hoje"', resumo.includes('Sem internet hoje'));
+  const respostasNovas = normalizarRespostasDinamico(padrao, { moradores: '2_4', usos: ['streaming', 'jogos'], tem_internet: 'nao' });
+  const resumoNovo = resumoPerfil({ versao: 2, perguntas: padrao, respostas: respostasNovas });
+  assert('resumo usa textos do snapshot', resumoNovo.includes('2 a 4 pessoas') && resumoNovo.includes('Jogos online'));
 
-  console.log('\nresumoPerfil — perfil + combo (D-074)');
+  console.log('\nresumoPerfil — leads legados (catálogo fixo, sem snapshot, D-072)');
+  const respostasLegadas = { moradores: '2_4', usos: ['streaming', 'jogos'], tem_internet: 'nao' };
+  const resumoLegado = resumoPerfil({ versao: 1, respostas: respostasLegadas });
+  assert('resumo usa labels do catálogo legado', resumoLegado.includes('2 a 4 pessoas') && resumoLegado.includes('Jogos online'));
+  assert('sem internet vira "Sem internet hoje" (só no formato legado)', resumoLegado.includes('Sem internet hoje'));
+
+  console.log('\nresumoPerfil — perfil + combo (D-074, comum aos dois formatos)');
   const resumoComCombo = resumoPerfil({
-    versao: 1, respostas: perfil.respostas, perfil: 'gamer',
+    versao: 2, perguntas: padrao, respostas: respostasNovas, perfil: 'gamer',
     combo: montarCombo('gamer', { yellow: true, upgrade: true }),
   });
   assert('inclui label do perfil escolhido', resumoComCombo.includes('Perfil: Gamer / Casa Conectada'));

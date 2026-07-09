@@ -2442,6 +2442,38 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-075] — Perguntas de intenção do Simulador viram um questionário PRÓPRIO por campanha, com peso editável por opção; popup mostra os apps de cada bundle de upsell
+
+**Data:** 2026-07-09
+**Tipo:** Feature / Mudança de arquitetura (evolução do Simulador, tipo `perfil_consumo`)
+
+**Contexto:** Depois de colocar o Simulador em produção, o responsável pelo sistema pediu duas mudanças: (1) poder ver e editar as perguntas de intenção do quiz, com controle sobre "nível"/peso de cada resposta pra pontuação; (2) no combo de upsell (D-074), mostrar quais apps entram em cada bundle (Yellow/Black), já que hoje só aparecia o nome do bundle sem contexto. Na conversa, ficou definido que cada CAMPANHA passaria a ter seu PRÓPRIO questionário (não um catálogo global editado uma vez) — descrito pelo responsável como "quase uma evolução do formulário, só que vamos usar a ferramenta pra moldar o tipo de pesquisa que estaremos fazendo".
+
+**Decisão:**
+- **Escopo do que ficou editável:** só as perguntas de INTENÇÃO (as que valem ponto pra fila). A pergunta de "perfil de uso" (D-074, Básico/Streaming/Home Office/Gamer → pacote fixo) continua separada e fora deste mecanismo — decisão explícita do responsável ("deixa separada, pois se precisar mudar algo eu mudo nela mesmo"), evitando que edição de peso acabe recomendando pacote/preço errado sem querer.
+- **Nova coluna `simuladores.perguntas`** (jsonb, `migracao-simulador-perguntas.sql`): cada campanha `perfil_consumo` guarda seu próprio array de perguntas — `{ id, texto, tipo: 'single'|'multi', opcoes: [{ id, texto, peso }] }`. Campanha nova já nasce com um molde padrão pré-preenchido (`perguntasPadrao()`, mesmos textos/pesos que existiam fixos em código antes) — editável à vontade, não em branco.
+- **Pontuação por PERCENTUAL, não número fixo:** `calcularPerfilDinamico()` soma os pesos das opções escolhidas e divide pela pontuação MÁXIMA possível daquela campanha específica (soma do maior peso de cada single + soma de todos os pesos positivos de cada multi) — necessário porque campanhas diferentes podem ter quantidade/peso de perguntas totalmente diferentes; um número fixo tipo "60 pontos = quente" não faria sentido pra todas. Faixas: ≥60% quente, 30–59% morno, <30% frio (mesmos cortes de antes, agora relativos).
+- **Score sempre recalculado no servidor, igual antes** — só que a partir da própria config gravada em `simuladores.perguntas`, nunca aceitando peso/pontuação vindo do cliente. A Edge Function busca sua PRÓPRIA cópia da campanha no banco (nunca confia num array de perguntas que o cliente mandasse).
+- **Perguntas condicionais (`exibirSe`) foram removidas** — simplificação deliberada de v1: o construtor vira uma lista linear (sem regras de "mostrar X se Y"), mais simples de construir e editar. Efeito colateral aceito: a pergunta "dificuldade" agora aparece sempre, mesmo pra quem respondeu "ainda não tenho internet" — o responsável pode reescrever/remover essa pergunta na campanha se achar estranho.
+- **Snapshot no lead, não só o id da campanha:** `leads.perfil_consumo` grava `{ versao: 2, perguntas, respostas, perfil, combo }` — as PRÓPRIAS perguntas usadas na submissão, não uma referência à campanha. Motivo: a campanha pode ser editada ou até apagada depois, e o lead precisa preservar o que a pessoa realmente viu e respondeu (auditoria + renderização correta do card do lead a qualquer momento). `resumoPerfil()` passa a detectar dois formatos: leads novos (`perguntas` no jsonb) e leads legados D-072 (sem esse snapshot, catálogo fixo em código) — sem migração de dado, sem quebrar histórico.
+- **`servicoInteresse` do Lead passou a derivar do PERFIL de uso (D-074)**, não mais das perguntas de intenção — antes dependia da chave fixa `usos`/`streaming` existir; como as perguntas agora são livres, essa chave pode nem existir na campanha. `perfil === 'streaming' → inclui 'streamings'`, senão só `'internet_residencial'`. Pelo mesmo motivo, o destaque visual do Apps Black no combo (D-074, "combina com seu perfil") passou a se basear no PERFIL escolhido em vez de tentar detectar uma resposta de quiz específica.
+- **Construtor de perguntas** (`PerguntasBuilder` em `SimuladorTab.jsx`, botão "Perguntas" por campanha, ao lado de "QR / Link"): adicionar/remover/reordenar pergunta e opção, texto único ou múltipla escolha, peso numérico por opção, validação antes de salvar (mínimo 1 pergunta, mínimo 2 opções, texto obrigatório, peso ≥ 0).
+- **Popup de apps no combo:** botão "ⓘ" ao lado de cada checkbox (Yellow/Black) abre um popup listando os apps reais daquele bundle (mesma lista já usada na aba Pacotes do vendedor, `APPS_ADICIONAIS[].itens`) — sem ícones/logos de marca (não há esses assets no projeto; se o responsável fornecer arquivos de logo depois, dá pra trocar os chips de texto por imagem).
+
+**Alternativas Avaliadas:**
+- **Só selecionar/reordenar perguntas de um catálogo fixo (sem reescrever texto)** — rejeitada: não atendia o pedido de definir peso/pontuação por resposta, que foi o ponto central do pedido.
+- **Perguntas 100% livres SEM conceito de peso** (só registro, sem entrar na pontuação) — rejeitada: o responsável pediu explicitamente a capacidade de atribuir peso/nível de intenção por resposta.
+- **Catálogo global editável (uma vez, valendo pra todas as campanhas)** — rejeitada a pedido explícito do responsável: "cada campanha com suas próprias perguntas".
+- **Threshold fixo de pontuação (ex: sempre 60 pontos = quente)** — rejeitada: só funcionaria bem pra campanhas com o mesmo número/peso de perguntas do molde padrão; percentual da pontuação máxima generaliza pra qualquer configuração.
+
+**Arquivos Afetados:** `supabase/migracao-simulador-perguntas.sql` (novo), `src/lib/simulador.js` (`perguntasPadrao`, `normalizarRespostasDinamico`, `calcularPerfilDinamico`; `resumoPerfil` dual-formato; remoção de `calcularPerfil`/`normalizarRespostas`/`perguntasVisiveis`/`USOS_ALTA_DEMANDA`; bump `PERGUNTAS_SIMULADOR_VERSAO` para 2), `supabase/functions/submeter-simulador/index.ts` (motor de scoring dinâmico espelhado + fallback pro molde padrão), `src/api/simuladorApi.js` (`addSimulador` semeia `perguntasPadrao()` em campanhas `perfil_consumo`), `src/lib/dataService.js` (coluna `perguntas` em `simuladorFromDb`/`simuladorToDb`/selects), `src/public/SimuladorPublico.jsx` (quiz renderiza de `simulador.perguntas`; popup de apps), `src/features/simulador/SimuladorTab.jsx` (`PerguntasBuilder`), `src/index.css` (`.sim-app-info-btn`, `.sim-app-popup*`), `tests/simulador.unit.test.js` (reescrito: +61 asserts no motor dinâmico), `tests/simulador.test.js` (+2 cenários — questionário próprio por campanha, popup de apps — e ajuste dos existentes pra perguntas não-condicionais).
+
+**Riscos:** **Ordem de deploy** — `migracao-simulador-perguntas.sql` + `NOTIFY pgrst` antes do redeploy da Edge Function (que agora seleciona a coluna `perguntas`). Redeploy da `submeter-simulador` obrigatório (motor de scoring mudou de catálogo fixo pra dinâmico — payload antigo do cliente, se algum ficar em cache, ainda funciona, pois o formato de entrada `respostas`/`perfil`/`combo` não mudou, só a validação interna). Campanhas criadas antes desta migração (sem `perguntas`) continuam funcionando via fallback (`perguntasPadraoFallback()` no servidor, `perguntasPadrao()` no cliente) — mesmo conteúdo, sem quebra. Leads antigos sem snapshot de `perguntas` continuam sendo exibidos corretamente pelo branch legado de `resumoPerfil()`.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

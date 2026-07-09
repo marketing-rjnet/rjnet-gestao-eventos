@@ -1,16 +1,18 @@
 // Edge Function: submeter-simulador
 // Porta pública de Captação do Simulador de Perfil de Consumo: recebe as
 // respostas do quiz + contato que o próprio titular preenche na página
-// pública (sem sessão), valida as respostas contra o catálogo FIXO de
-// perguntas, RECALCULA pontuação/temperatura/oferta no servidor (o cliente
-// nunca manda score pronto — formulário público é input hostil, D-067),
-// exige consentimento LGPD e grava o Lead com service_role. vendedor_id
-// nasce nulo — distribuição manual por marketing/comercial, mesma fila do
-// Form Builder ("Leads sem vendedor" em LeadsTab.jsx).
+// pública (sem sessão), valida as respostas contra a config DE PERGUNTAS
+// DAQUELA CAMPANHA (D-075 — cada campanha tem seu próprio questionário,
+// editado pelo marketing), RECALCULA pontuação/temperatura/oferta no
+// servidor (o cliente nunca manda score pronto — formulário público é
+// input hostil, D-067), exige consentimento LGPD e grava o Lead com
+// service_role. vendedor_id nasce nulo — distribuição manual por
+// marketing/comercial, mesma fila do Form Builder ("Leads sem vendedor"
+// em LeadsTab.jsx).
 //
-// O catálogo e o scoring abaixo ESPELHAM src/lib/simulador.js — duplicados
+// O motor de scoring abaixo ESPELHA src/lib/simulador.js — duplicado
 // porque este código roda em Deno, fora do bundle do app (mesmo padrão dos
-// validadores em _shared/captacao.ts). Mudou lá, muda aqui + bump de versão.
+// validadores em _shared/captacao.ts). Mudou lá, muda aqui.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
@@ -18,7 +20,7 @@ import {
   getClientIp, atingiuRateLimit,
 } from '../_shared/captacao.ts';
 
-const PERGUNTAS_SIMULADOR_VERSAO = 1;
+const PERGUNTAS_SIMULADOR_VERSAO = 2;
 
 // Serviços aceitos no interesse declarado do tipo 'territorial' — mesmo
 // enum de servicoInteresse do restante do sistema.
@@ -30,16 +32,8 @@ const SERVICOS_VALIDOS = new Set([
   'outro',
 ]);
 
-// Só chaves/tipos — labels ficam no frontend (src/lib/simulador.js).
-const PERGUNTAS: { key: string; tipo: 'single' | 'multi'; opcoes: string[] }[] = [
-  { key: 'moradores',    tipo: 'single', opcoes: ['1', '2_4', '5_mais'] },
-  { key: 'usos',         tipo: 'multi',  opcoes: ['streaming', 'jogos', 'home_office', 'estudos', 'redes', 'muitos_disp'] },
-  { key: 'equipamentos', tipo: 'multi',  opcoes: ['smart_tv', 'pc', 'console', 'celular', 'iot'] },
-  { key: 'tem_internet', tipo: 'single', opcoes: ['sim', 'nao'] },
-  { key: 'dificuldade',  tipo: 'single', opcoes: ['lenta', 'oscilacao', 'velocidade', 'preco', 'satisfeito'] },
-];
-
-const USOS_ALTA_DEMANDA = ['streaming', 'jogos', 'home_office', 'muitos_disp'];
+type Opcao = { id: string; texto: string; peso: number };
+type Pergunta = { id: string; texto: string; tipo: 'single' | 'multi'; opcoes: Opcao[] };
 
 // Espelho de PACOTES_INTERNET/APPS_ADICIONAIS/PERFIS_SIMULADOR em
 // src/lib/simulador.js (D-074) — o combo (pacote + adicionais) é sempre
@@ -83,48 +77,107 @@ function montarCombo(perfilKey: string, opcoes: { yellow?: boolean; black?: bool
   };
 }
 
-function normalizarRespostas(brutas: unknown): Record<string, string | string[]> {
+// D-075: molde padrão — mesmo conteúdo de perguntasPadrao() em
+// src/lib/simulador.js. Usado como fallback quando a campanha ainda não
+// tem `perguntas` configurada (criada antes do D-075).
+function perguntasPadraoFallback(): Pergunta[] {
+  return [
+    { id: 'moradores', texto: 'Quantas pessoas moram com você?', tipo: 'single', opcoes: [
+      { id: '1', texto: 'Moro sozinho(a)', peso: 0 },
+      { id: '2_4', texto: '2 a 4 pessoas', peso: 5 },
+      { id: '5_mais', texto: '5 ou mais pessoas', peso: 10 },
+    ] },
+    { id: 'usos', texto: 'Como vocês usam a internet?', tipo: 'multi', opcoes: [
+      { id: 'streaming', texto: 'Streaming (Netflix, filmes, séries)', peso: 8 },
+      { id: 'jogos', texto: 'Jogos online', peso: 8 },
+      { id: 'home_office', texto: 'Trabalho / home office', peso: 8 },
+      { id: 'estudos', texto: 'Estudos', peso: 0 },
+      { id: 'redes', texto: 'Redes sociais', peso: 0 },
+      { id: 'muitos_disp', texto: 'Muitos dispositivos ao mesmo tempo', peso: 8 },
+    ] },
+    { id: 'equipamentos', texto: 'Quais equipamentos usam a internet aí?', tipo: 'multi', opcoes: [
+      { id: 'smart_tv', texto: 'Smart TV', peso: 2 },
+      { id: 'pc', texto: 'Computadores / notebooks', peso: 2 },
+      { id: 'console', texto: 'Videogames / consoles', peso: 2 },
+      { id: 'celular', texto: 'Celulares', peso: 2 },
+      { id: 'iot', texto: 'Câmeras / dispositivos inteligentes', peso: 2 },
+    ] },
+    { id: 'tem_internet', texto: 'Você já tem internet em casa?', tipo: 'single', opcoes: [
+      { id: 'sim', texto: 'Sim, já tenho', peso: 0 },
+      { id: 'nao', texto: 'Ainda não tenho', peso: 30 },
+    ] },
+    { id: 'dificuldade', texto: 'Qual a sua maior dificuldade hoje?', tipo: 'single', opcoes: [
+      { id: 'lenta', texto: 'Internet lenta', peso: 20 },
+      { id: 'oscilacao', texto: 'Oscilação / quedas', peso: 20 },
+      { id: 'velocidade', texto: 'Pouca velocidade pro que eu preciso', peso: 20 },
+      { id: 'preco', texto: 'Preço', peso: 15 },
+      { id: 'satisfeito', texto: 'Estou satisfeito(a) com o serviço atual', peso: 0 },
+    ] },
+  ];
+}
+
+// Espelho de normalizarRespostasDinamico em src/lib/simulador.js — valida
+// respostas brutas (hostis) contra a config DESTA campanha, não um
+// catálogo fixo global.
+function normalizarRespostasDinamico(perguntas: Pergunta[], brutas: unknown): Record<string, string | string[]> {
   const respostas: Record<string, string | string[]> = {};
-  if (!brutas || typeof brutas !== 'object') return respostas;
+  if (!Array.isArray(perguntas) || !brutas || typeof brutas !== 'object') return respostas;
   const b = brutas as Record<string, unknown>;
-  for (const pergunta of PERGUNTAS) {
-    const valor = b[pergunta.key];
-    const validas = new Set(pergunta.opcoes);
-    if (pergunta.tipo === 'single') {
-      if (typeof valor === 'string' && validas.has(valor)) respostas[pergunta.key] = valor;
-    } else if (Array.isArray(valor)) {
-      const arr = valor.filter((v) => typeof v === 'string' && validas.has(v));
-      if (arr.length) respostas[pergunta.key] = arr;
+  for (const pergunta of perguntas) {
+    const valor = b[pergunta.id];
+    const validas = new Set((pergunta.opcoes || []).map((o) => o.id));
+    if (pergunta.tipo === 'multi') {
+      if (Array.isArray(valor)) {
+        const arr = valor.filter((v) => typeof v === 'string' && validas.has(v));
+        if (arr.length) respostas[pergunta.id] = arr;
+      }
+    } else if (typeof valor === 'string' && validas.has(valor)) {
+      respostas[pergunta.id] = valor;
     }
   }
-  if (respostas.tem_internet !== 'sim') delete respostas.dificuldade;
   return respostas;
 }
 
-// Espelho de calcularPerfil em src/lib/simulador.js — pesos idênticos.
-function calcularPerfil(brutas: unknown) {
-  const r = normalizarRespostas(brutas);
+// Espelho de calcularPerfilDinamico em src/lib/simulador.js — soma pesos
+// das opções escolhidas SEMPRE a partir da config desta campanha; a
+// temperatura é um percentual da pontuação máxima possível dela.
+function calcularPerfilDinamico(perguntas: Pergunta[], brutas: unknown) {
+  const respostas = normalizarRespostasDinamico(perguntas, brutas);
   let pontuacao = 0;
+  let pontuacaoMaxima = 0;
 
-  if (r.tem_internet === 'nao') pontuacao += 30;
-  if (['lenta', 'oscilacao', 'velocidade'].includes(r.dificuldade as string)) pontuacao += 20;
-  if (r.dificuldade === 'preco') pontuacao += 15;
-  if (r.dificuldade === 'satisfeito') pontuacao -= 15;
+  for (const pergunta of (perguntas || [])) {
+    const pesos = (pergunta.opcoes || []).map((o) => Number(o.peso) || 0);
+    const maxPergunta = pergunta.tipo === 'multi'
+      ? pesos.filter((p) => p > 0).reduce((a, b) => a + b, 0)
+      : Math.max(0, ...pesos);
+    pontuacaoMaxima += maxPergunta;
 
-  const usosAlta = ((r.usos as string[]) || []).filter((u) => USOS_ALTA_DEMANDA.includes(u));
-  pontuacao += usosAlta.length * 8;
-
-  if (r.moradores === '5_mais') pontuacao += 10;
-  if (r.moradores === '2_4') pontuacao += 5;
-  if (((r.equipamentos as string[]) || []).length >= 3) pontuacao += 5;
+    const valor = respostas[pergunta.id];
+    if (valor === undefined) continue;
+    if (pergunta.tipo === 'multi') {
+      for (const opcaoId of (valor as string[])) {
+        const opcao = pergunta.opcoes.find((o) => o.id === opcaoId);
+        if (opcao) pontuacao += Number(opcao.peso) || 0;
+      }
+    } else {
+      const opcao = pergunta.opcoes.find((o) => o.id === valor);
+      if (opcao) pontuacao += Number(opcao.peso) || 0;
+    }
+  }
 
   pontuacao = Math.max(0, pontuacao);
-  const temperatura = pontuacao >= 60 ? 'quente' : pontuacao >= 30 ? 'morno' : 'frio';
+  const percentual = pontuacaoMaxima > 0 ? (pontuacao / pontuacaoMaxima) * 100 : 0;
+  const temperatura = percentual >= 60 ? 'quente' : percentual >= 30 ? 'morno' : 'frio';
 
-  const servicosInteresse = ['internet_residencial'];
-  if (((r.usos as string[]) || []).includes('streaming')) servicosInteresse.push('streamings');
+  return { pontuacao, pontuacaoMaxima, temperatura, respostas };
+}
 
-  return { pontuacao, temperatura, ofertaRecomendada: 'internet_residencial', servicosInteresse, respostas: r };
+// Serviço de interesse do Lead deriva do PERFIL escolhido (D-074, sempre
+// presente) — não das perguntas de intenção, que agora são livres e não
+// têm mais uma chave garantida tipo "usos"/"streaming".
+function servicosInteressePorPerfil(perfilKey: string): string[] {
+  return perfilKey === 'streaming' ? ['internet_residencial', 'streamings'] : ['internet_residencial'];
 }
 
 // Atribuição de tráfego pago: whitelist de chaves UTM capturadas pela
@@ -174,7 +227,7 @@ Deno.serve(async (req) => {
 
     const { data: simulador, error: simErro } = await admin
       .from('simuladores')
-      .select('id,tipo,ativo')
+      .select('id,tipo,ativo,perguntas')
       .eq('id', simuladorId)
       .maybeSingle();
     if (simErro || !simulador || !simulador.ativo) {
@@ -235,12 +288,19 @@ Deno.serve(async (req) => {
         upgrade: comboBruto.upgrade === true,
       });
 
+      // D-075: perguntas de intenção vêm da PRÓPRIA campanha (nunca do
+      // cliente) — busca a config gravada, com fallback pro molde padrão
+      // se a campanha ainda não tiver `perguntas` configurada.
+      const perguntas: Pergunta[] = Array.isArray(simulador.perguntas) && simulador.perguntas.length
+        ? simulador.perguntas
+        : perguntasPadraoFallback();
+
       // Score SEMPRE recalculado aqui — body.respostas é a única entrada.
-      const perfil = calcularPerfil(body.respostas);
-      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: perfil.respostas, perfil: perfilKey, combo };
+      const perfil = calcularPerfilDinamico(perguntas, body.respostas);
+      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: perfil.respostas, perfil: perfilKey, combo };
       pontuacao = perfil.pontuacao;
-      ofertaRecomendada = perfil.ofertaRecomendada;
-      servicosInteresse = perfil.servicosInteresse;
+      ofertaRecomendada = 'internet_residencial';
+      servicosInteresse = servicosInteressePorPerfil(perfilKey);
       temperatura = perfil.temperatura;
     }
 

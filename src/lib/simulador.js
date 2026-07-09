@@ -1,16 +1,24 @@
-// Simulador de Perfil de Consumo — catálogo de perguntas + scoring.
+// Simulador de Perfil de Consumo — catálogo de pacotes/perfis + motor de
+// pontuação das perguntas de intenção.
 //
-// Mesmo princípio do CAMPOS_FORMULARIO (D-062): catálogo FIXO e versionado
-// em código, nunca um motor de quiz genérico configurável em runtime. A
-// tabela `simuladores` guarda só a identidade da campanha (nome/slug);
-// mudar pergunta = commit aqui + bump de PERGUNTAS_SIMULADOR_VERSAO.
+// D-075: as perguntas de intenção (as que valem ponto pra fila) deixaram
+// de ser um catálogo fixo em código (D-072) — agora cada campanha do tipo
+// 'perfil_consumo' tem seu PRÓPRIO questionário (texto + peso por opção),
+// criado/editado pelo marketing na gestão (SimuladorTab), gravado em
+// `simuladores.perguntas`. A pergunta de "perfil de uso" (D-074,
+// PERFIS_SIMULADOR) continua fixa e decide o pacote — só as de intenção
+// viram configuráveis.
 //
 // Módulo deliberadamente SEM imports: é carregado standalone pelo teste
 // unitário Node (tests/simulador.unit.test.js) e espelhado em Deno na Edge
 // Function submeter-simulador (que recalcula o score no servidor — o
-// cliente nunca manda pontuação pronta, só as respostas brutas).
+// cliente nunca manda pontuação pronta, só as respostas brutas + o id da
+// campanha; o servidor busca a config dela mesmo e recalcula).
 
-export const PERGUNTAS_SIMULADOR_VERSAO = 1;
+// Versão do formato de `leads.perfil_consumo` — bump quando a FORMA do
+// jsonb muda (não quando só o conteúdo de uma campanha muda). v2 (D-075)
+// passou a incluir `perguntas` (snapshot) e `combo`/`perfil` (D-074).
+export const PERGUNTAS_SIMULADOR_VERSAO = 2;
 
 // Catálogo de pacotes de Internet Fibra e apps adicionais — fonte única de
 // preço, reaproveitada pela aba "Pacotes" do vendedor (VendedorApp.jsx) além
@@ -84,6 +92,23 @@ export function montarCombo(perfilKey, opcoes = {}) {
   };
 }
 
+// D-075: perguntas de INTENÇÃO configuráveis POR CAMPANHA — cada campanha
+// do tipo 'perfil_consumo' tem seu próprio questionário (texto + peso por
+// opção), criado/editado pelo marketing na gestão (SimuladorTab). Isto é
+// DIFERENTE da pergunta de "perfil de uso" acima (D-074, PERFIS_SIMULADOR)
+// que continua fixa e decide o pacote — só as perguntas de intenção (que
+// alimentam pontuação/temperatura da fila) viram editáveis.
+//
+// Forma de uma pergunta configurável (gravada em `simuladores.perguntas`):
+//   { id, texto, tipo: 'single'|'multi', opcoes: [{ id, texto, peso }] }
+// Forma das respostas (gravadas em `leads.perfil_consumo.respostas`):
+//   { [perguntaId]: opcaoId | opcaoId[] }
+//
+// PERGUNTAS_SIMULADOR (abaixo) deixou de ser o catálogo AO VIVO do quiz —
+// vira só (1) o molde usado por perguntasPadrao() pra pré-preencher
+// campanhas novas com um ponto de partida editável, e (2) a fonte de
+// labels pra renderizar leads ANTIGOS (capturados antes do D-075, que
+// gravaram respostas pela chave fixa em vez de um snapshot de perguntas).
 export const PERGUNTAS_SIMULADOR = [
   {
     key: 'moradores', label: 'Quantas pessoas moram com você?', tipo: 'single',
@@ -123,7 +148,6 @@ export const PERGUNTAS_SIMULADOR = [
   },
   {
     key: 'dificuldade', label: 'Qual a sua maior dificuldade hoje?', tipo: 'single',
-    exibirSe: { tem_internet: 'sim' },
     opcoes: [
       { key: 'lenta',      label: 'Internet lenta' },
       { key: 'oscilacao',  label: 'Oscilação / quedas' },
@@ -134,75 +158,93 @@ export const PERGUNTAS_SIMULADOR = [
   },
 ];
 
-// Usos que puxam banda/estabilidade — cada um soma pontos de intenção.
-const USOS_ALTA_DEMANDA = ['streaming', 'jogos', 'home_office', 'muitos_disp'];
+// Pesos do molde padrão — aproximam o comportamento do scoring fixo que
+// existia antes do D-075. Não são mais uma fórmula especial de código, só
+// valores iniciais de uma campanha nova; o marketing edita à vontade.
+const PESOS_PADRAO = {
+  moradores:    { '1': 0, '2_4': 5, '5_mais': 10 },
+  usos:         { streaming: 8, jogos: 8, home_office: 8, estudos: 0, redes: 0, muitos_disp: 8 },
+  equipamentos: { smart_tv: 2, pc: 2, console: 2, celular: 2, iot: 2 },
+  tem_internet: { sim: 0, nao: 30 },
+  dificuldade:  { lenta: 20, oscilacao: 20, velocidade: 20, preco: 15, satisfeito: 0 },
+};
 
-// Perguntas que a página deve exibir dado o estado atual das respostas
-// (perguntas condicionais via exibirSe). Compartilhada entre wizard e testes.
-export function perguntasVisiveis(respostas) {
-  return PERGUNTAS_SIMULADOR.filter((p) => {
-    if (!p.exibirSe) return true;
-    return Object.entries(p.exibirSe).every(([k, v]) => respostas[k] === v);
-  });
+// Molde padrão pra pré-preencher campanhas novas (e fallback de campanhas
+// criadas antes do D-075, sem `perguntas` configurada ainda) — sempre uma
+// cópia nova (nunca a mesma referência), pra edição não vazar entre
+// campanhas diferentes.
+export function perguntasPadrao() {
+  return PERGUNTAS_SIMULADOR.map((p) => ({
+    id: p.key,
+    texto: p.label,
+    tipo: p.tipo,
+    opcoes: p.opcoes.map((o) => ({
+      id: o.key,
+      texto: o.label,
+      peso: PESOS_PADRAO[p.key]?.[o.key] ?? 0,
+    })),
+  }));
 }
 
 // Normaliza respostas brutas (potencialmente hostis — vêm de formulário
-// público) contra o catálogo: descarta chaves/opções desconhecidas,
-// garante single=string válida e multi=array de opções válidas.
-export function normalizarRespostas(brutas) {
+// público) contra a config DE UMA CAMPANHA específica — descarta
+// perguntas/opções que não existem naquele array. Cada campanha valida
+// contra o próprio questionário, nunca um catálogo fixo global.
+export function normalizarRespostasDinamico(perguntas, brutas) {
   const respostas = {};
-  if (!brutas || typeof brutas !== 'object') return respostas;
-  for (const pergunta of PERGUNTAS_SIMULADOR) {
-    const valor = brutas[pergunta.key];
-    const validas = new Set(pergunta.opcoes.map((o) => o.key));
-    if (pergunta.tipo === 'single') {
-      if (typeof valor === 'string' && validas.has(valor)) respostas[pergunta.key] = valor;
-    } else {
+  if (!Array.isArray(perguntas) || !brutas || typeof brutas !== 'object') return respostas;
+  for (const pergunta of perguntas) {
+    const valor = brutas[pergunta.id];
+    const validas = new Set((pergunta.opcoes || []).map((o) => o.id));
+    if (pergunta.tipo === 'multi') {
       if (Array.isArray(valor)) {
         const arr = valor.filter((v) => typeof v === 'string' && validas.has(v));
-        if (arr.length) respostas[pergunta.key] = arr;
+        if (arr.length) respostas[pergunta.id] = arr;
       }
+    } else if (typeof valor === 'string' && validas.has(valor)) {
+      respostas[pergunta.id] = valor;
     }
   }
-  // Coerência da condicional: dificuldade só vale se tem_internet === 'sim'
-  if (respostas.tem_internet !== 'sim') delete respostas.dificuldade;
   return respostas;
 }
 
-// Soma ponderada → pontuação de intenção. Pesos calibráveis por commit
-// (cobertos por tests/simulador.unit.test.js — ajustar os dois juntos).
-export function calcularPerfil(brutas) {
-  const r = normalizarRespostas(brutas);
+// Soma os pesos das opções escolhidas — sempre a partir da config da
+// PRÓPRIA campanha, nunca aceita pontuação pronta vinda de fora (mesmo
+// princípio de segurança do D-072, só que a "régua" agora vem do banco em
+// vez de um array fixo em código). Temperatura é um PERCENTUAL da
+// pontuação máxima possível daquela campanha específica — não um número
+// fixo — porque cada campanha pode ter perguntas/pesos bem diferentes:
+// ≥60% quente, 30–59% morno, <30% frio.
+export function calcularPerfilDinamico(perguntas, brutas) {
+  const respostas = normalizarRespostasDinamico(perguntas, brutas);
   let pontuacao = 0;
+  let pontuacaoMaxima = 0;
 
-  if (r.tem_internet === 'nao') pontuacao += 30; // demanda reprimida — sinal mais quente
-  if (['lenta', 'oscilacao', 'velocidade'].includes(r.dificuldade)) pontuacao += 20; // dor ativa
-  if (r.dificuldade === 'preco') pontuacao += 15;
-  if (r.dificuldade === 'satisfeito') pontuacao -= 15;
+  for (const pergunta of (perguntas || [])) {
+    const pesos = (pergunta.opcoes || []).map((o) => Number(o.peso) || 0);
+    const maxPergunta = pergunta.tipo === 'multi'
+      ? pesos.filter((p) => p > 0).reduce((a, b) => a + b, 0)
+      : Math.max(0, ...pesos);
+    pontuacaoMaxima += maxPergunta;
 
-  const usosAlta = (r.usos || []).filter((u) => USOS_ALTA_DEMANDA.includes(u));
-  pontuacao += usosAlta.length * 8;
-
-  if (r.moradores === '5_mais') pontuacao += 10;
-  if (r.moradores === '2_4') pontuacao += 5;
-  if ((r.equipamentos || []).length >= 3) pontuacao += 5;
+    const valor = respostas[pergunta.id];
+    if (valor === undefined) continue;
+    if (pergunta.tipo === 'multi') {
+      for (const opcaoId of valor) {
+        const opcao = pergunta.opcoes.find((o) => o.id === opcaoId);
+        if (opcao) pontuacao += Number(opcao.peso) || 0;
+      }
+    } else {
+      const opcao = pergunta.opcoes.find((o) => o.id === valor);
+      if (opcao) pontuacao += Number(opcao.peso) || 0;
+    }
+  }
 
   pontuacao = Math.max(0, pontuacao);
+  const percentual = pontuacaoMaxima > 0 ? (pontuacao / pontuacaoMaxima) * 100 : 0;
+  const temperatura = percentual >= 60 ? 'quente' : percentual >= 30 ? 'morno' : 'frio';
 
-  const temperatura = pontuacao >= 60 ? 'quente' : pontuacao >= 30 ? 'morno' : 'frio';
-
-  // servicoInteresse do Lead: sempre residencial; streaming declarado vira
-  // interesse secundário (alimenta a ordenação do OfertaPickerModal, D-057).
-  const servicosInteresse = ['internet_residencial'];
-  if ((r.usos || []).includes('streaming')) servicosInteresse.push('streamings');
-
-  return {
-    pontuacao,
-    temperatura,
-    ofertaRecomendada: 'internet_residencial',
-    servicosInteresse,
-    respostas: r,
-  };
+  return { pontuacao, pontuacaoMaxima, temperatura, respostas };
 }
 
 export function fmtMoeda(valor) {
@@ -211,14 +253,26 @@ export function fmtMoeda(valor) {
 
 // Resumo legível do perfil ("2 a 4 pessoas · Streaming · Sem internet hoje
 // · Perfil: Gamer / Casa Conectada · Pacote: 680 Mega (upgrade) · + Apps
-// Yellow · Total: R$ 119,90/mês") pra fila de distribuição e card do lead
-// — labels sempre derivados do catálogo, nunca redigitados em outra tela.
+// Yellow · Total: R$ 119,90/mês") pra fila de distribuição e card do lead.
+// Trata dois formatos: leads novos (D-075) trazem um snapshot de
+// `perguntas` gravado na submissão — o lead preserva o que a pessoa
+// realmente viu, mesmo que a campanha mude depois; leads antigos (D-072,
+// sem esse snapshot) caem no catálogo fixo legado.
 export function resumoPerfil(perfilConsumo) {
-  const r = perfilConsumo?.respostas;
   const partes = [];
-  if (r) {
+  if (!perfilConsumo) return partes;
+
+  if (Array.isArray(perfilConsumo.perguntas)) {
+    for (const pergunta of perfilConsumo.perguntas) {
+      const valor = perfilConsumo.respostas?.[pergunta.id];
+      if (valor === undefined) continue;
+      const labelDe = (id) => pergunta.opcoes?.find((o) => o.id === id)?.texto || id;
+      if (Array.isArray(valor)) partes.push(...valor.map(labelDe));
+      else partes.push(labelDe(valor));
+    }
+  } else if (perfilConsumo.respostas) {
     for (const pergunta of PERGUNTAS_SIMULADOR) {
-      const valor = r[pergunta.key];
+      const valor = perfilConsumo.respostas[pergunta.key];
       if (valor === undefined) continue;
       const labelDe = (k) => pergunta.opcoes.find((o) => o.key === k)?.label || k;
       if (pergunta.key === 'tem_internet') {
@@ -229,9 +283,10 @@ export function resumoPerfil(perfilConsumo) {
       else partes.push(labelDe(valor));
     }
   }
-  const perfilDef = perfilPorKey(perfilConsumo?.perfil);
+
+  const perfilDef = perfilPorKey(perfilConsumo.perfil);
   if (perfilDef) partes.push(`Perfil: ${perfilDef.label}`);
-  const combo = perfilConsumo?.combo;
+  const combo = perfilConsumo.combo;
   if (combo) {
     partes.push(`Pacote: ${combo.pacoteFinalMega} Mega${combo.upgrade ? ' (upgrade)' : ''}`);
     if (combo.yellow) partes.push('+ Apps Yellow');

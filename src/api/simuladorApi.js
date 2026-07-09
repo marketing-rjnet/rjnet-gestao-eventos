@@ -1,6 +1,6 @@
 import { db } from '../lib/dataService';
 import { genId } from '../utils/ids';
-import { PERGUNTAS_SIMULADOR_VERSAO } from '../lib/simulador';
+import { PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao } from '../lib/simulador';
 
 export function createSimuladorApi({ simuladores, setSimuladores }) {
   return {
@@ -8,6 +8,9 @@ export function createSimuladorApi({ simuladores, setSimuladores }) {
       const novo = {
         ...s, id: genId('sim'), ativo: true,
         versaoPerguntas: PERGUNTAS_SIMULADOR_VERSAO,
+        // D-075: campanha de perfil_consumo já nasce com um questionário
+        // padrão editável (o marketing ajusta depois); territorial não usa.
+        perguntas: s.tipo === 'perfil_consumo' ? perguntasPadrao() : null,
         criadoEm: new Date().toISOString(),
       };
       setSimuladores((p) => [novo, ...p]);

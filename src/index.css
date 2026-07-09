@@ -790,3 +790,23 @@
   color: var(--rj-blue); letter-spacing: .03em;
 }
 .sim-combo-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* Simulador: botão de info (ⓘ) e popup com a lista de apps do combo */
+.sim-combo-check > span { flex: 1; }
+.sim-app-info-btn {
+  flex: 0 0 auto; background: none; border: none; color: var(--text-3);
+  font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+.sim-app-info-btn:hover { color: var(--rj-blue); }
+.sim-app-popup-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+}
+.sim-app-popup {
+  background: var(--surface); border-radius: 14px; max-width: 360px; width: 100%;
+  padding: 18px; box-shadow: 0 0 0 1px var(--border), var(--shadow-float);
+}
+.sim-app-popup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 15px; }
+.sim-app-popup-close { background: none; border: none; color: var(--text-3); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+.sim-app-popup-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.sim-app-chip { font-size: 12.5px; padding: 6px 10px; border-radius: 999px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); color: var(--text-2); }

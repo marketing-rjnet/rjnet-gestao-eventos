@@ -263,19 +263,21 @@ const campoPersonalizadoToDb = (c) => ({
   id: c.id, label: c.label, key: c.key, ativo: c.ativo ?? true, criado_em: c.criadoEm || new Date().toISOString(),
 });
 
-// Simulador: campanha de captação gamificada — a tabela guarda só a
-// identidade (nome/slug/tipo); o questionário é catálogo fixo em código
-// (src/lib/simulador.js), mesmo princípio do Form Builder (D-062).
+// Simulador: campanha de captação gamificada — a tabela guarda a
+// identidade (nome/slug/tipo) e, pra tipo='perfil_consumo', o próprio
+// questionário de intenção (`perguntas`, D-075) editado pelo marketing.
 const simuladorFromDb = (r) => ({
   id: r.id, nome: r.nome, slug: r.slug,
   tipo: r.tipo ?? 'perfil_consumo', campanha: r.campanha ?? '',
   versaoPerguntas: r.versao_perguntas ?? 1,
+  perguntas: r.perguntas ?? null,
   ativo: r.ativo ?? true, criadoEm: r.criado_em,
 });
 const simuladorToDb = (s) => ({
   id: s.id, nome: s.nome, slug: s.slug,
   tipo: s.tipo ?? 'perfil_consumo', campanha: s.campanha || null,
   versao_perguntas: s.versaoPerguntas ?? 1,
+  perguntas: s.perguntas ?? null,
   ativo: s.ativo ?? true, criado_em: s.criadoEm || new Date().toISOString(),
 });
 
@@ -321,7 +323,7 @@ export async function fetchAll(signal) {
         supabase.from('formularios').select('id,nome,slug,campos,campos_obrigatorios,campos_personalizados_ids,campos_personalizados_obrigatorios,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
-        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
+        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -489,7 +491,7 @@ export async function fetchSimuladorPublico(slug) {
   if (!isSupabaseMode() || !slug) return null;
   const { data, error } = await supabase
     .from('simuladores')
-    .select('id,nome,slug,tipo,campanha,versao_perguntas,ativo')
+    .select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,ativo')
     .eq('slug', slug)
     .eq('ativo', true)
     .maybeSingle();

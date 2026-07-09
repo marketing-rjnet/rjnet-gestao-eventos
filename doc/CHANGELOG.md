@@ -4,6 +4,32 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.19] — Simulador: perguntas de intenção configuráveis por campanha + popup de apps
+**Data:** 2026-07-09
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-simulador-perguntas.sql`** (novo) — coluna `perguntas` (jsonb) em `simuladores`: cada campanha `perfil_consumo` passa a ter seu PRÓPRIO questionário de intenção, não mais um catálogo fixo global.
+- **`src/lib/simulador.js`** — novo motor dinâmico: `perguntasPadrao()` (molde inicial editável), `normalizarRespostasDinamico()`/`calcularPerfilDinamico()` (soma pesos por opção, temperatura = percentual da pontuação máxima daquela campanha: ≥60% quente, 30–59% morno, <30% frio). Removidas `calcularPerfil`/`normalizarRespostas`/`perguntasVisiveis` (catálogo fixo do D-072, agora só usado como fonte do molde padrão e para renderizar leads antigos).
+- **`src/features/simulador/SimuladorTab.jsx`** — novo construtor de perguntas (botão "Perguntas" por campanha): adicionar/remover/reordenar pergunta e opção, texto único/múltipla escolha, peso numérico por opção, validação antes de salvar.
+- **`src/public/SimuladorPublico.jsx`** — quiz renderiza as perguntas DA CAMPANHA (fallback pro molde padrão se ainda não configurada); perguntas condicionais removidas (lista linear); popup "ⓘ" em cada checkbox do combo mostra os apps reais do bundle (Yellow/Black).
+- **`supabase/functions/submeter-simulador/index.ts`** — recalcula o score no servidor a partir da PRÓPRIA config da campanha (nunca aceita peso do cliente); fallback pro mesmo molde padrão para campanhas antigas sem `perguntas`.
+- **`src/api/simuladorApi.js`** — campanha nova já nasce com o molde padrão pré-preenchido (editável), não em branco.
+- **`leads.perfil_consumo`** passa a gravar um snapshot das perguntas usadas na submissão (não só uma referência à campanha, que pode mudar depois); `resumoPerfil()` (fila/card do vendedor) detecta os dois formatos — leads novos e leads legados D-072 — sem quebrar histórico.
+- **Testes:** `tests/simulador.unit.test.js` reescrito (61 asserts no motor dinâmico); `tests/simulador.test.js` com 2 cenários novos (questionário próprio por campanha, popup de apps) e ajuste dos existentes — 11/11 E2E.
+- **Docs:** D-075 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Pedido do responsável pelo sistema: poder ver e editar as perguntas do quiz, com peso/nível de intenção por resposta — "quase uma evolução do formulário, só que usando a ferramenta pra moldar o tipo de pesquisa". Decidido que cada campanha tem seu próprio questionário (não um catálogo único global), e que a pergunta de "perfil de uso" (D-074, que decide o pacote) fica de fora — permanece fixa. Popup de apps resolve a reclamação de que "o cliente vê ali app Yellow e Black mas não mostra o que é".
+
+**Ações manuais necessárias**
+1. Rodar `supabase/migracao-simulador-perguntas.sql` (após `migracao-simulador.sql`) + `NOTIFY pgrst, 'reload schema';`.
+2. Redeploy da Edge Function `submeter-simulador` (motor de scoring mudou de catálogo fixo pra dinâmico).
+3. Sem CLI disponível no ambiente do responsável: publicação feita colando código achatado (sem import de `_shared/`) direto no Dashboard do Supabase — mesmo caminho já usado nas rodadas anteriores.
+
+---
+
 ## [v5.18] — Simulador: pacote fixo por perfil de uso + combo de upsell (apps/upgrade)
 **Data:** 2026-07-08
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk`

@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { useApp } from '../../hooks/useApp';
-import { PERGUNTAS_SIMULADOR } from '../../lib/simulador';
+import { perguntasPadrao } from '../../lib/simulador';
 import { slugify } from '../../utils/ids';
 import { sanitizeText } from '../../lib/security';
 
-// Simulador de Perfil de Consumo — gestão de campanhas. Cada campanha é só
-// identidade (nome + agrupador): o questionário é catálogo fixo em código
-// (src/lib/simulador.js), mesmo princípio do Form Builder (D-062).
+// Simulador de Perfil de Consumo — gestão de campanhas. Cada campanha do
+// tipo 'perfil_consumo' tem seu PRÓPRIO questionário de intenção — texto e
+// peso (pontos) por opção, editados aqui pelo marketing (D-075). A
+// pergunta de "perfil de uso" que decide o pacote fixo (D-074) continua
+// separada, fora deste construtor.
 //
 // Cada campanha gera DOIS artefatos do mesmo link /s/:slug:
 // - Link "limpo" pra colar no gerenciador de anúncios (os UTMs de cada
@@ -65,12 +67,130 @@ const TIPO_LABEL_SIM = {
   territorial: 'Territorial (demanda)',
 };
 
+const genLocalId = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+// D-075: construtor do questionário de intenção de UMA campanha — pergunta
+// por pergunta, opção por opção, com peso (pontos) editável. O peso soma
+// pontuação de intenção; a temperatura da fila é um percentual da
+// pontuação máxima possível daquela campanha (ver calcularPerfilDinamico).
+function PerguntasBuilder({ simulador, onSalvar }) {
+  const [perguntas, setPerguntas] = useState(() => (simulador.perguntas?.length ? simulador.perguntas : perguntasPadrao()));
+  const [erro, setErro] = useState('');
+  const [salvo, setSalvo] = useState(false);
+
+  const atualizarPergunta = (idx, patch) => setPerguntas((p) => p.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
+  const atualizarOpcao = (idxP, idxO, patch) => setPerguntas((p) => p.map((q, i) => (
+    i !== idxP ? q : { ...q, opcoes: q.opcoes.map((o, j) => (j === idxO ? { ...o, ...patch } : o)) }
+  )));
+
+  const moverPergunta = (idx, dir) => setPerguntas((p) => {
+    const alvo = idx + dir;
+    if (alvo < 0 || alvo >= p.length) return p;
+    const novo = [...p];
+    [novo[idx], novo[alvo]] = [novo[alvo], novo[idx]];
+    return novo;
+  });
+  const moverOpcao = (idxP, idxO, dir) => setPerguntas((p) => p.map((q, i) => {
+    if (i !== idxP) return q;
+    const alvo = idxO + dir;
+    if (alvo < 0 || alvo >= q.opcoes.length) return q;
+    const opcoes = [...q.opcoes];
+    [opcoes[idxO], opcoes[alvo]] = [opcoes[alvo], opcoes[idxO]];
+    return { ...q, opcoes };
+  }));
+
+  const adicionarPergunta = () => setPerguntas((p) => [...p, {
+    id: genLocalId('perg'), texto: '', tipo: 'single',
+    opcoes: [{ id: genLocalId('op'), texto: '', peso: 0 }, { id: genLocalId('op'), texto: '', peso: 0 }],
+  }]);
+  const removerPergunta = (idx) => setPerguntas((p) => p.filter((_, i) => i !== idx));
+  const adicionarOpcao = (idxP) => setPerguntas((p) => p.map((q, i) => (
+    i !== idxP ? q : { ...q, opcoes: [...q.opcoes, { id: genLocalId('op'), texto: '', peso: 0 }] }
+  )));
+  const removerOpcao = (idxP, idxO) => setPerguntas((p) => p.map((q, i) => (
+    i !== idxP ? q : { ...q, opcoes: q.opcoes.filter((_, j) => j !== idxO) }
+  )));
+
+  const salvar = () => {
+    setErro('');
+    if (perguntas.length === 0) { setErro('Adicione ao menos 1 pergunta.'); return; }
+    for (const p of perguntas) {
+      if (!p.texto.trim()) { setErro('Toda pergunta precisa de um texto.'); return; }
+      if (p.opcoes.length < 2) { setErro(`A pergunta "${p.texto}" precisa de pelo menos 2 opções.`); return; }
+      for (const o of p.opcoes) {
+        if (!o.texto.trim()) { setErro(`Uma opção da pergunta "${p.texto}" está sem texto.`); return; }
+        if (o.peso === '' || Number.isNaN(Number(o.peso)) || Number(o.peso) < 0) { setErro(`Peso inválido em "${p.texto}" → "${o.texto}".`); return; }
+      }
+    }
+    const limpo = perguntas.map((p) => ({
+      id: p.id, texto: sanitizeText(p.texto, 200), tipo: p.tipo,
+      opcoes: p.opcoes.map((o) => ({ id: o.id, texto: sanitizeText(o.texto, 150), peso: Math.max(0, Number(o.peso) || 0) })),
+    }));
+    onSalvar(limpo);
+    setSalvo(true);
+    setTimeout(() => setSalvo(false), 2000);
+  };
+
+  return (
+    <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <p className="tab-desc" style={{ margin: 0 }}>
+        Escolha única ou múltipla, e um peso (pontos) por opção — quanto maior a soma escolhida em relação
+        ao máximo possível da campanha, mais quente o lead entra na fila de distribuição.
+      </p>
+      {perguntas.map((pergunta, idxP) => (
+        <div key={pergunta.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700 }}>PERGUNTA {idxP + 1}</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+              <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 6px' }} disabled={idxP === 0} onClick={() => moverPergunta(idxP, -1)}>▲</button>
+              <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 6px' }} disabled={idxP === perguntas.length - 1} onClick={() => moverPergunta(idxP, 1)}>▼</button>
+              <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--red)' }} onClick={() => removerPergunta(idxP)}>Remover</button>
+            </div>
+          </div>
+          <input
+            style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
+            maxLength={200} placeholder="Texto da pergunta"
+            value={pergunta.texto} onChange={(e) => atualizarPergunta(idxP, { texto: e.target.value })}
+          />
+          <div className="seg-control" style={{ marginBottom: 10 }}>
+            <button type="button" className={'seg-btn' + (pergunta.tipo === 'single' ? ' active' : '')} onClick={() => atualizarPergunta(idxP, { tipo: 'single' })}>Escolha única</button>
+            <button type="button" className={'seg-btn' + (pergunta.tipo === 'multi' ? ' active' : '')} onClick={() => atualizarPergunta(idxP, { tipo: 'multi' })}>Múltipla escolha</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {pergunta.opcoes.map((opcao, idxO) => (
+              <div key={opcao.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  style={{ flex: 1, minWidth: 0 }} maxLength={150} placeholder={`Opção ${idxO + 1}`}
+                  value={opcao.texto} onChange={(e) => atualizarOpcao(idxP, idxO, { texto: e.target.value })}
+                />
+                <input
+                  type="number" min={0} style={{ width: 60 }} placeholder="Peso"
+                  value={opcao.peso} onChange={(e) => atualizarOpcao(idxP, idxO, { peso: e.target.value })}
+                  title="Pontos de intenção"
+                />
+                <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 4px' }} disabled={idxO === 0} onClick={() => moverOpcao(idxP, idxO, -1)}>▲</button>
+                <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 4px' }} disabled={idxO === pergunta.opcoes.length - 1} onClick={() => moverOpcao(idxP, idxO, 1)}>▼</button>
+                <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 4px', color: 'var(--red)' }} disabled={pergunta.opcoes.length <= 2} onClick={() => removerOpcao(idxP, idxO)}>×</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn-ghost" style={{ fontSize: 12, marginTop: 8 }} onClick={() => adicionarOpcao(idxP)}>+ Adicionar opção</button>
+        </div>
+      ))}
+      <button type="button" className="btn-ghost btn-full" onClick={adicionarPergunta}>+ Adicionar pergunta</button>
+      {erro && <div className="form-erro">{erro}</div>}
+      <button type="button" className="btn-primary btn-full" onClick={salvar}>{salvo ? '✓ Perguntas salvas!' : 'Salvar perguntas'}</button>
+    </div>
+  );
+}
+
 export function SimuladorTab() {
   const { simuladores, addSimulador, updateSimulador, removeSimulador } = useApp();
   const [nome, setNome] = useState('');
   const [campanha, setCampanha] = useState('');
   const [tipo, setTipo] = useState('perfil_consumo');
   const [abertoId, setAbertoId] = useState(null);
+  const [perguntasAbertasId, setPerguntasAbertasId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const criar = (e) => {
@@ -94,10 +214,10 @@ export function SimuladorTab() {
         <div>
           <div className="page-title">Simulador</div>
           <p className="tab-desc">
-            Quiz de perfil de consumo pra captação qualificada: a pessoa responde {PERGUNTAS_SIMULADOR.length} perguntas
-            rápidas, recebe uma recomendação e só então deixa o contato. Cada campanha gera link (tráfego pago)
-            e QR Code (material impresso) próprios — os leads chegam com perfil, pontuação de intenção e
-            temperatura calculados, prontos pra distribuir em Relatórios.
+            Quiz de perfil de consumo pra captação qualificada: a pessoa responde suas perguntas, recebe
+            uma recomendação e só então deixa o contato. Você define as perguntas e o peso de cada resposta
+            em cada campanha — o peso decide a pontuação de intenção. Cada campanha gera link (tráfego pago)
+            e QR Code (material impresso) próprios.
           </p>
         </div>
       </div>
@@ -148,7 +268,12 @@ export function SimuladorTab() {
                       {TIPO_LABEL_SIM[s.tipo] || s.tipo} · {s.campanha ? `${s.campanha} · ` : ''}{s.ativo ? 'ativa' : 'encerrada'}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {s.tipo === 'perfil_consumo' && (
+                      <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setPerguntasAbertasId(perguntasAbertasId === s.id ? null : s.id)}>
+                        {perguntasAbertasId === s.id ? 'Fechar' : 'Perguntas'}
+                      </button>
+                    )}
                     <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setAbertoId(abertoId === s.id ? null : s.id)}>
                       {abertoId === s.id ? 'Fechar' : 'QR / Link'}
                     </button>
@@ -165,6 +290,12 @@ export function SimuladorTab() {
                     )}
                   </div>
                 </div>
+                {perguntasAbertasId === s.id && (
+                  <PerguntasBuilder
+                    simulador={s}
+                    onSalvar={(perguntas) => updateSimulador(s.id, { perguntas })}
+                  />
+                )}
                 {abertoId === s.id && <QrDoSimulador simulador={s} />}
               </div>
             ))}

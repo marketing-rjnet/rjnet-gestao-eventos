@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
 import { fetchSimuladorPublico } from '../lib/dataService';
 import {
-  PERGUNTAS_SIMULADOR_VERSAO, perguntasVisiveis, calcularPerfil,
+  PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, calcularPerfilDinamico,
   PERFIS_SIMULADOR, perfilPorKey, pacotePorMega, pacoteUpgrade, montarCombo,
   APPS_ADICIONAIS, fmtMoeda,
 } from '../lib/simulador';
@@ -16,8 +16,13 @@ import { containsLink } from '../lib/security';
 // uma pergunta por tela → "analisando" → recomendação personalizada →
 // SÓ ENTÃO pede contato (valor antes do dado, decisão de produto).
 //
-// O score exibido aqui é só UX: a Edge Function submeter-simulador
-// recalcula tudo no servidor a partir das respostas brutas.
+// D-075: as perguntas de intenção (etapa "perguntas" abaixo) vêm da
+// PRÓPRIA campanha (`simulador.perguntas`, editada pelo marketing na
+// gestão) — não mais de um catálogo fixo importado. Campanha sem
+// `perguntas` configurada (criada antes do D-075) usa perguntasPadrao()
+// como base, sem quebrar. O score exibido aqui é só UX: a Edge Function
+// submeter-simulador busca sua PRÓPRIA cópia da config da campanha no
+// banco e recalcula tudo no servidor — nunca confia no que o cliente manda.
 //
 // Atribuição de tráfego: captura utm_* da URL no load — o mesmo link
 // atende anúncio pago (UTMs do gerenciador) e QR impresso (UTMs embutidos
@@ -44,6 +49,13 @@ function capturarUtm() {
   return Object.keys(utm).length > 0 ? utm : null;
 }
 
+// Serviço de interesse do Lead deriva do PERFIL escolhido (D-074, sempre
+// presente), não das perguntas de intenção (agora livres — não dá pra
+// depender de uma chave fixa tipo "usos"/"streaming" existir).
+function servicosInteressePorPerfil(perfilKey) {
+  return perfilKey === 'streaming' ? ['internet_residencial', 'streamings'] : ['internet_residencial'];
+}
+
 export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
   // Perfil de consumo: perfil → perguntas → calculando → resultado → contato → enviado
@@ -53,6 +65,7 @@ export default function SimuladorPublico({ slug }) {
   const [etapa, setEtapa] = useState(0);
   const [respostas, setRespostas] = useState({});
   const [combo, setCombo] = useState({ yellow: false, black: false, upgrade: false });
+  const [appInfo, setAppInfo] = useState(null); // 'yellow' | 'black' | null — popup de conteúdo do app
   const [contato, setContato] = useState({ nome: '', telefone: '', bairro: '', cidade: '' });
   const [interesses, setInteresses] = useState([]); // só territorial
   const [consentimentoColetado, setConsentimentoColetado] = useState(false);
@@ -76,26 +89,29 @@ export default function SimuladorPublico({ slug }) {
 
   const territorial = simulador?.tipo === 'territorial';
 
-  const visiveis = perguntasVisiveis(respostas);
-  const pergunta = visiveis[etapa];
+  // D-075: questionário DESTA campanha — cai pro molde padrão se a
+  // campanha ainda não tiver perguntas configuradas.
+  const perguntas = useMemo(
+    () => (simulador?.perguntas?.length ? simulador.perguntas : perguntasPadrao()),
+    [simulador],
+  );
+  const pergunta = perguntas[etapa];
   // perfilCalc: só pontuação/temperatura (fila) — o pacote vem de perfilEscolhido (D-074)
   const perfilCalc = useMemo(
-    () => (fase === 'resultado' || fase === 'contato' ? calcularPerfil(respostas) : null),
-    [fase, respostas],
+    () => (fase === 'resultado' || fase === 'contato' ? calcularPerfilDinamico(perguntas, respostas) : null),
+    [fase, perguntas, respostas],
   );
   const perfilDef = perfilPorKey(perfilEscolhido);
   const comboCalc = useMemo(
     () => (perfilEscolhido ? montarCombo(perfilEscolhido, combo) : null),
     [perfilEscolhido, combo],
   );
-  const streamingDeclarado = (respostas.usos || []).includes('streaming');
+  // Ligado ao perfil escolhido (D-074, sempre presente) — não às perguntas
+  // de intenção, que agora são livres e não têm mais uma chave garantida.
+  const streamingDeclarado = perfilEscolhido === 'streaming';
 
-  const avancar = (novasRespostas) => {
-    // As perguntas visíveis podem mudar com a resposta (condicional
-    // tem_internet → dificuldade), então recalcula a lista antes de decidir
-    // se acabou.
-    const lista = perguntasVisiveis(novasRespostas);
-    if (etapa + 1 < lista.length) {
+  const avancar = () => {
+    if (etapa + 1 < perguntas.length) {
       setEtapa(etapa + 1);
     } else {
       setFase('calculando');
@@ -105,19 +121,27 @@ export default function SimuladorPublico({ slug }) {
 
   const escolherPerfil = (key) => {
     setPerfilEscolhido(key);
-    setFase('perguntas');
+    if (perguntas.length === 0) {
+      // Campanha sem nenhuma pergunta de intenção configurada — pula
+      // direto pro resultado (score fica 0, temperatura frio).
+      setFase('calculando');
+      setTimeout(() => setFase('resultado'), 1400);
+    } else {
+      setEtapa(0);
+      setFase('perguntas');
+    }
   };
 
-  const responderSingle = (opcaoKey) => {
-    const novas = { ...respostas, [pergunta.key]: opcaoKey };
+  const responderSingle = (opcaoId) => {
+    const novas = { ...respostas, [pergunta.id]: opcaoId };
     setRespostas(novas);
-    avancar(novas);
+    avancar();
   };
 
-  const toggleMulti = (opcaoKey) => {
-    const atual = respostas[pergunta.key] || [];
-    const novo = atual.includes(opcaoKey) ? atual.filter((k) => k !== opcaoKey) : [...atual, opcaoKey];
-    setRespostas({ ...respostas, [pergunta.key]: novo });
+  const toggleMulti = (opcaoId) => {
+    const atual = respostas[pergunta.id] || [];
+    const novo = atual.includes(opcaoId) ? atual.filter((k) => k !== opcaoId) : [...atual, opcaoId];
+    setRespostas({ ...respostas, [pergunta.id]: novo });
   };
 
   const voltar = () => {
@@ -147,14 +171,14 @@ export default function SimuladorPublico({ slug }) {
           utm, versaoTermo: 'simulador-v1',
         });
       } else {
-        const p = calcularPerfil(respostas);
+        const p = calcularPerfilDinamico(perguntas, respostas);
         salvarLeadPublicoLocal({
           origem: 'simulador', simuladorId: simulador.id,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
-          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: p.respostas, perfil: perfilEscolhido, combo: comboCalc },
-          pontuacao: p.pontuacao, ofertaRecomendada: p.ofertaRecomendada,
-          temperatura: p.temperatura, servicoInteresse: p.servicosInteresse,
+          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: p.respostas, perfil: perfilEscolhido, combo: comboCalc },
+          pontuacao: p.pontuacao, ofertaRecomendada: 'internet_residencial',
+          temperatura: p.temperatura, servicoInteresse: servicosInteressePorPerfil(perfilEscolhido),
           utm, versaoTermo: 'simulador-v1',
         });
       }
@@ -306,6 +330,7 @@ export default function SimuladorPublico({ slug }) {
             <label className="sim-combo-check">
               <input type="checkbox" checked={combo.yellow} onChange={() => toggleCombo('yellow')} />
               <span>+{fmtMoeda(appYellow.preco)} — Adicione Apps {appYellow.nome}</span>
+              <button type="button" className="sim-app-info-btn" onClick={(e) => { e.preventDefault(); setAppInfo('yellow'); }} aria-label={`Ver apps inclusos no ${appYellow.nome}`}>ⓘ</button>
             </label>
             <label className={'sim-combo-check' + (streamingDeclarado ? ' sim-combo-destaque' : '')}>
               <input type="checkbox" checked={combo.black} onChange={() => toggleCombo('black')} />
@@ -313,6 +338,7 @@ export default function SimuladorPublico({ slug }) {
                 +{fmtMoeda(appBlack.preco)} — Adicione Apps {appBlack.nome}
                 {streamingDeclarado && <span className="sim-combo-selo">combina com seu perfil</span>}
               </span>
+              <button type="button" className="sim-app-info-btn" onClick={(e) => { e.preventDefault(); setAppInfo('black'); }} aria-label={`Ver apps inclusos no ${appBlack.nome}`}>ⓘ</button>
             </label>
             {upgradePacote && (
               <label className="sim-combo-check">
@@ -330,6 +356,23 @@ export default function SimuladorPublico({ slug }) {
             Sem compromisso — um consultor te chama no WhatsApp.
           </div>
         </div>
+
+        {/* Popup: quais apps entram em cada bundle (Yellow/Black) */}
+        {appInfo && (
+          <div className="sim-app-popup-overlay" onClick={() => setAppInfo(null)}>
+            <div className="sim-app-popup" onClick={(e) => e.stopPropagation()}>
+              <div className="sim-app-popup-head">
+                <strong>Apps {APPS_ADICIONAIS.find((a) => a.key === appInfo).nome}</strong>
+                <button type="button" className="sim-app-popup-close" onClick={() => setAppInfo(null)} aria-label="Fechar">×</button>
+              </div>
+              <div className="sim-app-popup-grid">
+                {APPS_ADICIONAIS.find((a) => a.key === appInfo).itens.map((item) => (
+                  <div key={item} className="sim-app-chip">{item}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -397,7 +440,7 @@ export default function SimuladorPublico({ slug }) {
 
   // ─── Perfil de uso (D-074): primeira etapa, decide o pacote fixo ──
   if (fase === 'perfil') {
-    const totalPassos = 1 + visiveis.length;
+    const totalPassos = 1 + perguntas.length;
     const progresso = Math.round((1 / totalPassos) * 100);
     return (
       <div className="qr-public-shell">
@@ -425,10 +468,10 @@ export default function SimuladorPublico({ slug }) {
     );
   }
 
-  // ─── Perguntas (uma por tela) ─────────────────────────────────
-  const totalPassos = 1 + visiveis.length;
+  // ─── Perguntas de intenção (uma por tela, D-075: vêm da campanha) ──
+  const totalPassos = 1 + perguntas.length;
   const progresso = Math.round(((etapa + 2) / totalPassos) * 100);
-  const selecionadas = pergunta.tipo === 'multi' ? (respostas[pergunta.key] || []) : [];
+  const selecionadas = pergunta.tipo === 'multi' ? (respostas[pergunta.id] || []) : [];
 
   return (
     <div className="qr-public-shell">
@@ -441,19 +484,19 @@ export default function SimuladorPublico({ slug }) {
           Pergunta {etapa + 2} de {totalPassos}
         </div>
 
-        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>{pergunta.label}</div>
-        {pergunta.hint && <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8 }}>{pergunta.hint}</div>}
+        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>{pergunta.texto}</div>
+        {pergunta.tipo === 'multi' && <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8 }}>Pode marcar mais de uma opção</div>}
 
         <div className="sim-opcoes" style={{ marginTop: 10 }}>
           {pergunta.opcoes.map((op) => {
-            const ativa = pergunta.tipo === 'multi' ? selecionadas.includes(op.key) : respostas[pergunta.key] === op.key;
+            const ativa = pergunta.tipo === 'multi' ? selecionadas.includes(op.id) : respostas[pergunta.id] === op.id;
             return (
               <button
-                type="button" key={op.key}
+                type="button" key={op.id}
                 className={'sim-opcao' + (ativa ? ' active' : '')}
-                onClick={() => (pergunta.tipo === 'single' ? responderSingle(op.key) : toggleMulti(op.key))}
+                onClick={() => (pergunta.tipo === 'single' ? responderSingle(op.id) : toggleMulti(op.id))}
               >
-                {op.label}
+                {op.texto}
               </button>
             );
           })}
@@ -465,7 +508,7 @@ export default function SimuladorPublico({ slug }) {
             <button
               type="button" className="btn-primary" style={{ flex: 1 }}
               disabled={selecionadas.length === 0}
-              onClick={() => avancar(respostas)}
+              onClick={avancar}
             >
               Continuar →
             </button>
