@@ -769,3 +769,24 @@
   text-transform: uppercase; color: var(--rj-blue);
   padding: 4px 10px; border-radius: 999px; box-shadow: 0 0 0 1px var(--border);
 }
+
+/* Simulador: opção de perfil (label + descrição), D-074 */
+.sim-opcao-perfil { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; }
+.sim-opcao-perfil-label { font-size: 14.5px; font-weight: 700; }
+.sim-opcao-perfil-desc { font-size: 12px; font-weight: 400; color: var(--text-3); line-height: 1.4; }
+.sim-opcao-perfil.active .sim-opcao-perfil-desc { color: rgba(17,17,17,.65); }
+
+/* Simulador: combo de upsell na tela de resultado (pacote + apps + upgrade) */
+.sim-combo { text-align: left; margin-top: 8px; border-radius: 12px; box-shadow: 0 0 0 1px var(--border); padding: 14px; }
+.sim-combo-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin-bottom: 10px; }
+.sim-combo-check {
+  display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text-2);
+  padding: 10px 8px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+}
+.sim-combo-check input { margin-top: 2px; width: 17px; height: 17px; cursor: pointer; flex: 0 0 auto; }
+.sim-combo-destaque { box-shadow: 0 0 0 1px var(--rj-blue); background: var(--yellow-dim); }
+.sim-combo-selo {
+  display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  color: var(--rj-blue); letter-spacing: .03em;
+}
+.sim-combo-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }

@@ -2415,6 +2415,33 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-074] — Pacote de internet fixo por perfil de uso + combo de upsell (apps/upgrade) na tela de resultado do Simulador
+
+**Data:** 2026-07-08
+**Tipo:** Feature (evolução do Simulador, tipo `perfil_consumo`)
+
+**Contexto:** O responsável pelo sistema pediu duas mudanças na tela de resultado do quiz `perfil_consumo`: (1) a recomendação de pacote deixa de ser calculada por soma de sinais (`nivel` derivado de `usos`/`moradores`) e passa a vir de uma **pergunta explícita de perfil** — a pessoa escolhe entre categorias (ex: "Gamer") que já têm um pacote fixo associado e uma descrição curta ("usa muita internet e navega bastante"); (2) abaixo do pacote recomendado, um combo de checkboxes de upsell usando os preços reais já existentes no sistema (aba Pacotes do vendedor): +R$ 15 Apps Yellow, +R$ 30 Apps Black, +R$ 20 (variável) upgrade pro próximo pacote — com total atualizado ao vivo.
+
+**Decisão:**
+- **Novo catálogo `PERFIS_SIMULADOR`** (`src/lib/simulador.js`): 4 categorias (Básico→120 Mega, Streaming→240, Home Office→240, Gamer/Casa Conectada→420⭐), cada uma com `label`+`descricao`+`pacoteMega` fixo — vira a **primeira pergunta** do wizard (`fase='perfil'`), antes das perguntas existentes. Mesmo princípio de catálogo fixo em código do resto do Simulador (D-072): editar textos/pacote de um perfil é uma mudança nesse array só. O responsável pelo sistema sinalizou que vai querer ajustar esses textos com frequência ("conforme demanda") — por ora fica em código (deploy rápido, poucas linhas); se a cadência de edição justificar, uma evolução futura natural é um catálogo editável pela UI (mesmo padrão de `ofertas`), tratada como decisão própria quando for pedida.
+- **Separação de papéis mantida**: as perguntas antigas (moradores/usos/equipamentos/tem_internet/dificuldade) continuam existindo e alimentando **só** `pontuacao`/`temperatura` (prioridade da fila) — nunca mais decidem o pacote. O campo `nivel`/`RECOMENDACAO_POR_NIVEL` (redundante com o novo perfil fixo) foi removido de `calcularPerfil`.
+- **Catálogo único de preços** (`PACOTES_INTERNET`, `APPS_ADICIONAIS` em `src/lib/simulador.js`): extraídos da tabela hardcoded que já existia na aba "Pacotes" do vendedor (`VendedorApp.jsx`) — essa aba passou a renderizar via `.map()` sobre o mesmo array, eliminando a duplicação de preço entre as duas telas (editar um preço agora é uma mudança só).
+- **Combo calculado sempre a partir do catálogo, nunca de um total pronto**: `montarCombo(perfilKey, {yellow, black, upgrade})` — mesmo princípio de `calcularPerfil`. Cliente usa pra UX (total ao vivo); a Edge Function `submeter-simulador` recebe só `perfil` (chave) + os 3 booleans e recalcula o combo (catálogo espelhado em Deno), gravando a versão dela em `leads.perfil_consumo.combo`.
+- **Upsell contextual sem dark pattern**: quando `usos` inclui `streaming`, o checkbox do Apps Black ganha destaque visual (borda + selo "combina com seu perfil") — nunca vem pré-marcado, só evidenciado.
+- **Dado gravado no lead**: `perfil_consumo.perfil` (chave da categoria) e `perfil_consumo.combo` (`{pacoteMega, pacotePreco, yellow, black, upgrade, pacoteFinalMega, valorTotal}`) — cabe no jsonb já existente (D-072), sem migração nova. `resumoPerfil()` estendido pra imprimir perfil/pacote/add-ons/total nas telas que já leem esse resumo (fila de distribuição, card do vendedor) — sem mudar essas telas.
+
+**Alternativas Avaliadas:**
+- **Manter a recomendação por soma de sinais e só adicionar os checkboxes por cima** — rejeitada: o pedido explícito foi trocar o *mecanismo* de recomendação (pergunta direta, não inferência), então manter os dois em paralelo criaria uma segunda fonte de verdade pro pacote.
+- **Combo configurável no banco (tabela de add-ons)** — rejeitada por ora, mesmo racional do catálogo de perfis: sem demanda de edição frequente hoje, adicionar tabela+RLS+UI é custo maior que o benefício atual.
+
+**Arquivos Afetados:** `src/lib/simulador.js` (catálogos `PACOTES_INTERNET`/`APPS_ADICIONAIS`/`PERFIS_SIMULADOR` + `montarCombo`/`pacotePorMega`/`pacoteUpgrade`/`fmtMoeda`; remoção de `nivel`/`RECOMENDACAO_POR_NIVEL`), `supabase/functions/submeter-simulador/index.ts` (espelho do combo + validação de `perfil`), `src/public/SimuladorPublico.jsx` (fase `perfil`, tela de resultado reescrita com o combo), `src/apps/VendedorApp.jsx` (aba Pacotes passa a consumir o catálogo compartilhado), `src/index.css` (`.sim-opcao-perfil`, `.sim-combo*`), `tests/simulador.unit.test.js` (+19 asserts), `tests/simulador.test.js` (2 cenários novos + ajuste dos existentes pra incluir a etapa de perfil).
+
+**Riscos:** Nenhuma migração de banco (campo `perfil_consumo` já é jsonb livre). Leads do Simulador criados **antes** desta mudança não têm `perfil`/`combo` no `perfil_consumo` — `resumoPerfil()` já trata isso graciosamente (`perfilPorKey(undefined)` retorna `null`, linhas de perfil/combo simplesmente não aparecem). Redeploy da Edge Function `submeter-simulador` necessário antes do go-live desta versão da página pública (payload novo: `perfil`+`combo` no lugar do `nivel` implícito).
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

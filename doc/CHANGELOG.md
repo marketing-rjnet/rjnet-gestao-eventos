@@ -4,6 +4,27 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.18] — Simulador: pacote fixo por perfil de uso + combo de upsell (apps/upgrade)
+**Data:** 2026-07-08
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`src/lib/simulador.js`** — novo catálogo `PERFIS_SIMULADOR` (Básico/Streaming/Home Office/Gamer, cada um com pacote de internet FIXO e descrição curta); `PACOTES_INTERNET`/`APPS_ADICIONAIS` centralizam os preços reais (60 a 680 Mega, Apps Yellow R$15/Black R$30) — fonte única, reaproveitada pela aba Pacotes do vendedor; `montarCombo()` calcula pacote+adicionais+upgrade sempre a partir do catálogo. Removido `nivel`/`RECOMENDACAO_POR_NIVEL` (ficou redundante com o pacote fixo).
+- **`src/public/SimuladorPublico.jsx`** — nova primeira etapa do wizard: escolha de perfil (label + descrição por opção); tela de resultado reescrita como combo interativo (checkboxes com total ao vivo); Apps Black ganha destaque visual quando streaming foi declarado no quiz.
+- **`supabase/functions/submeter-simulador/index.ts`** — recebe só `perfil` (chave) + booleans do combo; recalcula tudo no servidor (catálogo espelhado em Deno) — nunca aceita valorTotal pronto do cliente.
+- **`src/apps/VendedorApp.jsx`** — aba Pacotes passa a renderizar a partir do catálogo compartilhado (elimina duplicação de preço entre as duas telas).
+- **Testes:** 19 asserts novos no unitário (pacotes/perfis/combo), 2 cenários E2E novos + ajuste dos existentes para a nova etapa de perfil — 65 unitários + 9 E2E do simulador, todos verdes.
+- **Docs:** D-074 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Pedido do responsável pelo sistema: a recomendação de pacote devia vir de uma categoria explícita e previsível (ex: "Gamer → usa muita internet e navega bastante → 420 Mega"), não de uma pontuação calculada — e a tela de resultado devia oferecer upsell real (apps, upgrade) com os preços que já existem no sistema, com total visível antes de pedir contato.
+
+**Ações manuais necessárias**
+- Redeploy da Edge Function `submeter-simulador` (payload novo). Leads criados antes desta versão não têm `perfil`/`combo` no `perfil_consumo` — sem quebra, o resumo simplesmente não exibe essas linhas para eles.
+
+---
+
 ## [v5.17] — Simulador F5: campanha territorial + relatório de demanda por região
 **Data:** 2026-07-08
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk`

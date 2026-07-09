@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
 import { fetchSimuladorPublico } from '../lib/dataService';
 import {
-  PERGUNTAS_SIMULADOR_VERSAO, perguntasVisiveis, calcularPerfil, RECOMENDACAO_POR_NIVEL,
+  PERGUNTAS_SIMULADOR_VERSAO, perguntasVisiveis, calcularPerfil,
+  PERFIS_SIMULADOR, perfilPorKey, pacotePorMega, pacoteUpgrade, montarCombo,
+  APPS_ADICIONAIS, fmtMoeda,
 } from '../lib/simulador';
 import { maskTel, validarTelefone } from '../utils/masks';
 import { SERVICO_LABEL } from '../utils/format';
@@ -44,11 +46,13 @@ function capturarUtm() {
 
 export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
-  // Perfil de consumo: perguntas → calculando → resultado → contato → enviado
+  // Perfil de consumo: perfil → perguntas → calculando → resultado → contato → enviado
   // Territorial (D-073): territorial → contato → enviado (sem quiz/score)
-  const [fase, setFase] = useState('perguntas');
+  const [fase, setFase] = useState('perfil');
+  const [perfilEscolhido, setPerfilEscolhido] = useState(null); // D-074: categoria fixa → pacote
   const [etapa, setEtapa] = useState(0);
   const [respostas, setRespostas] = useState({});
+  const [combo, setCombo] = useState({ yellow: false, black: false, upgrade: false });
   const [contato, setContato] = useState({ nome: '', telefone: '', bairro: '', cidade: '' });
   const [interesses, setInteresses] = useState([]); // só territorial
   const [consentimentoColetado, setConsentimentoColetado] = useState(false);
@@ -74,10 +78,17 @@ export default function SimuladorPublico({ slug }) {
 
   const visiveis = perguntasVisiveis(respostas);
   const pergunta = visiveis[etapa];
-  const perfil = useMemo(
+  // perfilCalc: só pontuação/temperatura (fila) — o pacote vem de perfilEscolhido (D-074)
+  const perfilCalc = useMemo(
     () => (fase === 'resultado' || fase === 'contato' ? calcularPerfil(respostas) : null),
     [fase, respostas],
   );
+  const perfilDef = perfilPorKey(perfilEscolhido);
+  const comboCalc = useMemo(
+    () => (perfilEscolhido ? montarCombo(perfilEscolhido, combo) : null),
+    [perfilEscolhido, combo],
+  );
+  const streamingDeclarado = (respostas.usos || []).includes('streaming');
 
   const avancar = (novasRespostas) => {
     // As perguntas visíveis podem mudar com a resposta (condicional
@@ -90,6 +101,11 @@ export default function SimuladorPublico({ slug }) {
       setFase('calculando');
       setTimeout(() => setFase('resultado'), 1400);
     }
+  };
+
+  const escolherPerfil = (key) => {
+    setPerfilEscolhido(key);
+    setFase('perguntas');
   };
 
   const responderSingle = (opcaoKey) => {
@@ -106,6 +122,7 @@ export default function SimuladorPublico({ slug }) {
 
   const voltar = () => {
     if (etapa > 0) setEtapa(etapa - 1);
+    else setFase('perfil');
   };
 
   const submit = async (e) => {
@@ -135,7 +152,7 @@ export default function SimuladorPublico({ slug }) {
           origem: 'simulador', simuladorId: simulador.id,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
-          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: p.respostas },
+          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: p.respostas, perfil: perfilEscolhido, combo: comboCalc },
           pontuacao: p.pontuacao, ofertaRecomendada: p.ofertaRecomendada,
           temperatura: p.temperatura, servicoInteresse: p.servicosInteresse,
           utm, versaoTermo: 'simulador-v1',
@@ -157,6 +174,8 @@ export default function SimuladorPublico({ slug }) {
         body: JSON.stringify({
           simuladorId: simulador.id,
           respostas: territorial ? undefined : respostas,
+          perfil: territorial ? undefined : perfilEscolhido,
+          combo: territorial ? undefined : combo,
           servicoInteresse: territorial ? interesses : undefined,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
@@ -261,17 +280,50 @@ export default function SimuladorPublico({ slug }) {
     );
   }
 
-  // ─── Resultado (valor antes do contato) ───────────────────────
+  // ─── Resultado: pacote fixo do perfil + combo de upsell (D-074) ───
   if (fase === 'resultado') {
-    const rec = RECOMENDACAO_POR_NIVEL[perfil.nivel];
+    const pacote = pacotePorMega(perfilDef.pacoteMega);
+    const upgradePacote = pacoteUpgrade(perfilDef.pacoteMega);
+    const appYellow = APPS_ADICIONAIS.find((a) => a.key === 'yellow');
+    const appBlack = APPS_ADICIONAIS.find((a) => a.key === 'black');
+    const toggleCombo = (chave) => setCombo((p) => ({ ...p, [chave]: !p[chave] }));
+
     return (
       <div className="qr-public-shell">
-        <div className="card" style={{ padding: '28px 24px', textAlign: 'center' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 18 }} />
-          <div className="sim-resultado-badge">Resultado do seu perfil</div>
-          <div style={{ fontSize: 19, fontWeight: 800, lineHeight: 1.3, margin: '10px 0 10px' }}>{rec.titulo}</div>
-          <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5, margin: '0 0 18px' }}>{rec.texto}</p>
-          <button type="button" className="btn-primary btn-full" onClick={() => setFase('contato')}>
+        <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 16 }} />
+          <div className="sim-resultado-badge">Pacote recomendado pro seu perfil</div>
+          <div style={{ fontSize: 22, fontWeight: 800, margin: '10px 0 2px' }}>
+            {pacote.mega} Mega{pacote.destaque ? ' ⭐' : ''}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 12 }}>{fmtMoeda(pacote.preco)}/mês</div>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, margin: '0 0 18px', textAlign: 'left' }}>
+            <strong>{perfilDef.label}:</strong> {perfilDef.descricao}
+          </p>
+
+          <div className="sim-combo">
+            <div className="sim-combo-titulo">Monte seu combo</div>
+            <label className="sim-combo-check">
+              <input type="checkbox" checked={combo.yellow} onChange={() => toggleCombo('yellow')} />
+              <span>+{fmtMoeda(appYellow.preco)} — Adicione Apps {appYellow.nome}</span>
+            </label>
+            <label className={'sim-combo-check' + (streamingDeclarado ? ' sim-combo-destaque' : '')}>
+              <input type="checkbox" checked={combo.black} onChange={() => toggleCombo('black')} />
+              <span>
+                +{fmtMoeda(appBlack.preco)} — Adicione Apps {appBlack.nome}
+                {streamingDeclarado && <span className="sim-combo-selo">combina com seu perfil</span>}
+              </span>
+            </label>
+            {upgradePacote && (
+              <label className="sim-combo-check">
+                <input type="checkbox" checked={combo.upgrade} onChange={() => toggleCombo('upgrade')} />
+                <span>+{fmtMoeda(upgradePacote.preco - pacote.preco)} — Upgrade para {upgradePacote.mega} Mega</span>
+              </label>
+            )}
+            <div className="sim-combo-total"><span>Total</span><span>{fmtMoeda(comboCalc.valorTotal)}/mês</span></div>
+          </div>
+
+          <button type="button" className="btn-primary btn-full" style={{ marginTop: 16 }} onClick={() => setFase('contato')}>
             Quero receber essa oferta →
           </button>
           <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 10 }}>
@@ -343,8 +395,39 @@ export default function SimuladorPublico({ slug }) {
     );
   }
 
+  // ─── Perfil de uso (D-074): primeira etapa, decide o pacote fixo ──
+  if (fase === 'perfil') {
+    const totalPassos = 1 + visiveis.length;
+    const progresso = Math.round((1 / totalPassos) * 100);
+    return (
+      <div className="qr-public-shell">
+        <div className="card" style={{ padding: '24px 22px' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, marginBottom: 14 }} />
+          <div className="sim-progress" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
+            <div className="sim-progress-fill" style={{ width: `${progresso}%` }} />
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', margin: '8px 0 14px' }}>
+            Pergunta 1 de {totalPassos}
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 10 }}>
+            Qual desses combina mais com você?
+          </div>
+          <div className="sim-opcoes">
+            {PERFIS_SIMULADOR.map((p) => (
+              <button type="button" key={p.key} className="sim-opcao sim-opcao-perfil" onClick={() => escolherPerfil(p.key)}>
+                <span className="sim-opcao-perfil-label">{p.label}</span>
+                <span className="sim-opcao-perfil-desc">{p.descricao}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ─── Perguntas (uma por tela) ─────────────────────────────────
-  const progresso = Math.round(((etapa + 1) / visiveis.length) * 100);
+  const totalPassos = 1 + visiveis.length;
+  const progresso = Math.round(((etapa + 2) / totalPassos) * 100);
   const selecionadas = pergunta.tipo === 'multi' ? (respostas[pergunta.key] || []) : [];
 
   return (
@@ -355,7 +438,7 @@ export default function SimuladorPublico({ slug }) {
           <div className="sim-progress-fill" style={{ width: `${progresso}%` }} />
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-3)', margin: '8px 0 14px' }}>
-          Pergunta {etapa + 1} de {visiveis.length}
+          Pergunta {etapa + 2} de {totalPassos}
         </div>
 
         <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>{pergunta.label}</div>
@@ -377,9 +460,7 @@ export default function SimuladorPublico({ slug }) {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          {etapa > 0 && (
-            <button type="button" className="btn-ghost" style={{ flex: '0 0 auto' }} onClick={voltar}>← Voltar</button>
-          )}
+          <button type="button" className="btn-ghost" style={{ flex: '0 0 auto' }} onClick={voltar}>← Voltar</button>
           {pergunta.tipo === 'multi' && (
             <button
               type="button" className="btn-primary" style={{ flex: 1 }}

@@ -12,6 +12,78 @@
 
 export const PERGUNTAS_SIMULADOR_VERSAO = 1;
 
+// Catálogo de pacotes de Internet Fibra e apps adicionais — fonte única de
+// preço, reaproveitada pela aba "Pacotes" do vendedor (VendedorApp.jsx) além
+// do Simulador. Editar preço/pacote é uma mudança neste array só.
+export const PACOTES_INTERNET = [
+  { mega: 60,  preco: 49.90 },
+  { mega: 90,  preco: 74.90 },
+  { mega: 120, preco: 79.90 },
+  { mega: 240, preco: 89.90 },
+  { mega: 420, preco: 99.90, destaque: true },
+  { mega: 680, preco: 119.90 },
+];
+
+export const APPS_ADICIONAIS = [
+  { key: 'yellow', nome: 'Yellow', preco: 15, itens: ['Deezer', 'Ubook', 'Kaspersky', 'PlayKids', 'Estuda+', 'HUB Vantagens', 'e outros'] },
+  { key: 'black',  nome: 'Black',  preco: 30, itens: ['Max', 'Disney+', 'NBA', 'Smart Fit', 'Zen', 'Queima Diária', 'Kaspersky'] },
+];
+
+export function pacotePorMega(mega) {
+  return PACOTES_INTERNET.find((p) => p.mega === mega) || null;
+}
+
+// Próximo pacote acima do informado — usado como sugestão de upgrade na
+// tela de resultado. null quando já é o pacote mais alto (680).
+export function pacoteUpgrade(mega) {
+  const idx = PACOTES_INTERNET.findIndex((p) => p.mega === mega);
+  return idx >= 0 && idx < PACOTES_INTERNET.length - 1 ? PACOTES_INTERNET[idx + 1] : null;
+}
+
+// Pergunta de perfil (nova, D-074): categoria explícita escolhida pela
+// pessoa — cada uma já tem pacote FIXO associado, nunca calculado por soma
+// de sinais. Diferente das demais perguntas do catálogo (que só alimentam
+// pontuação/temperatura da fila), esta decide sozinha o pacote recomendado.
+// Editar textos/pacote de um perfil é uma mudança neste array só.
+export const PERFIS_SIMULADOR = [
+  { key: 'basico',      label: 'Básico',                  descricao: 'Uso o dia a dia — redes sociais, WhatsApp, pesquisas.', pacoteMega: 120 },
+  { key: 'streaming',   label: 'Streaming',                descricao: 'Assisto bastante streaming, às vezes em mais de uma tela.', pacoteMega: 240 },
+  { key: 'home_office', label: 'Home Office',              descricao: 'Trabalho ou estudo de casa, faço videochamadas.', pacoteMega: 240 },
+  { key: 'gamer',       label: 'Gamer / Casa Conectada',   descricao: 'Uso muita internet e navego bastante — jogos, streaming, vários dispositivos.', pacoteMega: 420 },
+];
+
+export function perfilPorKey(key) {
+  return PERFIS_SIMULADOR.find((p) => p.key === key) || null;
+}
+
+// Monta o combo (pacote do perfil + adicionais marcados) e calcula o total
+// SEMPRE a partir do catálogo — nunca aceita um valorTotal pronto de fora.
+// Espelhada na Edge Function: o cliente manda só perfilKey + booleans, o
+// servidor recalcula e grava a versão dele (mesmo princípio do scoring).
+export function montarCombo(perfilKey, opcoes = {}) {
+  const perfil = perfilPorKey(perfilKey);
+  if (!perfil) return null;
+  const pacote = pacotePorMega(perfil.pacoteMega);
+  const upgradePacote = pacoteUpgrade(perfil.pacoteMega);
+  const yellow = opcoes.yellow === true;
+  const black = opcoes.black === true;
+  const upgrade = opcoes.upgrade === true && !!upgradePacote;
+
+  let valorTotal = pacote.preco;
+  if (yellow) valorTotal += APPS_ADICIONAIS.find((a) => a.key === 'yellow').preco;
+  if (black) valorTotal += APPS_ADICIONAIS.find((a) => a.key === 'black').preco;
+  if (upgrade) valorTotal += upgradePacote.preco - pacote.preco;
+
+  return {
+    perfil: perfilKey,
+    pacoteMega: perfil.pacoteMega,
+    pacotePreco: pacote.preco,
+    yellow, black, upgrade,
+    pacoteFinalMega: upgrade ? upgradePacote.mega : perfil.pacoteMega,
+    valorTotal: Math.round(valorTotal * 100) / 100,
+  };
+}
+
 export const PERGUNTAS_SIMULADOR = [
   {
     key: 'moradores', label: 'Quantas pessoas moram com você?', tipo: 'single',
@@ -119,11 +191,6 @@ export function calcularPerfil(brutas) {
 
   const temperatura = pontuacao >= 60 ? 'quente' : pontuacao >= 30 ? 'morno' : 'frio';
 
-  // Intensidade da recomendação exibida na página pública (não vai pro banco —
-  // derivável da demanda a qualquer momento).
-  const demanda = usosAlta.length + (r.moradores === '5_mais' ? 1 : 0);
-  const nivel = demanda >= 3 ? 'alta' : demanda >= 1 ? 'media' : 'essencial';
-
   // servicoInteresse do Lead: sempre residencial; streaming declarado vira
   // interesse secundário (alimenta a ordenação do OfertaPickerModal, D-057).
   const servicosInteresse = ['internet_residencial'];
@@ -132,46 +199,44 @@ export function calcularPerfil(brutas) {
   return {
     pontuacao,
     temperatura,
-    nivel,
     ofertaRecomendada: 'internet_residencial',
     servicosInteresse,
     respostas: r,
   };
 }
 
-// Headline/subtítulo da tela de resultado, por nível de demanda.
-export const RECOMENDACAO_POR_NIVEL = {
-  alta: {
-    titulo: 'Seu perfil pede uma conexão de alta performance',
-    texto: 'Com esse uso, sua casa precisa de velocidade de sobra e estabilidade pra todo mundo ao mesmo tempo — streaming, jogos e trabalho sem travar.',
-  },
-  media: {
-    titulo: 'Uma conexão rápida e estável é o ideal pra sua casa',
-    texto: 'Seu perfil combina com um plano que dá conta do dia a dia com folga: vídeos sem travar, chamadas estáveis e todo mundo conectado.',
-  },
-  essencial: {
-    titulo: 'Um plano essencial resolve o seu dia a dia',
-    texto: 'Pro seu uso, uma conexão estável e com bom custo-benefício é o suficiente — sem pagar por velocidade que você não usa.',
-  },
-};
+export function fmtMoeda(valor) {
+  return `R$ ${Number(valor).toFixed(2).replace('.', ',')}`;
+}
 
-// Resumo legível do perfil ("2 a 4 pessoas · Streaming · Sem internet hoje")
-// pra fila de distribuição e card do lead — labels sempre derivados do
-// catálogo, nunca redigitados em outra tela.
+// Resumo legível do perfil ("2 a 4 pessoas · Streaming · Sem internet hoje
+// · Perfil: Gamer / Casa Conectada · Pacote: 680 Mega (upgrade) · + Apps
+// Yellow · Total: R$ 119,90/mês") pra fila de distribuição e card do lead
+// — labels sempre derivados do catálogo, nunca redigitados em outra tela.
 export function resumoPerfil(perfilConsumo) {
   const r = perfilConsumo?.respostas;
-  if (!r) return [];
   const partes = [];
-  for (const pergunta of PERGUNTAS_SIMULADOR) {
-    const valor = r[pergunta.key];
-    if (valor === undefined) continue;
-    const labelDe = (k) => pergunta.opcoes.find((o) => o.key === k)?.label || k;
-    if (pergunta.key === 'tem_internet') {
-      partes.push(valor === 'nao' ? 'Sem internet hoje' : 'Já tem internet');
-      continue;
+  if (r) {
+    for (const pergunta of PERGUNTAS_SIMULADOR) {
+      const valor = r[pergunta.key];
+      if (valor === undefined) continue;
+      const labelDe = (k) => pergunta.opcoes.find((o) => o.key === k)?.label || k;
+      if (pergunta.key === 'tem_internet') {
+        partes.push(valor === 'nao' ? 'Sem internet hoje' : 'Já tem internet');
+        continue;
+      }
+      if (Array.isArray(valor)) partes.push(...valor.map(labelDe));
+      else partes.push(labelDe(valor));
     }
-    if (Array.isArray(valor)) partes.push(...valor.map(labelDe));
-    else partes.push(labelDe(valor));
+  }
+  const perfilDef = perfilPorKey(perfilConsumo?.perfil);
+  if (perfilDef) partes.push(`Perfil: ${perfilDef.label}`);
+  const combo = perfilConsumo?.combo;
+  if (combo) {
+    partes.push(`Pacote: ${combo.pacoteFinalMega} Mega${combo.upgrade ? ' (upgrade)' : ''}`);
+    if (combo.yellow) partes.push('+ Apps Yellow');
+    if (combo.black) partes.push('+ Apps Black');
+    partes.push(`Total: ${fmtMoeda(combo.valorTotal)}/mês`);
   }
   return partes;
 }

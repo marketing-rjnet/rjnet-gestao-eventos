@@ -7,7 +7,7 @@ import { SERVICO_LABEL, TIPO_LABEL, servicoLabel, mesesDoAno, mesReferenciaLabel
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
-import { resumoPerfil } from '../lib/simulador';
+import { resumoPerfil, PACOTES_INTERNET, APPS_ADICIONAIS } from '../lib/simulador';
 import { SearchInput } from '../components/SearchInput';
 
 const TEMPERATURA_CONFIG = {
@@ -707,12 +707,12 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               <table className="pacotes-table">
                 <thead><tr><th>Plano</th><th>Valor</th></tr></thead>
                 <tbody>
-                  <tr><td>60 Mega</td><td>R$ 49,90</td></tr>
-                  <tr><td>90 Mega</td><td>R$ 74,90</td></tr>
-                  <tr><td>120 Mega</td><td>R$ 79,90</td></tr>
-                  <tr><td>240 Mega</td><td>R$ 89,90</td></tr>
-                  <tr className="pacotes-destaque"><td>420 Mega ⭐</td><td>R$ 99,90</td></tr>
-                  <tr><td>680 Mega</td><td>R$ 119,90</td></tr>
+                  {PACOTES_INTERNET.map((p) => (
+                    <tr key={p.mega} className={p.destaque ? 'pacotes-destaque' : undefined}>
+                      <td>{p.mega} Mega{p.destaque ? ' ⭐' : ''}</td>
+                      <td>R$ {p.preco.toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -761,36 +761,17 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
             <div className="pacotes-section">
               <div className="pacotes-section-title">🎁 Apps</div>
               <div className="pacotes-apps-grid">
-                <div className="pacotes-app-card pacotes-app-yellow">
-                  <div className="pacotes-app-header">
-                    <span className="pacotes-app-name">Yellow</span>
-                    <span className="pacotes-app-price">R$ 15,00/mês</span>
+                {APPS_ADICIONAIS.map((app) => (
+                  <div key={app.key} className={`pacotes-app-card pacotes-app-${app.key}`}>
+                    <div className="pacotes-app-header">
+                      <span className="pacotes-app-name">{app.nome}</span>
+                      <span className="pacotes-app-price">R$ {app.preco.toFixed(2).replace('.', ',')}/mês</span>
+                    </div>
+                    <ul className="pacotes-app-list">
+                      {app.itens.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
                   </div>
-                  <ul className="pacotes-app-list">
-                    <li>Deezer</li>
-                    <li>Ubook</li>
-                    <li>Kaspersky</li>
-                    <li>PlayKids</li>
-                    <li>Estuda+</li>
-                    <li>HUB Vantagens</li>
-                    <li>e outros</li>
-                  </ul>
-                </div>
-                <div className="pacotes-app-card pacotes-app-black">
-                  <div className="pacotes-app-header">
-                    <span className="pacotes-app-name">Black</span>
-                    <span className="pacotes-app-price">R$ 30,00/mês</span>
-                  </div>
-                  <ul className="pacotes-app-list">
-                    <li>Max</li>
-                    <li>Disney+</li>
-                    <li>NBA</li>
-                    <li>Smart Fit</li>
-                    <li>Zen</li>
-                    <li>Queima Diária</li>
-                    <li>Kaspersky</li>
-                  </ul>
-                </div>
+                ))}
               </div>
             </div>
           </div>

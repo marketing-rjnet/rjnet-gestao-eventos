@@ -41,6 +41,48 @@ const PERGUNTAS: { key: string; tipo: 'single' | 'multi'; opcoes: string[] }[] =
 
 const USOS_ALTA_DEMANDA = ['streaming', 'jogos', 'home_office', 'muitos_disp'];
 
+// Espelho de PACOTES_INTERNET/APPS_ADICIONAIS/PERFIS_SIMULADOR em
+// src/lib/simulador.js (D-074) — o combo (pacote + adicionais) é sempre
+// recalculado aqui a partir do perfilKey; o cliente nunca manda valorTotal.
+const PACOTES_INTERNET: { mega: number; preco: number }[] = [
+  { mega: 60, preco: 49.90 }, { mega: 90, preco: 74.90 }, { mega: 120, preco: 79.90 },
+  { mega: 240, preco: 89.90 }, { mega: 420, preco: 99.90 }, { mega: 680, preco: 119.90 },
+];
+const APPS_PRECO: Record<string, number> = { yellow: 15, black: 30 };
+const PERFIS_SIMULADOR: Record<string, number> = {
+  basico: 120, streaming: 240, home_office: 240, gamer: 420,
+};
+
+function pacotePorMega(mega: number) {
+  return PACOTES_INTERNET.find((p) => p.mega === mega) || null;
+}
+function pacoteUpgrade(mega: number) {
+  const idx = PACOTES_INTERNET.findIndex((p) => p.mega === mega);
+  return idx >= 0 && idx < PACOTES_INTERNET.length - 1 ? PACOTES_INTERNET[idx + 1] : null;
+}
+
+function montarCombo(perfilKey: string, opcoes: { yellow?: boolean; black?: boolean; upgrade?: boolean }) {
+  const pacoteMega = PERFIS_SIMULADOR[perfilKey];
+  if (!pacoteMega) return null;
+  const pacote = pacotePorMega(pacoteMega)!;
+  const upgradePacote = pacoteUpgrade(pacoteMega);
+  const yellow = opcoes.yellow === true;
+  const black = opcoes.black === true;
+  const upgrade = opcoes.upgrade === true && !!upgradePacote;
+
+  let valorTotal = pacote.preco;
+  if (yellow) valorTotal += APPS_PRECO.yellow;
+  if (black) valorTotal += APPS_PRECO.black;
+  if (upgrade) valorTotal += upgradePacote!.preco - pacote.preco;
+
+  return {
+    perfil: perfilKey, pacoteMega, pacotePreco: pacote.preco,
+    yellow, black, upgrade,
+    pacoteFinalMega: upgrade ? upgradePacote!.mega : pacoteMega,
+    valorTotal: Math.round(valorTotal * 100) / 100,
+  };
+}
+
 function normalizarRespostas(brutas: unknown): Record<string, string | string[]> {
   const respostas: Record<string, string | string[]> = {};
   if (!brutas || typeof brutas !== 'object') return respostas;
@@ -179,9 +221,23 @@ Deno.serve(async (req) => {
       }
       temperatura = 'morno'; // interesse declarado espontaneamente, sem score
     } else {
+      // D-074: perfilKey escolhido pela pessoa decide o pacote (fixo, nunca
+      // calculado); o combo (adicionais + upgrade) é sempre recalculado
+      // aqui — cliente manda só a chave do perfil e os booleans marcados.
+      const perfilKey = sanitizeText(body.perfil, 40);
+      if (!PERFIS_SIMULADOR[perfilKey]) {
+        return json({ error: 'Selecione um perfil de uso.' }, 400, corsHeaders);
+      }
+      const comboBruto = (body.combo && typeof body.combo === 'object') ? body.combo : {};
+      const combo = montarCombo(perfilKey, {
+        yellow: comboBruto.yellow === true,
+        black: comboBruto.black === true,
+        upgrade: comboBruto.upgrade === true,
+      });
+
       // Score SEMPRE recalculado aqui — body.respostas é a única entrada.
       const perfil = calcularPerfil(body.respostas);
-      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: perfil.respostas };
+      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: perfil.respostas, perfil: perfilKey, combo };
       pontuacao = perfil.pontuacao;
       ofertaRecomendada = perfil.ofertaRecomendada;
       servicosInteresse = perfil.servicosInteresse;
