@@ -21,17 +21,21 @@
 -- são desativadas abaixo, não apagadas (lead histórico já capturado
 -- continua intacto, só não recebe novo lead).
 
--- ─── 1. Migra dados existentes antes de trocar a constraint ───
+-- ─── 1. Derruba a constraint ANTES de migrar dados — a constraint antiga
+-- só aceita 'perfil_consumo'/'territorial'; escrever 'oferta' com ela
+-- ainda ativa falha (23514) ───
+alter table public.simuladores drop constraint if exists simuladores_tipo_check;
+
+-- ─── 2. Migra dados existentes ─────────────────────────────────
 update public.simuladores set ativo = false where tipo = 'territorial';
 update public.simuladores set tipo = 'oferta' where tipo = 'perfil_consumo';
 
--- ─── 2. Troca a constraint de tipo ─────────────────────────────
-alter table public.simuladores drop constraint if exists simuladores_tipo_check;
+-- ─── 3. Recria a constraint com os novos valores ───────────────
 alter table public.simuladores alter column tipo set default 'oferta';
 alter table public.simuladores add constraint simuladores_tipo_check
   check (tipo in ('oferta', 'demanda'));
 
--- ─── 3. Mensagem de resultado (só usada por tipo='demanda') ───
+-- ─── 4. Mensagem de resultado (só usada por tipo='demanda') ───
 alter table public.simuladores
   add column if not exists mensagem_resultado text;
 
