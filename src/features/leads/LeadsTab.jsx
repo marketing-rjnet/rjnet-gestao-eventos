@@ -3,7 +3,7 @@ import { useApp } from '../../hooks/useApp';
 import { Icon } from '../../components/ui';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
 import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
-import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, db } from '../../lib/dataService';
+import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, demandaPorRegiao, db } from '../../lib/dataService';
 import { isSupabaseMode } from '../../lib/mode';
 import { resumoPerfil } from '../../lib/simulador';
 
@@ -178,6 +178,68 @@ function FilaDistribuicao() {
                     )}
                   </span>
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// D-073: inteligência territorial — contagem de interessados por
+// cidade/bairro (campanhas territoriais do Simulador + qualquer captação
+// digital com localização). Relatório interno agregado, sem dado pessoal;
+// NUNCA expõe cobertura de rede (esse dado nem existe no sistema).
+function DemandaPorRegiao() {
+  const { leads: leadsCompartilhados } = useApp();
+  const [linhas, setLinhas] = useState(null);
+
+  const agregarLocal = () => {
+    const mapa = new Map();
+    leadsCompartilhados
+      .filter((l) => l.origem && (l.cidade || l.bairro))
+      .forEach((l) => {
+        const chave = `${l.cidade || '(não informado)'}|${l.bairro || '(não informado)'}`;
+        mapa.set(chave, (mapa.get(chave) || 0) + 1);
+      });
+    return [...mapa.entries()]
+      .map(([chave, total]) => { const [cidade, bairro] = chave.split('|'); return { cidade, bairro, total }; })
+      .sort((a, b) => a.cidade.localeCompare(b.cidade) || b.total - a.total);
+  };
+
+  const carregar = () => {
+    if (isSupabaseMode()) demandaPorRegiao().then(setLinhas);
+    else setLinhas(agregarLocal());
+  };
+  useEffect(carregar, []);
+
+  if (!linhas || linhas.length === 0) return null;
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span className="section-title" style={{ marginBottom: 0 }}>Demanda por região</span>
+        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+      </div>
+      <p className="tab-desc" style={{ marginBottom: 12 }}>
+        Interessados captados digitalmente (Simulador, formulários) por cidade e bairro — inteligência comercial interna.
+      </p>
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cidade</th>
+              <th>Bairro</th>
+              <th style={{ textAlign: 'right' }}>Interessados</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((r) => (
+              <tr key={`${r.cidade}|${r.bairro}`}>
+                <td className="strong">{r.cidade}</td>
+                <td>{r.bairro}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--rj-blue)' }}>{r.total}</td>
               </tr>
             ))}
           </tbody>
@@ -373,6 +435,8 @@ export function LeadsTab({ session }) {
       </div>
 
       <FilaDistribuicao />
+
+      <DemandaPorRegiao />
 
       {/* D-058: leads do dia a dia, fora de eventos — mesmo padrão da tabela acima */}
       <div className="page-head" style={{ marginTop: 28 }}>

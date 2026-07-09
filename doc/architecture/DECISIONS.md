@@ -2391,6 +2391,30 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-073] — Campanha territorial do Simulador + relatório interno de demanda por região
+
+**Data:** 2026-07-08
+**Tipo:** Feature (fase F5 do plano do Simulador)
+
+**Contexto:** Segunda estratégia prevista desde a concepção do Simulador (D-072): anúncios geolocalizados para cidades/bairros onde há rede sem assinantes (ou assinantes em potencial), captando demanda reprimida. A pessoa informa só cidade, bairro e interesse — sem quiz — e a diretoria enxerga um mapa interno de demanda ("Itaguaí: Bairro A → 80 interessados"). Requisito explícito: nunca expor mapa de cobertura ou informação interna de rede.
+
+**Decisão:**
+- **Mesma entrada, questionário reduzido:** `tipo='territorial'` na tabela `simuladores` (coluna já prevista na migração D-072). `SimuladorPublico.jsx` troca o fluxo pela fase `territorial` (cidade* + bairro* + interesse* em uma tela → contato sem repetir localização); `SimuladorTab.jsx` ganha seletor de tipo na criação. Zero migração nova de colunas.
+- **Sem scoring:** lead territorial nasce `temperatura='morno'` fixa (interesse declarado espontaneamente), `pontuacao`/`perfil_consumo`/`oferta_recomendada` nulos. A Edge Function `submeter-simulador` ramifica pelo `tipo` gravado no banco (nunca pelo payload do cliente): territorial exige cidade+bairro e valida `servicoInteresse` contra o enum; perfil_consumo exige quiz e recalcula score.
+- **Relatório de demanda = RPC agregada, não feature de captação:** `demanda_por_regiao()` (`migracao-demanda.sql`, security definer + grant `authenticated`, mesmo padrão de `ranking_mes`) retorna só `cidade/bairro/count(*)` de leads de captação digital não deletados — nenhum dado pessoal sai da função. Renderizada como seção "Demanda por região" em Relatórios (`LeadsTab.jsx`, tela que só marketing/comercial enxergam); modo local agrega do próprio array `leads`. Nada de mapa visual/tile server externo (CSP intacta).
+
+**Alternativas Avaliadas:**
+- **Tabela agregada anônima persistente** (sobrevive ao expurgo LGPD) — adiada, continua como sugestão S3 do plano: só quando a diretoria pedir série histórica além da janela de retenção.
+- **Exigir contato antes de cidade/bairro** — rejeitada: inverteria o princípio "valor/leveza antes do dado" e derrubaria conversão de anúncio frio; localização+interesse primeiro, contato por último.
+
+**Arquivos Afetados:** `supabase/migracao-demanda.sql` (novo), `supabase/functions/submeter-simulador/index.ts`, `src/public/SimuladorPublico.jsx`, `src/features/simulador/SimuladorTab.jsx`, `src/lib/dataService.js` (`demandaPorRegiao`), `src/features/leads/LeadsTab.jsx` (`DemandaPorRegiao`), `tests/simulador.test.js` (7º cenário E2E).
+
+**Riscos:** `migracao-demanda.sql` deve rodar APÓS `migracao-simulador.sql` (depende das colunas `cidade`/`origem`). Retenção LGPD D-064 expurga leads territoriais como qualquer lead sem contexto — o agregado histórico encolhe junto (limitação conhecida e aceita; ver S3). Sem impacto em telas existentes: a seção de demanda só renderiza quando há dado.
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

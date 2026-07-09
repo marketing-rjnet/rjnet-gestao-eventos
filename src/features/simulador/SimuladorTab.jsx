@@ -60,10 +60,16 @@ function QrDoSimulador({ simulador }) {
   );
 }
 
+const TIPO_LABEL_SIM = {
+  perfil_consumo: 'Perfil de consumo',
+  territorial: 'Territorial (demanda)',
+};
+
 export function SimuladorTab() {
   const { simuladores, addSimulador, updateSimulador, removeSimulador } = useApp();
   const [nome, setNome] = useState('');
   const [campanha, setCampanha] = useState('');
+  const [tipo, setTipo] = useState('perfil_consumo');
   const [abertoId, setAbertoId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -73,11 +79,12 @@ export function SimuladorTab() {
     if (!nomeLimpo) return;
     const slug = `${slugify(nomeLimpo)}-${Math.random().toString(36).slice(2, 6)}`;
     const novo = addSimulador({
-      nome: nomeLimpo, slug, tipo: 'perfil_consumo',
+      nome: nomeLimpo, slug, tipo,
       campanha: sanitizeText(campanha, 120),
     });
     setNome('');
     setCampanha('');
+    setTipo('perfil_consumo');
     setAbertoId(novo.id);
   };
 
@@ -102,9 +109,25 @@ export function SimuladorTab() {
             <label>Nome da campanha *</label>
             <input required maxLength={120} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Panfleto Itaguaí Centro" autoFocus />
           </div>
-          <div className="big-field" style={{ marginBottom: 14 }}>
+          <div className="big-field" style={{ marginBottom: 12 }}>
             <label>Agrupador (opcional)</label>
             <input maxLength={120} value={campanha} onChange={(e) => setCampanha(e.target.value)} placeholder="Ex: Ação Julho/2026" />
+          </div>
+          <div className="big-field" style={{ marginBottom: 14 }}>
+            <label>Tipo</label>
+            <div className="seg-control">
+              <button type="button" className={'seg-btn' + (tipo === 'perfil_consumo' ? ' active' : '')} onClick={() => setTipo('perfil_consumo')}>
+                Perfil de consumo
+              </button>
+              <button type="button" className={'seg-btn' + (tipo === 'territorial' ? ' active' : '')} onClick={() => setTipo('territorial')}>
+                Territorial
+              </button>
+            </div>
+            <p className="campo-hint" style={{ marginTop: 6 }}>
+              {tipo === 'perfil_consumo'
+                ? 'Quiz completo com recomendação de oferta — pro lead sair qualificado com perfil e pontuação.'
+                : 'Só cidade, bairro e interesse — pra anúncios geolocalizados alimentarem o relatório de demanda por região (Relatórios).'}
+            </p>
           </div>
           <button type="submit" className="btn-primary btn-full" disabled={!nome.trim()}>Criar campanha</button>
         </form>
@@ -122,7 +145,7 @@ export function SimuladorTab() {
                   <div>
                     <div className="strong">{s.nome}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      {s.campanha ? `${s.campanha} · ` : ''}{s.ativo ? 'ativa' : 'encerrada'}
+                      {TIPO_LABEL_SIM[s.tipo] || s.tipo} · {s.campanha ? `${s.campanha} · ` : ''}{s.ativo ? 'ativa' : 'encerrada'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>

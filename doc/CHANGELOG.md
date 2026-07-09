@@ -4,6 +4,28 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.17] — Simulador F5: campanha territorial + relatório de demanda por região
+**Data:** 2026-07-08
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-demanda.sql`** (novo) — RPC `demanda_por_regiao()`: agrega interessados de captação digital por cidade/bairro (só COUNT, nenhum dado pessoal; security definer, grant `authenticated`, mesmo padrão de `ranking_mes`).
+- **`supabase/functions/submeter-simulador/index.ts`** — ramifica pelo `tipo` da campanha gravado no banco: `territorial` exige cidade+bairro, valida `servicoInteresse` contra o enum e grava `temperatura='morno'` sem score; `perfil_consumo` continua com quiz + score recalculado.
+- **`src/public/SimuladorPublico.jsx`** — fluxo territorial: tela única cidade*/bairro*/interesse* → contato (sem repetir localização) → confirmação com mensagem própria.
+- **`src/features/simulador/SimuladorTab.jsx`** — seletor de tipo na criação ("Perfil de consumo" | "Territorial") com dica de uso; tipo exibido na lista de campanhas.
+- **`src/features/leads/LeadsTab.jsx`** + **`dataService.js`** — nova seção "Demanda por região" em Relatórios (marketing/comercial): tabela Cidade → Bairro → Interessados via RPC (modo local agrega do próprio estado); só renderiza quando há dado.
+- **Testes:** 7º cenário E2E (fluxo territorial completo em modo local) — 7/7 verdes.
+- **Docs:** D-073 em `DECISIONS.md`, `SYSTEM_MAP.md`, plano F5 ✅.
+
+**Por que mudou**
+- Segunda estratégia do Simulador (prevista desde D-072): anúncios geolocalizados para regiões com rede e sem assinantes captam demanda reprimida; a diretoria lê o resultado como inteligência comercial interna ("Itaguaí: Bairro A → N interessados") sem nunca expor cobertura de rede — esse dado nem existe no sistema.
+
+**Ações manuais necessárias**
+- Rodar `supabase/migracao-demanda.sql` (APÓS `migracao-simulador.sql`) + `NOTIFY pgrst, 'reload schema';`. Redeploy da Edge Function `submeter-simulador`. Demais ações (LGPD etc.) seguem as do v5.16.
+
+---
+
 ## [v5.16] — Simulador de Perfil de Consumo: captação gamificada via link (tráfego pago) + QR Code
 **Data:** 2026-07-08
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk`

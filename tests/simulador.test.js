@@ -111,6 +111,36 @@ test.describe('Simulador — página pública', () => {
     expect(lead.versaoTermo).toBe('simulador-v1');
   });
 
+  test('territorial: cidade/bairro/interesse → contato → lead pra demanda', async ({ page }) => {
+    await page.addInitScript((campanha) => {
+      localStorage.setItem('rjnet_simuladores', JSON.stringify([{ ...campanha, id: 'sim-terr', slug: 'demanda-itaguai', tipo: 'territorial' }]));
+    }, CAMPANHA);
+    await page.goto('/s/demanda-itaguai');
+
+    // Sem quiz: vai direto pra localização + interesse
+    await expect(page.locator('.card')).toContainText('Quer internet RJNet na sua região?');
+    await page.locator('.big-field', { hasText: 'Cidade *' }).locator('input').fill('Paraty');
+    await page.locator('.big-field', { hasText: 'Bairro *' }).locator('input').fill('Jabaquara');
+    await page.locator('.sim-opcao', { hasText: 'Internet Residencial' }).click();
+    await page.getByRole('button', { name: 'Continuar →' }).click();
+
+    // Contato sem repetir cidade/bairro
+    await expect(page.locator('.card')).toContainText('Quase lá!');
+    await expect(page.locator('.big-field', { hasText: 'Cidade' })).toHaveCount(0);
+    await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('José Territorial');
+    await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24988776655');
+    await page.locator('input[type="checkbox"]').check();
+    await page.getByRole('button', { name: 'Receber minha oferta' }).click();
+    await expect(page.locator('.card')).toContainText('Recebemos seus dados!');
+
+    const lead = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).find((l) => l.origem === 'simulador'));
+    expect(lead.cidade).toBe('Paraty');
+    expect(lead.bairro).toBe('Jabaquara');
+    expect(lead.servicoInteresse).toEqual(['internet_residencial']);
+    expect(lead.temperatura).toBe('morno');
+    expect(lead.pontuacao).toBeUndefined(); // territorial não tem score
+  });
+
   test('validação do contato: telefone inválido e consentimento obrigatórios', async ({ page }) => {
     await abrirSimulador(page);
     await responderQuiz(page);

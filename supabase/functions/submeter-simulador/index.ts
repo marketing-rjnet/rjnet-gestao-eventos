@@ -20,6 +20,16 @@ import {
 
 const PERGUNTAS_SIMULADOR_VERSAO = 1;
 
+// Serviços aceitos no interesse declarado do tipo 'territorial' — mesmo
+// enum de servicoInteresse do restante do sistema.
+const SERVICOS_VALIDOS = new Set([
+  'internet_residencial',
+  'internet_empresarial',
+  'rjnet_movel',
+  'streamings',
+  'outro',
+]);
+
 // Só chaves/tipos — labels ficam no frontend (src/lib/simulador.js).
 const PERGUNTAS: { key: string; tipo: 'single' | 'multi'; opcoes: string[] }[] = [
   { key: 'moradores',    tipo: 'single', opcoes: ['1', '2_4', '5_mais'] },
@@ -146,8 +156,38 @@ Deno.serve(async (req) => {
       return json({ error: 'Bairro/cidade não podem conter link.' }, 400, corsHeaders);
     }
 
-    // Score SEMPRE recalculado aqui — body.respostas é a única entrada.
-    const perfil = calcularPerfil(body.respostas);
+    // D-073: tipo 'territorial' — questionário reduzido (cidade/bairro/
+    // interesse), sem quiz nem scoring; alimenta o relatório interno de
+    // demanda por região (demanda_por_regiao). cidade/bairro viram
+    // obrigatórios porque SÃO o dado da campanha.
+    const territorial = simulador.tipo === 'territorial';
+    let perfilConsumo: unknown = null;
+    let pontuacao: number | null = null;
+    let ofertaRecomendada: string | null = null;
+    let servicosInteresse: string[];
+    let temperatura: string;
+
+    if (territorial) {
+      if (!cidade || !bairro) {
+        return json({ error: 'Informe cidade e bairro.' }, 400, corsHeaders);
+      }
+      servicosInteresse = Array.isArray(body.servicoInteresse)
+        ? body.servicoInteresse.filter((s: unknown) => typeof s === 'string' && SERVICOS_VALIDOS.has(s))
+        : [];
+      if (servicosInteresse.length === 0) {
+        return json({ error: 'Selecione ao menos um interesse.' }, 400, corsHeaders);
+      }
+      temperatura = 'morno'; // interesse declarado espontaneamente, sem score
+    } else {
+      // Score SEMPRE recalculado aqui — body.respostas é a única entrada.
+      const perfil = calcularPerfil(body.respostas);
+      perfilConsumo = { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: perfil.respostas };
+      pontuacao = perfil.pontuacao;
+      ofertaRecomendada = perfil.ofertaRecomendada;
+      servicosInteresse = perfil.servicosInteresse;
+      temperatura = perfil.temperatura;
+    }
+
     const utm = sanitizarUtm(body.utm);
 
     const agora = new Date().toISOString();
@@ -167,12 +207,12 @@ Deno.serve(async (req) => {
       bairro: bairro || null,
       cidade: cidade || null,
       campos_extras: {},
-      perfil_consumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: perfil.respostas },
-      pontuacao: perfil.pontuacao,
-      oferta_recomendada: perfil.ofertaRecomendada,
+      perfil_consumo: perfilConsumo,
+      pontuacao,
+      oferta_recomendada: ofertaRecomendada,
       utm,
-      servico_interesse: JSON.stringify(perfil.servicosInteresse),
-      temperatura: perfil.temperatura,
+      servico_interesse: JSON.stringify(servicosInteresse),
+      temperatura,
       observacao: null,
       ja_cliente_rjnet: false,
       criado_em: agora,

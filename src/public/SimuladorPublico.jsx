@@ -5,6 +5,7 @@ import {
   PERGUNTAS_SIMULADOR_VERSAO, perguntasVisiveis, calcularPerfil, RECOMENDACAO_POR_NIVEL,
 } from '../lib/simulador';
 import { maskTel, validarTelefone } from '../utils/masks';
+import { SERVICO_LABEL } from '../utils/format';
 import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
 import { containsLink } from '../lib/security';
 
@@ -43,11 +44,13 @@ function capturarUtm() {
 
 export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
-  // fase: perguntas → calculando → resultado → contato → enviado
+  // Perfil de consumo: perguntas → calculando → resultado → contato → enviado
+  // Territorial (D-073): territorial → contato → enviado (sem quiz/score)
   const [fase, setFase] = useState('perguntas');
   const [etapa, setEtapa] = useState(0);
   const [respostas, setRespostas] = useState({});
   const [contato, setContato] = useState({ nome: '', telefone: '', bairro: '', cidade: '' });
+  const [interesses, setInteresses] = useState([]); // só territorial
   const [consentimentoColetado, setConsentimentoColetado] = useState(false);
   const [website, setWebsite] = useState(''); // honeypot — humano nunca preenche
   const [erro, setErro] = useState('');
@@ -56,12 +59,18 @@ export default function SimuladorPublico({ slug }) {
   const utm = useMemo(capturarUtm, []);
 
   useEffect(() => {
+    const aoCarregar = (s) => {
+      setSimulador(s);
+      if (s?.tipo === 'territorial') setFase('territorial');
+    };
     if (!supabaseConfig.url) {
-      setSimulador(buscarSimuladorLocal(slug));
+      aoCarregar(buscarSimuladorLocal(slug));
       return;
     }
-    fetchSimuladorPublico(slug).then(setSimulador);
+    fetchSimuladorPublico(slug).then(aoCarregar);
   }, [slug]);
+
+  const territorial = simulador?.tipo === 'territorial';
 
   const visiveis = perguntasVisiveis(respostas);
   const pergunta = visiveis[etapa];
@@ -112,16 +121,26 @@ export default function SimuladorPublico({ slug }) {
     if (!consentimentoColetado) { setErro('É necessário confirmar o uso dos seus dados para continuar.'); return; }
 
     if (!supabaseConfig.url) {
-      const p = calcularPerfil(respostas);
-      salvarLeadPublicoLocal({
-        origem: 'simulador', simuladorId: simulador.id,
-        nome: contato.nome, telefone: contato.telefone,
-        bairro: contato.bairro, cidade: contato.cidade,
-        perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: p.respostas },
-        pontuacao: p.pontuacao, ofertaRecomendada: p.ofertaRecomendada,
-        temperatura: p.temperatura, servicoInteresse: p.servicosInteresse,
-        utm, versaoTermo: 'simulador-v1',
-      });
+      if (territorial) {
+        salvarLeadPublicoLocal({
+          origem: 'simulador', simuladorId: simulador.id,
+          nome: contato.nome, telefone: contato.telefone,
+          bairro: contato.bairro, cidade: contato.cidade,
+          temperatura: 'morno', servicoInteresse: interesses,
+          utm, versaoTermo: 'simulador-v1',
+        });
+      } else {
+        const p = calcularPerfil(respostas);
+        salvarLeadPublicoLocal({
+          origem: 'simulador', simuladorId: simulador.id,
+          nome: contato.nome, telefone: contato.telefone,
+          bairro: contato.bairro, cidade: contato.cidade,
+          perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, respostas: p.respostas },
+          pontuacao: p.pontuacao, ofertaRecomendada: p.ofertaRecomendada,
+          temperatura: p.temperatura, servicoInteresse: p.servicosInteresse,
+          utm, versaoTermo: 'simulador-v1',
+        });
+      }
       setFase('enviado');
       return;
     }
@@ -137,7 +156,8 @@ export default function SimuladorPublico({ slug }) {
         },
         body: JSON.stringify({
           simuladorId: simulador.id,
-          respostas,
+          respostas: territorial ? undefined : respostas,
+          servicoInteresse: territorial ? interesses : undefined,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
           utm, consentimentoColetado, website,
@@ -168,7 +188,9 @@ export default function SimuladorPublico({ slug }) {
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
-            Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.
+            {territorial
+              ? 'Seu interesse foi registrado. Quando a RJNet tiver novidade pra sua região, você recebe no WhatsApp.'
+              : 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
         </div>
       </div>
@@ -184,6 +206,56 @@ export default function SimuladorPublico({ slug }) {
           <div className="sim-spinner" aria-hidden="true" />
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 18 }}>Analisando seu perfil...</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>Encontrando a conexão ideal pra sua casa</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Territorial (D-073): cidade/bairro/interesse, sem quiz ───
+  if (fase === 'territorial') {
+    const avancarTerritorial = () => {
+      setErro('');
+      if (!contato.cidade.trim() || !contato.bairro.trim()) { setErro('Informe cidade e bairro.'); return; }
+      if (containsLink(contato.cidade) || containsLink(contato.bairro)) { setErro('Cidade/bairro não podem conter link.'); return; }
+      if (interesses.length === 0) { setErro('Selecione ao menos um interesse.'); return; }
+      setFase('contato');
+    };
+    return (
+      <div className="qr-public-shell">
+        <div className="card" style={{ padding: '24px 22px' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, marginBottom: 14 }} />
+          <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>
+            Quer internet RJNet na sua região?
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginBottom: 12 }}>
+            Conta pra gente onde você mora e o que procura — quanto mais gente da sua região se registrar, mais rápido chegamos aí.
+          </div>
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Cidade *</label>
+            <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} autoFocus />
+          </div>
+          <div className="big-field" style={{ marginBottom: 12 }}>
+            <label>Bairro *</label>
+            <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
+          </div>
+          <div className="big-field" style={{ marginBottom: 4 }}>
+            <label>O que você procura? *</label>
+          </div>
+          <div className="sim-opcoes">
+            {Object.keys(SERVICO_LABEL).map((s) => (
+              <button
+                type="button" key={s}
+                className={'sim-opcao' + (interesses.includes(s) ? ' active' : '')}
+                onClick={() => setInteresses((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))}
+              >
+                {SERVICO_LABEL[s]}
+              </button>
+            ))}
+          </div>
+          {erro && <div className="form-erro" style={{ marginTop: 12 }}>{erro}</div>}
+          <button type="button" className="btn-primary btn-full" style={{ marginTop: 14 }} onClick={avancarTerritorial}>
+            Continuar →
+          </button>
         </div>
       </div>
     );
@@ -218,7 +290,9 @@ export default function SimuladorPublico({ slug }) {
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 14 }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
-            Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.
+            {territorial
+              ? 'Deixe seu contato — quando a RJNet tiver novidade pra sua região, você é o primeiro a saber.'
+              : 'Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.'}
           </p>
 
           {/* Honeypot — invisível para gente, visível para robô */}
@@ -237,14 +311,19 @@ export default function SimuladorPublico({ slug }) {
             <label>WhatsApp *</label>
             <input maxLength={15} value={contato.telefone} onChange={(e) => setContato((p) => ({ ...p, telefone: maskTel(e.target.value) }))} placeholder="(24) 99999-9999" inputMode="tel" />
           </div>
-          <div className="big-field" style={{ marginBottom: 10 }}>
-            <label>Cidade</label>
-            <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} />
-          </div>
-          <div className="big-field" style={{ marginBottom: 10 }}>
-            <label>Bairro</label>
-            <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
-          </div>
+          {/* Territorial já coletou cidade/bairro na etapa anterior */}
+          {!territorial && (
+            <>
+              <div className="big-field" style={{ marginBottom: 10 }}>
+                <label>Cidade</label>
+                <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} />
+              </div>
+              <div className="big-field" style={{ marginBottom: 10 }}>
+                <label>Bairro</label>
+                <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
+              </div>
+            </>
+          )}
 
           <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 14px' }}>
             <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} style={{ marginTop: 2 }} />

@@ -652,6 +652,25 @@ export function invalidarRankingMes(mesReferencia) {
   cache.invalidate(`ranking_mes:${mesReferencia}`);
 }
 
+// D-073: relatório interno de demanda por região — agrega interessados de
+// captação digital por cidade/bairro via RPC (só COUNT, nenhum dado pessoal
+// sai da função; mesmo padrão security definer de ranking_mes). Alimentado
+// principalmente pelas campanhas territoriais do Simulador, mas conta
+// qualquer lead público que informou cidade/bairro.
+export async function demandaPorRegiao() {
+  if (!isSupabaseMode()) return null;
+  return trackPerf('demandaPorRegiao', () =>
+    withRetry(async () => {
+      const { data, error } = await supabase.rpc('demanda_por_regiao');
+      if (error) throw error;
+      return data.map((r) => ({ cidade: r.cidade, bairro: r.bairro, total: Number(r.total) }));
+    }, { maxAttempts: 2, baseDelayMs: 500 })
+  ).catch((err) => {
+    console.error('[rjnet] Falha ao carregar demanda por região:', err.message || err);
+    return null;
+  });
+}
+
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
 function exec(promise, acao, onFail, onSuccess, meta = {}) {
