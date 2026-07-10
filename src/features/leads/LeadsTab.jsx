@@ -110,7 +110,9 @@ function FilaDistribuicao() {
             </tr>
           </thead>
           <tbody>
-            {leadsFrios.map((l) => (
+            {leadsFrios.map((l) => {
+              const resumo = resumoPerfil(l.perfilConsumo);
+              return (
               <tr key={l.id}>
                 <td>
                   <div className="strong">{l.nome}</div>
@@ -122,18 +124,25 @@ function FilaDistribuicao() {
                 <td>{l.telefone}</td>
                 <td>{servicoLabel(l.servicoInteresse)}</td>
                 <td style={{ fontSize: 12 }}>
-                  {l.pontuacao != null ? (
-                    <>
-                      <span style={{ fontWeight: 700, color: TEMPERATURA_COR[l.temperatura] || 'var(--text-2)' }}>
-                        {l.pontuacao} pts · {l.temperatura}
-                      </span>
-                      {resumoPerfil(l.perfilConsumo).length > 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', maxWidth: 220 }}>
-                          {resumoPerfil(l.perfilConsumo).join(' · ')}
-                        </div>
-                      )}
-                    </>
-                  ) : (
+                  {/* D-077: leads do Simulador de Oferta não têm pontuação (sempre quente, sem
+                      score de intenção) — perfil/pacote/combo só vêm de resumoPerfil(), então
+                      esse bloco não pode ficar preso a `pontuacao != null` (senão some pro "—"). */}
+                  {l.pontuacao != null && (
+                    <span style={{ fontWeight: 700, color: TEMPERATURA_COR[l.temperatura] || 'var(--text-2)' }}>
+                      {l.pontuacao} pts · {l.temperatura}
+                    </span>
+                  )}
+                  {l.pontuacao == null && l.perfilConsumo && (
+                    <span style={{ fontWeight: 700, color: TEMPERATURA_COR[l.temperatura] || 'var(--text-2)', textTransform: 'capitalize' }}>
+                      {l.temperatura}
+                    </span>
+                  )}
+                  {resumo.length > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', maxWidth: 220 }}>
+                      {resumo.join(' · ')}
+                    </div>
+                  )}
+                  {l.pontuacao == null && !l.perfilConsumo && (
                     <span style={{ color: 'var(--text-3)' }}>—</span>
                   )}
                 </td>
@@ -179,7 +188,8 @@ function FilaDistribuicao() {
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
