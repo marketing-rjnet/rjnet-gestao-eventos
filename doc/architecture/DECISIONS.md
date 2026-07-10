@@ -2360,6 +2360,177 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-072] — Simulador de Perfil de Consumo: captação gamificada via link (tráfego pago) + QR Code, com scoring de intenção no servidor
+
+**Data:** 2026-07-08
+**Tipo:** Feature / Arquitetura de Captação
+
+**Contexto:** O responsável pelo sistema pediu uma terceira porta de entrada pública de captação (ao lado do Form Builder): um quiz gamificado de perfil de consumo de internet, acessado por link (campanhas de tráfego pago — Meta/Google Ads, inclusive geolocalizadas) e por QR Code em material impresso. A pessoa responde 4–6 perguntas, recebe uma recomendação personalizada ("valor antes do dado") e só então deixa contato — o lead nasce qualificado: perfil declarado, pontuação de intenção, temperatura calculada e oferta recomendada. Plano completo em `doc/simulador/SIMULADOR_IMPLEMENTATION_PLAN.md` (fases F0–F4 implementadas; F5 territorial planejada — mesma entrada, questionário reduzido).
+
+**Decisão:**
+- **Mesmo pipeline público do Form Builder, nunca um paralelo:** página sem sessão (`/s/:slug`, `SimuladorPublico.jsx`) → Edge Function `submeter-simulador` (service_role) → insert em `leads` com `vendedor_id` nulo → fila "Leads sem vendedor" → distribuição manual. `origem='simulador'` é só mais um valor no eixo de proveniência (D-061).
+- **Catálogo de perguntas FIXO e versionado em código** (`src/lib/simulador.js` — `PERGUNTAS_SIMULADOR`, mesmo princípio do `CAMPOS_FORMULARIO`/D-062): a tabela `simuladores` guarda só a identidade da campanha (nome/slug/agrupador). Nunca um motor de quiz genérico em runtime.
+- **Scoring no servidor:** a Edge Function RECALCULA pontuação/temperatura/oferta a partir das respostas brutas (espelho Deno de `calcularPerfil`) — o cliente nunca envia score pronto. Score exibido na página é só UX. Respostas gravadas em `leads.perfil_consumo` (jsonb, `{versao, respostas}`) — na linha do lead de propósito: a retenção LGPD D-064 expurga tudo junto.
+- **Temperatura como ponte com o fluxo existente:** o score mapeia para o enum `temperatura` (≥60 quente, 30–59 morno, <30 frio) que vendedor/relatórios já entendem — nenhuma tela precisou aprender um conceito novo pra priorizar.
+- **Um link por campanha, dois canais via UTM:** a página captura `utm_*` da URL (whitelist de 5 chaves, sanitizadas no servidor) e grava em `leads.utm`; o QR gerado pela `SimuladorTab` embute `utm_source=qrcode&utm_medium=impresso` — a MESMA campanha distingue scan físico de clique em anúncio, e cada anúncio/conjunto é atribuível pelos próprios UTMs.
+- **`_shared/captacao.ts`:** CORS/sanitização/validadores/rate-limit extraídos de `submeter-formulario` para módulo compartilhado entre as Edge Functions públicas (elimina a duplicação admitida em D-067). `submeter-formulario` refatorada para importar de lá — comportamento idêntico, requer redeploy.
+- **Contexto "QR Code" do vendedor generalizado para "Captação":** `fetchLeadsQrCode` passa a filtrar `origem in ('qrcode','formulario','simulador')` — corrige de quebra a lacuna em que leads de formulário distribuídos não apareciam no seletor do vendedor. Card do lead exibe o perfil (`resumoPerfil`, labels sempre derivados do catálogo).
+- **Fila de distribuição ordenada por pontuação** (desc, sem score por último) com coluna "Perfil" (pts + temperatura + resumo) e origem detalhada (campanha + utm_campaign) — o marketing distribui os quentes primeiro.
+
+**Alternativas Avaliadas:**
+- **Estender `formularios` com `tipo='simulador'`** — rejeitada: a forma da config é diferente (identidade de campanha vs. lista de campos); tabela irmã `simuladores` mantém cada domínio com escopo próprio (sem "god table").
+- **Perguntas configuráveis no banco (motor de quiz)** — rejeitada pelo mesmo racional do D-062: custo de validação arbitrária no servidor + UI genérica sem necessidade atual. Mudar pergunta = commit + bump de `PERGUNTAS_SIMULADOR_VERSAO`.
+- **Exibir a oferta real (imagem+copy da tabela `ofertas`) na tela de resultado** — adiada: exigiria abrir leitura `anon` em `ofertas` (a copy é redigida pro contexto WhatsApp do vendedor, não pra página pública). v1 usa headlines por nível de demanda em código (`RECOMENDACAO_POR_NIVEL`); reavaliar com policy `anon` explícita se o marketing quiser a arte real na página.
+- **Pixel de conversão (Meta/GA) na página** — rejeitada na v1: exigiria afrouxar CSP + banner de cookies + entrada LGPD. Atribuição por UTM + leads/cliques da plataforma cobre a leitura de performance.
+
+**Arquivos Afetados:** `supabase/migracao-simulador.sql` (novo), `supabase/functions/_shared/captacao.ts` (novo), `supabase/functions/submeter-simulador/index.ts` (novo), `supabase/functions/submeter-formulario/index.ts` (refatorada), `src/lib/simulador.js` (novo), `src/lib/dataService.js`, `src/public/SimuladorPublico.jsx` (novo), `src/api/simuladorApi.js` (novo), `src/context/AppProvider.jsx`, `src/features/simulador/SimuladorTab.jsx` (novo), `src/apps/MarketingApp.jsx`, `src/apps/VendedorApp.jsx`, `src/features/leads/LeadsTab.jsx`, `src/main.jsx`, `vercel.json`, `src/index.css`, `tests/simulador.unit.test.js` (novo, 40 asserts), `tests/simulador.test.js` (novo, 6 E2E).
+
+**Riscos:** (1) **Ordem de deploy**: `migracao-simulador.sql` + `NOTIFY pgrst` DEVEM rodar antes do merge do frontend — `LEADS_COLS`/`leadToDb` referenciam as colunas novas e quebrariam leitura/escrita de leads sem elas (mesmo requisito de D-062/D-063). (2) Redeploy de `submeter-formulario` (refatoração `_shared/`): comportamento idêntico, mas exige smoke test do formulário público após o deploy. (3) LGPD: novo tratamento (perfil comportamental + UTM) — RIPD/ROPA precisam de linha nova e a Política deve citar a finalidade antes do primeiro go-live de campanha (`versao_termo: 'simulador-v1'` já gravada); retenção já coberta pelo bloco D-064 (lead sem evento/mês expira por `criado_em`). (4) `submeter-simulador` vira a segunda escrita não autenticada do sistema — herda todas as camadas do D-067 (honeypot, containsLink, rate limit 5/10min por IP, origem_ip) via `_shared/`.
+
+**Status:** Ativa
+
+---
+
+### [D-073] — Campanha territorial do Simulador + relatório interno de demanda por região
+
+**Data:** 2026-07-08
+**Tipo:** Feature (fase F5 do plano do Simulador)
+
+**Contexto:** Segunda estratégia prevista desde a concepção do Simulador (D-072): anúncios geolocalizados para cidades/bairros onde há rede sem assinantes (ou assinantes em potencial), captando demanda reprimida. A pessoa informa só cidade, bairro e interesse — sem quiz — e a diretoria enxerga um mapa interno de demanda ("Itaguaí: Bairro A → 80 interessados"). Requisito explícito: nunca expor mapa de cobertura ou informação interna de rede.
+
+**Decisão:**
+- **Mesma entrada, questionário reduzido:** `tipo='territorial'` na tabela `simuladores` (coluna já prevista na migração D-072). `SimuladorPublico.jsx` troca o fluxo pela fase `territorial` (cidade* + bairro* + interesse* em uma tela → contato sem repetir localização); `SimuladorTab.jsx` ganha seletor de tipo na criação. Zero migração nova de colunas.
+- **Sem scoring:** lead territorial nasce `temperatura='morno'` fixa (interesse declarado espontaneamente), `pontuacao`/`perfil_consumo`/`oferta_recomendada` nulos. A Edge Function `submeter-simulador` ramifica pelo `tipo` gravado no banco (nunca pelo payload do cliente): territorial exige cidade+bairro e valida `servicoInteresse` contra o enum; perfil_consumo exige quiz e recalcula score.
+- **Relatório de demanda = RPC agregada, não feature de captação:** `demanda_por_regiao()` (`migracao-demanda.sql`, security definer + grant `authenticated`, mesmo padrão de `ranking_mes`) retorna só `cidade/bairro/count(*)` de leads de captação digital não deletados — nenhum dado pessoal sai da função. Renderizada como seção "Demanda por região" em Relatórios (`LeadsTab.jsx`, tela que só marketing/comercial enxergam); modo local agrega do próprio array `leads`. Nada de mapa visual/tile server externo (CSP intacta).
+
+**Alternativas Avaliadas:**
+- **Tabela agregada anônima persistente** (sobrevive ao expurgo LGPD) — adiada, continua como sugestão S3 do plano: só quando a diretoria pedir série histórica além da janela de retenção.
+- **Exigir contato antes de cidade/bairro** — rejeitada: inverteria o princípio "valor/leveza antes do dado" e derrubaria conversão de anúncio frio; localização+interesse primeiro, contato por último.
+
+**Arquivos Afetados:** `supabase/migracao-demanda.sql` (novo), `supabase/functions/submeter-simulador/index.ts`, `src/public/SimuladorPublico.jsx`, `src/features/simulador/SimuladorTab.jsx`, `src/lib/dataService.js` (`demandaPorRegiao`), `src/features/leads/LeadsTab.jsx` (`DemandaPorRegiao`), `tests/simulador.test.js` (7º cenário E2E).
+
+**Riscos:** `migracao-demanda.sql` deve rodar APÓS `migracao-simulador.sql` (depende das colunas `cidade`/`origem`). Retenção LGPD D-064 expurga leads territoriais como qualquer lead sem contexto — o agregado histórico encolhe junto (limitação conhecida e aceita; ver S3). Sem impacto em telas existentes: a seção de demanda só renderiza quando há dado.
+
+**Status:** Ativa
+
+---
+
+### [D-074] — Pacote de internet fixo por perfil de uso + combo de upsell (apps/upgrade) na tela de resultado do Simulador
+
+**Data:** 2026-07-08
+**Tipo:** Feature (evolução do Simulador, tipo `perfil_consumo`)
+
+**Contexto:** O responsável pelo sistema pediu duas mudanças na tela de resultado do quiz `perfil_consumo`: (1) a recomendação de pacote deixa de ser calculada por soma de sinais (`nivel` derivado de `usos`/`moradores`) e passa a vir de uma **pergunta explícita de perfil** — a pessoa escolhe entre categorias (ex: "Gamer") que já têm um pacote fixo associado e uma descrição curta ("usa muita internet e navega bastante"); (2) abaixo do pacote recomendado, um combo de checkboxes de upsell usando os preços reais já existentes no sistema (aba Pacotes do vendedor): +R$ 15 Apps Yellow, +R$ 30 Apps Black, +R$ 20 (variável) upgrade pro próximo pacote — com total atualizado ao vivo.
+
+**Decisão:**
+- **Novo catálogo `PERFIS_SIMULADOR`** (`src/lib/simulador.js`): 4 categorias (Básico→120 Mega, Streaming→240, Home Office→240, Gamer/Casa Conectada→420⭐), cada uma com `label`+`descricao`+`pacoteMega` fixo — vira a **primeira pergunta** do wizard (`fase='perfil'`), antes das perguntas existentes. Mesmo princípio de catálogo fixo em código do resto do Simulador (D-072): editar textos/pacote de um perfil é uma mudança nesse array só. O responsável pelo sistema sinalizou que vai querer ajustar esses textos com frequência ("conforme demanda") — por ora fica em código (deploy rápido, poucas linhas); se a cadência de edição justificar, uma evolução futura natural é um catálogo editável pela UI (mesmo padrão de `ofertas`), tratada como decisão própria quando for pedida.
+- **Separação de papéis mantida**: as perguntas antigas (moradores/usos/equipamentos/tem_internet/dificuldade) continuam existindo e alimentando **só** `pontuacao`/`temperatura` (prioridade da fila) — nunca mais decidem o pacote. O campo `nivel`/`RECOMENDACAO_POR_NIVEL` (redundante com o novo perfil fixo) foi removido de `calcularPerfil`.
+- **Catálogo único de preços** (`PACOTES_INTERNET`, `APPS_ADICIONAIS` em `src/lib/simulador.js`): extraídos da tabela hardcoded que já existia na aba "Pacotes" do vendedor (`VendedorApp.jsx`) — essa aba passou a renderizar via `.map()` sobre o mesmo array, eliminando a duplicação de preço entre as duas telas (editar um preço agora é uma mudança só).
+- **Combo calculado sempre a partir do catálogo, nunca de um total pronto**: `montarCombo(perfilKey, {yellow, black, upgrade})` — mesmo princípio de `calcularPerfil`. Cliente usa pra UX (total ao vivo); a Edge Function `submeter-simulador` recebe só `perfil` (chave) + os 3 booleans e recalcula o combo (catálogo espelhado em Deno), gravando a versão dela em `leads.perfil_consumo.combo`.
+- **Upsell contextual sem dark pattern**: quando `usos` inclui `streaming`, o checkbox do Apps Black ganha destaque visual (borda + selo "combina com seu perfil") — nunca vem pré-marcado, só evidenciado.
+- **Dado gravado no lead**: `perfil_consumo.perfil` (chave da categoria) e `perfil_consumo.combo` (`{pacoteMega, pacotePreco, yellow, black, upgrade, pacoteFinalMega, valorTotal}`) — cabe no jsonb já existente (D-072), sem migração nova. `resumoPerfil()` estendido pra imprimir perfil/pacote/add-ons/total nas telas que já leem esse resumo (fila de distribuição, card do vendedor) — sem mudar essas telas.
+
+**Alternativas Avaliadas:**
+- **Manter a recomendação por soma de sinais e só adicionar os checkboxes por cima** — rejeitada: o pedido explícito foi trocar o *mecanismo* de recomendação (pergunta direta, não inferência), então manter os dois em paralelo criaria uma segunda fonte de verdade pro pacote.
+- **Combo configurável no banco (tabela de add-ons)** — rejeitada por ora, mesmo racional do catálogo de perfis: sem demanda de edição frequente hoje, adicionar tabela+RLS+UI é custo maior que o benefício atual.
+
+**Arquivos Afetados:** `src/lib/simulador.js` (catálogos `PACOTES_INTERNET`/`APPS_ADICIONAIS`/`PERFIS_SIMULADOR` + `montarCombo`/`pacotePorMega`/`pacoteUpgrade`/`fmtMoeda`; remoção de `nivel`/`RECOMENDACAO_POR_NIVEL`), `supabase/functions/submeter-simulador/index.ts` (espelho do combo + validação de `perfil`), `src/public/SimuladorPublico.jsx` (fase `perfil`, tela de resultado reescrita com o combo), `src/apps/VendedorApp.jsx` (aba Pacotes passa a consumir o catálogo compartilhado), `src/index.css` (`.sim-opcao-perfil`, `.sim-combo*`), `tests/simulador.unit.test.js` (+19 asserts), `tests/simulador.test.js` (2 cenários novos + ajuste dos existentes pra incluir a etapa de perfil).
+
+**Riscos:** Nenhuma migração de banco (campo `perfil_consumo` já é jsonb livre). Leads do Simulador criados **antes** desta mudança não têm `perfil`/`combo` no `perfil_consumo` — `resumoPerfil()` já trata isso graciosamente (`perfilPorKey(undefined)` retorna `null`, linhas de perfil/combo simplesmente não aparecem). Redeploy da Edge Function `submeter-simulador` necessário antes do go-live desta versão da página pública (payload novo: `perfil`+`combo` no lugar do `nivel` implícito).
+
+**Status:** Ativa
+
+---
+
+### [D-075] — Perguntas de intenção do Simulador viram um questionário PRÓPRIO por campanha, com peso editável por opção; popup mostra os apps de cada bundle de upsell
+
+**Data:** 2026-07-09
+**Tipo:** Feature / Mudança de arquitetura (evolução do Simulador, tipo `perfil_consumo`)
+
+**Contexto:** Depois de colocar o Simulador em produção, o responsável pelo sistema pediu duas mudanças: (1) poder ver e editar as perguntas de intenção do quiz, com controle sobre "nível"/peso de cada resposta pra pontuação; (2) no combo de upsell (D-074), mostrar quais apps entram em cada bundle (Yellow/Black), já que hoje só aparecia o nome do bundle sem contexto. Na conversa, ficou definido que cada CAMPANHA passaria a ter seu PRÓPRIO questionário (não um catálogo global editado uma vez) — descrito pelo responsável como "quase uma evolução do formulário, só que vamos usar a ferramenta pra moldar o tipo de pesquisa que estaremos fazendo".
+
+**Decisão:**
+- **Escopo do que ficou editável:** só as perguntas de INTENÇÃO (as que valem ponto pra fila). A pergunta de "perfil de uso" (D-074, Básico/Streaming/Home Office/Gamer → pacote fixo) continua separada e fora deste mecanismo — decisão explícita do responsável ("deixa separada, pois se precisar mudar algo eu mudo nela mesmo"), evitando que edição de peso acabe recomendando pacote/preço errado sem querer.
+- **Nova coluna `simuladores.perguntas`** (jsonb, `migracao-simulador-perguntas.sql`): cada campanha `perfil_consumo` guarda seu próprio array de perguntas — `{ id, texto, tipo: 'single'|'multi', opcoes: [{ id, texto, peso }] }`. Campanha nova já nasce com um molde padrão pré-preenchido (`perguntasPadrao()`, mesmos textos/pesos que existiam fixos em código antes) — editável à vontade, não em branco.
+- **Pontuação por PERCENTUAL, não número fixo:** `calcularPerfilDinamico()` soma os pesos das opções escolhidas e divide pela pontuação MÁXIMA possível daquela campanha específica (soma do maior peso de cada single + soma de todos os pesos positivos de cada multi) — necessário porque campanhas diferentes podem ter quantidade/peso de perguntas totalmente diferentes; um número fixo tipo "60 pontos = quente" não faria sentido pra todas. Faixas: ≥60% quente, 30–59% morno, <30% frio (mesmos cortes de antes, agora relativos).
+- **Score sempre recalculado no servidor, igual antes** — só que a partir da própria config gravada em `simuladores.perguntas`, nunca aceitando peso/pontuação vindo do cliente. A Edge Function busca sua PRÓPRIA cópia da campanha no banco (nunca confia num array de perguntas que o cliente mandasse).
+- **Perguntas condicionais (`exibirSe`) foram removidas** — simplificação deliberada de v1: o construtor vira uma lista linear (sem regras de "mostrar X se Y"), mais simples de construir e editar. Efeito colateral aceito: a pergunta "dificuldade" agora aparece sempre, mesmo pra quem respondeu "ainda não tenho internet" — o responsável pode reescrever/remover essa pergunta na campanha se achar estranho.
+- **Snapshot no lead, não só o id da campanha:** `leads.perfil_consumo` grava `{ versao: 2, perguntas, respostas, perfil, combo }` — as PRÓPRIAS perguntas usadas na submissão, não uma referência à campanha. Motivo: a campanha pode ser editada ou até apagada depois, e o lead precisa preservar o que a pessoa realmente viu e respondeu (auditoria + renderização correta do card do lead a qualquer momento). `resumoPerfil()` passa a detectar dois formatos: leads novos (`perguntas` no jsonb) e leads legados D-072 (sem esse snapshot, catálogo fixo em código) — sem migração de dado, sem quebrar histórico.
+- **`servicoInteresse` do Lead passou a derivar do PERFIL de uso (D-074)**, não mais das perguntas de intenção — antes dependia da chave fixa `usos`/`streaming` existir; como as perguntas agora são livres, essa chave pode nem existir na campanha. `perfil === 'streaming' → inclui 'streamings'`, senão só `'internet_residencial'`. Pelo mesmo motivo, o destaque visual do Apps Black no combo (D-074, "combina com seu perfil") passou a se basear no PERFIL escolhido em vez de tentar detectar uma resposta de quiz específica.
+- **Construtor de perguntas** (`PerguntasBuilder` em `SimuladorTab.jsx`, botão "Perguntas" por campanha, ao lado de "QR / Link"): adicionar/remover/reordenar pergunta e opção, texto único ou múltipla escolha, peso numérico por opção, validação antes de salvar (mínimo 1 pergunta, mínimo 2 opções, texto obrigatório, peso ≥ 0).
+- **Popup de apps no combo:** botão "ⓘ" ao lado de cada checkbox (Yellow/Black) abre um popup listando os apps reais daquele bundle (mesma lista já usada na aba Pacotes do vendedor, `APPS_ADICIONAIS[].itens`) — sem ícones/logos de marca (não há esses assets no projeto; se o responsável fornecer arquivos de logo depois, dá pra trocar os chips de texto por imagem).
+
+**Alternativas Avaliadas:**
+- **Só selecionar/reordenar perguntas de um catálogo fixo (sem reescrever texto)** — rejeitada: não atendia o pedido de definir peso/pontuação por resposta, que foi o ponto central do pedido.
+- **Perguntas 100% livres SEM conceito de peso** (só registro, sem entrar na pontuação) — rejeitada: o responsável pediu explicitamente a capacidade de atribuir peso/nível de intenção por resposta.
+- **Catálogo global editável (uma vez, valendo pra todas as campanhas)** — rejeitada a pedido explícito do responsável: "cada campanha com suas próprias perguntas".
+- **Threshold fixo de pontuação (ex: sempre 60 pontos = quente)** — rejeitada: só funcionaria bem pra campanhas com o mesmo número/peso de perguntas do molde padrão; percentual da pontuação máxima generaliza pra qualquer configuração.
+
+**Arquivos Afetados:** `supabase/migracao-simulador-perguntas.sql` (novo), `src/lib/simulador.js` (`perguntasPadrao`, `normalizarRespostasDinamico`, `calcularPerfilDinamico`; `resumoPerfil` dual-formato; remoção de `calcularPerfil`/`normalizarRespostas`/`perguntasVisiveis`/`USOS_ALTA_DEMANDA`; bump `PERGUNTAS_SIMULADOR_VERSAO` para 2), `supabase/functions/submeter-simulador/index.ts` (motor de scoring dinâmico espelhado + fallback pro molde padrão), `src/api/simuladorApi.js` (`addSimulador` semeia `perguntasPadrao()` em campanhas `perfil_consumo`), `src/lib/dataService.js` (coluna `perguntas` em `simuladorFromDb`/`simuladorToDb`/selects), `src/public/SimuladorPublico.jsx` (quiz renderiza de `simulador.perguntas`; popup de apps), `src/features/simulador/SimuladorTab.jsx` (`PerguntasBuilder`), `src/index.css` (`.sim-app-info-btn`, `.sim-app-popup*`), `tests/simulador.unit.test.js` (reescrito: +61 asserts no motor dinâmico), `tests/simulador.test.js` (+2 cenários — questionário próprio por campanha, popup de apps — e ajuste dos existentes pra perguntas não-condicionais).
+
+**Riscos:** **Ordem de deploy** — `migracao-simulador-perguntas.sql` + `NOTIFY pgrst` antes do redeploy da Edge Function (que agora seleciona a coluna `perguntas`). Redeploy da `submeter-simulador` obrigatório (motor de scoring mudou de catálogo fixo pra dinâmico — payload antigo do cliente, se algum ficar em cache, ainda funciona, pois o formato de entrada `respostas`/`perfil`/`combo` não mudou, só a validação interna). Campanhas criadas antes desta migração (sem `perguntas`) continuam funcionando via fallback (`perguntasPadraoFallback()` no servidor, `perguntasPadrao()` no cliente) — mesmo conteúdo, sem quebra. Leads antigos sem snapshot de `perguntas` continuam sendo exibidos corretamente pelo branch legado de `resumoPerfil()`.
+
+**Status:** Ativa
+
+---
+
+### [D-076] — Simulador vira 2 fluxos públicos independentes (Oferta / Demanda), nunca mais encadeados; tipo Territorial removido
+
+**Data:** 2026-07-09
+**Tipo:** Feature / Mudança de arquitetura (correção de desenho pós-D-075)
+
+**Contexto:** Ao testar o construtor de perguntas do D-075 em produção, o responsável reportou confusão: editava a "Pergunta 1" no construtor, mas ao abrir o link público ela aparecia como a 2ª tela do quiz — porque toda campanha `perfil_consumo` encadeava DUAS coisas na mesma sessão (a etapa fixa de "perfil de uso", D-074, sempre na frente; depois as perguntas configuráveis, D-075). Investigado e descartada a hipótese de bug de persistência (confirmado via teste manual: F5 + reabrir o construtor preservava a edição) — o comportamento estava correto, só contraintuitivo. Na conversa, o responsável propôs separar em 2 funcionalidades: "o gerador de oferta com base no perfil" (o que já funcionava) e "o gerador de perguntas com base nas demandas" (o construtor do D-075, mas sozinho, sem a etapa de perfil na frente) — e que o QR/Link desse tipo só devia ficar disponível depois de as perguntas estarem configuradas, já que antes disso não tem o que perguntar. Também foi decidido remover o tipo `territorial` (D-073) nesse mesmo movimento — o responsável avaliou que não usaria esse formato específico.
+
+**Decisão:**
+- **2 tipos de campanha, mutuamente exclusivos, nunca mais chained:**
+  - `oferta` (renomeado de `perfil_consumo`): só a etapa fixa de perfil de uso (D-074) → pacote fixo + combo de upsell → contato. Sem perguntas configuráveis, sem construtor — nada a configurar além da imagem/copy já cobertos por Ofertas (aba separada, sem relação). Lead sempre nasce `temperatura='quente'`, `pontuacao=null` (não há quiz de intenção nesse fluxo pra gerar score).
+  - `demanda` (novo): só as perguntas configuráveis por campanha (D-075, texto + peso por opção) → mensagem de resultado PERSONALIZADA pela campanha (novo campo `mensagem_resultado`, editável no mesmo construtor de perguntas) → contato. Sem etapa de perfil/pacote. Lead nasce com `pontuacao`/`temperatura` calculados a partir das perguntas (mesmo `calcularPerfilDinamico()` do D-075, sem mudança na fórmula).
+- **Mensagem de resultado personalizável:** como o tipo `demanda` não tem pacote pra recomendar, o "valor antes do dado" (princípio de produto do Simulador desde o D-072) passou a ser um texto livre configurado pelo marketing por campanha, com um valor padrão editável (`mensagemResultadoPadrao()`) — mesmo princípio de "nasce com molde, edita à vontade" já usado pra `perguntasPadrao()`.
+- **QR/Link gated até ter pergunta configurada:** `SimuladorTab.jsx` só mostra o botão "QR / Link" de uma campanha `demanda` quando `perguntas.length > 0` — antes disso mostra um aviso textual. Campanha `demanda` nova já abre direto no construtor de perguntas ao ser criada (UX guiada: primeiro configura, depois divulga). `oferta` nunca teve essa gate (não depende de configuração nenhuma pra estar pronta).
+- **Tipo `territorial` (D-073) removido:** não dá mais pra criar campanha desse tipo — retirado do seletor de criação e dos 2 fluxos públicos. Campanhas territoriais existentes (nenhuma em uso real até esta decisão) são desativadas por uma migração, não apagadas — lead histórico já capturado continua intacto. O relatório interno "Demanda por região" (`LeadsTab.jsx`, RPC `demanda_por_regiao()`) **não foi removido**: ele agrega qualquer lead com `cidade`/`bairro` preenchido, não só os de origem territorial (Form Builder e o próprio tipo `demanda` também alimentam cidade/bairro via contato) — continua funcionando, só deixa de receber uma fonte específica de dado.
+- **Migração de dados:** campanha de teste existente (`perfil_consumo`, sem uso real) excluída pelo responsável antes do deploy — não houve necessidade de decidir como migrar um caso real. A migração (`migracao-simulador-tipos.sql`) trata o caso genérico mesmo assim: `perfil_consumo` → `oferta` (preserva o pacote, perde perguntas porventura configuradas — que ficam órfãs no banco, não apagadas); `territorial` → desativado.
+
+**Alternativas Avaliadas:**
+- **Manter um único tipo, só reordenar as etapas (perguntas antes do perfil)** — rejeitada: não resolve a confusão de fundo (ainda seriam 2 conceitos encadeados numa sessão só) e não atende ao pedido explícito de "2 formas separadas de mandar a solicitação".
+- **Manter Territorial como 3º tipo** — era a recomendação inicial (resolve um problema diferente: mapa de demanda geolocalizada sem quiz), mas o responsável optou por remover deliberadamente ("Remover Territorial") por não ver uso prático pra esse formato específico.
+- **Tela de resultado do tipo `demanda` mostrar a pontuação/temperatura calculada** (em vez de mensagem livre) — rejeitada a favor de mensagem personalizável, que dá mais controle de copy ao marketing e evita expor um número de "score" pouco autoexplicativo pro titular do dado.
+
+**Arquivos Afetados:** `supabase/migracao-simulador-tipos.sql` (novo — migra `tipo`, troca constraint, adiciona `mensagem_resultado`), `src/lib/simulador.js` (`mensagemResultadoPadrao()`), `src/api/simuladorApi.js` (`addSimulador` semeia `perguntas`/`mensagemResultado` só pra tipo `demanda`), `src/lib/dataService.js` (coluna `mensagem_resultado` em `simuladorFromDb`/`simuladorToDb`/selects), `src/public/SimuladorPublico.jsx` (reescrito: 2 fluxos independentes, sem `territorial`), `src/features/simulador/SimuladorTab.jsx` (tipos renomeados, gate de QR/Link, textarea de mensagem no `PerguntasBuilder`), `supabase/functions/submeter-simulador/index.ts` (reescrito: branch por tipo `oferta`/`demanda`, sem `territorial`), `tests/simulador.test.js` (reescrito: suites separadas por tipo), `tests/simulador.unit.test.js` (+1 teste `mensagemResultadoPadrao`).
+
+**Riscos:** **Ordem de deploy** — `migracao-simulador-tipos.sql` + `NOTIFY pgrst` antes do redeploy da Edge Function (que agora rejeita `tipo='territorial'` implicitamente, tratando qualquer coisa que não seja `'demanda'` como `'oferta'`). Campanhas `territorial` pré-existentes (se houver, fora do ambiente de teste do responsável) são desativadas pela migração — deixam de aceitar novo lead, mas o histórico não é afetado. `resumoPerfil()` não precisou de mudança: já tratava `perfil`/`combo` e `perguntas`/`respostas` como blocos independentes desde o D-075, então um lead `oferta` (só perfil/combo) ou `demanda` (só perguntas/respostas) renderiza corretamente sem branch novo.
+
+**Status:** Ativa
+
+---
+
+### [D-077] — Simulador de Oferta: perfil DEDUZIDO por quiz fixo de qualificação (não mais escolha direta); upsell de plano Móvel no combo
+
+**Data:** 2026-07-09
+**Tipo:** Feature / Reversão parcial de decisão anterior (D-074, dentro do tipo `oferta`)
+
+**Contexto:** Ao validar o D-076 (2 fluxos separados) em produção, o responsável testou o Simulador de Oferta isolado e achou o fluxo raso demais: uma única tela com 4 botões (Básico/Streaming/Home Office/Gamer) e clique direto no pacote — "não só um wizard com 4 perguntas e já cair para a oferta, pois a oferta é gerada a partir de uma análise prévia do perfil". Pediu explicitamente para reintroduzir as perguntas de qualificação que existiam antes do D-074 (moradores/usos/equipamentos/tem_internet/dificuldade), mas com a primeira pergunta trocada de "quantas pessoas moram com você" para "quantos dispositivos estão conectados na sua rede atual" — e que o sistema deduza o perfil das respostas, em vez da pessoa escolher. Pediu também que o combo de upsell (hoje Apps Yellow/Black + upgrade de pacote) ganhe uma opção de plano de Internet Móvel, usando a mesma tabela de preços já usada na aba "Pacotes" do vendedor. Confirmado explicitamente que isso NÃO reabre a fusão dos dois fluxos do D-076 — `oferta` e `demanda` continuam campanhas de tipo totalmente separado, sem interferência entre si; a mudança é só *dentro* do fluxo `oferta`.
+
+**Decisão:**
+- **Quiz FIXO de qualificação para 'oferta'** (`PERGUNTAS_OFERTA`, 5 perguntas, catálogo fixo em código — sem construtor/edição pelo marketing, ao contrário das perguntas de `demanda`): dispositivos conectados → usos → equipamentos → já tem internet → maior dificuldade. Reaproveita `normalizarRespostasDinamico()` (mesma validação hostil-safe do D-075) só pra sanitizar as respostas — sem soma de pesos (opções têm `peso: 0`, não usado).
+- **`perfilPorRespostasOferta()` — dedução por REGRA de prioridade, não soma de pontos**: jogos declarado OU muitos dispositivos → Gamer; senão home office declarado → Home Office; senão streaming declarado → Streaming; senão → Básico (fallback). Decisão deliberada de manter regra simples e explicável em vez de score com threshold arbitrário (que exigiria inventar cortes sem dado real pra calibrar) — e principalmente **não reabre o princípio do D-074** ("pacote nunca calculado por soma de sinais"): a saída continua sendo sempre uma das 4 categorias fixas com pacote associado, só a ENTRADA (perfil escolhido → perfil deduzido) mudou.
+- **Servidor deduz, nunca aceita perfil pronto do cliente**: a Edge Function `submeter-simulador` passou a receber só `respostas` no payload de `oferta` (campo `perfil` removido do contrato) — mesmo princípio de segurança já aplicado ao score de `demanda` desde o D-072/D-075, agora estendido à dedução de perfil.
+- **Tela pública "oferta" perde a etapa única de escolha e ganha 5 telas sequenciais** (mesmo "esqueleto" de wizard de `demanda` — pergunta → calculando → resultado — reaproveitado por código, não por conteúdo: cada tipo carrega e mostra só o SEU próprio questionário, nunca mistura). O perfil deduzido continua aparecendo como texto informativo na tela de resultado (label + descrição), só deixou de ser clicável.
+- **Upsell de plano Móvel**: novo catálogo `PLANOS_MOVEL` (Pré 2GB R$29,90, Controle 10/24/35GB R$39,90/54,90/69,90) — mesma fonte única de preço reaproveitada pela aba "Pacotes" do vendedor (`VendedorApp.jsx`, tabela antes hardcoded inline, agora lê do catálogo). `montarCombo()` ganha `opcoes.movel` (a `key` do plano, nunca o preço — mesmo princípio anti-cliente-hostil dos outros itens do combo). Seleção única (não checkbox — a pessoa não contrata 2 planos móveis ao mesmo tempo), UI em chips.
+- **`leads.perfil_consumo` de leads `oferta` passa a incluir `perguntas`/`respostas`** (snapshot do quiz de qualificação) além de `perfil`/`combo` — mesmo shape usado por `demanda` desde o D-075, então `resumoPerfil()` não precisou de nenhuma mudança (já tratava os dois blocos como independentes).
+
+**Alternativas Avaliadas:**
+- **Score numérico com threshold (ex: ≥50 pontos → Gamer)** — rejeitada: exigiria calibrar cortes arbitrários sem dado real de uso; a regra de prioridade por sinal declarado é mais direta de explicar e ajustar.
+- **Deixar a pessoa CONFIRMAR/ajustar o perfil deduzido antes do resultado** — não pedida pelo responsável; descartada por ora para manter o fluxo curto (pode virar um ajuste futuro se o texto informativo se mostrar insuficiente).
+- **Checkbox (múltipla escolha) pro plano Móvel, igual Apps Yellow/Black** — rejeitada: são 4 tiers de plano, não um add-on binário; contratar mais de um simultaneamente não faz sentido, por isso virou seleção única (chip).
+
+**Arquivos Afetados:** `src/lib/simulador.js` (`PERGUNTAS_OFERTA`, `perfilPorRespostasOferta()`, `PLANOS_MOVEL`, `planoMovelPorKey()`, `montarCombo()` com `opcoes.movel`, `resumoPerfil()` com linha de Móvel), `src/public/SimuladorPublico.jsx` (reescrito: fluxo `oferta` vira wizard sequencial de 5 perguntas, perfil deduzido via `useMemo`, tela de combo com seletor de plano Móvel), `supabase/functions/submeter-simulador/index.ts` (espelha `PERGUNTAS_OFERTA`/`perfilPorRespostasOferta`/`PLANOS_MOVEL`; branch `oferta` não aceita mais `body.perfil`), `src/apps/VendedorApp.jsx` (tabela Móvel da aba Pacotes passa a ler de `PLANOS_MOVEL`, elimina duplicação de preço), `src/features/simulador/SimuladorTab.jsx` (texto de descrição do tipo `oferta` atualizado), `src/index.css` (`.sim-combo-movel*`, `.sim-movel-chip*`), `tests/simulador.unit.test.js` (+19 asserts: `PERGUNTAS_OFERTA`, `perfilPorRespostasOferta`, combo com Móvel), `tests/simulador.test.js` (suite `tipo Oferta` reescrita: quiz sequencial em vez de escolha direta, cenários por perfil deduzido, upsell Móvel no fluxo completo).
+
+**Riscos:** **Redeploy obrigatório** da Edge Function `submeter-simulador` (contrato mudou: `body.perfil` não é mais aceito no tipo `oferta`, `body.respostas` passa a ser sempre enviado). Sem migração de banco nova (`perfil_consumo`/`combo` continuam jsonb livre, `movel` é só mais uma chave opcional dentro do combo já existente). Leads `oferta` gravados ANTES desta mudança não têm `perguntas`/`respostas`/`combo.movel` — `resumoPerfil()` já tolera campos ausentes (`if (combo.movel)`), não quebra histórico. Regra de dedução é opinativa (prioriza jogos/dispositivos > home office > streaming > básico) — se o responsável achar a classificação errada em algum caso real, é um ajuste pontual em `perfilPorRespostasOferta()` (client + servidor, mesma função espelhada).
+
+**Status:** Ativa
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

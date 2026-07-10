@@ -4,6 +4,152 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.21] — Simulador de Oferta: perfil deduzido por quiz de qualificação + upsell de plano Móvel
+**Data:** 2026-07-09
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`src/lib/simulador.js`** — `PERGUNTAS_OFERTA` (novo catálogo fixo, 5 perguntas de qualificação: dispositivos conectados/usos/equipamentos/tem internet/dificuldade — 1ª pergunta trocada de "quantas pessoas moram" pra "quantos dispositivos estão conectados na rede atual"); `perfilPorRespostasOferta()` deduz o perfil por regra de prioridade (jogos/muitos dispositivos → Gamer; home office → Home Office; streaming → Streaming; senão Básico); `PLANOS_MOVEL` (novo catálogo: Pré 2GB, Controle 10/24/35GB) + `planoMovelPorKey()`; `montarCombo()` ganha `opcoes.movel`; `resumoPerfil()` inclui linha de plano Móvel quando marcado.
+- **`src/public/SimuladorPublico.jsx`** — reescrito: o fluxo `oferta` deixa de ser 1 tela com 4 botões de escolha direta e vira um wizard de 5 perguntas sequenciais (mesmo "esqueleto" de tela do fluxo `demanda`, reaproveitado por código — cada tipo continua carregando e mostrando só o SEU próprio questionário, sem interferência entre eles); o perfil deduzido aparece como texto informativo (não mais clicável) na tela de resultado; combo de upsell ganha seletor de plano Móvel (chips, seleção única).
+- **`supabase/functions/submeter-simulador/index.ts`** — espelha `PERGUNTAS_OFERTA`/`perfilPorRespostasOferta`/`PLANOS_MOVEL`; branch `oferta` não aceita mais `body.perfil` do cliente — deduz sempre a partir de `body.respostas`, mesmo princípio de segurança já usado no score de `demanda`.
+- **`src/apps/VendedorApp.jsx`** — tabela de planos Móvel da aba "Pacotes" passa a ler de `PLANOS_MOVEL` (era hardcoded inline) — elimina duplicação de preço entre a aba do vendedor e o Simulador.
+- **`src/features/simulador/SimuladorTab.jsx`** — texto de descrição do tipo "Simulador de Oferta" atualizado pra refletir o quiz.
+- **`src/index.css`** — `.sim-combo-movel*`, `.sim-movel-chip*` (upsell de plano Móvel).
+- **Testes:** `tests/simulador.unit.test.js` +19 asserts (`PERGUNTAS_OFERTA`, `perfilPorRespostasOferta`, combo com Móvel) — 81/81; `tests/simulador.test.js` suite `tipo Oferta` reescrita (quiz sequencial em vez de escolha direta, cenário por perfil deduzido, upsell Móvel no fluxo completo) — 15/15 E2E.
+- **Docs:** D-077 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Ao testar o D-076 (2 fluxos separados) em produção, o responsável achou o Simulador de Oferta raso demais — 1 clique direto num de 4 botões, sem nenhuma análise por trás. Pediu pra reintroduzir o quiz de qualificação que existia antes do D-074 (com a 1ª pergunta trocada) e que o sistema deduza o perfil sozinho, "pois a oferta é gerada a partir de uma análise prévia do perfil". Confirmado explicitamente que isso não reabre a fusão dos 2 tipos do D-076 — a mudança é só dentro do fluxo `oferta`. Pediu também o upsell de plano Móvel no combo, usando a mesma tabela de preços já conhecida da aba Pacotes do vendedor.
+
+**Ações manuais necessárias**
+1. Redeploy da Edge Function `submeter-simulador` (contrato mudou: `body.perfil` não é mais aceito no tipo `oferta`).
+2. Sem migração de banco nova (combo continua jsonb livre, `movel` é só mais uma chave dentro dele).
+3. Sem CLI disponível no ambiente do responsável: publicação feita colando código achatado (sem import de `_shared/`) direto no Dashboard do Supabase — mesmo caminho já usado nas rodadas anteriores.
+
+---
+
+## [v5.20] — Simulador: 2 fluxos independentes (Oferta / Demanda), Territorial removido
+**Data:** 2026-07-09
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-simulador-tipos.sql`** (novo) — migra `tipo='perfil_consumo'` → `'oferta'`, desativa linhas `tipo='territorial'` (não apaga), troca a constraint pra `tipo in ('oferta', 'demanda')`, adiciona coluna `mensagem_resultado` (text).
+- **`src/public/SimuladorPublico.jsx`** — reescrito: 2 fluxos públicos totalmente independentes, nunca mais encadeados na mesma sessão. `oferta` = só perfil de uso → pacote + combo → contato (sem perguntas). `demanda` = só perguntas configuráveis da campanha → mensagem de resultado PERSONALIZADA (`simulador.mensagemResultado`) → contato (sem perfil/pacote). Tipo `territorial` removido do fluxo público.
+- **`supabase/functions/submeter-simulador/index.ts`** — reescrito com o mesmo espelhamento: branch por `tipo` (`oferta`/`demanda`), sem `territorial`. `oferta` sempre grava `temperatura='quente'`/`pontuacao=null`; `demanda` recalcula pontuação/temperatura a partir das perguntas da própria campanha, igual antes.
+- **`src/features/simulador/SimuladorTab.jsx`** — tipos renomeados na UI ("Simulador de Oferta" / "Gerador por Demanda"); botão "QR / Link" de uma campanha `demanda` só aparece depois de `perguntas.length > 0` (antes disso mostra aviso); campanha `demanda` nova já abre direto no construtor de perguntas; `PerguntasBuilder` ganha campo de "Mensagem de resultado" (textarea, salva junto com as perguntas).
+- **`src/lib/simulador.js`** — nova `mensagemResultadoPadrao()` (valor inicial editável da mensagem de resultado do tipo `demanda`).
+- **`src/api/simuladorApi.js`** / **`src/lib/dataService.js`** — `perguntas`/`mensagemResultado` só semeados pra tipo `demanda`; coluna `mensagem_resultado` mapeada em `simuladorFromDb`/`simuladorToDb`/selects.
+- **Testes:** `tests/simulador.test.js` reescrito em suites por tipo (Oferta/Demanda), 12/12 E2E; `tests/simulador.unit.test.js` +1 teste (62 asserts).
+- **Docs:** D-076 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Depois de testar o construtor de perguntas do v5.19 em produção, o responsável reportou confusão: editava a "Pergunta 1", mas ela aparecia como a 2ª tela do quiz público — porque toda campanha encadeava a etapa fixa de perfil (D-074) na frente das perguntas configuráveis (D-075) na mesma sessão. Investigado e descartada a hipótese de bug de persistência (edição realmente salvava, só a ordem das telas confundia). Na conversa, decidido separar em 2 funcionalidades sempre independentes — "o gerador de oferta com base no perfil" e "o gerador de perguntas com base nas demandas" — e remover o tipo Territorial (D-073), que o responsável avaliou não ter uso prático nesse momento.
+
+**Ações manuais necessárias**
+1. Rodar `supabase/migracao-simulador-tipos.sql` (após `migracao-simulador-perguntas.sql`) + `NOTIFY pgrst, 'reload schema';`.
+2. Redeploy da Edge Function `submeter-simulador` (branch de tipo mudou de `perfil_consumo`/`territorial` pra `oferta`/`demanda`).
+3. Sem CLI disponível no ambiente do responsável: publicação feita colando código achatado (sem import de `_shared/`) direto no Dashboard do Supabase — mesmo caminho já usado nas rodadas anteriores.
+
+---
+
+## [v5.19] — Simulador: perguntas de intenção configuráveis por campanha + popup de apps
+**Data:** 2026-07-09
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-simulador-perguntas.sql`** (novo) — coluna `perguntas` (jsonb) em `simuladores`: cada campanha `perfil_consumo` passa a ter seu PRÓPRIO questionário de intenção, não mais um catálogo fixo global.
+- **`src/lib/simulador.js`** — novo motor dinâmico: `perguntasPadrao()` (molde inicial editável), `normalizarRespostasDinamico()`/`calcularPerfilDinamico()` (soma pesos por opção, temperatura = percentual da pontuação máxima daquela campanha: ≥60% quente, 30–59% morno, <30% frio). Removidas `calcularPerfil`/`normalizarRespostas`/`perguntasVisiveis` (catálogo fixo do D-072, agora só usado como fonte do molde padrão e para renderizar leads antigos).
+- **`src/features/simulador/SimuladorTab.jsx`** — novo construtor de perguntas (botão "Perguntas" por campanha): adicionar/remover/reordenar pergunta e opção, texto único/múltipla escolha, peso numérico por opção, validação antes de salvar.
+- **`src/public/SimuladorPublico.jsx`** — quiz renderiza as perguntas DA CAMPANHA (fallback pro molde padrão se ainda não configurada); perguntas condicionais removidas (lista linear); popup "ⓘ" em cada checkbox do combo mostra os apps reais do bundle (Yellow/Black).
+- **`supabase/functions/submeter-simulador/index.ts`** — recalcula o score no servidor a partir da PRÓPRIA config da campanha (nunca aceita peso do cliente); fallback pro mesmo molde padrão para campanhas antigas sem `perguntas`.
+- **`src/api/simuladorApi.js`** — campanha nova já nasce com o molde padrão pré-preenchido (editável), não em branco.
+- **`leads.perfil_consumo`** passa a gravar um snapshot das perguntas usadas na submissão (não só uma referência à campanha, que pode mudar depois); `resumoPerfil()` (fila/card do vendedor) detecta os dois formatos — leads novos e leads legados D-072 — sem quebrar histórico.
+- **Testes:** `tests/simulador.unit.test.js` reescrito (61 asserts no motor dinâmico); `tests/simulador.test.js` com 2 cenários novos (questionário próprio por campanha, popup de apps) e ajuste dos existentes — 11/11 E2E.
+- **Docs:** D-075 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Pedido do responsável pelo sistema: poder ver e editar as perguntas do quiz, com peso/nível de intenção por resposta — "quase uma evolução do formulário, só que usando a ferramenta pra moldar o tipo de pesquisa". Decidido que cada campanha tem seu próprio questionário (não um catálogo único global), e que a pergunta de "perfil de uso" (D-074, que decide o pacote) fica de fora — permanece fixa. Popup de apps resolve a reclamação de que "o cliente vê ali app Yellow e Black mas não mostra o que é".
+
+**Ações manuais necessárias**
+1. Rodar `supabase/migracao-simulador-perguntas.sql` (após `migracao-simulador.sql`) + `NOTIFY pgrst, 'reload schema';`.
+2. Redeploy da Edge Function `submeter-simulador` (motor de scoring mudou de catálogo fixo pra dinâmico).
+3. Sem CLI disponível no ambiente do responsável: publicação feita colando código achatado (sem import de `_shared/`) direto no Dashboard do Supabase — mesmo caminho já usado nas rodadas anteriores.
+
+---
+
+## [v5.18] — Simulador: pacote fixo por perfil de uso + combo de upsell (apps/upgrade)
+**Data:** 2026-07-08
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`src/lib/simulador.js`** — novo catálogo `PERFIS_SIMULADOR` (Básico/Streaming/Home Office/Gamer, cada um com pacote de internet FIXO e descrição curta); `PACOTES_INTERNET`/`APPS_ADICIONAIS` centralizam os preços reais (60 a 680 Mega, Apps Yellow R$15/Black R$30) — fonte única, reaproveitada pela aba Pacotes do vendedor; `montarCombo()` calcula pacote+adicionais+upgrade sempre a partir do catálogo. Removido `nivel`/`RECOMENDACAO_POR_NIVEL` (ficou redundante com o pacote fixo).
+- **`src/public/SimuladorPublico.jsx`** — nova primeira etapa do wizard: escolha de perfil (label + descrição por opção); tela de resultado reescrita como combo interativo (checkboxes com total ao vivo); Apps Black ganha destaque visual quando streaming foi declarado no quiz.
+- **`supabase/functions/submeter-simulador/index.ts`** — recebe só `perfil` (chave) + booleans do combo; recalcula tudo no servidor (catálogo espelhado em Deno) — nunca aceita valorTotal pronto do cliente.
+- **`src/apps/VendedorApp.jsx`** — aba Pacotes passa a renderizar a partir do catálogo compartilhado (elimina duplicação de preço entre as duas telas).
+- **Testes:** 19 asserts novos no unitário (pacotes/perfis/combo), 2 cenários E2E novos + ajuste dos existentes para a nova etapa de perfil — 65 unitários + 9 E2E do simulador, todos verdes.
+- **Docs:** D-074 em `DECISIONS.md`, `SYSTEM_MAP.md`.
+
+**Por que mudou**
+- Pedido do responsável pelo sistema: a recomendação de pacote devia vir de uma categoria explícita e previsível (ex: "Gamer → usa muita internet e navega bastante → 420 Mega"), não de uma pontuação calculada — e a tela de resultado devia oferecer upsell real (apps, upgrade) com os preços que já existem no sistema, com total visível antes de pedir contato.
+
+**Ações manuais necessárias**
+- Redeploy da Edge Function `submeter-simulador` (payload novo). Leads criados antes desta versão não têm `perfil`/`combo` no `perfil_consumo` — sem quebra, o resumo simplesmente não exibe essas linhas para eles.
+
+---
+
+## [v5.17] — Simulador F5: campanha territorial + relatório de demanda por região
+**Data:** 2026-07-08
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-demanda.sql`** (novo) — RPC `demanda_por_regiao()`: agrega interessados de captação digital por cidade/bairro (só COUNT, nenhum dado pessoal; security definer, grant `authenticated`, mesmo padrão de `ranking_mes`).
+- **`supabase/functions/submeter-simulador/index.ts`** — ramifica pelo `tipo` da campanha gravado no banco: `territorial` exige cidade+bairro, valida `servicoInteresse` contra o enum e grava `temperatura='morno'` sem score; `perfil_consumo` continua com quiz + score recalculado.
+- **`src/public/SimuladorPublico.jsx`** — fluxo territorial: tela única cidade*/bairro*/interesse* → contato (sem repetir localização) → confirmação com mensagem própria.
+- **`src/features/simulador/SimuladorTab.jsx`** — seletor de tipo na criação ("Perfil de consumo" | "Territorial") com dica de uso; tipo exibido na lista de campanhas.
+- **`src/features/leads/LeadsTab.jsx`** + **`dataService.js`** — nova seção "Demanda por região" em Relatórios (marketing/comercial): tabela Cidade → Bairro → Interessados via RPC (modo local agrega do próprio estado); só renderiza quando há dado.
+- **Testes:** 7º cenário E2E (fluxo territorial completo em modo local) — 7/7 verdes.
+- **Docs:** D-073 em `DECISIONS.md`, `SYSTEM_MAP.md`, plano F5 ✅.
+
+**Por que mudou**
+- Segunda estratégia do Simulador (prevista desde D-072): anúncios geolocalizados para regiões com rede e sem assinantes captam demanda reprimida; a diretoria lê o resultado como inteligência comercial interna ("Itaguaí: Bairro A → N interessados") sem nunca expor cobertura de rede — esse dado nem existe no sistema.
+
+**Ações manuais necessárias**
+- Rodar `supabase/migracao-demanda.sql` (APÓS `migracao-simulador.sql`) + `NOTIFY pgrst, 'reload schema';`. Redeploy da Edge Function `submeter-simulador`. Demais ações (LGPD etc.) seguem as do v5.16.
+
+---
+
+## [v5.16] — Simulador de Perfil de Consumo: captação gamificada via link (tráfego pago) + QR Code
+**Data:** 2026-07-08
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk`
+
+**O que mudou**
+
+- **`supabase/migracao-simulador.sql`** (novo) — tabela `simuladores` (campanhas: nome/slug/tipo/agrupador, RLS `anon` restrita a `ativo=true`, mesmo precedente do Form Builder) + colunas aditivas em `leads` (`simulador_id`, `perfil_consumo`, `pontuacao`, `oferta_recomendada`, `cidade`, `utm`) + índices.
+- **`src/lib/simulador.js`** (novo) — catálogo FIXO versionado de perguntas (`PERGUNTAS_SIMULADOR`) + scoring (`calcularPerfil`: soma ponderada → pontuação, temperatura frio/morno/quente, oferta recomendada) — sem imports de propósito, testável standalone e espelhado em Deno.
+- **`supabase/functions/_shared/captacao.ts`** (novo) — CORS, sanitização, validadores e rate limit por IP extraídos de `submeter-formulario` (que foi refatorada pra importar de lá — comportamento idêntico, **requer redeploy**).
+- **`supabase/functions/submeter-simulador/index.ts`** (novo) — porta pública do Simulador: valida respostas contra o catálogo, **recalcula o score no servidor** (cliente nunca manda score pronto), sanitiza UTM (whitelist), honeypot + rate limit; lead nasce com `origem='simulador'`, `vendedor_id` nulo, `versao_termo` `simulador-v1`.
+- **`src/public/SimuladorPublico.jsx`** (novo) + rota `/s/:slug` (`main.jsx`, `vercel.json`) — wizard gamificado mobile-first: 1 pergunta por tela, barra de progresso, pergunta condicional, tela "Analisando...", recomendação personalizada ANTES de pedir contato, captura de `utm_*` da URL.
+- **`src/features/simulador/SimuladorTab.jsx`** (novo, grupo Captação do "Mais") — CRUD de campanhas; cada uma gera QR (com `utm_source=qrcode&utm_medium=impresso` embutido) e link copiável pra colar no gerenciador de anúncios.
+- **`src/features/leads/LeadsTab.jsx`** — fila "Leads sem vendedor" ordenada por pontuação (quentes primeiro), nova coluna Perfil (pts + temperatura + resumo do quiz), origem detalhada (campanha + utm_campaign), bairro/cidade no card.
+- **`src/apps/VendedorApp.jsx`** + **`dataService.js`** — contexto "QR Code" generalizado pra **"Captação"**: agora cobre `qrcode`/`formulario`/`simulador` (corrige lacuna em que leads de formulário distribuídos não apareciam pro vendedor); card do lead exibe o perfil de consumo declarado.
+- **Testes:** `tests/simulador.unit.test.js` (40 asserts, catálogo+scoring, incluído em `npm run test:unit`) e `tests/simulador.test.js` (6 E2E do wizard em modo local).
+- **Docs:** D-072 em `DECISIONS.md`, `SYSTEM_MAP.md`, `CLAUDE.md`, plano em `doc/simulador/SIMULADOR_IMPLEMENTATION_PLAN.md` (F0–F4 ✅).
+
+**Por que mudou**
+- Pedido do responsável pelo sistema: transformar a captura de contato em lead qualificado (quem é, como usa internet, qual produto faz sentido, nível de intenção), com o mesmo link servindo campanhas de tráfego pago geolocalizadas e QR em material impresso — tudo acoplado ao CRM existente, nunca um sistema separado. Base pronta pra fase territorial (F5, mapa interno de demanda por cidade/bairro).
+
+**Ações manuais necessárias (ordem importa)**
+1. Rodar `supabase/migracao-simulador.sql` no SQL Editor + `NOTIFY pgrst, 'reload schema';` — **ANTES do merge/deploy do frontend** (`LEADS_COLS`/`leadToDb` referenciam as colunas novas).
+2. Deploy das Edge Functions `submeter-simulador` (nova) e `submeter-formulario` (refatorada) — depois, smoke test do formulário público existente.
+3. LGPD antes do 1º go-live de campanha: linha nova no RIPD/ROPA + menção na Política de Privacidade (perfil comportamental + UTM) — ver §10 do plano.
+
+---
+
 ## [v5.15] — Fecha drift do PA-11 (RLS de leads) + 3 quick wins de performance
 **Data:** 2026-07-07
 **Branch:** `claude/system-sales-readiness-4sbgqq`

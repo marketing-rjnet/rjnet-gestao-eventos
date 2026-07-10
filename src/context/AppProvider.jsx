@@ -13,6 +13,7 @@ import { createEquipeApi } from '../api/equipeApi';
 import { createOfertaApi } from '../api/ofertaApi';
 import { createFormularioApi } from '../api/formularioApi';
 import { createCampoPersonalizadoApi } from '../api/campoPersonalizadoApi';
+import { createSimuladorApi } from '../api/simuladorApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -26,6 +27,8 @@ export function AppProvider({ children }) {
   const [formularios, setFormularios] = usePersisted("rjnet_formularios", []);
   // Campos personalizados (sempre texto livre) reutilizáveis entre formulários
   const [camposPersonalizados, setCamposPersonalizados] = usePersisted("rjnet_campos_personalizados", []);
+  // Simulador: campanhas de captação gamificada (QR + link de tráfego pago)
+  const [simuladores, setSimuladores] = usePersisted("rjnet_simuladores", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -53,6 +56,7 @@ export function AppProvider({ children }) {
     setOfertas(dados.ofertas);
     setFormularios(dados.formularios);
     setCamposPersonalizados(dados.camposPersonalizados);
+    setSimuladores(dados.simuladores);
     // TB-004/D-058: recarrega leads do contexto ativo (evento ou mês) quando realtime dispara
     const ctx = leadsContextRef.current;
     if (ctx?.tipo === 'evento') {
@@ -113,7 +117,7 @@ export function AppProvider({ children }) {
       if (evento === 'SIGNED_OUT') {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
-        setOfertas([]); setOfertasEnviadas([]); setFormularios([]); setCamposPersonalizados([]);
+        setOfertas([]); setOfertasEnviadas([]); setFormularios([]); setCamposPersonalizados([]); setSimuladores([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -153,6 +157,9 @@ export function AppProvider({ children }) {
   const { addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado } =
     createCampoPersonalizadoApi({ camposPersonalizados, setCamposPersonalizados });
 
+  const { addSimulador, updateSimulador, removeSimulador } =
+    createSimuladorApi({ simuladores, setSimuladores });
+
   // TB-009: antes recalculava o flatMap sobre eventos/materiais a cada
   // chamada de getMateriaisDisponiveis() (EstoqueTab, Dashboard, EventDetail
   // chamam em todo render). Memoizado por [materiais, eventos] — a função
@@ -169,7 +176,7 @@ export function AppProvider({ children }) {
   [materiais, eventos]);
 
   const value = useMemo(() => ({
-    materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados,
+    materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados, simuladores,
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
@@ -180,6 +187,7 @@ export function AppProvider({ children }) {
     saveOferta, removeOferta, registrarOfertaEnviada,
     addFormulario, updateFormulario, removeFormulario,
     addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado,
+    addSimulador, updateSimulador, removeSimulador,
     obterRanking, obterRankingMes,
     recarregar: carregar,
     carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode,
@@ -190,7 +198,7 @@ export function AppProvider({ children }) {
     ofertaJaEnviada: (leadId, servico) => ofertasEnviadas.some((o) => o.leadId === leadId && o.servico === servico),
     getMateriaisDisponiveis: () => materiaisDisponiveis,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, isLoading, syncStatus, materiaisDisponiveis]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, simuladores, isLoading, syncStatus, materiaisDisponiveis]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

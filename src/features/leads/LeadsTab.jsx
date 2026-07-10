@@ -3,17 +3,20 @@ import { useApp } from '../../hooks/useApp';
 import { Icon } from '../../components/ui';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
 import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
-import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, db } from '../../lib/dataService';
+import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, demandaPorRegiao, db } from '../../lib/dataService';
 import { isSupabaseMode } from '../../lib/mode';
+import { resumoPerfil } from '../../lib/simulador';
 
-const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário' };
+const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário', simulador: 'Simulador' };
+
+const TEMPERATURA_COR = { frio: '#60a5fa', morno: '#fb923c', quente: '#ef4444', convertido: '#22c55e' };
 
 // Distribuição: leads sem contexto operacional (QR Code, Form Builder e
 // futuros canais frios) chegam sem vendedor. Marketing/Comercial atribui
 // manualmente — a mesma operação de negócio pra qualquer origem, sem regra
 // nova por canal.
 function FilaDistribuicao() {
-  const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados } = useApp();
+  const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados, simuladores } = useApp();
   const [leadsRemotos, setLeadsRemotos] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
@@ -30,7 +33,25 @@ function FilaDistribuicao() {
   // modo), então já dá pra filtrar direto do contexto compartilhado.
   const carregar = () => { fetchLeadsSemVendedor().then(setLeadsRemotos); };
   useEffect(carregar, []);
-  const leadsFrios = isSupabaseMode() ? leadsRemotos : leadsCompartilhados.filter((l) => l.origem);
+  const leadsBrutos = isSupabaseMode() ? leadsRemotos : leadsCompartilhados.filter((l) => l.origem);
+
+  // Simulador: leads chegam com pontuação de intenção calculada no servidor —
+  // os mais quentes sobem pro topo da fila pra serem distribuídos primeiro.
+  // Leads sem pontuação (QR/formulário) mantêm a ordem por data.
+  const leadsFrios = leadsBrutos && [...leadsBrutos].sort((a, b) =>
+    (b.pontuacao ?? -1) - (a.pontuacao ?? -1) || new Date(b.criadoEm) - new Date(a.criadoEm)
+  );
+
+  // Detalhe da origem: campanha do simulador (nome legível) + utm_campaign
+  // do anúncio, quando presentes.
+  const nomeSimulador = (id) => simuladores.find((s) => s.id === id)?.nome;
+  const origemDetalhe = (l) => {
+    const partes = [ORIGEM_LABEL[l.origem] || l.origem];
+    if (l.qrCodeLabel) partes.push(l.qrCodeLabel);
+    if (l.simuladorId && nomeSimulador(l.simuladorId)) partes.push(nomeSimulador(l.simuladorId));
+    if (l.utm?.utm_campaign) partes.push(l.utm.utm_campaign);
+    return partes.join(' — ');
+  };
 
   const atribuir = (leadId, vendedorId) => {
     const v = vendedoresAtivos.find((x) => x.id === vendedorId);
@@ -82,23 +103,50 @@ function FilaDistribuicao() {
               <th>Nome</th>
               <th>Telefone</th>
               <th>Interesse</th>
+              <th>Perfil</th>
               <th>Origem</th>
               <th>Responsável</th>
               <th style={{ width: 200 }}></th>
             </tr>
           </thead>
           <tbody>
-            {leadsFrios.map((l) => (
+            {leadsFrios.map((l) => {
+              const resumo = resumoPerfil(l.perfilConsumo);
+              return (
               <tr key={l.id}>
                 <td>
                   <div className="strong">{l.nome}</div>
+                  {(l.cidade || l.bairro) && (
+                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{[l.bairro, l.cidade].filter(Boolean).join(', ')}</div>
+                  )}
                   {camposExtrasTexto(l) && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{camposExtrasTexto(l)}</div>}
                 </td>
                 <td>{l.telefone}</td>
                 <td>{servicoLabel(l.servicoInteresse)}</td>
-                <td style={{ color: 'var(--text-3)', fontSize: 12 }}>
-                  {ORIGEM_LABEL[l.origem] || l.origem}{l.qrCodeLabel ? ` — ${l.qrCodeLabel}` : ''}
+                <td style={{ fontSize: 12 }}>
+                  {/* D-077: leads do Simulador de Oferta não têm pontuação (sempre quente, sem
+                      score de intenção) — perfil/pacote/combo só vêm de resumoPerfil(), então
+                      esse bloco não pode ficar preso a `pontuacao != null` (senão some pro "—"). */}
+                  {l.pontuacao != null && (
+                    <span style={{ fontWeight: 700, color: TEMPERATURA_COR[l.temperatura] || 'var(--text-2)' }}>
+                      {l.pontuacao} pts · {l.temperatura}
+                    </span>
+                  )}
+                  {l.pontuacao == null && l.perfilConsumo && (
+                    <span style={{ fontWeight: 700, color: TEMPERATURA_COR[l.temperatura] || 'var(--text-2)', textTransform: 'capitalize' }}>
+                      {l.temperatura}
+                    </span>
+                  )}
+                  {resumo.length > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', maxWidth: 220 }}>
+                      {resumo.join(' · ')}
+                    </div>
+                  )}
+                  {l.pontuacao == null && !l.perfilConsumo && (
+                    <span style={{ color: 'var(--text-3)' }}>—</span>
+                  )}
                 </td>
+                <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{origemDetalhe(l)}</td>
                 <td>{l.vendedorNome || <span style={{ color: 'var(--text-3)' }}>Não atribuído</span>}</td>
                 <td>
                   <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -139,6 +187,69 @@ function FilaDistribuicao() {
                     )}
                   </span>
                 </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// D-073: inteligência territorial — contagem de interessados por
+// cidade/bairro (campanhas territoriais do Simulador + qualquer captação
+// digital com localização). Relatório interno agregado, sem dado pessoal;
+// NUNCA expõe cobertura de rede (esse dado nem existe no sistema).
+function DemandaPorRegiao() {
+  const { leads: leadsCompartilhados } = useApp();
+  const [linhas, setLinhas] = useState(null);
+
+  const agregarLocal = () => {
+    const mapa = new Map();
+    leadsCompartilhados
+      .filter((l) => l.origem && (l.cidade || l.bairro))
+      .forEach((l) => {
+        const chave = `${l.cidade || '(não informado)'}|${l.bairro || '(não informado)'}`;
+        mapa.set(chave, (mapa.get(chave) || 0) + 1);
+      });
+    return [...mapa.entries()]
+      .map(([chave, total]) => { const [cidade, bairro] = chave.split('|'); return { cidade, bairro, total }; })
+      .sort((a, b) => a.cidade.localeCompare(b.cidade) || b.total - a.total);
+  };
+
+  const carregar = () => {
+    if (isSupabaseMode()) demandaPorRegiao().then(setLinhas);
+    else setLinhas(agregarLocal());
+  };
+  useEffect(carregar, []);
+
+  if (!linhas || linhas.length === 0) return null;
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span className="section-title" style={{ marginBottom: 0 }}>Demanda por região</span>
+        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+      </div>
+      <p className="tab-desc" style={{ marginBottom: 12 }}>
+        Interessados captados digitalmente (Simulador, formulários) por cidade e bairro — inteligência comercial interna.
+      </p>
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cidade</th>
+              <th>Bairro</th>
+              <th style={{ textAlign: 'right' }}>Interessados</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((r) => (
+              <tr key={`${r.cidade}|${r.bairro}`}>
+                <td className="strong">{r.cidade}</td>
+                <td>{r.bairro}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--rj-blue)' }}>{r.total}</td>
               </tr>
             ))}
           </tbody>
@@ -334,6 +445,8 @@ export function LeadsTab({ session }) {
       </div>
 
       <FilaDistribuicao />
+
+      <DemandaPorRegiao />
 
       {/* D-058: leads do dia a dia, fora de eventos — mesmo padrão da tabela acima */}
       <div className="page-head" style={{ marginTop: 28 }}>

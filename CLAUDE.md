@@ -20,6 +20,7 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/CHANGELOG.md` | Histórico de mudanças por versão | Consulta histórica |
 | `doc/BOAS_PRATICAS.md` | **Boas práticas e dicas do sistema** — fluxo de desenvolvimento, git, preview Vercel, commits atômicos, princípios de UX | Referência geral; ao iniciar qualquer sessão de desenvolvimento |
 | `doc/SEGURANCA_MODERACAO.md` | **Moderação da captação pública** — processo de remoção/denúncia para conteúdo ilegal submetido via formulário público, proteções técnicas em vigor (D-067) | Antes de alterar o formulário público ou lidar com um lead suspeito/ilegal |
+| `doc/simulador/SIMULADOR_IMPLEMENTATION_PLAN.md` | **Plano de implementação do Simulador de Perfil de Consumo** — captação gamificada via QR Code + link (campanhas de tráfego com UTM), scoring de intenção, inteligência territorial de demanda; **F0–F4 implementadas (D-072)**, F5 territorial e F6 documental/LGPD pendentes | Antes de implementar qualquer parte restante do Simulador |
 | `doc/architecture/ARCHITECTURE_FIX_PLAN.md` | Plano de correções arquiteturais pós-auditoria (D-030) — desvios identificados e corrigidos | Antes de qualquer refatoração estrutural ou auditoria de conformidade arquitetural |
 | 🗂️ `doc/architecture/historico/REFATORAÇÃO.md` | **HISTÓRICO.** Estado da refatoração original de `main.jsx` (18/18 concluídas) | Raramente — refatoração encerrada |
 | `doc/lgpd/LGPD_AUDIT_AND_COMPLIANCE.md` | **Auditoria oficial de LGPD, segurança e governança** — não conformidades, matriz de dados, riscos | Antes de qualquer alteração que envolva coleta, armazenamento ou compartilhamento de dados |
@@ -69,7 +70,8 @@ src/
 │   ├── ofertaApi.js      # Factory createOfertaApi — ofertas por serviço + registro de envio (D-057)
 │   ├── equipeApi.js      # Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
 │   ├── formularioApi.js  # Factory createFormularioApi — CRUD de formulários do Form Builder (D-062)
-│   └── campoPersonalizadoApi.js # Factory createCampoPersonalizadoApi — campos personalizados reutilizáveis (D-063)
+│   ├── campoPersonalizadoApi.js # Factory createCampoPersonalizadoApi — campos personalizados reutilizáveis (D-063)
+│   └── simuladorApi.js   # Factory createSimuladorApi — campanhas do Simulador (D-072)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -121,11 +123,15 @@ src/
 │   ├── monitoring/
 │   │   ├── MonitoringTab.jsx # Diagnóstico ao vivo: cards, feed 9 tipos, toolbar sessão ▶/■, limpar log (D-044–D-051)
 │   │   └── index.js          # Re-export de monitoring (D-044)
-│   └── formularios/
-│       ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065)
-│       └── index.js          # Re-export de formularios (D-062)
+│   ├── formularios/
+│   │   ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065)
+│   │   └── index.js          # Re-export de formularios (D-062)
+│   └── simulador/
+│       ├── SimuladorTab.jsx  # Campanhas do Simulador: CRUD + QR (UTM impresso embutido) + link copiável pra tráfego, marketing only (D-072)
+│       └── index.js          # Re-export de simulador (D-072)
 ├── public/
-│   └── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
+│   ├── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
+│   └── SimuladorPublico.jsx    # Página pública do quiz gamificado /s/:slug — wizard, resultado antes do contato, captura UTM (D-072)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
@@ -144,7 +150,8 @@ src/
     ├── crypto.js         # PA-05/LGPD: AES-GCM 256 + PBKDF2 para criptografia da fila offline
     ├── security.js       # Sanitização e XSS prevention
     ├── cache.js          # Cache em memória com TTL
-    ├── localPublicSubmit.js # Fallback local (sem Supabase) para a página pública do Form Builder — dev/teste only (D-062)
+    ├── localPublicSubmit.js # Fallback local (sem Supabase) para as páginas públicas (Form Builder, Simulador) — dev/teste only (D-062, D-072)
+    ├── simulador.js      # Catálogo fixo PERGUNTAS_SIMULADOR + scoring (calcularPerfil/resumoPerfil) — sem imports, espelhado em Deno (D-072)
     └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, CAMPOS_FORMULARIO (etapas 5, D-062)
 
 supabase/
@@ -160,16 +167,21 @@ supabase/
 ├── migracao-form-builder.sql      # Tabela formularios + RLS anon (D-062)
 ├── migracao-campos-personalizados.sql # Tabela campos_personalizados + RLS anon + leads.campos_extras (D-063)
 ├── migracao-moderacao-formulario.sql  # Coluna leads.origem_ip + índice para rate limit (D-067)
+├── migracao-simulador.sql   # Tabela simuladores + colunas simulador_id/perfil_consumo/pontuacao/oferta_recomendada/cidade/utm em leads (D-072)
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
+    ├── _shared/captacao.ts               # CORS, sanitização, validadores e rate limit compartilhados das portas públicas (D-072)
     ├── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
-    └── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder; bloqueio de link, IP e rate limit (D-062, D-063, D-067)
+    ├── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder; bloqueio de link, IP e rate limit (D-062, D-063, D-067)
+    └── submeter-simulador/index.ts       # Edge Function pública — submissão do Simulador; recalcula score/temperatura/oferta no servidor (D-072)
 
 tests/
 ├── security.test.js      # E2E: SQL injection, XSS
 ├── security.unit.test.js # Unit: funções de sanitização
 ├── lead.unit.test.js     # Unit: validação de leads
+├── simulador.unit.test.js # Unit: catálogo + scoring do Simulador (importa o módulo real, D-072)
+├── simulador.test.js     # E2E: wizard público do Simulador em modo local (D-072)
 ├── comercial.test.js     # E2E: dashboard comercial
 ├── estoque.test.js       # E2E: inventário
 ├── marketing.test.js     # E2E: dashboard marketing
@@ -233,6 +245,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | `oferta_envios` | Indicador de clique em "Enviar oferta" por lead/serviço — não é confirmação de entrega; também aceita evento OU mês (D-057, D-058) |
 | `formularios` | Formulários do Form Builder — nome, slug, campos escolhidos do catálogo fixo, campos personalizados vinculados, obrigatoriedade; leitura `anon` restrita a `ativo=true` (D-062) |
 | `campos_personalizados` | Catálogo de campos de texto livre reutilizáveis entre formulários, criados pelo marketing; leitura `anon` restrita a `ativo=true` (D-063) |
+| `simuladores` | Campanhas do Simulador de Perfil de Consumo — só identidade (nome, slug, tipo, agrupador); questionário é catálogo fixo em código (`src/lib/simulador.js`); leitura `anon` restrita a `ativo=true` (D-072) |
 
 ### Enums usados nos dados
 
@@ -243,7 +256,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **metas do vendedor:** `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` — `META_DIARIA` é alias de `META_OURO`
 - **papel perfil:** `marketing`, `vendedor`, `comercial` (D-059 — mesmo nível do marketing em eventos/ofertas/leads, sem estoque nem gestão de equipe)
 - **mês de referência do lead (D-058):** `mes_referencia` é `date` com o primeiro dia do mês (ex: `2026-07-01`); `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos (`check (num_nonnulls(evento_id, mes_referencia) <= 1)` — relaxado de `= 1` para `<= 1` em D-061, permitindo leads sem nenhum dos dois: origem QR Code/Formulário)
-- **atribuição do lead (D-061, D-062, D-063):** `origem` (`evento`/`mes`/`qrcode`/`formulario`), `qr_code_id`/`qr_code_label`, `formulario_id`, `bairro`, `campos_extras` (JSONB) — eixo ortogonal ao contexto operacional (evento/mês); leads de QR Code/Formulário não têm `vendedor_id` até serem distribuídos pelo marketing/comercial
+- **atribuição do lead (D-061, D-062, D-063, D-072):** `origem` (`evento`/`mes`/`qrcode`/`formulario`/`simulador`), `qr_code_id`/`qr_code_label`, `formulario_id`, `simulador_id`, `bairro`/`cidade`, `campos_extras` (JSONB), `perfil_consumo`/`pontuacao`/`oferta_recomendada` (Simulador, calculados no servidor), `utm` (JSONB, atribuição de tráfego) — eixo ortogonal ao contexto operacional (evento/mês); leads de captação digital não têm `vendedor_id` até serem distribuídos pelo marketing/comercial
 
 ### RLS (Row Level Security)
 
@@ -294,6 +307,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
 | Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
+| Simulador | marketing | Campanhas do quiz gamificado de perfil de consumo — cada campanha gera link (tráfego pago, UTMs do gerenciador) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072) |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
@@ -361,6 +375,13 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/equipeApi.js` | ~29 | Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase) |
 | `src/api/formularioApi.js` | ~22 | Factory createFormularioApi — CRUD de formulários do Form Builder (D-062) |
 | `src/api/campoPersonalizadoApi.js` | ~31 | Factory createCampoPersonalizadoApi — CRUD de campos personalizados reutilizáveis (D-063) |
+| `src/api/simuladorApi.js` | ~28 | Factory createSimuladorApi — CRUD de campanhas do Simulador (D-072) |
+| `src/lib/simulador.js` | ~180 | Catálogo fixo PERGUNTAS_SIMULADOR + scoring calcularPerfil/resumoPerfil — sem imports, testável standalone e espelhado em Deno (D-072) |
+| `src/public/SimuladorPublico.jsx` | ~310 | Página pública do quiz /s/:slug — wizard 1 pergunta/tela, resultado antes do contato, captura de UTM, honeypot (D-072) |
+| `src/features/simulador/SimuladorTab.jsx` | ~160 | Gestão de campanhas: CRUD + QR com UTM impresso embutido + link copiável pra tráfego, marketing only (D-072) |
+| `supabase/migracao-simulador.sql` | ~95 | Tabela simuladores + RLS anon + colunas do Simulador em leads + índices (D-072) |
+| `supabase/functions/_shared/captacao.ts` | ~80 | Miolo compartilhado das Edge Functions públicas: CORS, sanitização, containsLink, rate limit por IP (D-072) |
+| `supabase/functions/submeter-simulador/index.ts` | ~200 | Edge Function pública — valida respostas contra catálogo fixo, recalcula score/temperatura/oferta no servidor, sanitiza UTM (D-072) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/apps/ComercialApp.jsx` | ~67 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |

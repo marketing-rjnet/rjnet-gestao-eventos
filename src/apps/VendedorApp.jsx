@@ -7,6 +7,7 @@ import { SERVICO_LABEL, TIPO_LABEL, servicoLabel, mesesDoAno, mesReferenciaLabel
 import { maskCpf, maskTel, validarTelefone } from '../utils/masks';
 import { sanitizeText } from '../lib/security';
 import { META_BRONZE, META_PRATA, META_OURO, META_DIARIA, STATUS_EVENTO, TOAST_DURATION_MS } from '../lib/constants';
+import { resumoPerfil, PACOTES_INTERNET, APPS_ADICIONAIS, PLANOS_MOVEL } from '../lib/simulador';
 import { SearchInput } from '../components/SearchInput';
 
 const TEMPERATURA_CONFIG = {
@@ -218,7 +219,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     ? leads.filter((l) => l.eventoId === eventoId && l.vendedorNome === session.vendedorNome)
     : contextoTipo === "mes"
     ? leads.filter((l) => l.mesReferencia === mesSelecionado && l.vendedorNome === session.vendedorNome)
-    : leads.filter((l) => l.origem === "qrcode" && l.vendedorNome === session.vendedorNome);
+    : leads.filter((l) => l.origem && l.vendedorNome === session.vendedorNome);
 
   const pct = Math.min((leadsDoContexto.length / META_OURO) * 100, 100);
   const metaBronze = leadsDoContexto.length >= META_BRONZE;
@@ -269,7 +270,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
     } else if (contextoTipo === "mes") {
       if (!mesSelecionado) return "Selecione um mês antes de registrar.";
     } else {
-      return "Leads de QR Code chegam automaticamente — não é possível registrar manualmente neste contexto.";
+      return "Leads de captação digital chegam automaticamente — não é possível registrar manualmente neste contexto.";
     }
     return "";
   };
@@ -347,7 +348,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               Atividade do Mês
             </button>
             <button type="button" className={"seg-btn" + (contextoTipo === "qrcode" ? " active" : "")} onClick={() => { setContextoTipo("qrcode"); setEditandoId(null); }}>
-              QR Code
+              Captação
             </button>
           </div>
         </div>
@@ -382,9 +383,9 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
         {aba === "registrar" && contextoTipo === "qrcode" && (
           <div className="empty" style={{ padding: "48px 16px", textAlign: "center" }}>
             <Icon name="search" size={36} stroke="var(--text-3)" />
-            <div style={{ marginTop: 12, fontWeight: 700, fontSize: 15, color: "var(--text-2)" }}>Leads de QR Code chegam automaticamente</div>
+            <div style={{ marginTop: 12, fontWeight: 700, fontSize: 15, color: "var(--text-2)" }}>Leads de captação digital chegam automaticamente</div>
             <div style={{ marginTop: 6, fontSize: 13, color: "var(--text-3)", maxWidth: 280, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
-              Quem escaneia um QR Code preenche os próprios dados. O marketing distribui esses leads para você — acompanhe em "Meus Leads".
+              Quem escaneia um QR Code ou responde um formulário/simulador preenche os próprios dados. O marketing distribui esses leads para você — acompanhe em "Meus Leads".
             </div>
           </div>
         )}
@@ -587,7 +588,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 <div style={{ marginTop: 12, color: "var(--text-3)", fontSize: 14 }}>
                   {contextoTipo === "evento" ? "Nenhum lead registrado neste evento ainda."
                     : contextoTipo === "mes" ? "Nenhum lead registrado neste mês ainda."
-                    : "Nenhum lead de QR Code distribuído a você ainda."}
+                    : "Nenhum lead de captação digital distribuído a você ainda."}
                 </div>
               </div>
             ) : (
@@ -598,7 +599,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                   placeholder="Buscar por nome…"
                   onClear={() => setBuscaLead("")}
                 />
-                <h3>{leadsDoContexto.length} lead{leadsDoContexto.length > 1 ? "s" : ""} {contextoTipo === "evento" ? "neste evento" : contextoTipo === "mes" ? "neste mês" : "via QR Code"}</h3>
+                <h3>{leadsDoContexto.length} lead{leadsDoContexto.length > 1 ? "s" : ""} {contextoTipo === "evento" ? "neste evento" : contextoTipo === "mes" ? "neste mês" : "de captação digital"}</h3>
                 {leadsDoContexto.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).length === 0 ? (
                   <div style={{ textAlign: "center", color: "var(--text-3)", fontSize: 13, padding: "24px 0" }}>Nenhum lead com esse nome.</div>
                 ) : leadsDoContexto.filter((l) => !buscaLead.trim() || l.nome.toLowerCase().includes(buscaLead.toLowerCase())).map((l) => {
@@ -648,6 +649,13 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                           </div>
                           {camposExtrasTexto(l) && (
                             <div className="lm-sub" style={{ marginTop: 2, fontSize: 11, color: "var(--text-3)" }}>{camposExtrasTexto(l)}</div>
+                          )}
+                          {/* Simulador: perfil de consumo declarado pelo próprio lead —
+                              o vendedor aborda já sabendo a dor e o uso da casa */}
+                          {l.perfilConsumo && resumoPerfil(l.perfilConsumo).length > 0 && (
+                            <div className="lm-sub" style={{ marginTop: 2, fontSize: 11, color: "var(--text-3)" }}>
+                              Perfil: {resumoPerfil(l.perfilConsumo).join(" · ")}
+                            </div>
                           )}
                           <div className="lm-contacts">
                             <a href={"https://wa.me/55" + tel} target="_blank" rel="noreferrer" className="lm-contact-btn lm-contact-whats">
@@ -699,12 +707,12 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               <table className="pacotes-table">
                 <thead><tr><th>Plano</th><th>Valor</th></tr></thead>
                 <tbody>
-                  <tr><td>60 Mega</td><td>R$ 49,90</td></tr>
-                  <tr><td>90 Mega</td><td>R$ 74,90</td></tr>
-                  <tr><td>120 Mega</td><td>R$ 79,90</td></tr>
-                  <tr><td>240 Mega</td><td>R$ 89,90</td></tr>
-                  <tr className="pacotes-destaque"><td>420 Mega ⭐</td><td>R$ 99,90</td></tr>
-                  <tr><td>680 Mega</td><td>R$ 119,90</td></tr>
+                  {PACOTES_INTERNET.map((p) => (
+                    <tr key={p.mega} className={p.destaque ? 'pacotes-destaque' : undefined}>
+                      <td>{p.mega} Mega{p.destaque ? ' ⭐' : ''}</td>
+                      <td>R$ {p.preco.toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -741,10 +749,9 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
               <table className="pacotes-table">
                 <thead><tr><th>Plano</th><th>Franquia</th><th>Valor</th></tr></thead>
                 <tbody>
-                  <tr><td>Pré</td><td>2 GB</td><td>R$ 29,90</td></tr>
-                  <tr><td>Controle</td><td>10 GB</td><td>R$ 39,90</td></tr>
-                  <tr><td>Controle</td><td>24 GB</td><td>R$ 54,90</td></tr>
-                  <tr><td>Controle</td><td>35 GB</td><td>R$ 69,90</td></tr>
+                  {PLANOS_MOVEL.map((p) => (
+                    <tr key={p.key}><td>{p.plano}</td><td>{p.franquia}</td><td>R$ {p.preco.toFixed(2).replace('.', ',')}</td></tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -753,36 +760,17 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
             <div className="pacotes-section">
               <div className="pacotes-section-title">🎁 Apps</div>
               <div className="pacotes-apps-grid">
-                <div className="pacotes-app-card pacotes-app-yellow">
-                  <div className="pacotes-app-header">
-                    <span className="pacotes-app-name">Yellow</span>
-                    <span className="pacotes-app-price">R$ 15,00/mês</span>
+                {APPS_ADICIONAIS.map((app) => (
+                  <div key={app.key} className={`pacotes-app-card pacotes-app-${app.key}`}>
+                    <div className="pacotes-app-header">
+                      <span className="pacotes-app-name">{app.nome}</span>
+                      <span className="pacotes-app-price">R$ {app.preco.toFixed(2).replace('.', ',')}/mês</span>
+                    </div>
+                    <ul className="pacotes-app-list">
+                      {app.itens.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
                   </div>
-                  <ul className="pacotes-app-list">
-                    <li>Deezer</li>
-                    <li>Ubook</li>
-                    <li>Kaspersky</li>
-                    <li>PlayKids</li>
-                    <li>Estuda+</li>
-                    <li>HUB Vantagens</li>
-                    <li>e outros</li>
-                  </ul>
-                </div>
-                <div className="pacotes-app-card pacotes-app-black">
-                  <div className="pacotes-app-header">
-                    <span className="pacotes-app-name">Black</span>
-                    <span className="pacotes-app-price">R$ 30,00/mês</span>
-                  </div>
-                  <ul className="pacotes-app-list">
-                    <li>Max</li>
-                    <li>Disney+</li>
-                    <li>NBA</li>
-                    <li>Smart Fit</li>
-                    <li>Zen</li>
-                    <li>Queima Diária</li>
-                    <li>Kaspersky</li>
-                  </ul>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -849,7 +837,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                 {contextoTipo === "qrcode" ? (
                   <div className="ev-info-card">
                     <div className="ev-info-row">
-                      <span className="ev-info-label">Total de leads via QR Code</span>
+                      <span className="ev-info-label">Total de leads de captação digital</span>
                       <span className="ev-info-value" style={{ fontWeight: 700, color: "var(--rj-blue)" }}>{leadsDoContexto.length}</span>
                     </div>
                   </div>

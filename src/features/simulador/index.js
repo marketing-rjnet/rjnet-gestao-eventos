@@ -1,0 +1,1 @@
+export { SimuladorTab } from './SimuladorTab';

@@ -9,6 +9,7 @@ import './index.css';
 import { AppProvider } from './context';
 import Root from './apps/Root';
 import FormularioPublico from './public/FormularioPublico';
+import SimuladorPublico from './public/SimuladorPublico';
 
 Chart.register(...registerables);
 
@@ -40,11 +41,16 @@ class ErrorBoundary extends Component {
 // /qr/:id do gerador de QR Code standalone foi retirada — todo QR Code
 // agora nasce de um formulário do Form Builder, em /f/:slug.)
 const formMatch = window.location.pathname.match(/^\/f\/([^/]+)\/?$/);
+// Simulador de Perfil de Consumo: mesma exceção mínima, em /s/:slug —
+// página pública do quiz gamificado (campanhas de tráfego pago + QR).
+const simMatch = window.location.pathname.match(/^\/s\/([^/]+)\/?$/);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
     {formMatch ? (
       <FormularioPublico slug={decodeURIComponent(formMatch[1])} />
+    ) : simMatch ? (
+      <SimuladorPublico slug={decodeURIComponent(simMatch[1])} />
     ) : (
       <AppProvider><Root /></AppProvider>
     )}
