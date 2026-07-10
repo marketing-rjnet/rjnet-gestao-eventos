@@ -6,9 +6,26 @@
 > ponta a ponta (migração → Edge Function → página pública → gestão → fila/vendedor).
 > ✅ F5 (campanha territorial + relatório de demanda) implementada em 2026-07-08 (D-073).
 > ⏸️ Pendentes: itens LGPD/documentais da F6 (RIPD/ROPA/Política —
-> **gate obrigatório antes do primeiro go-live de campanha**, ver §10).
+> **gate obrigatório antes do primeiro go-live de campanha real com tráfego pago**, ver §10 — ainda não
+> resolvido em 2026-07-10, apesar de o produto ter evoluído bastante desde este plano original).
 > Criado em: 2026-07-08. Branch de desenvolvimento: `claude/rjnet-lead-simulator-x2p3kk`.
 > Decisão registrada em `DECISIONS.md` (D-072); `SYSTEM_MAP.md` + `CLAUDE.md` atualizados.
+>
+> 🗂️ **NOTA (2026-07-10) — este plano ficou parcialmente desatualizado pela evolução do produto**,
+> registrada em `DECISIONS.md` D-074 a D-077 e no changelog `doc/CHANGELOG.md` v5.18–v5.21.
+> Mudanças que divergem do que está escrito abaixo: (1) o tipo `territorial` da F5 foi **removido**
+> em D-076 — a pessoa nunca mais escolhe/vê "território" como opção, e o antigo papel de captação
+> qualificada sem pacote foi absorvido pelo novo tipo `demanda`; (2) o Simulador não é mais um único
+> tipo de campanha — são **2 tipos totalmente independentes e nunca encadeados**: `oferta` (quiz FIXO
+> de qualificação → perfil DEDUZIDO → pacote + combo, incluindo upsell de plano Móvel, D-074/D-077) e
+> `demanda` (perguntas configuráveis pelo marketing com peso por opção, D-075, → mensagem de resultado
+> personalizada pela campanha); (3) `PERGUNTAS_SIMULADOR` (catálogo fixo global do §4.1) não é mais a
+> fonte viva do questionário de `demanda` — virou só o molde inicial (`perguntasPadrao()`) e a fonte de
+> renderização de leads legados; o quiz de `oferta` tem seu PRÓPRIO catálogo fixo (`PERGUNTAS_OFERTA`),
+> diferente do de `demanda`. Para a arquitetura CORRENTE, use a seção "Simulador" de `SYSTEM_MAP.md`
+> como fonte de verdade — este documento continua útil como registro histórico do desenho original
+> (F0–F4) e de decisões estruturais que não mudaram (Edge Function recalcula tudo no servidor, UTM
+> como eixo de canal, snapshot em `leads.perfil_consumo`), mas não descreve o produto de hoje sozinho.
 
 ---
 
