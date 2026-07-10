@@ -4,6 +4,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.22] — Fix: fila de distribuição não mostrava perfil de leads do Simulador de Oferta; PR #80 mesclado em produção
+**Data:** 2026-07-10
+**Branch:** `claude/rjnet-lead-simulator-x2p3kk` → mesclado em `main`
+
+**O que mudou**
+- **`src/features/leads/LeadsTab.jsx`** — a coluna "Perfil" da fila "Leads sem vendedor" só renderizava quando `pontuacao != null`; leads do tipo `oferta` nascem com `pontuacao: null` por design (sempre quente, sem score de intenção — D-077), então o resumo de perfil/pacote/combo (`resumoPerfil()`) nunca aparecia, mesmo existindo. A condição de exibição passou a considerar a presença de `perfilConsumo`, não só de `pontuacao` — leads `demanda` continuam mostrando "X pts · temperatura", leads `oferta` passam a mostrar "Quente" + o resumo de perfil/pacote/combo.
+- **PR #80 mesclado em `main`** (squash) — todo o Simulador (D-072 a D-077: quiz gamificado, 2 tipos de campanha independentes Oferta/Demanda, perguntas configuráveis, dedução de perfil, upsell de plano Móvel) passa a fazer parte da produção. Confirmado pelo responsável após teste manual completo dos dois fluxos no ambiente de preview.
+
+**Por que mudou**
+- Reportado pelo responsável ao testar o fluxo completo do Simulador de Oferta em produção: o lead chegava certinho na fila (nome, telefone, interesse), mas a coluna Perfil ficava vazia. Causa raiz: guarda de exibição desatualizada, escrita antes do D-077 existir (quando só leads `demanda` tinham `perfilConsumo` sem `pontuacao` nula).
+
+**Ações manuais necessárias**
+- Nenhuma — mudança só de frontend, sem Edge Function nem SQL.
+
+---
+
 ## [v5.21] — Simulador de Oferta: perfil deduzido por quiz de qualificação + upsell de plano Móvel
 **Data:** 2026-07-09
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk`
