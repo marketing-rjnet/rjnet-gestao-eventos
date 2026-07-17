@@ -4,6 +4,33 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.23] — Segurança: hardening pós-auditoria (RLS, RPC destrutivo, rate limit, CSP, painel)
+**Data:** 2026-07-17
+**Branch:** `claude/security-audit-complete-jheena` → mesclado em `main` (PR #83)
+
+**O que mudou**
+- **`supabase/migracao-hardening-seguranca.sql`** (nova, idempotente — rodar por último + `NOTIFY pgrst`):
+  - **V-01 (Alta)** — `leads_select` consolidado com `vendedor_id = auth.uid()`: fecha a leitura de leads de colegas (nome/CPF/telefone/endereço) via REST direto. marketing/comercial mantêm leitura total; UI do vendedor já filtrava por `vendedorNome`, sem regressão.
+  - **V-02 (Média-Alta)** — `REVOKE EXECUTE` de `limpar_leads_expirados()` (SECURITY DEFINER destrutiva) de `public/anon/authenticated`. Só o `pg_cron` executa; o app nunca chama.
+  - **V-05 (Baixa-Média)** — `*_select_interno` de `formularios`/`campos_personalizados`/`simuladores`: `USING(true)` → `papel_atual() is not null`. Leitura anon pública (`ativo=true`) intacta.
+  - **V-06 (Baixa)** — remove policy de INSERT direto em `audit_log` (forja de trilha); escrita segue pelo trigger SECURITY DEFINER.
+- **`supabase/functions/_shared/captacao.ts`** — **V-03 (Média):** `getClientIp` usa a última entrada válida de `X-Forwarded-For` (não-forjável), não a primeira. Redeploy das Edge Functions `submeter-formulario` e `submeter-simulador`.
+- **`vercel.json`** — **V-07 (Baixa):** CSP ganha `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`.
+- **`doc/SEGURANCA_HARDENING.md`** (novo) — **V-04 (Média):** checklist versionado de hardening de painel/deploy (auto-cadastro off, confirmar e-mail, secret `CORS_ALLOWED_ORIGINS`, ordem de migrações, padrão `revoke` em SECURITY DEFINER, bucket público).
+- **Docs:** D-078 em `DECISIONS.md`/`SYSTEM_MAP.md`; `SEGURANCA_HARDENING.md` adicionado ao índice do `CLAUDE.md`.
+
+**Por que mudou**
+- Auditoria de segurança completa (Pentest + Code Review) solicitada pelo responsável classificou o risco geral como **ALTO** — não por falhas isoladas, mas por fragilidade sistêmica (ordem manual de migrações, settings de painel, secrets). Os 7 achados (V-01 a V-07) foram corrigidos preservando 100% do comportamento funcional.
+
+**Ações manuais necessárias (todas já executadas em produção)**
+- [x] Rodar `migracao-hardening-seguranca.sql` no SQL Editor **por último** + `NOTIFY pgrst` (4 checks de verificação OK).
+- [x] Redeploy das Edge Functions `submeter-formulario` e `submeter-simulador` (o painel usa cópia inline do `_shared` — colar `getClientIp` novo manualmente).
+- [x] Desativar "Permitir que novos usuários se cadastrem" no painel Supabase.
+- [x] Merge do PR #83 → deploy Vercel aplica a CSP.
+- **Recomendação de médio prazo (não urgente):** migrar para Supabase CLI (migração versionada) — mata a causa raiz do V-01 e o drift painel↔repositório das Edge Functions.
+
+---
+
 ## [v5.22] — Fix: fila de distribuição não mostrava perfil de leads do Simulador de Oferta; PR #80 mesclado em produção
 **Data:** 2026-07-10
 **Branch:** `claude/rjnet-lead-simulator-x2p3kk` → mesclado em `main`
