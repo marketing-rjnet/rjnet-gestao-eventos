@@ -2531,6 +2531,35 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-078] — Hardening de segurança pós-auditoria (RLS, RPC destrutivo, rate limit, CSP, painel)
+
+**Data:** 2026-07-17
+**Tipo:** Segurança
+
+**Contexto:** O responsável solicitou uma auditoria de segurança completa (Pentest + Code Review) do projeto — autenticação, Supabase Auth, RLS de todas as tabelas, Edge Functions, Storage, funções SQL, LGPD e OWASP Top 10 — com a exigência explícita de preservar 100% o comportamento funcional. A auditoria classificou o risco geral como **ALTO**, não por falhas isoladas, mas por **fragilidade sistêmica**: a postura de segurança depende de configuração externa (ordem manual de aplicação de migrações, settings do painel Supabase, secrets) que o repositório não garante. Sete achados foram identificados (V-01 a V-07) e corrigidos neste registro, todos sem alterar fluxos legítimos.
+
+**Decisão (correções aplicadas — nova migração `supabase/migracao-hardening-seguranca.sql`, idempotente, roda por último + `NOTIFY pgrst`):**
+- **V-01 (Alta) — `leads_select` consolidado com condição estrita:** a policy de SELECT de `leads` era redefinida por 6 migrações aplicadas manualmente, sem runner que garantisse ordem; versões de D-059 (`migracao-comercial.sql`) e D-061 (`migracao-qrcode.sql`) deixaram o branch do vendedor permissivo (`papel_atual() in (...,'vendedor')` ou `vendedor_id is not null`), permitindo a um vendedor autenticado ler leads de colegas (nome/CPF/telefone/endereço) via REST/PostgREST direto — a UI já filtrava por `vendedorNome`, mas a query crua não. Consolidada numa única fonte com a condição estrita do PA-11 (`vendedor_id = auth.uid()`). marketing/comercial mantêm leitura total (fila de distribuição). Sem regressão: todo lead com `auth.uid()` já nasce com `vendedor_id`, e o ranking é `security definer` (ignora RLS). Reforça e substitui a intenção de `migracao-rls-vendedor-leads-v2.sql`.
+- **V-02 (Média-Alta) — `REVOKE` da função de retenção:** `limpar_leads_expirados()` (SECURITY DEFINER, faz `DELETE` físico em `leads`) não tinha `revoke` — por padrão o Postgres concede `EXECUTE` a `PUBLIC`, tornando-a chamável por `anon`/`authenticated` via `/rest/v1/rpc/`. Revogada de `public, anon, authenticated`; só o job `pg_cron` (owner) a executa. Mesmo padrão já usado em `ranking_evento`/`ranking_mes`/`demanda_por_regiao`. O app nunca a chama.
+- **V-05 (Baixa-Média) — leituras internas restritas a papel ativo:** `formularios_select_interno`/`campos_personalizados_select_interno`/`simuladores_select_interno` usavam `to authenticated using (true)` — qualquer sessão autenticada (inclusive conta inativa recém-criada) lia todas as linhas, inclusive itens inativos e a lógica de pontuação. Trocado por `papel_atual() is not null`. A leitura pública `anon` (`ativo=true`) das páginas `/f` e `/s` **não** foi tocada.
+- **V-06 (Baixa) — `audit_log` não aceita mais INSERT direto:** a policy de insert usava `with check (true)` (forja de trilha por qualquer autenticado). Removida; a escrita legítima continua pelo trigger `log_lead_change` (SECURITY DEFINER, owner com BYPASSRLS). O app nunca insere em `audit_log` diretamente.
+- **V-03 (Média) — rate limit por IP não-forjável (`supabase/functions/_shared/captacao.ts`):** `getClientIp` usava a **primeira** entrada de `X-Forwarded-For`, que o cliente pode forjar por prepend, dando uma chave nova a cada request e zerando o rate limit das portas públicas. Passou a percorrer a cadeia de trás pra frente e usar a **última** entrada com formato de IP válido (a anexada pelo gateway confiável do Supabase). Caso normal de IP único: comportamento idêntico. Requer redeploy de `submeter-formulario` e `submeter-simulador` (as duas importam o `_shared`).
+- **V-07 (Baixa) — CSP endurecida (`vercel.json`):** adicionados `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` à Content-Security-Policy já existente. Nada carregado hoje é afetado.
+- **V-04 (Média) — auto-cadastro desativado (config de painel, não código):** o app nunca chama `signUp` (usuários são criados só pela Edge Function `atualizar-email-usuario` via Admin API, que ignora esse setting), mas o painel permitia auto-registro público por qualquer um com a anon key. Desativado "Permitir que novos usuários se cadastrem" no Supabase. Documentado em `doc/SEGURANCA_HARDENING.md` (novo checklist versionado de hardening de painel/deploy: signups off, confirmar e-mail, secret `CORS_ALLOWED_ORIGINS`, ordem de migrações, padrão `revoke` em SECURITY DEFINER, bucket público).
+
+**Alternativas Avaliadas:**
+- **Rate limit global (teto por janela) em vez de por IP** — descartada por ora: throttla picos legítimos (ex.: evento com muitas submissões simultâneas) e permite um atacante bloquear submissões legítimas ao saturar o teto. A correção do IP não-forjável resolve a raiz sem esse efeito colateral.
+- **CAPTCHA invisível nas portas públicas** — não implementado agora; anotado em `doc/SEGURANCA_HARDENING.md` como reforço futuro se o abuso persistir.
+- **Deixar V-03/V-04 para depois** — descartada: aplicados junto com o resto por serem baratos e de alto valor; V-04 é só um toggle de painel.
+
+**Arquivos Afetados:** `supabase/migracao-hardening-seguranca.sql` (nova migração idempotente — V-01/V-02/V-05/V-06), `supabase/functions/_shared/captacao.ts` (`getClientIp` — V-03; exige redeploy das 2 Edge Functions públicas), `vercel.json` (CSP — V-07), `doc/SEGURANCA_HARDENING.md` (novo — checklist de painel/deploy, V-04 e recomendações operacionais).
+
+**Riscos:** As correções de RLS/RPC/policies **não** se aplicam sozinhas — a migração precisa ser rodada no SQL Editor **como última** (a ambiguidade de ordem foi justamente a causa do V-01); as queries de verificação no rodapé do arquivo confirmam o estado final. As Edge Functions no painel estavam **inline** (cópia achatada do `_shared/captacao.ts`), divergentes do repositório — o `getClientIp` novo teve que ser colado manualmente em cada uma e redeployado; enquanto o deploy for pelo painel (e não via Supabase CLI), essa divergência painel↔repositório pode voltar. **Recomendação de médio prazo (não urgente, acordada com o responsável):** adotar migração versionada via Supabase CLI para eliminar tanto a ambiguidade de ordem (V-01) quanto o drift das Edge Functions. Relatório completo da auditoria e detalhamento de cada achado (severidade/exploração/impacto/probabilidade) foi entregue na sessão; o processo operacional de aplicação está em `doc/SEGURANCA_HARDENING.md`.
+
+**Status:** Ativa — aplicada em produção (migração SQL executada e verificada, 2 Edge Functions redeployadas, auto-cadastro desativado no painel, CSP mesclada na `main` via PR #83).
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
