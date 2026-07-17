@@ -49,10 +49,25 @@ export function containsLink(str: string): boolean {
   return /https?:\/\/|www\.|\.(com|net|org|br|io|co|me|xyz|info|link)\b/i.test(str);
 }
 
+// Hardening V-03: o IP usado como chave de rate limit precisa ser o que a
+// infraestrutura confiável (gateway do Supabase) enxerga na conexão, não um
+// valor que o cliente possa forjar. Em X-Forwarded-For o cliente consegue
+// PREPENDAR entradas falsas ("fakeip, ..., <ip-real>"), mas o gateway anexa o
+// IP real da conexão à DIREITA. Por isso percorremos a cadeia de trás pra
+// frente e pegamos a ÚLTIMA entrada com formato de IP válido.
+//   - Caso normal (um único IP no header): comportamento idêntico ao anterior.
+//   - Caso de cadeia forjada: ignora o que o cliente prependou.
+const IP_RE = /^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-fA-F:]+$/;
+
 export function getClientIp(req: Request): string | null {
   const fwd = req.headers.get('x-forwarded-for');
   if (!fwd) return null;
-  return fwd.split(',')[0].trim().slice(0, 45) || null;
+  const partes = fwd.split(',').map((p) => p.trim()).filter(Boolean);
+  for (let i = partes.length - 1; i >= 0; i--) {
+    const ip = partes[i].slice(0, 45);
+    if (IP_RE.test(ip)) return ip;
+  }
+  return null;
 }
 
 // Rate limit simples por IP (D-067): reaproveita a própria tabela leads
