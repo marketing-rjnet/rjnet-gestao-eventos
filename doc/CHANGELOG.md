@@ -4,6 +4,25 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.23.1] — Operação: reativação do Supabase pausado, verificação do hardening em produção e registro do D-079
+**Data:** 2026-07-17
+**Branch:** commit vazio `ecf2ba2` direto na `main` (re-trigger de deploy) + docs via branch `claude/google-auth-user-classification-kvktvm`
+
+**O que mudou**
+- O projeto Supabase (Free Tier) estava **pausado por inatividade**, o que derrubou os deploys de produção na Vercel durante a janela da v5.23. Após a reativação pelo responsável, um commit vazio (`ecf2ba2`) na `main` forçou novo build de produção — o redeploy manual anterior havia reconstruído apenas uma *preview*, que não assume o domínio (e builda com env vars do escopo Preview).
+- **`migracao-hardening-seguranca.sql` executada no SQL Editor e verificada:** as 4 queries do rodapé passaram — V-01 (`leads_select` com `vendedor_id = auth.uid()`), V-02 (`EXECUTE` só para `service_role`/`postgres`), V-05 (3 policies com `papel_atual() IS NOT NULL`), V-06 (sem policy de INSERT em `audit_log`).
+- **Edge Functions conferidas sem drift:** as versões inline do painel de `submeter-formulario`/`submeter-simulador` já continham o `getClientIp` do V-03.
+- **D-079 registrado** (`DECISIONS.md`/`SYSTEM_MAP.md`): login social (Google OAuth) avaliado e **não** adotado — reabriria o auto-cadastro fechado pelo V-04; caminho futuro viável é Google apenas como método de login de contas pré-criadas pelo marketing. `doc/SEGURANCA_HARDENING.md` atualizado com o status de verificação (itens `[x]` datados) e nota operacional sobre a pausa do Free Tier.
+
+**Por que mudou**
+- Garantir que o hardening da v5.23 esteja de fato **ativo** em produção (banco + Edge Functions + painel + frontend), não apenas mesclado no repositório — e deixar rastro da verificação.
+
+**Ações manuais restantes**
+- [ ] Confirmar deploy de produção verde na Vercel pós-`ecf2ba2` e a CSP nova (V-07) respondendo no domínio.
+- [ ] Confirmar secret `CORS_ALLOWED_ORIGINS` com o domínio real de produção (Edge Functions → Secrets).
+
+---
+
 ## [v5.23] — Segurança: hardening pós-auditoria (RLS, RPC destrutivo, rate limit, CSP, painel)
 **Data:** 2026-07-17
 **Branch:** `claude/security-audit-complete-jheena` → mesclado em `main` (PR #83)

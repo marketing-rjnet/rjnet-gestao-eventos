@@ -2556,7 +2556,28 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 **Riscos:** As correções de RLS/RPC/policies **não** se aplicam sozinhas — a migração precisa ser rodada no SQL Editor **como última** (a ambiguidade de ordem foi justamente a causa do V-01); as queries de verificação no rodapé do arquivo confirmam o estado final. As Edge Functions no painel estavam **inline** (cópia achatada do `_shared/captacao.ts`), divergentes do repositório — o `getClientIp` novo teve que ser colado manualmente em cada uma e redeployado; enquanto o deploy for pelo painel (e não via Supabase CLI), essa divergência painel↔repositório pode voltar. **Recomendação de médio prazo (não urgente, acordada com o responsável):** adotar migração versionada via Supabase CLI para eliminar tanto a ambiguidade de ordem (V-01) quanto o drift das Edge Functions. Relatório completo da auditoria e detalhamento de cada achado (severidade/exploração/impacto/probabilidade) foi entregue na sessão; o processo operacional de aplicação está em `doc/SEGURANCA_HARDENING.md`.
 
-**Status:** Ativa — aplicada em produção (migração SQL executada e verificada, 2 Edge Functions redeployadas, auto-cadastro desativado no painel, CSP mesclada na `main` via PR #83).
+**Status:** Ativa — aplicada em produção (migração SQL executada e verificada, 2 Edge Functions redeployadas, auto-cadastro desativado no painel, CSP mesclada na `main` via PR #83). **Verificação final em 2026-07-17:** durante a janela de aplicação o projeto Supabase (Free Tier) estava pausado por inatividade e derrubou os deploys de produção na Vercel; após a reativação, a migração foi executada no SQL Editor e as 4 queries de verificação do rodapé passaram (V-01: `leads_select` com `vendedor_id = auth.uid()`; V-02: `EXECUTE` apenas para `service_role`/`postgres`; V-05: 3 policies com `papel_atual() IS NOT NULL`; V-06: sem policy de INSERT em `audit_log`), e conferiu-se que as duas Edge Functions no painel já continham o `getClientIp` do V-03 — sem drift painel↔repositório nesta data. Redeploy de produção da Vercel re-disparado via commit `ecf2ba2` na `main` (o redeploy manual anterior havia reconstruído apenas uma preview, que não assume o domínio).
+
+---
+
+### [D-079] — Login social (Google OAuth) avaliado e NÃO adotado; cadastro permanece exclusivo do marketing
+
+**Data:** 2026-07-17
+**Tipo:** Segurança / Autenticação
+
+**Contexto:** Ao revisar o painel do Supabase (Authentication → Sign In / Providers), o responsável avaliou habilitar o provedor Google para que usuários pudessem se registrar/logar com conta Google. A objeção imediata, levantada pelo próprio responsável: um usuário auto-registrado não teria como se classificar entre os papéis (marketing/comercial/vendedor).
+
+**Decisão:** Não habilitar nenhum provedor social — todos permanecem desabilitados. Fundamentos:
+- O papel **nunca** pode ser escolha do próprio usuário no registro (seria escalada de privilégio trivial — qualquer um se marcaria `marketing`). Classificação é decisão administrativa, feita pelo marketing na aba Equipe.
+- O sistema até toleraria o auto-registro com segurança formal: o trigger `on_auth_user_created` (`migracao-auth.sql`) cria todo usuário novo como `vendedor` + `ativo=false`, e `getSessao()`/`signIn` (`dataService.js`) bloqueiam contas inativas. Mas isso reabriria o **auto-cadastro público que o D-078/V-04 acabou de fechar** — poluição de `auth.users`/`perfis` e vetor de flood, sem nenhum ganho real (quem usa o sistema é a equipe interna, já cadastrada pelo marketing).
+
+**Alternativas Avaliadas:**
+- **Google como método de LOGIN apenas (sem registro)** — viável no futuro, sem contrariar o V-04: com "Enable Signups" OFF, `signInWithOAuth` falha para e-mail desconhecido, mas o Supabase vincula a identidade Google a uma conta **pré-criada** cujo e-mail verificado coincida. Exigiria: botão em `LoginAuth.jsx`, provedor Google configurado no painel (client ID/secret do Google Cloud), e replicar no retorno OAuth o tratamento de `ativo=false` que `signIn` já faz (signOut + mensagem). Adiado por falta de demanda — equipe pequena, login por senha não é atrito hoje. Validar o vínculo automático de identidade num usuário de homologação antes de anunciar, se um dia for implementado.
+- **Auto-registro com aprovação manual (gate por `ativo=false`)** — tecnicamente já funcionaria hoje, mas contraria frontalmente o V-04; descartada.
+
+**Arquivos Afetados:** Nenhum — decisão de configuração/postura de painel; nenhum código alterado.
+
+**Status:** Ativa
 
 ---
 
