@@ -15,6 +15,17 @@
 // sem quiz não existem mais como opção; 'demanda' cobre esse papel de
 // captação qualificada com pontuação configurável pelo marketing.
 //
+// D-080: 3º tipo de campanha, 'quiz' — teste de CONHECIMENTO com resposta
+// certa/errada por pergunta (não uma pergunta de intenção/perfil como
+// 'demanda', nem de qualificação como 'oferta'). Pontuação = contagem de
+// acertos; o marketing define faixas de classificação (min/max de acertos
+// → emoji + título) totalmente editáveis por campanha, sem número fixo de
+// perguntas nem de faixas. Primeiro uso real: evento MotoFest (universo de
+// motoclube) — ver quizPerguntasPadrao()/quizFaixasPadrao() abaixo, usadas
+// só como molde inicial editável de uma campanha nova (mesmo princípio de
+// perguntasPadrao() em 'demanda'). Nunca encadeado com 'oferta'/'demanda'
+// na mesma sessão — os 3 tipos continuam mutuamente exclusivos (D-076).
+//
 // Módulo deliberadamente SEM imports: é carregado standalone pelo teste
 // unitário Node (tests/simulador.unit.test.js) e espelhado em Deno na Edge
 // Function submeter-simulador (que recalcula o score no servidor — o
@@ -25,8 +36,10 @@
 // jsonb muda (não quando só o conteúdo de uma campanha muda). v2 (D-075)
 // passou a incluir `perguntas` (snapshot) e `combo`/`perfil` (D-074); a
 // separação em 2 tipos (D-076) não mudou a forma do jsonb em si (cada lead
-// só carrega o bloco relevante ao seu tipo), então a versão continua 2.
-export const PERGUNTAS_SIMULADOR_VERSAO = 2;
+// só carrega o bloco relevante ao seu tipo). v3 (D-080) acrescenta o bloco
+// `tipo:'quiz'` + `acertos`/`total`/`faixa` — shape nova, só usada por
+// leads de campanha 'quiz'; leads de 'oferta'/'demanda' não mudam.
+export const PERGUNTAS_SIMULADOR_VERSAO = 3;
 
 // Catálogo de pacotes de Internet Fibra e apps adicionais — fonte única de
 // preço, reaproveitada pela aba "Pacotes" do vendedor (VendedorApp.jsx) além
@@ -338,6 +351,127 @@ export function fmtMoeda(valor) {
   return `R$ ${Number(valor).toFixed(2).replace('.', ',')}`;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// D-080: Quiz de Acertos — teste de conhecimento por campanha, sem
+// intenção/perfil. Cada pergunta é SEMPRE de escolha única (`tipo:
+// 'single'`, reaproveita normalizarRespostasDinamico) e tem uma
+// `respostaCorretaId` — a opção certa entre as opções da própria pergunta.
+// Pontuação = contagem de acertos (não soma de peso); a temperatura da
+// fila usa o mesmo princípio percentual de 'demanda' (≥60% quente, 30–59%
+// morno, <30% frio), mas sobre acertos/total em vez de pontos/máximo.
+// ─────────────────────────────────────────────────────────────────────
+
+// Molde de exemplo pra campanha 'quiz' nova — primeiro uso real do
+// recurso: evento MotoFest (universo de motoclube). O marketing edita
+// livremente (texto, opções, resposta certa) depois de criar a campanha,
+// igual perguntasPadrao() em 'demanda' — isto NÃO é um catálogo fixo.
+export function quizPerguntasPadrao() {
+  return [
+    { id: 'q1', texto: 'O que significa a sigla "cc" usada para motores de moto (ex: 150cc)?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Centímetros cúbicos' },
+      { id: 'b', texto: 'Cavalos consumidos' },
+      { id: 'c', texto: 'Corrida contínua' },
+      { id: 'd', texto: 'Combustível concentrado' },
+    ] },
+    { id: 'q2', texto: 'Qual dessas é uma marca de motocicleta?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Ducati' },
+      { id: 'b', texto: 'Ferrari' },
+      { id: 'c', texto: 'Brastemp' },
+      { id: 'd', texto: 'Positron' },
+    ] },
+    { id: 'q3', texto: 'O que é um "role" no universo motociclista?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Um passeio de moto' },
+      { id: 'b', texto: 'Um tipo de pneu' },
+      { id: 'c', texto: 'O documento da moto' },
+      { id: 'd', texto: 'Uma peça do motor' },
+    ] },
+    { id: 'q4', texto: 'Qual EPI é obrigatório para pilotar moto no Brasil?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Capacete' },
+      { id: 'b', texto: 'Luvas' },
+      { id: 'c', texto: 'Jaqueta de couro' },
+      { id: 'd', texto: 'Bota de cano alto' },
+    ] },
+    { id: 'q5', texto: 'O que significa "biker"?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Motociclista' },
+      { id: 'b', texto: 'Mecânico de moto' },
+      { id: 'c', texto: 'Vendedor de moto' },
+      { id: 'd', texto: 'Fabricante de capacete' },
+    ] },
+    { id: 'q6', texto: 'Qual dessas é uma categoria de motocicleta?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Custom' },
+      { id: 'b', texto: 'Sedan' },
+      { id: 'c', texto: 'Hatch' },
+      { id: 'd', texto: 'SUV' },
+    ] },
+    { id: 'q7', texto: 'O que é o "grupo de rodagem" num motoclube?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'O pelotão que anda junto num passeio' },
+      { id: 'b', texto: 'O estacionamento do evento' },
+      { id: 'c', texto: 'O uniforme oficial do clube' },
+      { id: 'd', texto: 'O mecânico responsável pelo clube' },
+    ] },
+    { id: 'q8', texto: 'Qual item é essencial pra levar bagagem numa viagem longa de moto?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Bagageiro / alforje' },
+      { id: 'b', texto: 'Rodas extras' },
+      { id: 'c', texto: 'Guarda-chuva' },
+      { id: 'd', texto: 'Cadeira de praia' },
+    ] },
+    { id: 'q9', texto: 'O que significa a expressão "cair na estrada"?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Sair para viajar de moto' },
+      { id: 'b', texto: 'Sofrer uma queda' },
+      { id: 'c', texto: 'Trocar de moto' },
+      { id: 'd', texto: 'Lavar a moto' },
+    ] },
+    { id: 'q10', texto: 'Qual é o principal cuidado antes de uma viagem longa de moto?', tipo: 'single', respostaCorretaId: 'a', opcoes: [
+      { id: 'a', texto: 'Revisar pneus, óleo e freios' },
+      { id: 'b', texto: 'Encher o tanque de água' },
+      { id: 'c', texto: 'Trocar o capacete de cor' },
+      { id: 'd', texto: 'Conferir a previsão de estrelas' },
+    ] },
+  ];
+}
+
+// Faixas de classificação do molde padrão — exemplo real do evento
+// MotoFest. `max: null` na última faixa marcaria "sem limite superior"
+// (não é o caso aqui, com 10 perguntas fixas no molde, mas o construtor
+// permite deixar em branco pra campanhas com mais perguntas).
+export function quizFaixasPadrao() {
+  return [
+    { min: 0, max: 3, emoji: '🛵', titulo: 'Piloto de Primeira Viagem' },
+    { min: 4, max: 6, emoji: '🏍️', titulo: 'Companheiro de Estrada' },
+    { min: 7, max: 9, emoji: '🤘', titulo: 'Lenda do Asfalto' },
+    { min: 10, max: 10, emoji: '👑', titulo: 'Mestre das Duas Rodas' },
+  ];
+}
+
+// Acha a faixa cujo intervalo [min, max] cobre a contagem de acertos —
+// `max` null/undefined é tratado como "sem limite superior" (última
+// faixa, ex: "10 ou mais"). Retorna null se nenhuma faixa cobrir (o
+// marketing deixou um buraco na configuração) — quem chama decide o
+// fallback.
+export function faixaPorAcertos(faixas, acertos) {
+  if (!Array.isArray(faixas)) return null;
+  return faixas.find((f) => acertos >= Number(f.min) && (f.max == null || acertos <= Number(f.max))) || null;
+}
+
+// Corrige o quiz: conta acertos comparando a resposta escolhida (já
+// normalizada contra a config DESTA campanha, nunca respostas brutas) com
+// `respostaCorretaId` de cada pergunta. Sempre recalculado a partir da
+// config da própria campanha — mesmo princípio anti-cliente-hostil do
+// scoring de 'demanda' (D-072/D-075): o cliente nunca manda `acertos`
+// pronto, só as respostas brutas.
+export function corrigirQuiz(perguntas, brutas) {
+  const respostas = normalizarRespostasDinamico(perguntas, brutas);
+  let acertos = 0;
+  for (const pergunta of (perguntas || [])) {
+    const valor = respostas[pergunta.id];
+    if (valor !== undefined && valor === pergunta.respostaCorretaId) acertos += 1;
+  }
+  const total = (perguntas || []).length;
+  const percentual = total > 0 ? (acertos / total) * 100 : 0;
+  const temperatura = percentual >= 60 ? 'quente' : percentual >= 30 ? 'morno' : 'frio';
+  return { respostas, acertos, total, temperatura };
+}
+
 // D-076: mensagem de resultado do tipo 'demanda' — texto livre por
 // campanha (`simuladores.mensagem_resultado`), mostrado na tela final do
 // quiz antes de pedir o contato (não existe pacote/oferta pra recomendar
@@ -358,6 +492,15 @@ export function mensagemResultadoPadrao() {
 export function resumoPerfil(perfilConsumo) {
   const partes = [];
   if (!perfilConsumo) return partes;
+
+  // D-080: quiz de acertos — bloco próprio, não compartilha renderização
+  // com o snapshot de perguntas/respostas de 'oferta'/'demanda' (o quiz
+  // não mostra cada resposta escolhida, só o resultado: acertos + faixa).
+  if (perfilConsumo.tipo === 'quiz') {
+    partes.push(`Acertou ${perfilConsumo.acertos} de ${perfilConsumo.total}`);
+    if (perfilConsumo.faixa) partes.push(`${perfilConsumo.faixa.emoji || ''} ${perfilConsumo.faixa.titulo}`.trim());
+    return partes;
+  }
 
   if (Array.isArray(perfilConsumo.perguntas)) {
     for (const pergunta of perfilConsumo.perguntas) {

@@ -1,6 +1,9 @@
 import { db } from '../lib/dataService';
 import { genId } from '../utils/ids';
-import { PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, mensagemResultadoPadrao } from '../lib/simulador';
+import {
+  PERGUNTAS_SIMULADOR_VERSAO, perguntasPadrao, mensagemResultadoPadrao,
+  quizPerguntasPadrao, quizFaixasPadrao,
+} from '../lib/simulador';
 
 export function createSimuladorApi({ simuladores, setSimuladores }) {
   return {
@@ -10,9 +13,13 @@ export function createSimuladorApi({ simuladores, setSimuladores }) {
         versaoPerguntas: PERGUNTAS_SIMULADOR_VERSAO,
         // D-076: campanha 'demanda' já nasce com um questionário padrão
         // editável + uma mensagem de resultado padrão editável; 'oferta'
-        // não usa nenhum dos dois (fluxo fixo de perfil→pacote).
+        // não usa nenhum dos dois (fluxo fixo de perfil→pacote). D-080:
+        // 'quiz' já nasce com o molde de exemplo (MotoFest) + faixas de
+        // classificação padrão, ambos editáveis pelo marketing.
         perguntas: s.tipo === 'demanda' ? perguntasPadrao() : null,
         mensagemResultado: s.tipo === 'demanda' ? mensagemResultadoPadrao() : null,
+        quizPerguntas: s.tipo === 'quiz' ? quizPerguntasPadrao() : null,
+        quizFaixas: s.tipo === 'quiz' ? quizFaixasPadrao() : null,
         criadoEm: new Date().toISOString(),
       };
       setSimuladores((p) => [novo, ...p]);

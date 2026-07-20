@@ -334,4 +334,109 @@ test.describe('Simulador — página pública', () => {
       await expect(page.locator('.card')).toContainText('ainda está sendo preparada');
     });
   });
+
+  // D-080: Quiz de Acertos — teste de conhecimento (certo/errado), sem
+  // pergunta de intenção/perfil. Pontuação = contagem de acertos, faixa de
+  // classificação totalmente configurável pela campanha.
+  test.describe('tipo Quiz de Acertos', () => {
+    const CAMPANHA_QUIZ = {
+      id: 'sim-quiz-e2e',
+      nome: 'Campanha Quiz E2E',
+      slug: 'campanha-quiz-e2e',
+      tipo: 'quiz',
+      campanha: '',
+      versaoPerguntas: 3,
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+      // sem quizPerguntas/quizFaixas seedados — usa o molde padrão (MotoFest)
+    };
+
+    const CAMPANHA_QUIZ_CUSTOM = {
+      ...CAMPANHA_QUIZ, id: 'sim-quiz-custom', slug: 'campanha-quiz-custom',
+      quizPerguntas: [
+        { id: 'p1', texto: 'Pergunta 1 de teste?', tipo: 'single', respostaCorretaId: 'a', opcoes: [{ id: 'a', texto: 'Certa' }, { id: 'b', texto: 'Errada' }] },
+        { id: 'p2', texto: 'Pergunta 2 de teste?', tipo: 'single', respostaCorretaId: 'x', opcoes: [{ id: 'x', texto: 'Certa2' }, { id: 'y', texto: 'Errada2' }] },
+      ],
+      quizFaixas: [
+        { min: 0, max: 1, emoji: '😅', titulo: 'Quase lá' },
+        { min: 2, max: 2, emoji: '🏆', titulo: 'Expert' },
+      ],
+    };
+
+    test('wizard vai direto pra 1ª pergunta do molde padrão (MotoFest), sem etapa de perfil', async ({ page }) => {
+      await abrirSimulador(page, CAMPANHA_QUIZ);
+      await expect(page.locator('.card')).toContainText('cc" usada para motores de moto');
+      await expect(page.locator('.card')).toContainText('Pergunta 1 de 10');
+    });
+
+    test('campanha com quiz próprio usa SUAS perguntas e faixas, não o molde padrão', async ({ page }) => {
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+      await expect(page.locator('.card')).toContainText('Pergunta 1 de teste?');
+      await expect(page.locator('.card')).toContainText('Pergunta 1 de 2');
+      await expect(page.locator('.card')).not.toContainText('cc" usada para motores de moto');
+    });
+
+    test('todos os acertos → faixa mais alta configurada', async ({ page }) => {
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+      await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
+      await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
+      await expect(page.locator('.card')).toContainText('🏆');
+      await expect(page.locator('.card')).toContainText('Expert');
+      await expect(page.locator('.card')).toContainText('Você acertou 2 de 2 perguntas!');
+    });
+
+    test('uma resposta errada cai na faixa inferior configurada', async ({ page }) => {
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+      await page.locator('.sim-opcao', { hasText: 'Errada', exact: false }).first().click();
+      await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
+      await expect(page.locator('.card')).toContainText('😅');
+      await expect(page.locator('.card')).toContainText('Quase lá');
+      await expect(page.locator('.card')).toContainText('Você acertou 1 de 2 perguntas!');
+    });
+
+    test('fluxo completo: quiz → faixa personalizada → contato → lead gravado com acertos/faixa/servico=outro', async ({ page }) => {
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom?utm_source=meta&utm_campaign=teste-e2e');
+
+      await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
+      await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
+      await expect(page.locator('.card')).toContainText('Expert');
+
+      await expect(page.locator('.card')).toContainText('concorra a um brinde RJNET');
+      await page.getByRole('button', { name: 'Quero concorrer ao brinde →' }).click();
+      await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Biker E2E');
+      await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999001122');
+      await page.locator('.big-field', { hasText: 'Cidade' }).locator('input').fill('Angra dos Reis');
+      await page.locator('input[type="checkbox"]').check();
+      await page.getByRole('button', { name: 'Receber minha oferta' }).click();
+      await expect(page.locator('.card')).toContainText('Recebemos seus dados!');
+
+      const lead = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).find((l) => l.origem === 'simulador'));
+      expect(lead.nome).toBe('Biker E2E');
+      expect(lead.simuladorId).toBe('sim-quiz-custom');
+      expect(lead.vendedorId).toBeNull();
+      expect(lead.cidade).toBe('Angra dos Reis');
+      expect(lead.pontuacao).toBe(2);
+      expect(lead.temperatura).toBe('quente');
+      expect(lead.perfilConsumo.tipo).toBe('quiz');
+      expect(lead.perfilConsumo.acertos).toBe(2);
+      expect(lead.perfilConsumo.total).toBe(2);
+      expect(lead.perfilConsumo.faixa.titulo).toBe('Expert');
+      expect(Array.isArray(lead.perfilConsumo.perguntas)).toBe(true); // snapshot gravado na submissão
+      expect(lead.servicoInteresse).toEqual(['outro']);
+      expect(lead.utm.utm_source).toBe('meta');
+      expect(lead.utm.utm_campaign).toBe('teste-e2e');
+      expect(lead.versaoTermo).toBe('simulador-v1');
+    });
+
+    test('campanha quiz sem perguntas configuradas mostra aviso em vez de quebrar', async ({ page }) => {
+      const vazia = { ...CAMPANHA_QUIZ, id: 'sim-quiz-vazia', slug: 'campanha-quiz-vazia', quizPerguntas: [] };
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, vazia);
+      await page.goto('/s/campanha-quiz-vazia');
+      await expect(page.locator('.card')).toContainText('ainda está sendo preparada');
+    });
+  });
 });

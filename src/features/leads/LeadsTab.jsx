@@ -129,7 +129,8 @@ function FilaDistribuicao() {
                       esse bloco não pode ficar preso a `pontuacao != null` (senão some pro "—"). */}
                   {l.pontuacao != null && (
                     <span style={{ fontWeight: 700, color: TEMPERATURA_COR[l.temperatura] || 'var(--text-2)' }}>
-                      {l.pontuacao} pts · {l.temperatura}
+                      {/* D-080: 'pontuacao' guarda contagem de ACERTOS pra leads de quiz, não score ponderado */}
+                      {l.pontuacao} {l.perfilConsumo?.tipo === 'quiz' ? 'acertos' : 'pts'} · {l.temperatura}
                     </span>
                   )}
                   {l.pontuacao == null && l.perfilConsumo && (

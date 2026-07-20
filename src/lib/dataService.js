@@ -272,6 +272,10 @@ const simuladorFromDb = (r) => ({
   versaoPerguntas: r.versao_perguntas ?? 1,
   perguntas: r.perguntas ?? null,
   mensagemResultado: r.mensagem_resultado ?? null,
+  // D-080: config da campanha 'quiz' — perguntas com resposta certa +
+  // faixas de classificação por contagem de acertos.
+  quizPerguntas: r.quiz_perguntas ?? null,
+  quizFaixas: r.quiz_faixas ?? null,
   ativo: r.ativo ?? true, criadoEm: r.criado_em,
 });
 const simuladorToDb = (s) => ({
@@ -280,6 +284,8 @@ const simuladorToDb = (s) => ({
   versao_perguntas: s.versaoPerguntas ?? 1,
   perguntas: s.perguntas ?? null,
   mensagem_resultado: s.mensagemResultado ?? null,
+  quiz_perguntas: s.quizPerguntas ?? null,
+  quiz_faixas: s.quizFaixas ?? null,
   ativo: s.ativo ?? true, criado_em: s.criadoEm || new Date().toISOString(),
 });
 
@@ -325,7 +331,7 @@ export async function fetchAll(signal) {
         supabase.from('formularios').select('id,nome,slug,campos,campos_obrigatorios,campos_personalizados_ids,campos_personalizados_obrigatorios,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
-        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
+        supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -493,12 +499,39 @@ export async function fetchSimuladorPublico(slug) {
   if (!isSupabaseMode() || !slug) return null;
   const { data, error } = await supabase
     .from('simuladores')
-    .select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,ativo')
+    .select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo')
     .eq('slug', slug)
     .eq('ativo', true)
     .maybeSingle();
   if (error || !data) return null;
   return simuladorFromDb(data);
+}
+
+// D-080: Sorteador do Quiz — busca TODOS os leads de uma campanha
+// (`simulador_id`), independente de já terem sido distribuídos a um
+// vendedor. Diferente de fetchLeadsSemVendedor/fetchLeadsQrCode (fila de
+// distribuição, só os sem dono): o sorteio precisa do universo completo
+// de quem participou daquela campanha específica.
+export async function fetchLeadsPorSimulador(simuladorId, signal) {
+  if (!isSupabaseMode() || !simuladorId) return null;
+  return trackPerf('fetchLeadsPorSimulador', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .eq('simulador_id', simuladorId)
+        .eq('deletado', false)
+        .order('criado_em', { ascending: false })
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads da campanha:', err.message || err);
+    return null;
+  });
 }
 
 // Distribuição: qualquer lead "frio" (sem vendedor ainda), não importa a
