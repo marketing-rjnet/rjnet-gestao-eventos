@@ -6,6 +6,7 @@ import {
   PERGUNTAS_OFERTA, perfilPorRespostasOferta, normalizarRespostasDinamico,
   perfilPorKey, pacotePorMega, pacoteUpgrade, montarCombo,
   APPS_ADICIONAIS, PLANOS_MOVEL, fmtMoeda,
+  quizPerguntasPadrao, quizFaixasPadrao, corrigirQuiz, faixaPorAcertos,
 } from '../lib/simulador';
 import { maskTel, validarTelefone } from '../utils/masks';
 import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
@@ -15,10 +16,10 @@ import { containsLink } from '../lib/security';
 // do FormularioPublico). Wizard gamificado: "valor antes do dado" — só
 // pede contato depois de mostrar algo pra pessoa.
 //
-// D-077: os 2 fluxos (D-076) agora têm a MESMA estrutura de tela — um quiz
-// sequencial (uma pergunta por tela) seguido de "calculando" → resultado →
-// contato. O que muda por tipo é só QUAL questionário e o que a etapa de
-// resultado calcula/mostra:
+// D-077/D-080: os 3 fluxos (D-076) agora têm a MESMA estrutura de tela — um
+// quiz sequencial (uma pergunta por tela) seguido de "calculando" →
+// resultado → contato. O que muda por tipo é só QUAL questionário e o que
+// a etapa de resultado calcula/mostra:
 // - tipo 'oferta': quiz FIXO de qualificação (PERGUNTAS_OFERTA) — o perfil
 //   de uso (e portanto o pacote) é DEDUZIDO das respostas via
 //   perfilPorRespostasOferta(), nunca escolhido por clique direto (isso
@@ -27,6 +28,10 @@ import { containsLink } from '../lib/security';
 // - tipo 'demanda': perguntas configuráveis da PRÓPRIA campanha (D-075) →
 //   mensagem de resultado personalizada pela campanha → contato. Sem
 //   pergunta de perfil/pacote nesse fluxo.
+// - tipo 'quiz' (D-080): perguntas de conhecimento (certo/errado) da
+//   PRÓPRIA campanha → contagem de acertos → faixa de classificação
+//   (emoji + título definidos pelo marketing) → contato. Sem pergunta de
+//   perfil/pacote/pontuação ponderada — é um teste, não uma qualificação.
 // O score/perfil exibido aqui é só UX: a Edge Function submeter-simulador
 // busca sua PRÓPRIA cópia da config (e do quiz fixo de oferta) e recalcula
 // tudo no servidor — nunca confia no que o cliente manda.
@@ -104,6 +109,7 @@ export default function SimuladorPublico({ slug }) {
   // deve mascarar isso com o molde padrão (ver guarda abaixo).
   const perguntas = useMemo(() => {
     if (tipo === 'oferta') return PERGUNTAS_OFERTA;
+    if (tipo === 'quiz') return simulador?.quizPerguntas == null ? quizPerguntasPadrao() : simulador.quizPerguntas;
     return simulador?.perguntas == null ? perguntasPadrao() : simulador.perguntas;
   }, [tipo, simulador]);
   const pergunta = perguntas[etapa];
@@ -122,12 +128,25 @@ export default function SimuladorPublico({ slug }) {
   // Ligado ao perfil deduzido — não a uma pergunta de intenção específica.
   const streamingDeclarado = perfilKey === 'streaming';
 
+  // D-080: correção do quiz de acertos — só UX (a Edge Function recalcula
+  // no servidor a partir da própria config gravada).
+  const resultadoQuiz = useMemo(
+    () => (tipo === 'quiz' ? corrigirQuiz(perguntas, respostas) : null),
+    [tipo, perguntas, respostas],
+  );
+  const faixaQuiz = useMemo(() => {
+    if (!resultadoQuiz) return null;
+    const faixas = simulador?.quizFaixas == null ? quizFaixasPadrao() : simulador.quizFaixas;
+    return faixaPorAcertos(faixas, resultadoQuiz.acertos) || { emoji: '🎯', titulo: 'Participante' };
+  }, [resultadoQuiz, simulador]);
+
   const avancar = () => {
     if (etapa + 1 < perguntas.length) {
       setEtapa(etapa + 1);
     } else {
       setFase('calculando');
-      setTimeout(() => setFase(tipo === 'oferta' ? 'resultado' : 'resultado-demanda'), 1400);
+      const proximaFase = tipo === 'oferta' ? 'resultado' : tipo === 'quiz' ? 'resultado-quiz' : 'resultado-demanda';
+      setTimeout(() => setFase(proximaFase), 1400);
     }
   };
 
@@ -169,6 +188,19 @@ export default function SimuladorPublico({ slug }) {
           perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: p.respostas },
           pontuacao: p.pontuacao, servicoInteresse: ['internet_residencial'],
           temperatura: p.temperatura,
+          utm, versaoTermo: 'simulador-v1',
+        });
+      } else if (tipo === 'quiz') {
+        salvarLeadPublicoLocal({
+          origem: 'simulador', simuladorId: simulador.id,
+          nome: contato.nome, telefone: contato.telefone,
+          bairro: contato.bairro, cidade: contato.cidade,
+          perfilConsumo: {
+            versao: PERGUNTAS_SIMULADOR_VERSAO, tipo: 'quiz', perguntas,
+            respostas: resultadoQuiz.respostas, acertos: resultadoQuiz.acertos, total: resultadoQuiz.total, faixa: faixaQuiz,
+          },
+          pontuacao: resultadoQuiz.acertos, servicoInteresse: ['outro'],
+          temperatura: resultadoQuiz.temperatura,
           utm, versaoTermo: 'simulador-v1',
         });
       } else {
@@ -221,7 +253,7 @@ export default function SimuladorPublico({ slug }) {
   if (!simulador) {
     return <div className="qr-public-shell"><div className="card" style={{ textAlign: 'center', padding: 40 }}>Simulação não encontrada ou encerrada.</div></div>;
   }
-  if (tipo === 'demanda' && perguntas.length === 0) {
+  if ((tipo === 'demanda' || tipo === 'quiz') && perguntas.length === 0) {
     return <div className="qr-public-shell"><div className="card" style={{ textAlign: 'center', padding: 40 }}>Essa campanha ainda está sendo preparada. Volte em instantes.</div></div>;
   }
 
@@ -233,9 +265,9 @@ export default function SimuladorPublico({ slug }) {
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
-            {tipo === 'demanda'
-              ? 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'
-              : 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
+            {tipo === 'demanda' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'}
+            {tipo === 'quiz' && 'Valeu por participar! Em breve entramos em contato pelo WhatsApp.'}
+            {tipo === 'oferta' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
         </div>
       </div>
@@ -268,6 +300,26 @@ export default function SimuladorPublico({ slug }) {
           </p>
           <button type="button" className="btn-primary btn-full" style={{ marginTop: 16 }} onClick={() => setFase('contato')}>
             Quero ser contatado →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Resultado — Quiz de Acertos (D-080): contagem de acertos → faixa ──
+  if (fase === 'resultado-quiz') {
+    return (
+      <div className="qr-public-shell">
+        <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 16 }} />
+          <div className="sim-resultado-badge">Resultado do quiz</div>
+          <div style={{ fontSize: 40, margin: '14px 0 4px' }}>{faixaQuiz.emoji}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>{faixaQuiz.titulo}</div>
+          <div style={{ fontSize: 14, color: 'var(--text-3)' }}>
+            Você acertou {resultadoQuiz.acertos} de {resultadoQuiz.total} perguntas!
+          </div>
+          <button type="button" className="btn-primary btn-full" style={{ marginTop: 20 }} onClick={() => setFase('contato')}>
+            Quero participar →
           </button>
         </div>
       </div>
@@ -373,9 +425,9 @@ export default function SimuladorPublico({ slug }) {
           <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 14 }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
-            {tipo === 'demanda'
-              ? 'Deixe seu contato pra gente te chamar com a melhor solução.'
-              : 'Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.'}
+            {tipo === 'demanda' && 'Deixe seu contato pra gente te chamar com a melhor solução.'}
+            {tipo === 'quiz' && 'Deixe seu contato pra confirmar sua participação (e concorrer, se houver sorteio).'}
+            {tipo === 'oferta' && 'Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.'}
           </p>
 
           {/* Honeypot — invisível para gente, visível para robô */}
@@ -422,7 +474,7 @@ export default function SimuladorPublico({ slug }) {
   }
 
   // ─── Perguntas (uma por tela) — 'oferta': quiz fixo de qualificação;
-  // 'demanda': questionário configurável da campanha ──
+  // 'demanda'/'quiz': questionário configurável da campanha ──
   const totalPassos = perguntas.length;
   const progresso = Math.round(((etapa + 1) / totalPassos) * 100);
   const selecionadas = pergunta.tipo === 'multi' ? (respostas[pergunta.id] || []) : [];

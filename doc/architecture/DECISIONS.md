@@ -2581,6 +2581,34 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-080] — Simulador ganha 3º tipo de campanha: Quiz de Acertos + Sorteador entre participantes
+
+**Data:** 2026-07-20
+**Tipo:** Feature
+
+**Contexto:** O responsável pediu um novo formato de captação para o Simulador, com um cenário concreto: um evento MotoFest (público de motoclube), onde um quiz de conhecimento com resposta certa/errada por pergunta classifica a pessoa numa faixa de resultado (ex: "0–3 acertos: 🛵 Piloto de Primeira Viagem" ... "10 acertos: 👑 Mestre das Duas Rodas") — diferente das perguntas de intenção ponderadas de 'demanda' (D-075) e da dedução de perfil de 'oferta' (D-077), nenhuma das duas modela "resposta certa". Pediu também um sorteador entre quem participou do quiz, já que esse tipo de campanha costuma ser usado em eventos ao vivo.
+
+**Decisão:**
+- **3º tipo de campanha, `quiz`**, ao lado de `oferta`/`demanda` — nunca encadeado com os outros dois na mesma sessão pública (mesmo princípio do D-076). Cada pergunta é sempre de escolha única e tem uma `respostaCorretaId`; pontuação = **contagem de acertos** (nunca soma de peso, ao contrário de 'demanda'). O marketing define **faixas de classificação totalmente editáveis** (quantidade de faixas, min/max de acertos, emoji, título) — não um número fixo de 4 faixas nem de perguntas, para servir a qualquer quiz futuro além do exemplo do MotoFest.
+- **Reaproveita colunas já existentes em `leads`** (`perfil_consumo`, `pontuacao`, `temperatura`, `simulador_id`, todas de D-072) — sem coluna nova na tabela de leads. `pontuacao` passa a guardar a contagem de acertos quando a campanha é `quiz`; `perfil_consumo.tipo = 'quiz'` é o discriminador que `resumoPerfil()` usa para saber renderizar "Acertou X de N · 🤘 Lenda do Asfalto" em vez do snapshot de perguntas/respostas de 'oferta'/'demanda'. Nova migração `migracao-simulador-quiz.sql` adiciona só duas colunas em `simuladores` (`quiz_perguntas`, `quiz_faixas`, ambas jsonb) e amplia a constraint de `tipo`.
+- **Molde de exemplo pronto pra usar, não um catálogo fixo**: `quizPerguntasPadrao()`/`quizFaixasPadrao()` (`src/lib/simulador.js`) semeiam uma campanha `quiz` nova com as 10 perguntas de trivia sobre universo motociclista e as 4 faixas do exemplo do MotoFest — o marketing edita tudo livremente depois (mesmo princípio de `perguntasPadrao()` em 'demanda', D-075).
+- **Scoring recalculado no servidor** (`submeter-simulador`, branch novo `if (simulador.tipo === 'quiz')`) — mesmo princípio anti-cliente-hostil do resto do arquivo: o cliente manda só as respostas brutas, o servidor busca `quiz_perguntas`/`quiz_faixas` da própria campanha e recalcula acertos/faixa/temperatura. Sem faixa configurada que cubra a pontuação, cai num fallback genérico (`🎯 Participante`) em vez de quebrar a submissão.
+- **Sorteador** (`Sorteador`, dentro de `SimuladorTab.jsx`) — sorteia N ganhadores aleatoriamente entre **todos** os leads com aquele `simulador_id`, independente de já terem sido distribuídos a um vendedor (por isso uma função de busca nova, `fetchLeadsPorSimulador`, diferente de `fetchLeadsSemVendedor`/`fetchLeadsQrCode` que só mostram os sem dono). Sem coluna nova nem persistência do resultado do sorteio — é um sorteio ao vivo (a marketing anuncia o nome na hora), não um registro de auditoria.
+- Serviço de interesse do lead de `quiz` é `['outro']` (fixo) — o quiz não qualifica intenção de compra de um serviço específico, é uma ação de engajamento/captação de contato num evento.
+
+**Alternativas Avaliadas:**
+- **Estender o tipo 'demanda' com um "modo certo/errado"** — descartada: misturaria dois modelos de pontuação (percentual ponderado por peso vs. contagem de acertos) na mesma tela de gestão e no mesmo construtor, contrariando o próprio motivo do D-076 (separar os fluxos porque misturar confundia o marketing).
+- **Faixas fixas em número (sempre 4, só texto editável)** — descartada: amarraria toda campanha futura ao formato de exemplo do MotoFest (10 perguntas, 4 faixas); faixas totalmente configuráveis (min/max arbitrários, quantidade livre) servem qualquer quiz com qualquer número de perguntas.
+- **Sorteio persistido (marcar lead como "ganhador" no banco)** — não implementado agora, por não ter sido pedido; o sorteio é só uma dinâmica ao vivo. Se um dia precisar de auditoria de quem ganhou, um campo `sorteado_em`/`sorteio_id` em `leads` resolveria sem mudar o resto do desenho.
+
+**Arquivos Afetados:** `supabase/migracao-simulador-quiz.sql` (nova migração — constraint de tipo + `quiz_perguntas`/`quiz_faixas`), `src/lib/simulador.js` (`quizPerguntasPadrao`, `quizFaixasPadrao`, `faixaPorAcertos`, `corrigirQuiz`, branch de `resumoPerfil`, bump de `PERGUNTAS_SIMULADOR_VERSAO` pra 3), `supabase/functions/submeter-simulador/index.ts` (branch `quiz`, espelho de `corrigirQuiz`/`faixaPorAcertos` em Deno — requer redeploy), `src/api/simuladorApi.js` (semeia `quizPerguntas`/`quizFaixas` na criação), `src/lib/dataService.js` (`simuladorFromDb`/`ToDb`, colunas no `fetchAll`/`fetchSimuladorPublico`, nova `fetchLeadsPorSimulador`), `src/features/simulador/SimuladorTab.jsx` (`QuizBuilder`, `Sorteador`, 3ª opção no seletor de tipo), `src/public/SimuladorPublico.jsx` (3º fluxo público: quiz sequencial → contagem de acertos → faixa → contato), `src/features/leads/LeadsTab.jsx` (label "acertos" em vez de "pts" na fila de distribuição pra leads de quiz), `tests/simulador.unit.test.js` e `tests/simulador.test.js` (cobertura unitária + E2E do novo tipo).
+
+**Riscos:** Precisa da migração `migracao-simulador-quiz.sql` rodada (+ `NOTIFY pgrst`) e das duas Edge Functions redeployadas (só `submeter-simulador` muda de fato, mas o padrão do projeto é sempre conferir as duas por causa do `_shared/captacao.ts`) antes do deploy do frontend — mesma ordem de dependência dos D-072/D-075/D-076. Desenvolvido em branch isolada (`claude/interactive-quiz-lead-capture-thqh7g`) para validação antes do merge na `main`.
+
+**Status:** Em desenvolvimento — implementado nesta sessão, pendente de teste manual e migração em produção antes do merge.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

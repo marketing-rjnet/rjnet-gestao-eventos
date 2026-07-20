@@ -32,12 +32,13 @@ function assert(desc, cond) {
     normalizarRespostasDinamico, calcularPerfilDinamico, resumoPerfil,
     PACOTES_INTERNET, APPS_ADICIONAIS, PERFIS_SIMULADOR, pacotePorMega, pacoteUpgrade, perfilPorKey, montarCombo, fmtMoeda,
     PLANOS_MOVEL, planoMovelPorKey, PERGUNTAS_OFERTA, perfilPorRespostasOferta,
+    quizPerguntasPadrao, quizFaixasPadrao, faixaPorAcertos, corrigirQuiz,
   } = mod;
 
   // ─── Molde legado (fonte de perguntasPadrao + resumoPerfil legado) ──────
 
   console.log('\ncatálogo PERGUNTAS_SIMULADOR (molde padrão + resumo legado)');
-  assert('versão do formato é 2 (D-075: passou a incluir perguntas+combo)', PERGUNTAS_SIMULADOR_VERSAO === 2);
+  assert('versão do formato é 3 (D-080: passou a incluir tipo quiz/acertos/faixa)', PERGUNTAS_SIMULADOR_VERSAO === 3);
   assert('5 perguntas no molde', PERGUNTAS_SIMULADOR.length === 5);
   assert('keys únicas', new Set(PERGUNTAS_SIMULADOR.map(p => p.key)).size === PERGUNTAS_SIMULADOR.length);
   assert('toda pergunta tem tipo single ou multi', PERGUNTAS_SIMULADOR.every(p => ['single', 'multi'].includes(p.tipo)));
@@ -198,6 +199,57 @@ function assert(desc, cond) {
   assert('inclui plano Móvel marcado (D-077)', resumoComMovel.includes('+ Móvel Controle 24 GB'));
   const resumoSemMovel = resumoPerfil({ versao: 2, perfil: 'basico', combo: montarCombo('basico', {}) });
   assert('não inclui linha de Móvel quando não marcado', !resumoSemMovel.some((l) => l.startsWith('+ Móvel')));
+
+  // ─── Quiz de Acertos (D-080) ──────────────────────────────────────────
+
+  console.log('\nquizPerguntasPadrao (molde de exemplo — MotoFest)');
+  const quizPadrao = quizPerguntasPadrao();
+  assert('10 perguntas no molde de exemplo', quizPadrao.length === 10);
+  assert('toda pergunta é single, tem ao menos 2 opções e uma respostaCorretaId válida', quizPadrao.every(
+    (p) => p.tipo === 'single' && p.opcoes.length >= 2 && p.opcoes.some((o) => o.id === p.respostaCorretaId)
+  ));
+  assert('cópia independente — editar uma não afeta a próxima chamada', (() => {
+    const a = quizPerguntasPadrao();
+    a[0].texto = 'MUDEI';
+    const b = quizPerguntasPadrao();
+    return b[0].texto !== 'MUDEI';
+  })());
+
+  console.log('\nquizFaixasPadrao (exemplo MotoFest — 0–3/4–6/7–9/10)');
+  const faixasPadrao = quizFaixasPadrao();
+  assert('4 faixas cobrindo 0 a 10 sem sobreposição', faixasPadrao.length === 4);
+  assert('faixa 0-3 é Piloto de Primeira Viagem', faixasPadrao[0].min === 0 && faixasPadrao[0].max === 3 && faixasPadrao[0].titulo === 'Piloto de Primeira Viagem');
+  assert('faixa 10 (máxima) é Mestre das Duas Rodas', faixasPadrao[3].min === 10 && faixasPadrao[3].max === 10 && faixasPadrao[3].titulo === 'Mestre das Duas Rodas');
+
+  console.log('\nfaixaPorAcertos');
+  assert('3 acertos cai na 1ª faixa', faixaPorAcertos(faixasPadrao, 3).titulo === 'Piloto de Primeira Viagem');
+  assert('4 acertos cai na 2ª faixa', faixaPorAcertos(faixasPadrao, 4).titulo === 'Companheiro de Estrada');
+  assert('9 acertos cai na 3ª faixa', faixaPorAcertos(faixasPadrao, 9).titulo === 'Lenda do Asfalto');
+  assert('10 acertos cai na 4ª faixa', faixaPorAcertos(faixasPadrao, 10).titulo === 'Mestre das Duas Rodas');
+  assert('faixas não-array retorna null', faixaPorAcertos(null, 5) === null);
+  assert('max null é tratado como sem limite superior', faixaPorAcertos([{ min: 5, max: null, titulo: 'Alto' }], 999).titulo === 'Alto');
+  assert('nenhuma faixa cobre → null (config incompleta do marketing)', faixaPorAcertos([{ min: 5, max: 10, titulo: 'x' }], 2) === null);
+
+  console.log('\ncorrigirQuiz (contagem de acertos, nunca soma de peso)');
+  const perguntasQuizTeste = [
+    { id: 'p1', texto: 'P1', tipo: 'single', respostaCorretaId: 'a', opcoes: [{ id: 'a', texto: 'A' }, { id: 'b', texto: 'B' }] },
+    { id: 'p2', texto: 'P2', tipo: 'single', respostaCorretaId: 'x', opcoes: [{ id: 'x', texto: 'X' }, { id: 'y', texto: 'Y' }] },
+  ];
+  const zeroAcertos = corrigirQuiz(perguntasQuizTeste, { p1: 'b', p2: 'y' });
+  assert('todas erradas → 0 acertos, frio', zeroAcertos.acertos === 0 && zeroAcertos.total === 2 && zeroAcertos.temperatura === 'frio');
+  const umAcerto = corrigirQuiz(perguntasQuizTeste, { p1: 'a', p2: 'y' });
+  assert('1 de 2 acertos → 50%, morno', umAcerto.acertos === 1 && umAcerto.temperatura === 'morno');
+  const doisAcertos = corrigirQuiz(perguntasQuizTeste, { p1: 'a', p2: 'x' });
+  assert('2 de 2 acertos → 100%, quente', doisAcertos.acertos === 2 && doisAcertos.temperatura === 'quente');
+  assert('não responder nada não quebra (0 acertos)', corrigirQuiz(perguntasQuizTeste, {}).acertos === 0);
+  assert('resposta inválida (fora do catálogo) é descartada, não conta como acerto', corrigirQuiz(perguntasQuizTeste, { p1: 'hack' }).acertos === 0);
+  assert('sem perguntas → 0 acertos, 0 total, frio', (() => { const r = corrigirQuiz([], {}); return r.acertos === 0 && r.total === 0 && r.temperatura === 'frio'; })());
+
+  console.log('\nresumoPerfil — quiz de acertos (D-080)');
+  const resumoQuiz = resumoPerfil({ tipo: 'quiz', acertos: 8, total: 10, faixa: { emoji: '🤘', titulo: 'Lenda do Asfalto' } });
+  assert('inclui contagem de acertos', resumoQuiz.includes('Acertou 8 de 10'));
+  assert('inclui emoji + título da faixa', resumoQuiz.includes('🤘 Lenda do Asfalto'));
+  assert('não confunde com o snapshot de perguntas de demanda/oferta (branch dedicado)', resumoQuiz.length === 2);
 
   // ─── Resultado ──────────────────────────────────────────────────────────
   console.log(`\n${'─'.repeat(50)}`);

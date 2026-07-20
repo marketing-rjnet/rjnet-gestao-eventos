@@ -19,6 +19,12 @@
 //   peso por opção, editadas pelo marketing) → pontuação/temperatura
 //   calculadas no servidor. Substitui o antigo tipo 'territorial'
 //   (removido) como captação qualificada sem pacote fixo.
+// - 'quiz' (D-080): teste de CONHECIMENTO configurável DAQUELA CAMPANHA —
+//   cada pergunta tem uma resposta certa; pontuação = contagem de acertos
+//   (nunca soma de peso). O marketing também define faixas de
+//   classificação (min/max de acertos → emoji/título), recalculadas aqui
+//   a partir da config gravada — o cliente nunca manda `acertos`/faixa
+//   prontos. Primeiro uso real: evento MotoFest (universo de motoclube).
 //
 // O motor de scoring abaixo ESPELHA src/lib/simulador.js — duplicado
 // porque este código roda em Deno, fora do bundle do app (mesmo padrão dos
@@ -30,7 +36,7 @@ import {
   getClientIp, atingiuRateLimit,
 } from '../_shared/captacao.ts';
 
-const PERGUNTAS_SIMULADOR_VERSAO = 2;
+const PERGUNTAS_SIMULADOR_VERSAO = 3;
 
 type Opcao = { id: string; texto: string; peso: number };
 type Pergunta = { id: string; texto: string; tipo: 'single' | 'multi'; opcoes: Opcao[] };
@@ -241,6 +247,32 @@ function servicosInteressePorPerfil(perfilKey: string): string[] {
   return perfilKey === 'streaming' ? ['internet_residencial', 'streamings'] : ['internet_residencial'];
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// D-080: Quiz de Acertos — espelho de faixaPorAcertos/corrigirQuiz em
+// src/lib/simulador.js. Cada pergunta de 'quiz' é sempre `tipo: 'single'`
+// (reaproveita normalizarRespostasDinamico) e tem `respostaCorretaId`.
+// ─────────────────────────────────────────────────────────────────────
+type QuizPergunta = Pergunta & { respostaCorretaId?: string };
+type QuizFaixa = { min: number; max: number | null; emoji?: string; titulo: string };
+
+function faixaPorAcertos(faixas: QuizFaixa[] | null | undefined, acertos: number): QuizFaixa | null {
+  if (!Array.isArray(faixas)) return null;
+  return faixas.find((f) => acertos >= Number(f.min) && (f.max == null || acertos <= Number(f.max))) || null;
+}
+
+function corrigirQuiz(perguntas: QuizPergunta[], brutas: unknown) {
+  const respostas = normalizarRespostasDinamico(perguntas, brutas);
+  let acertos = 0;
+  for (const pergunta of (perguntas || [])) {
+    const valor = respostas[pergunta.id];
+    if (valor !== undefined && valor === pergunta.respostaCorretaId) acertos += 1;
+  }
+  const total = (perguntas || []).length;
+  const percentual = total > 0 ? (acertos / total) * 100 : 0;
+  const temperatura = percentual >= 60 ? 'quente' : percentual >= 30 ? 'morno' : 'frio';
+  return { respostas, acertos, total, temperatura };
+}
+
 // Atribuição de tráfego pago: whitelist de chaves UTM capturadas pela
 // página pública. Valores sanitizados e curtos — nunca texto livre longo.
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
@@ -288,7 +320,7 @@ Deno.serve(async (req) => {
 
     const { data: simulador, error: simErro } = await admin
       .from('simuladores')
-      .select('id,tipo,ativo,perguntas')
+      .select('id,tipo,ativo,perguntas,quiz_perguntas,quiz_faixas')
       .eq('id', simuladorId)
       .maybeSingle();
     if (simErro || !simulador || !simulador.ativo) {
@@ -337,6 +369,27 @@ Deno.serve(async (req) => {
       pontuacao = perfil.pontuacao;
       servicosInteresse = ['internet_residencial'];
       temperatura = perfil.temperatura;
+    } else if (simulador.tipo === 'quiz') {
+      // D-080: teste de conhecimento — cada pergunta tem uma resposta
+      // certa; pontuação = contagem de acertos, SEMPRE recalculada aqui a
+      // partir da config gravada (nunca aceita `acertos`/faixa prontos do
+      // cliente, mesmo princípio anti-cliente-hostil do resto do arquivo).
+      const perguntas: QuizPergunta[] = simulador.quiz_perguntas ?? [];
+      if (perguntas.length === 0) {
+        return json({ error: 'Essa campanha ainda está sendo preparada.' }, 400, corsHeaders);
+      }
+
+      const resultado = corrigirQuiz(perguntas, body.respostas);
+      const faixa = faixaPorAcertos(simulador.quiz_faixas, resultado.acertos)
+        ?? { emoji: '🎯', titulo: 'Participante' };
+
+      perfilConsumo = {
+        versao: PERGUNTAS_SIMULADOR_VERSAO, tipo: 'quiz', perguntas,
+        respostas: resultado.respostas, acertos: resultado.acertos, total: resultado.total, faixa,
+      };
+      pontuacao = resultado.acertos;
+      servicosInteresse = ['outro'];
+      temperatura = resultado.temperatura;
     } else {
       // 'oferta' (D-077): perfil DEDUZIDO das respostas do quiz FIXO de
       // qualificação — nunca aceita `body.perfil` pronto do cliente. O
