@@ -150,7 +150,7 @@ export default function FormularioPublico({ slug }) {
   return (
     <div className="qr-public-shell">
       <form className="card" onSubmit={submit} style={{ padding: '24px 22px' }}>
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 18 }} />
+        <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, display: 'block', margin: '0 auto 18px' }} />
         <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>{formulario.nome}</div>
 
         {/* Honeypot — invisível para gente, visível para robô */}
@@ -223,8 +223,8 @@ export default function FormularioPublico({ slug }) {
           );
         })}
 
-        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 14px' }}>
-          <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} style={{ marginTop: 2 }} />
+        <label className="consentimento-check">
+          <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} />
           <span>
             Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a
             utilizá-los para contato comercial, conforme a LGPD.

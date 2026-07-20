@@ -425,7 +425,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <form className="card" onSubmit={submit} style={{ padding: '24px 22px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 14 }} />
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, display: 'block', margin: '0 auto 14px' }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
             {tipo === 'demanda' && 'Deixe seu contato pra gente te chamar com a melhor solução.'}
@@ -458,8 +458,8 @@ export default function SimuladorPublico({ slug }) {
             <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
           </div>
 
-          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 14px' }}>
-            <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} style={{ marginTop: 2 }} />
+          <label className="consentimento-check">
+            <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} />
             <span>
               Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a
               utilizá-los para recomendação de plano e contato comercial, conforme a LGPD.
@@ -485,7 +485,7 @@ export default function SimuladorPublico({ slug }) {
   return (
     <div className="qr-public-shell">
       <div className="card" style={{ padding: '24px 22px' }}>
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, marginBottom: 14 }} />
+        <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, display: 'block', margin: '0 auto 14px' }} />
         <div className="sim-progress" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
           <div className="sim-progress-fill" style={{ width: `${progresso}%` }} />
         </div>
