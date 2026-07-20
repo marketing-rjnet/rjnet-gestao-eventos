@@ -331,9 +331,10 @@ function QuizBuilder({ simulador, onSalvar }) {
                 <input
                   type="radio" name={`correta-${pergunta.id}`} checked={pergunta.respostaCorretaId === opcao.id}
                   onChange={() => marcarCorreta(idxP, opcao.id)} title="Marcar como resposta certa"
+                  style={{ width: 18, height: 18, flex: '0 0 auto', cursor: 'pointer' }}
                 />
                 <input
-                  style={{ flex: 1, minWidth: 0 }} maxLength={150} placeholder={`Opção ${idxO + 1}`}
+                  style={{ flex: 1, minWidth: 0, width: 'auto' }} maxLength={150} placeholder={`Opção ${idxO + 1}`}
                   value={opcao.texto} onChange={(e) => atualizarOpcao(idxP, idxO, { texto: e.target.value })}
                 />
                 <button type="button" className="btn-ghost" style={{ fontSize: 11, padding: '2px 4px', color: 'var(--red)' }} disabled={pergunta.opcoes.length <= 2} onClick={() => removerOpcao(idxP, idxO)}>×</button>
