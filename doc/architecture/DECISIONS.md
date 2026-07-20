@@ -2605,7 +2605,35 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 **Riscos:** Precisa da migração `migracao-simulador-quiz.sql` rodada (+ `NOTIFY pgrst`) e das duas Edge Functions redeployadas (só `submeter-simulador` muda de fato, mas o padrão do projeto é sempre conferir as duas por causa do `_shared/captacao.ts`) antes do deploy do frontend — mesma ordem de dependência dos D-072/D-075/D-076. Desenvolvido em branch isolada (`claude/interactive-quiz-lead-capture-thqh7g`) para validação antes do merge na `main`.
 
-**Status:** Em desenvolvimento — implementado nesta sessão, pendente de teste manual e migração em produção antes do merge.
+**Correções aplicadas antes do merge (mesmo PR #85):**
+- **Radio de resposta certa sem tamanho travava o input de opção do `QuizBuilder`** — o `<input type="radio">` não tinha `width`/`flex` próprios, então herdava a regra global `input { width: 100% }` e disputava espaço com o campo de texto da opção no mesmo flex row, impedindo digitação visível (reportado em teste manual no preview). Corrigido fixando `width: 18px`/`flex: '0 0 auto'` no radio — mesmo padrão de bug já resolvido em outros checkboxes do app (`.campo-main`, `.sim-combo-check`), só não tinha sido aplicado aqui.
+- **CTA de sorteio na tela de resultado do quiz**: banner "🎁 Deixe seu contato e concorra a um brinde RJNET!" + botão "Quero concorrer ao brinde →" na tela de resultado (antes só mostrava a faixa, sem reforçar que dava pra concorrer a um brinde via Sorteador); texto do formulário de contato e da tela final ajustados pra reforçar a mesma chamada.
+
+**Status:** Ativa — mergeado na `main` via PR #85 em 2026-07-20, com validação manual do responsável em produção (preview não conseguia validar o envio real por CORS — `CORS_ALLOWED_ORIGINS` só libera o domínio de produção, decisão consciente de testar direto em produção já que a mudança não toca o fluxo de captação presencial dos vendedores). Ver D-081 para correções de responsividade mobile encontradas depois do merge.
+
+---
+
+### [D-081] — Simulador/Form Builder: correções de responsividade mobile pós-D-080 (checkbox LGPD e logo)
+
+**Data:** 2026-07-20
+**Tipo:** Correção
+
+**Contexto:** Testando o Quiz de Acertos (D-080) num iPhone real, o responsável reportou dois problemas visuais nas páginas públicas (Simulador e Form Builder): (1) na tela de consentimento LGPD, o checkbox e o texto ficavam mal diagramados — "a letra foge da tela" — e algumas telas do fluxo ficavam arrastáveis para os lados (scroll horizontal indesejado); (2) a logo da RJNet aparecia alinhada à esquerda em vez de centralizada nas etapas de pergunta e na tela de contato.
+
+**Decisão:**
+- **Causa raiz do overflow horizontal**: o `<input type="checkbox">` do consentimento LGPD (`SimuladorPublico.jsx` e `FormularioPublico.jsx`, ambos com o mesmo trecho copiado) não tinha `width`/`flex` próprios, herdando a regra global `input { width: 100% }` e disputando espaço com o `<span>` de texto no mesmo flex row — o mesmo padrão de bug do radio do `QuizBuilder` (ver correção em D-080), só que dessa vez do lado do CLIENTE final, não da gestão. Em alguns motores mobile isso estourava a largura do card (que tem `max-width: 420px`) e deixava a página arrastável horizontalmente, apesar de `overflow-x: hidden` já estar em `html`/`body`/`#root`.
+- **Correção**: nova classe `.consentimento-check` (`src/index.css`) fixa o checkbox em `17x17px`/`flex: 0 0 auto` e dá `flex: 1; min-width: 0` ao `<span>`, garantindo que o texto sempre quebre linha em vez de forçar overflow — removendo a dependência do comportamento de flex-shrink de controles nativos, que varia entre motores de navegador (não reproduzido no Chromium usado para testes automatizados neste ambiente; a evidência real veio de teste manual num iPhone).
+- **Logo sempre centralizada**: `<img>` é inline por padrão — nas telas de pergunta (`SimuladorPublico.jsx`, wizard de quiz/oferta/demanda) e de contato (Simulador e Form Builder), o card não tinha `text-align: center` (diferente das telas de resultado/carregando/enviado, que já centralizavam), deixando a logo alinhada à esquerda junto com o resto do conteúdo (que intencionalmente é alinhado à esquerda). Corrigido com `display: 'block', margin: '0 auto ...'` direto na tag da logo, sem alterar o alinhamento do resto do conteúdo de cada tela.
+
+**Alternativas Avaliadas:**
+- **Só confiar em `overflow-x: hidden` no `html`/`body`** — já estava em vigor e não foi suficiente; a causa raiz (elemento realmente mais largo que o viewport) precisava ser corrigida na origem, não mascarada por clipping.
+- **Envolver o card inteiro em `text-align: center`** para resolver a logo — descartada: mudaria o alinhamento do texto da pergunta/opções/campos do formulário, que é intencionalmente à esquerda; a correção pontual na tag da logo evita esse efeito colateral.
+
+**Arquivos Afetados:** `src/index.css` (nova classe `.consentimento-check`), `src/public/SimuladorPublico.jsx` (checkbox LGPD + logo centralizada nas telas de pergunta e contato), `src/public/FormularioPublico.jsx` (mesmo checkbox LGPD + logo centralizada).
+
+**Riscos:** Nenhum — mudança puramente visual/CSS, sem alteração de fluxo de dados, schema ou Edge Function. Validado com build de produção, suíte `tests/simulador.test.js` (21 testes) e verificação programática de `scrollWidth`/`clientWidth` num viewport de iPhone (390px) — o bug original em si não foi reproduzido em Chromium headless (motor de teste disponível neste ambiente), já que é um comportamento específico de motores WebKit/Safari mobile; a confirmação definitiva depende do teste manual do responsável no dispositivo real.
+
+**Status:** Ativa — mergeado na `main` via PR #86 em 2026-07-20.
 
 ---
 
