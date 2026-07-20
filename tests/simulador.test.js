@@ -405,7 +405,8 @@ test.describe('Simulador — página pública', () => {
       await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
       await expect(page.locator('.card')).toContainText('Expert');
 
-      await page.getByRole('button', { name: 'Quero participar →' }).click();
+      await expect(page.locator('.card')).toContainText('concorra a um brinde RJNET');
+      await page.getByRole('button', { name: 'Quero concorrer ao brinde →' }).click();
       await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Biker E2E');
       await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999001122');
       await page.locator('.big-field', { hasText: 'Cidade' }).locator('input').fill('Angra dos Reis');

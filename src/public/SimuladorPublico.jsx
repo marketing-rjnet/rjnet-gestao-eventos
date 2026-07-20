@@ -266,7 +266,7 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
             {tipo === 'demanda' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'}
-            {tipo === 'quiz' && 'Valeu por participar! Em breve entramos em contato pelo WhatsApp.'}
+            {tipo === 'quiz' && 'Valeu por participar! Você já está concorrendo ao brinde RJNET — fique de olho no WhatsApp.'}
             {tipo === 'oferta' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
         </div>
@@ -318,8 +318,11 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ fontSize: 14, color: 'var(--text-3)' }}>
             Você acertou {resultadoQuiz.acertos} de {resultadoQuiz.total} perguntas!
           </div>
-          <button type="button" className="btn-primary btn-full" style={{ marginTop: 20 }} onClick={() => setFase('contato')}>
-            Quero participar →
+          <div className="sim-combo-destaque" style={{ borderRadius: 10, padding: '12px 14px', marginTop: 18, fontSize: 13.5, fontWeight: 700 }}>
+            🎁 Deixe seu contato e concorra a um brinde RJNET!
+          </div>
+          <button type="button" className="btn-primary btn-full" style={{ marginTop: 12 }} onClick={() => setFase('contato')}>
+            Quero concorrer ao brinde →
           </button>
         </div>
       </div>
@@ -426,7 +429,7 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
             {tipo === 'demanda' && 'Deixe seu contato pra gente te chamar com a melhor solução.'}
-            {tipo === 'quiz' && 'Deixe seu contato pra confirmar sua participação (e concorrer, se houver sorteio).'}
+            {tipo === 'quiz' && 'Deixe seu contato pra confirmar sua participação e concorrer a um brinde RJNET.'}
             {tipo === 'oferta' && 'Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.'}
           </p>
 
