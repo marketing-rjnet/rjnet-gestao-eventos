@@ -382,8 +382,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/campoPersonalizadoApi.js` | ~31 | Factory createCampoPersonalizadoApi — CRUD de campos personalizados reutilizáveis (D-063) |
 | `src/api/simuladorApi.js` | ~40 | Factory createSimuladorApi — CRUD de campanhas do Simulador; semeia perguntas/mensagem pra tipo demanda, quizPerguntas/quizFaixas pra tipo quiz (D-072, D-076, D-080) |
 | `src/lib/simulador.js` | ~541 | Catálogos PERGUNTAS_OFERTA (fixo), PACOTES_INTERNET/APPS_ADICIONAIS/PLANOS_MOVEL, quizPerguntasPadrao/quizFaixasPadrao/corrigirQuiz/faixaPorAcertos, perfilPorRespostasOferta/calcularPerfilDinamico/resumoPerfil — sem imports, testável standalone e espelhado em Deno (D-072, D-074, D-075, D-077, D-080) |
-| `src/public/SimuladorPublico.jsx` | ~526 | Página pública — 3 fluxos independentes por tipo de campanha (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas certo/errado→faixa de acertos), captura de UTM, honeypot (D-072, D-076, D-077, D-080) |
-| `src/features/simulador/SimuladorTab.jsx` | ~591 | Gestão de campanhas (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/mensagem/faixas + Sorteador + QR com UTM impresso embutido + link, marketing only (D-072, D-075, D-076, D-080) |
+| `src/public/SimuladorPublico.jsx` | ~529 | Página pública — 3 fluxos independentes por tipo de campanha (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas certo/errado→faixa de acertos + CTA de sorteio), captura de UTM, honeypot, logo centralizada e checkbox LGPD sem overflow no mobile (D-072, D-076, D-077, D-080, D-081) |
+| `src/features/simulador/SimuladorTab.jsx` | ~592 | Gestão de campanhas (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/mensagem/faixas + Sorteador + QR com UTM impresso embutido + link, marketing only (D-072, D-075, D-076, D-080) |
 | `supabase/migracao-simulador.sql` | ~95 | Tabela simuladores + RLS anon + colunas do Simulador em leads + índices (D-072) |
 | `supabase/migracao-simulador-perguntas.sql` | ~30 | Coluna simuladores.perguntas (jsonb) — questionário próprio por campanha (D-075) |
 | `supabase/migracao-simulador-tipos.sql` | ~40 | Migra tipo perfil_consumo/territorial → oferta/demanda + coluna mensagem_resultado (D-076) |
@@ -410,7 +410,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/features/leads/MesDetail.jsx` | ~188 | Detalhe do mês: leads por vendedor + tabela agrupada por dia num accordion (`"Hoje"`/`"Ontem"`, dia mais recente aberto por padrão, busca expande dias com match, coluna "Horário" + leads ordenados do mais recente pro mais antigo dentro do dia), espelha `EventDetail.jsx` sem materiais (D-060, D-066, D-068) |
 | `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065) |
-| `src/public/FormularioPublico.jsx` | ~242 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063); bloqueio de link em texto livre no client (D-067) |
+| `src/public/FormularioPublico.jsx` | ~242 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063); bloqueio de link em texto livre no client (D-067); logo centralizada e checkbox LGPD sem overflow no mobile (D-081) |
 | `src/lib/localPublicSubmit.js` | ~37 | Fallback local (sem Supabase) para páginas públicas, dev/teste only (D-061, D-062) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
