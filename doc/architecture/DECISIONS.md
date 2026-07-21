@@ -2637,6 +2637,34 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-082] — Quiz de Acertos ganha resumo compartilhável (imagem) na tela final
+
+**Data:** 2026-07-21
+**Tipo:** Feature
+
+**Contexto:** O responsável pediu, pro tipo `quiz` (D-080), um resumo do que a pessoa conquistou pra ela poder compartilhar — exemplo dado: quem chega em "Mestre das Duas Rodas" ver "acertou 9 de 9 perguntas", o tempo que levou e o nome do evento, e uma imagem simples pra compartilhar isso. Motivação: mecânica viral pra eventos ao vivo (MotoFest e futuros) — a pessoa divulga o próprio resultado em redes sociais/WhatsApp, promovendo a campanha (e a marca) organicamente.
+
+**Decisão:**
+- **Card gerado 100% no cliente via `<canvas>`** (`desenharResumoQuiz()`, `SimuladorPublico.jsx`) — mesma técnica já usada pro QR Code (`qrcode` + canvas em `SimuladorTab.jsx`), sem biblioteca nova. Formato 1080x1080 (mesmo padrão das imagens de Oferta, D-057). Conteúdo: logo RJNet, nome da campanha, faixa (emoji grande + título), "{primeiro nome} acertou X de Y perguntas!", tempo de resposta e o link da campanha (`/s/:slug`) no rodapé — o link no card é o próprio gancho viral (quem vê a imagem compartilhada consegue chegar no quiz).
+- **Onde aparece:** só na tela final ("Recebemos seus dados!"), depois do contato já enviado — nunca antes, pra não misturar com a lógica de "mostrar resultado antes de pedir dado" que já rege o resto do wizard. Só renderizado para tipo `quiz` (é o único tipo com faixa/acertos pra resumir).
+- **Tempo de resposta**: cronômetro só de UX (`inicioQuizRef`/`tempoQuizMs`) — conta da primeira pergunta até a última respondida, não inclui o tempo preenchendo nome/WhatsApp depois (esse tempo varia demais e não reflete desempenho no quiz). Nunca enviado ao servidor — puramente decorativo no card, sem gravação em `leads` nem em `simuladores`.
+- **Compartilhamento**: botão único que usa a **Web Share API com arquivo** (`navigator.share({ files: [...] })`) quando o navegador suporta — abre o menu nativo do celular (WhatsApp, Instagram Stories, etc.), testado no iOS Safari; nos navegadores sem suporte a compartilhar arquivo (a maioria dos desktops), o mesmo botão vira "Baixar imagem do resultado" (mesmo padrão de download por `<a download>` já usado no QR Code).
+- **Nome da pessoa aparece no card** (ex: "Carlos acertou 9 de 9 perguntas!") — decisão consciente: é a própria pessoa compartilhando o próprio resultado (como Duolingo/Wordle), maior engajamento; usa só o primeiro nome (não o nome completo) do campo que ela mesma preencheu no formulário de contato.
+
+**Alternativas Avaliadas:**
+- **Gerar a imagem no servidor** (Edge Function) — descartada: adicionaria complexidade (renderização de imagem em Deno, biblioteca extra) sem necessidade real; canvas no cliente já resolve com zero dependência nova e resposta instantânea.
+- **Mostrar o resumo ANTES do contato** (na tela de resultado do quiz) — descartada: quebraria o princípio "valor antes do dado, mas só depois de um compromisso mínimo" que rege esse fluxo desde D-072; a pessoa poderia compartilhar e fechar a página sem nunca virar lead.
+- **Tempo = sessão inteira (até o envio do contato)** — descartada: o tempo preenchendo o formulário de contato varia por motivo (rede, distração) e não mede desempenho no quiz.
+- **Card sem nome (genérico)** — considerada, mas o ganho de engajamento de um card personalizado (primeira pessoa, "eu fiz isso") supera o risco mínimo de erro de digitação do nome, que a própria pessoa já revisou ao preencher o formulário.
+
+**Arquivos Afetados:** `src/public/SimuladorPublico.jsx` (`formatarDuracao`, `desenharTextoComQuebra`, `desenharResumoQuiz`, componente `ResumoCompartilhavel`, cronômetro `inicioQuizRef`/`tempoQuizMs`, renderização na tela `enviado`), `tests/simulador.test.js` (cobertura E2E: canvas renderizado, fallback de download, e Web Share API mockada).
+
+**Riscos:** Baixo — mudança puramente client-side, sem coluna nova, sem Edge Function tocada, sem persistência adicional. `navigator.share`/`canShare` com arquivos não são reproduzíveis no motor Chromium headless usado nos testes automatizados deste ambiente (comportamento verificado via mock de `navigator.share`); a confirmação do menu nativo real (WhatsApp/Instagram no iOS) depende de teste manual do responsável.
+
+**Status:** Em desenvolvimento — implementado nesta sessão, pendente de validação manual num iPhone real antes do merge.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

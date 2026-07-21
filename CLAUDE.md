@@ -132,7 +132,7 @@ src/
 │       └── index.js          # Re-export de simulador (D-072)
 ├── public/
 │   ├── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
-│   └── SimuladorPublico.jsx    # Página pública — 2 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem), captura UTM (D-072, D-076, D-077)
+│   └── SimuladorPublico.jsx    # Página pública — 3 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas→faixa+resumo compartilhável), captura UTM (D-072, D-076, D-077, D-080, D-082)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
@@ -382,7 +382,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/campoPersonalizadoApi.js` | ~31 | Factory createCampoPersonalizadoApi — CRUD de campos personalizados reutilizáveis (D-063) |
 | `src/api/simuladorApi.js` | ~40 | Factory createSimuladorApi — CRUD de campanhas do Simulador; semeia perguntas/mensagem pra tipo demanda, quizPerguntas/quizFaixas pra tipo quiz (D-072, D-076, D-080) |
 | `src/lib/simulador.js` | ~541 | Catálogos PERGUNTAS_OFERTA (fixo), PACOTES_INTERNET/APPS_ADICIONAIS/PLANOS_MOVEL, quizPerguntasPadrao/quizFaixasPadrao/corrigirQuiz/faixaPorAcertos, perfilPorRespostasOferta/calcularPerfilDinamico/resumoPerfil — sem imports, testável standalone e espelhado em Deno (D-072, D-074, D-075, D-077, D-080) |
-| `src/public/SimuladorPublico.jsx` | ~529 | Página pública — 3 fluxos independentes por tipo de campanha (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas certo/errado→faixa de acertos + CTA de sorteio), captura de UTM, honeypot, logo centralizada e checkbox LGPD sem overflow no mobile (D-072, D-076, D-077, D-080, D-081) |
+| `src/public/SimuladorPublico.jsx` | ~727 | Página pública — 3 fluxos independentes por tipo de campanha (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas certo/errado→faixa de acertos + CTA de sorteio + resumo compartilhável em canvas), captura de UTM, honeypot, logo centralizada e checkbox LGPD sem overflow no mobile (D-072, D-076, D-077, D-080, D-081, D-082) |
 | `src/features/simulador/SimuladorTab.jsx` | ~592 | Gestão de campanhas (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/mensagem/faixas + Sorteador + QR com UTM impresso embutido + link, marketing only (D-072, D-075, D-076, D-080) |
 | `supabase/migracao-simulador.sql` | ~95 | Tabela simuladores + RLS anon + colunas do Simulador em leads + índices (D-072) |
 | `supabase/migracao-simulador-perguntas.sql` | ~30 | Coluna simuladores.perguntas (jsonb) — questionário próprio por campanha (D-075) |

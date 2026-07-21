@@ -430,6 +430,44 @@ test.describe('Simulador — página pública', () => {
       expect(lead.utm.utm_source).toBe('meta');
       expect(lead.utm.utm_campaign).toBe('teste-e2e');
       expect(lead.versaoTermo).toBe('simulador-v1');
+
+      // D-082: resumo compartilhável — canvas 1080x1080 renderizado + fallback de download
+      // (o navegador de teste não implementa Web Share API com arquivos, então cai no download).
+      const canvas = page.locator('canvas').last();
+      await expect(canvas).toBeVisible();
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('button', { hasText: /Baixar imagem|Compartilhar resultado/ }).click(),
+      ]);
+      expect(download.suggestedFilename()).toBe('resultado-quiz-campanha-quiz-custom.png');
+    });
+
+    test('resumo compartilhável usa Web Share API com arquivo quando o navegador suporta', async ({ page }) => {
+      await page.addInitScript(() => {
+        window.__shareCalls = [];
+        navigator.share = (data) => { window.__shareCalls.push(data); return Promise.resolve(); };
+        navigator.canShare = () => true;
+      });
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+
+      await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
+      await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
+      await page.getByRole('button', { name: 'Quero concorrer ao brinde →' }).click();
+      await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Ana Share');
+      await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999001122');
+      await page.locator('input[type="checkbox"]').check();
+      await page.getByRole('button', { name: 'Receber minha oferta' }).click();
+      await expect(page.locator('.card')).toContainText('Recebemos seus dados!');
+
+      await page.locator('button', { hasText: 'Compartilhar resultado' }).click();
+      await expect(async () => {
+        const calls = await page.evaluate(() => window.__shareCalls);
+        expect(calls.length).toBe(1);
+        expect(calls[0].title).toBe('Meu resultado no Quiz RJNet');
+        expect(calls[0].text).toContain('Ana acertou 2 de 2');
+        expect(calls[0].files.length).toBe(1);
+      }).toPass({ timeout: 3000 });
     });
 
     test('campanha quiz sem perguntas configuradas mostra aviso em vez de quebrar', async ({ page }) => {
