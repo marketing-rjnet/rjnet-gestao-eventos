@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.25] — Quiz de Acertos: bloqueio de duplicidade por WhatsApp, não por navegador (D-084)
+**Data:** 2026-07-21
+**Branch:** `claude/quiz-phone-duplicate-check` → mesclado em `main` (PR #91)
+
+**O que mudou**
+- Logo depois do D-083 (v5.24) entrar em produção, o responsável percebeu que o bloqueio de "1 chance só" por navegador (tela de "já participou" via `localStorage`) impedia uma família com um único celular de cadastrar mais de uma pessoa no Quiz de Acertos — só a primeira conseguia se cadastrar naquele aparelho.
+- **`supabase/functions/submeter-simulador/index.ts`** — a fase `cadastro` ganha uma checagem antes do INSERT: se já existir um lead com o mesmo `simulador_id` + `telefone` (`deletado=false`) naquela campanha, recusa com `409` e a mensagem "Esse número de WhatsApp já está cadastrado nessa campanha.", sem duplicar o lead.
+- **`src/public/SimuladorPublico.jsx`** — removida por completo a fase/tela `quiz-ja-participou`. Ao carregar, só verifica se há um cadastro **em andamento** no `localStorage` (pra retomar o quiz); se não houver, mostra sempre a tela de cadastro — livre pra cadastrar outra pessoa no mesmo aparelho. Ao concluir o quiz, o progresso local é apagado (`limparProgressoQuizLocal`) em vez de marcado como concluído.
+- **`src/lib/localPublicSubmit.js`** — nova `leadSimuladorQuizDuplicado()`, mesma checagem pro fallback local (sem Supabase).
+- **`tests/simulador.test.js`** — testes reescritos: mesmo navegador libera novo cadastro após concluir; o MESMO número é recusado com erro inline; um número DIFERENTE cadastra outra pessoa da família normalmente.
+
+**Por que mudou**
+- Pedido direto do responsável: permitir que o mesmo celular cadastre várias pessoas da família (números diferentes), mas continuar impedindo que o mesmo número WhatsApp se cadastre duas vezes na mesma campanha.
+
+**Ações manuais necessárias**
+- [x] Redeploy manual da Edge Function `submeter-simulador` no painel do Supabase — feito pelo responsável (mesma limitação de import relativo do D-083/v5.24: cópia do painel precisa do conteúdo de `_shared/captacao.ts` colado direto no `index.ts`).
+- Nenhuma migração SQL — mesma tabela/colunas de `leads` já existentes.
+
+---
+
 ## [v5.24] — Quiz de Acertos: cadastro ANTES do quiz, retomada local e remoção do resumo compartilhável (D-083)
 **Data:** 2026-07-21
 **Branch:** `claude/signup-before-quiz-flow-56jx0g` → mesclado em `main` (PR #89)

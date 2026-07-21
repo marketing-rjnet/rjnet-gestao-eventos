@@ -2699,6 +2699,32 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-084] — Quiz de Acertos: bloqueio de duplicidade por número de WhatsApp, não mais por navegador
+
+**Data:** 2026-07-21
+**Tipo:** Correção de fluxo
+
+**Contexto:** Logo depois do D-083 entrar em produção, o responsável percebeu um problema no bloqueio de "1 chance só" por navegador (tela de "já participou" via `localStorage`): numa família com várias pessoas mas um único celular com WhatsApp, só a primeira pessoa conseguia se cadastrar naquele aparelho — as demais eram bloqueadas mesmo tendo números de WhatsApp diferentes, porque o bloqueio olhava o navegador, não a pessoa. Pedido: permitir cadastrar várias pessoas no mesmo aparelho, mas continuar impedindo que o MESMO número se cadastre duas vezes na mesma campanha.
+
+**Decisão:**
+- **O bloqueio de duplicidade passa a ser por `simulador_id` + `telefone`, verificado no servidor**, não mais por presença de progresso concluído no `localStorage`. Na fase `cadastro` da Edge Function `submeter-simulador`, antes do INSERT, uma consulta checa se já existe um lead (`deletado = false`) com o mesmo número naquela campanha; se sim, recusa com `409` e mensagem clara ("Esse número de WhatsApp já está cadastrado nessa campanha."), sem criar um segundo lead.
+- **A tela dedicada de "já participou" foi removida por completo** (fase `quiz-ja-participou` e toda a lógica que a acionava). Ao carregar a página, `SimuladorPublico.jsx` só verifica se há um cadastro **em andamento** (`localStorage`, ainda não concluído) para retomar o quiz — se não houver, mostra sempre a tela de cadastro, livre para uma nova pessoa se cadastrar no mesmo aparelho.
+- **Ao concluir o quiz, o progresso local é apagado** (`limparProgressoQuizLocal`) em vez de marcado como `'concluido'` — o aparelho fica imediatamente disponível para cadastrar a próxima pessoa da família, sem nenhuma tela bloqueando.
+- **Modo local (sem Supabase)** ganha a mesma checagem — `leadSimuladorQuizDuplicado()` em `localPublicSubmit.js`, usada por `SimuladorPublico.jsx` antes de `criarLeadSimuladorQuizLocal()` — para o fallback de dev/preview exercitar o mesmo comportamento do servidor.
+- A comparação de telefone usa o mesmo formato já mascarado (`maskTel()`) enviado pelo formulário — consistente com o que já é gravado em `leads.telefone` em todo o resto do sistema, sem normalização adicional.
+
+**Alternativas Avaliadas:**
+- **Manter o bloqueio por navegador e adicionar um botão "cadastrar outra pessoa"** — descartada: resolveria o sintoma, mas manteria uma proteção fraca (baseada em armazenamento local, contornável limpando o navegador) em vez da proteção real (o número em si), que já era necessária de qualquer forma para impedir reenvio do mesmo cadastro de outro aparelho/navegador.
+- **Normalizar o telefone antes de comparar (remover máscara, manter só dígitos)** — considerada, mas descartada por desnecessária: o mesmo `maskTel()` do formulário já produz a mesma string formatada de forma determinística para a mesma sequência de dígitos, então a comparação direta já é confiável, sem adicionar lógica nova de normalização.
+
+**Arquivos Afetados:** `supabase/functions/submeter-simulador/index.ts` (checagem de duplicidade antes do INSERT na fase `cadastro`), `src/public/SimuladorPublico.jsx` (remoção da fase/tela `quiz-ja-participou`, `aoCarregar` simplificado, `limparProgressoQuizLocal` ao concluir), `src/lib/localPublicSubmit.js` (`leadSimuladorQuizDuplicado`), `tests/simulador.test.js` (testes reescritos: mesmo navegador libera novo cadastro após concluir; mesmo número é recusado; número diferente cadastra outra pessoa da família normalmente).
+
+**Riscos:** Baixo — sem migração SQL, sem mudança de RLS. Mesma dívida operacional do D-083 se aplica: a Edge Function é colada manualmente no painel do Supabase (cópia inline do `_shared/captacao.ts`), exigindo redeploy manual a cada mudança neste arquivo.
+
+**Status:** Ativa — mergeado na `main` via PR #91 em 2026-07-21.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
