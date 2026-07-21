@@ -43,6 +43,13 @@
 // 'oferta'/'demanda' não usam `fase` — continuam exatamente como antes,
 // um único INSERT com tudo already computado.
 //
+// D-084: o bloqueio de "1 cadastro por pessoa" é por NÚMERO de WhatsApp
+// dentro da MESMA campanha (`simulador_id` + `telefone`), nunca por
+// navegador/aparelho — uma família com um único celular pode cadastrar
+// várias pessoas normalmente (números diferentes); só o MESMO número não
+// pode se cadastrar 2 vezes na mesma campanha. Checado na fase 'cadastro',
+// antes do insert.
+//
 // O motor de scoring abaixo ESPELHA src/lib/simulador.js — duplicado
 // porque este código roda em Deno, fora do bundle do app (mesmo padrão dos
 // validadores em _shared/captacao.ts). Mudou lá, muda aqui.
@@ -430,6 +437,25 @@ Deno.serve(async (req) => {
       if (simulador.tipo !== 'quiz') {
         return json({ error: 'Essa campanha não usa esse tipo de submissão.' }, 400, corsHeaders);
       }
+
+      // D-084: bloqueio é por NÚMERO de WhatsApp dentro da MESMA campanha,
+      // nunca por navegador/aparelho — uma família com 1 celular só pode
+      // cadastrar várias pessoas (números diferentes) normalmente; só o
+      // MESMO número não pode se cadastrar 2 vezes na mesma campanha.
+      const { count: jaCadastrado, error: dupErro } = await admin
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('simulador_id', simuladorId)
+        .eq('telefone', telefone)
+        .eq('deletado', false);
+      if (dupErro) {
+        console.error('[rjnet:edge] Falha ao verificar duplicidade do cadastro:', dupErro);
+        return json({ error: 'Não foi possível registrar seus dados agora. Tente novamente em instantes.' }, 500, corsHeaders);
+      }
+      if ((jaCadastrado ?? 0) > 0) {
+        return json({ error: 'Esse número de WhatsApp já está cadastrado nessa campanha.' }, 409, corsHeaders);
+      }
+
       const utmCadastro = sanitizarUtm(body.utm);
       const leadId = `l-sim-${crypto.randomUUID()}`;
       const agoraCadastro = new Date().toISOString();

@@ -484,11 +484,43 @@ test.describe('Simulador — página pública', () => {
       await expect(page.locator('.card')).toContainText('Pergunta 2 de teste?');
     });
 
-    test('já participou: reload depois de concluir mostra aviso, sem refazer o quiz', async ({ page }) => {
+    // D-084: bloqueio de duplicidade é por NÚMERO de WhatsApp na campanha,
+    // nunca por navegador/aparelho — o mesmo celular pode cadastrar várias
+    // pessoas da família (números diferentes); só o MESMO número não pode
+    // se cadastrar 2 vezes.
+    test('mesmo navegador após concluir: cadastro fica livre de novo (sem "já participou"), mas o MESMO número é recusado', async ({ page }) => {
       test.setTimeout(45_000); // cadastro + 2 pausas de revelação (1,2s cada) + conclusão + reload
       await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
       await page.goto('/s/campanha-quiz-custom');
-      await cadastrarQuiz(page);
+      await cadastrarQuiz(page, { telefone: '24999001122' });
+
+      await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
+      await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
+      await expect(page.locator('.card')).toContainText('Expert', { timeout: 5_000 });
+      await page.getByRole('button', { name: 'Participar do sorteio →' }).click();
+      await expect(page.locator('.card')).toContainText('Você está concorrendo!');
+
+      // Mesmo navegador, reload: NÃO deve bloquear — tela de cadastro livre.
+      await page.reload();
+      await expect(page.locator('.card')).toContainText('Cadastre-se para participar do quiz');
+
+      // Tentando com o MESMO número: recusado com mensagem inline, sem duplicar lead.
+      await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Outra Tentativa');
+      await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999001122');
+      await page.locator('input[type="checkbox"]').check();
+      await page.getByRole('button', { name: 'Cadastrar e começar o quiz →' }).click();
+      await expect(page.locator('.form-erro')).toContainText('já está cadastrado');
+      await expect(page.locator('.card')).toContainText('Cadastre-se para participar do quiz');
+
+      const leads = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).filter((l) => l.origem === 'simulador'));
+      expect(leads.length).toBe(1);
+    });
+
+    test('mesmo navegador, número DIFERENTE: cadastra outra pessoa da família normalmente', async ({ page }) => {
+      test.setTimeout(45_000);
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+      await cadastrarQuiz(page, { nome: 'Filho Um', telefone: '24999001122' });
 
       await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
       await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
@@ -497,7 +529,12 @@ test.describe('Simulador — página pública', () => {
       await expect(page.locator('.card')).toContainText('Você está concorrendo!');
 
       await page.reload();
-      await expect(page.locator('.card')).toContainText('Você já participou desse quiz!');
+      await cadastrarQuiz(page, { nome: 'Filho Dois', telefone: '24999003344' });
+      await expect(page.locator('.card')).toContainText('Pergunta 1 de teste?');
+
+      const leads = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).filter((l) => l.origem === 'simulador'));
+      expect(leads.length).toBe(2);
+      expect(leads.map((l) => l.nome).sort()).toEqual(['Filho Dois', 'Filho Um']);
     });
 
     test('campanha quiz sem perguntas configuradas mostra aviso em vez de quebrar', async ({ page }) => {

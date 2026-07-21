@@ -36,6 +36,20 @@ export function salvarLeadPublicoLocal(dados) {
   return novo;
 }
 
+// D-084: bloqueio de duplicidade por NÚMERO de WhatsApp dentro da MESMA
+// campanha — mesmo espelhado no servidor (submeter-simulador, fase
+// 'cadastro'). Nunca por navegador/aparelho: uma família com um único
+// celular pode cadastrar várias pessoas (números diferentes) sem
+// restrição; só o MESMO número não pode se cadastrar 2 vezes.
+export function leadSimuladorQuizDuplicado(simuladorId, telefone) {
+  try {
+    const atuais = JSON.parse(localStorage.getItem(LEADS_KEY)) || [];
+    return atuais.some((l) => l.simuladorId === simuladorId && l.telefone === telefone && !l.deletado);
+  } catch {
+    return false;
+  }
+}
+
 // D-083: fallback local (sem Supabase) do cadastro em DUAS fases do Quiz de
 // Acertos — mesmo espírito de salvarLeadPublicoLocal acima, só que em duas
 // escritas: o cadastro grava o lead na hora (contato/consentimento, sem

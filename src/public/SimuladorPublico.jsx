@@ -9,7 +9,7 @@ import {
   quizPerguntasPadrao, quizFaixasPadrao, corrigirQuiz, faixaPorAcertos,
 } from '../lib/simulador';
 import { maskTel, validarTelefone } from '../utils/masks';
-import { salvarLeadPublicoLocal, criarLeadSimuladorQuizLocal, concluirLeadSimuladorQuizLocal } from '../lib/localPublicSubmit';
+import { salvarLeadPublicoLocal, criarLeadSimuladorQuizLocal, concluirLeadSimuladorQuizLocal, leadSimuladorQuizDuplicado } from '../lib/localPublicSubmit';
 import { containsLink } from '../lib/security';
 
 // Página pública do Simulador — sem sessão, sem AppContext (mesmo desenho
@@ -45,9 +45,18 @@ import { containsLink } from '../lib/security';
 // SimuladorTab.jsx/fetchLeadsPorSimulador). Progresso (cadastro feito,
 // pergunta atual, respostas) fica em localStorage por slug — se a pessoa
 // sair e voltar no MESMO navegador, retoma de onde parou sem se cadastrar
-// de novo; se já tiver concluído, vê uma tela de "já participou" (1 chance
-// só, sem refazer). O resumo compartilhável (D-082) foi removido por
-// completo — não existe mais compartilhamento do resultado.
+// de novo. O resumo compartilhável (D-082) foi removido por completo — não
+// existe mais compartilhamento do resultado.
+//
+// D-084: o bloqueio de "1 chance só" NÃO é mais por navegador/aparelho —
+// é por NÚMERO de WhatsApp dentro da campanha (checado no servidor, fase
+// 'cadastro'). O MESMO aparelho pode cadastrar várias pessoas da mesma
+// família (números diferentes) sem restrição nenhuma; só o MESMO número
+// não pode se cadastrar 2 vezes. Por isso o localStorage só guarda
+// progresso ENQUANTO o cadastro atual ainda não concluiu o quiz — ao
+// concluir, o progresso é limpo (o aparelho fica livre pra cadastrar
+// outra pessoa na sequência, sem nenhuma tela de "já participou" bloqueando
+// por navegador).
 //
 // Atribuição de tráfego: captura utm_* da URL no load — o mesmo link
 // atende anúncio pago (UTMs do gerenciador) e QR impresso (UTMs embutidos
@@ -74,11 +83,14 @@ function capturarUtm() {
   return Object.keys(utm).length > 0 ? utm : null;
 }
 
-// D-083: progresso do Quiz de Acertos em localStorage, por slug — só usado
-// pro tipo 'quiz'. Guarda o `leadId` devolvido pelo cadastro (fase
-// 'cadastro' na Edge Function) + pergunta atual/respostas (retomar no
-// mesmo navegador) + status ('cadastrado' | 'concluido', pra tela de "já
-// participou"). Nunca guarda resultado do quiz — isso vive só no servidor.
+// D-083/D-084: progresso do Quiz de Acertos em localStorage, por slug — só
+// usado pro tipo 'quiz'. Guarda o `leadId` devolvido pelo cadastro (fase
+// 'cadastro' na Edge Function) + pergunta atual/respostas, só ENQUANTO o
+// quiz está em andamento — permite retomar no mesmo navegador sem se
+// cadastrar de novo. Ao concluir o quiz, a chave é apagada (o bloqueio de
+// "1 chance só" passou a ser por número de WhatsApp no servidor, não mais
+// por aparelho — ver D-084) — nunca guarda resultado do quiz, isso vive só
+// no servidor.
 function chaveQuizLocal(slug) {
   return `rjnet_simulador_quiz_${slug}`;
 }
@@ -95,7 +107,15 @@ function salvarProgressoQuizLocal(slug, progresso) {
   try {
     localStorage.setItem(chaveQuizLocal(slug), JSON.stringify(progresso));
   } catch {
-    /* localStorage indisponível — sem retomada nem "já participou", mas o cadastro/conclusão já foram gravados no servidor */
+    /* localStorage indisponível — sem retomada, mas o cadastro/conclusão já foram gravados no servidor */
+  }
+}
+
+function limparProgressoQuizLocal(slug) {
+  try {
+    localStorage.removeItem(chaveQuizLocal(slug));
+  } catch {
+    /* localStorage indisponível — nada a limpar */
   }
 }
 
@@ -110,8 +130,8 @@ function servicosInteressePorPerfil(perfilKey) {
 export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
   // 'oferta'/'demanda': perguntas → calculando → resultado(-demanda) → contato → enviado
-  // 'quiz' (D-083): quiz-cadastro → perguntas → calculando → resultado-quiz → quiz-sorteio-confirmado
-  //                 (ou quiz-ja-participou, se já concluiu antes no mesmo navegador)
+  // 'quiz' (D-083/D-084): quiz-cadastro → perguntas → calculando → resultado-quiz → quiz-sorteio-confirmado
+  //                       (duplicidade de número é bloqueada no cadastro, nunca por navegador)
   const [fase, setFase] = useState('carregando');
   const [etapa, setEtapa] = useState(0);
   const [respostas, setRespostas] = useState({});
@@ -138,10 +158,12 @@ export default function SimuladorPublico({ slug }) {
       if (!s) return;
 
       if (s.tipo === 'quiz') {
+        // D-084: presença de progresso salvo == cadastro em andamento (a
+        // chave é apagada ao concluir, ver confirmarSorteio) — retoma sem
+        // recadastro; senão, tela de cadastro sempre disponível (o mesmo
+        // aparelho pode cadastrar outra pessoa da família a qualquer hora).
         const salvo = lerProgressoQuizLocal(slug);
-        if (salvo?.status === 'concluido') {
-          setFase('quiz-ja-participou');
-        } else if (salvo?.leadId) {
+        if (salvo?.leadId) {
           setLeadId(salvo.leadId);
           setContato(salvo.contato || contato);
           setRespostas(salvo.respostas || {});
@@ -256,10 +278,13 @@ export default function SimuladorPublico({ slug }) {
     if (etapa > 0) setEtapa(etapa - 1);
   };
 
-  // D-083: cadastro (nome/WhatsApp/LGPD) ANTES do quiz — só tipo 'quiz'.
-  // Grava o lead de verdade no servidor imediatamente (garante o contato
-  // mesmo que a pessoa abandone o quiz depois); o quiz em si só faz um
-  // UPDATE nesse mesmo lead ao concluir (confirmarSorteio abaixo).
+  // D-083/D-084: cadastro (nome/WhatsApp/LGPD) ANTES do quiz — só tipo
+  // 'quiz'. Grava o lead de verdade no servidor imediatamente (garante o
+  // contato mesmo que a pessoa abandone o quiz depois); o quiz em si só faz
+  // um UPDATE nesse mesmo lead ao concluir (confirmarSorteio abaixo). O
+  // bloqueio de duplicidade é por NÚMERO de WhatsApp na mesma campanha
+  // (verificado no servidor) — nunca por aparelho, então o mesmo celular
+  // pode cadastrar várias pessoas da família sem problema.
   const submitCadastroQuiz = async (e) => {
     e.preventDefault();
     setErro('');
@@ -276,6 +301,11 @@ export default function SimuladorPublico({ slug }) {
     try {
       let novoLeadId;
       if (!supabaseConfig.url) {
+        if (leadSimuladorQuizDuplicado(simulador.id, contato.telefone)) {
+          setErro('Esse número de WhatsApp já está cadastrado nessa campanha.');
+          setEnviando(false);
+          return;
+        }
         const novo = criarLeadSimuladorQuizLocal({
           simuladorId: simulador.id,
           nome: contato.nome, telefone: contato.telefone,
@@ -314,11 +344,14 @@ export default function SimuladorPublico({ slug }) {
     }
   };
 
-  // D-083: clique em "Participar do sorteio" — só tipo 'quiz'. Só agora o
-  // resultado do quiz é gravado (UPDATE no lead do cadastro); guardado no
-  // servidor por `pontuacao is null` (1 chance só, sem corrida de
-  // concorrência). Depois disso o localStorage marca 'concluido' — uma
-  // volta ao mesmo navegador mostra "já participou" em vez de refazer.
+  // D-083/D-084: clique em "Participar do sorteio" — só tipo 'quiz'. Só
+  // agora o resultado do quiz é gravado (UPDATE no lead do cadastro);
+  // guardado no servidor por `pontuacao is null` (1 chance só pra ESSE
+  // cadastro, sem corrida de concorrência). Depois disso o progresso local
+  // é apagado — o bloqueio de reentrada não é mais por aparelho, é por
+  // número de WhatsApp (checado no cadastro da próxima pessoa que tentar
+  // usar o mesmo número); o mesmo navegador fica livre pra cadastrar outra
+  // pessoa da família na sequência.
   const confirmarSorteio = async () => {
     setErro('');
     setEnviando(true);
@@ -345,7 +378,7 @@ export default function SimuladorPublico({ slug }) {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || 'Não foi possível registrar sua participação.');
       }
-      salvarProgressoQuizLocal(slug, { leadId, status: 'concluido' });
+      limparProgressoQuizLocal(slug);
       setFase('quiz-sorteio-confirmado');
     } catch (err) {
       setErro(err.message || 'Não foi possível registrar sua participação. Tente novamente.');
@@ -442,22 +475,6 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
             {tipo === 'demanda' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'}
             {tipo === 'oferta' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Quiz: já participou (D-083) — mesmo navegador, 1 chance só ───────
-  if (fase === 'quiz-ja-participou') {
-    return (
-      <div className="qr-public-shell">
-        <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Você já participou desse quiz!</div>
-          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
-            Cada pessoa participa uma única vez. Fique de olho nas nossas redes sociais e no seu WhatsApp
-            para mais informações sobre o sorteio.
           </div>
         </div>
       </div>
