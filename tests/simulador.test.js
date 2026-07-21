@@ -335,9 +335,16 @@ test.describe('Simulador — página pública', () => {
     });
   });
 
-  // D-080: Quiz de Acertos — teste de conhecimento (certo/errado), sem
-  // pergunta de intenção/perfil. Pontuação = contagem de acertos, faixa de
-  // classificação totalmente configurável pela campanha.
+  // D-080/D-083: Quiz de Acertos — teste de conhecimento (certo/errado),
+  // sem pergunta de intenção/perfil. Pontuação = contagem de acertos, faixa
+  // de classificação totalmente configurável pela campanha.
+  //
+  // D-083: fluxo próprio, diferente de 'oferta'/'demanda' — cadastro
+  // (nome/WhatsApp/LGPD) acontece ANTES do quiz, garantindo o contato
+  // mesmo que a pessoa abandone no meio; o resultado só é gravado (UPDATE
+  // no mesmo lead) quando ela clica "Participar do sorteio" no final.
+  // Progresso/status ficam em localStorage por slug — retomar no mesmo
+  // navegador sem se cadastrar de novo, ou "já participou" se já concluiu.
   test.describe('tipo Quiz de Acertos', () => {
     const CAMPANHA_QUIZ = {
       id: 'sim-quiz-e2e',
@@ -363,8 +370,21 @@ test.describe('Simulador — página pública', () => {
       ],
     };
 
-    test('wizard vai direto pra 1ª pergunta do molde padrão (MotoFest), sem etapa de perfil', async ({ page }) => {
+    // Preenche e envia o cadastro (D-083) — tela sempre exibida ANTES da
+    // 1ª pergunta do quiz.
+    async function cadastrarQuiz(page, { nome = 'Biker E2E', telefone = '24999001122', cidade = '', bairro = '' } = {}) {
+      await expect(page.locator('.card')).toContainText('Cadastre-se para participar do quiz');
+      await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill(nome);
+      await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill(telefone);
+      if (cidade) await page.locator('.big-field', { hasText: 'Cidade' }).locator('input').fill(cidade);
+      if (bairro) await page.locator('.big-field', { hasText: 'Bairro' }).locator('input').fill(bairro);
+      await page.locator('input[type="checkbox"]').check();
+      await page.getByRole('button', { name: 'Cadastrar e começar o quiz →' }).click();
+    }
+
+    test('cadastro aparece ANTES do quiz — molde padrão (MotoFest) só depois de cadastrar', async ({ page }) => {
       await abrirSimulador(page, CAMPANHA_QUIZ);
+      await cadastrarQuiz(page);
       await expect(page.locator('.card')).toContainText('cc" usada para motores de moto');
       await expect(page.locator('.card')).toContainText('Pergunta 1 de 10');
     });
@@ -372,17 +392,28 @@ test.describe('Simulador — página pública', () => {
     test('campanha com quiz próprio usa SUAS perguntas e faixas, não o molde padrão', async ({ page }) => {
       await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
       await page.goto('/s/campanha-quiz-custom');
+      await cadastrarQuiz(page);
       await expect(page.locator('.card')).toContainText('Pergunta 1 de teste?');
       await expect(page.locator('.card')).toContainText('Pergunta 1 de 2');
       await expect(page.locator('.card')).not.toContainText('cc" usada para motores de moto');
     });
 
+    test('resposta certa fica verde e a errada vermelha ao responder', async ({ page }) => {
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+      await cadastrarQuiz(page);
+      await page.locator('.sim-opcao', { hasText: 'Errada' }).click();
+      await expect(page.locator('.sim-opcao', { hasText: 'Certa' })).toHaveClass(/sim-opcao-correta/);
+      await expect(page.locator('.sim-opcao', { hasText: 'Errada' })).toHaveClass(/sim-opcao-errada/);
+    });
+
     test('todos os acertos → faixa mais alta configurada', async ({ page }) => {
       await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
       await page.goto('/s/campanha-quiz-custom');
+      await cadastrarQuiz(page);
       await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
       await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
-      await expect(page.locator('.card')).toContainText('🏆');
+      await expect(page.locator('.card')).toContainText('🏆', { timeout: 5_000 });
       await expect(page.locator('.card')).toContainText('Expert');
       await expect(page.locator('.card')).toContainText('Você acertou 2 de 2 perguntas!');
     });
@@ -390,84 +421,83 @@ test.describe('Simulador — página pública', () => {
     test('uma resposta errada cai na faixa inferior configurada', async ({ page }) => {
       await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
       await page.goto('/s/campanha-quiz-custom');
-      await page.locator('.sim-opcao', { hasText: 'Errada', exact: false }).first().click();
+      await cadastrarQuiz(page);
+      await page.locator('.sim-opcao', { hasText: 'Errada' }).click();
       await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
-      await expect(page.locator('.card')).toContainText('😅');
+      await expect(page.locator('.card')).toContainText('😅', { timeout: 5_000 });
       await expect(page.locator('.card')).toContainText('Quase lá');
       await expect(page.locator('.card')).toContainText('Você acertou 1 de 2 perguntas!');
     });
 
-    test('fluxo completo: quiz → faixa personalizada → contato → lead gravado com acertos/faixa/servico=outro', async ({ page }) => {
+    test('fluxo completo: cadastro grava o lead ANTES do quiz; sorteio só grava o resultado ao concluir', async ({ page }) => {
       await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
       await page.goto('/s/campanha-quiz-custom?utm_source=meta&utm_campaign=teste-e2e');
 
+      await cadastrarQuiz(page, { nome: 'Biker E2E', cidade: 'Angra dos Reis' });
+
+      // Cadastro já gravou o lead — antes de responder qualquer pergunta.
+      const leadCadastro = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).find((l) => l.origem === 'simulador'));
+      expect(leadCadastro.nome).toBe('Biker E2E');
+      expect(leadCadastro.simuladorId).toBe('sim-quiz-custom');
+      expect(leadCadastro.vendedorId).toBeNull();
+      expect(leadCadastro.cidade).toBe('Angra dos Reis');
+      expect(leadCadastro.pontuacao).toBeNull();
+      expect(leadCadastro.perfilConsumo).toBeNull();
+      expect(leadCadastro.utm.utm_source).toBe('meta');
+      expect(leadCadastro.utm.utm_campaign).toBe('teste-e2e');
+      expect(leadCadastro.versaoTermo).toBe('simulador-v1');
+      const leadId = leadCadastro.id;
+
       await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
       await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
-      await expect(page.locator('.card')).toContainText('Expert');
+      await expect(page.locator('.card')).toContainText('Expert', { timeout: 5_000 });
 
-      await expect(page.locator('.card')).toContainText('concorra a um brinde RJNET');
-      await page.getByRole('button', { name: 'Quero concorrer ao brinde →' }).click();
-      await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Biker E2E');
-      await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999001122');
-      await page.locator('.big-field', { hasText: 'Cidade' }).locator('input').fill('Angra dos Reis');
-      await page.locator('input[type="checkbox"]').check();
-      await page.getByRole('button', { name: 'Receber minha oferta' }).click();
-      await expect(page.locator('.card')).toContainText('Recebemos seus dados!');
+      await expect(page.locator('.card')).toContainText('Confirme sua participação');
+      await page.getByRole('button', { name: 'Participar do sorteio →' }).click();
+      await expect(page.locator('.card')).toContainText('Você está concorrendo!');
 
-      const lead = await page.evaluate(() => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).find((l) => l.origem === 'simulador'));
-      expect(lead.nome).toBe('Biker E2E');
-      expect(lead.simuladorId).toBe('sim-quiz-custom');
-      expect(lead.vendedorId).toBeNull();
-      expect(lead.cidade).toBe('Angra dos Reis');
-      expect(lead.pontuacao).toBe(2);
-      expect(lead.temperatura).toBe('quente');
-      expect(lead.perfilConsumo.tipo).toBe('quiz');
-      expect(lead.perfilConsumo.acertos).toBe(2);
-      expect(lead.perfilConsumo.total).toBe(2);
-      expect(lead.perfilConsumo.faixa.titulo).toBe('Expert');
-      expect(Array.isArray(lead.perfilConsumo.perguntas)).toBe(true); // snapshot gravado na submissão
-      expect(lead.servicoInteresse).toEqual(['outro']);
-      expect(lead.utm.utm_source).toBe('meta');
-      expect(lead.utm.utm_campaign).toBe('teste-e2e');
-      expect(lead.versaoTermo).toBe('simulador-v1');
-
-      // D-082: resumo compartilhável — canvas 1080x1080 renderizado + fallback de download
-      // (o navegador de teste não implementa Web Share API com arquivos, então cai no download).
-      const canvas = page.locator('canvas').last();
-      await expect(canvas).toBeVisible();
-      const [download] = await Promise.all([
-        page.waitForEvent('download'),
-        page.locator('button', { hasText: /Baixar imagem|Compartilhar resultado/ }).click(),
-      ]);
-      expect(download.suggestedFilename()).toBe('resultado-quiz-campanha-quiz-custom.png');
+      const leadFinal = await page.evaluate(
+        (id) => (JSON.parse(localStorage.getItem('rjnet_leads')) || []).find((l) => l.id === id),
+        leadId,
+      );
+      expect(leadFinal.pontuacao).toBe(2);
+      expect(leadFinal.temperatura).toBe('quente');
+      expect(leadFinal.perfilConsumo.tipo).toBe('quiz');
+      expect(leadFinal.perfilConsumo.acertos).toBe(2);
+      expect(leadFinal.perfilConsumo.total).toBe(2);
+      expect(leadFinal.perfilConsumo.faixa.titulo).toBe('Expert');
+      expect(Array.isArray(leadFinal.perfilConsumo.perguntas)).toBe(true); // snapshot gravado na conclusão
+      expect(leadFinal.servicoInteresse).toEqual(['outro']);
     });
 
-    test('resumo compartilhável usa Web Share API com arquivo quando o navegador suporta', async ({ page }) => {
-      await page.addInitScript(() => {
-        window.__shareCalls = [];
-        navigator.share = (data) => { window.__shareCalls.push(data); return Promise.resolve(); };
-        navigator.canShare = () => true;
-      });
+    test('retomar no mesmo navegador: sai no meio do quiz e volta sem se cadastrar de novo', async ({ page }) => {
+      test.setTimeout(45_000); // cadastro + pausa de revelação (1,2s) + reload — mais lento que o default
       await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
       await page.goto('/s/campanha-quiz-custom');
+      await cadastrarQuiz(page);
+
+      await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
+      await expect(page.locator('.card')).toContainText('Pergunta 2 de teste?', { timeout: 5_000 });
+
+      await page.reload();
+      await expect(page.locator('.card')).not.toContainText('Cadastre-se para participar');
+      await expect(page.locator('.card')).toContainText('Pergunta 2 de teste?');
+    });
+
+    test('já participou: reload depois de concluir mostra aviso, sem refazer o quiz', async ({ page }) => {
+      test.setTimeout(45_000); // cadastro + 2 pausas de revelação (1,2s cada) + conclusão + reload
+      await page.addInitScript((c) => { localStorage.setItem('rjnet_simuladores', JSON.stringify([c])); }, CAMPANHA_QUIZ_CUSTOM);
+      await page.goto('/s/campanha-quiz-custom');
+      await cadastrarQuiz(page);
 
       await page.locator('.sim-opcao', { hasText: 'Certa' }).click();
       await page.locator('.sim-opcao', { hasText: 'Certa2' }).click();
-      await page.getByRole('button', { name: 'Quero concorrer ao brinde →' }).click();
-      await page.locator('.big-field', { hasText: 'Nome *' }).locator('input').fill('Ana Share');
-      await page.locator('.big-field', { hasText: 'WhatsApp *' }).locator('input').fill('24999001122');
-      await page.locator('input[type="checkbox"]').check();
-      await page.getByRole('button', { name: 'Receber minha oferta' }).click();
-      await expect(page.locator('.card')).toContainText('Recebemos seus dados!');
+      await expect(page.locator('.card')).toContainText('Expert', { timeout: 5_000 });
+      await page.getByRole('button', { name: 'Participar do sorteio →' }).click();
+      await expect(page.locator('.card')).toContainText('Você está concorrendo!');
 
-      await page.locator('button', { hasText: 'Compartilhar resultado' }).click();
-      await expect(async () => {
-        const calls = await page.evaluate(() => window.__shareCalls);
-        expect(calls.length).toBe(1);
-        expect(calls[0].title).toBe('Meu resultado no Quiz RJNet');
-        expect(calls[0].text).toContain('Ana acertou 2 de 2');
-        expect(calls[0].files.length).toBe(1);
-      }).toPass({ timeout: 3000 });
+      await page.reload();
+      await expect(page.locator('.card')).toContainText('Você já participou desse quiz!');
     });
 
     test('campanha quiz sem perguntas configuradas mostra aviso em vez de quebrar', async ({ page }) => {

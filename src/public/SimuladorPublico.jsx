@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
 import { fetchSimuladorPublico } from '../lib/dataService';
 import {
@@ -9,17 +9,17 @@ import {
   quizPerguntasPadrao, quizFaixasPadrao, corrigirQuiz, faixaPorAcertos,
 } from '../lib/simulador';
 import { maskTel, validarTelefone } from '../utils/masks';
-import { salvarLeadPublicoLocal } from '../lib/localPublicSubmit';
+import { salvarLeadPublicoLocal, criarLeadSimuladorQuizLocal, concluirLeadSimuladorQuizLocal } from '../lib/localPublicSubmit';
 import { containsLink } from '../lib/security';
 
 // Página pública do Simulador — sem sessão, sem AppContext (mesmo desenho
 // do FormularioPublico). Wizard gamificado: "valor antes do dado" — só
 // pede contato depois de mostrar algo pra pessoa.
 //
-// D-077/D-080: os 3 fluxos (D-076) agora têm a MESMA estrutura de tela — um
-// quiz sequencial (uma pergunta por tela) seguido de "calculando" →
-// resultado → contato. O que muda por tipo é só QUAL questionário e o que
-// a etapa de resultado calcula/mostra:
+// D-077/D-080: os fluxos 'oferta'/'demanda' (D-076) têm a MESMA estrutura
+// de tela — um quiz sequencial (uma pergunta por tela) seguido de
+// "calculando" → resultado → contato. O que muda por tipo é só QUAL
+// questionário e o que a etapa de resultado calcula/mostra:
 // - tipo 'oferta': quiz FIXO de qualificação (PERGUNTAS_OFERTA) — o perfil
 //   de uso (e portanto o pacote) é DEDUZIDO das respostas via
 //   perfilPorRespostasOferta(), nunca escolhido por clique direto (isso
@@ -28,197 +28,32 @@ import { containsLink } from '../lib/security';
 // - tipo 'demanda': perguntas configuráveis da PRÓPRIA campanha (D-075) →
 //   mensagem de resultado personalizada pela campanha → contato. Sem
 //   pergunta de perfil/pacote nesse fluxo.
-// - tipo 'quiz' (D-080): perguntas de conhecimento (certo/errado) da
-//   PRÓPRIA campanha → contagem de acertos → faixa de classificação
-//   (emoji + título definidos pelo marketing) → contato. Sem pergunta de
-//   perfil/pacote/pontuação ponderada — é um teste, não uma qualificação.
 // O score/perfil exibido aqui é só UX: a Edge Function submeter-simulador
 // busca sua PRÓPRIA cópia da config (e do quiz fixo de oferta) e recalcula
 // tudo no servidor — nunca confia no que o cliente manda.
 //
+// D-083: tipo 'quiz' passou a ter um fluxo PRÓPRIO, diferente de
+// 'oferta'/'demanda' — cadastro ANTES do quiz, não depois:
+//   cadastro (nome/WhatsApp/LGPD) → quiz (com feedback verde/vermelho por
+//   resposta) → resultado (faixa) → CTA "Participar do sorteio" → mensagem
+//   final.
+// Isso garante o contato da pessoa mesmo que ela abandone o quiz no meio —
+// o cadastro já foi gravado no servidor (INSERT) antes da 1ª pergunta; o
+// quiz só faz um UPDATE nesse mesmo lead ao concluir. Só quem CONCLUI o
+// quiz e clica no CTA concorre ao sorteio (quem só se cadastra vira lead
+// de CRM normal, sem entrar na lista de sorteáveis — ver Sorteador em
+// SimuladorTab.jsx/fetchLeadsPorSimulador). Progresso (cadastro feito,
+// pergunta atual, respostas) fica em localStorage por slug — se a pessoa
+// sair e voltar no MESMO navegador, retoma de onde parou sem se cadastrar
+// de novo; se já tiver concluído, vê uma tela de "já participou" (1 chance
+// só, sem refazer). O resumo compartilhável (D-082) foi removido por
+// completo — não existe mais compartilhamento do resultado.
+//
 // Atribuição de tráfego: captura utm_* da URL no load — o mesmo link
 // atende anúncio pago (UTMs do gerenciador) e QR impresso (UTMs embutidos
 // pelo SimuladorTab ao gerar o QR).
-//
-// D-082: tipo 'quiz' ganha um resumo compartilhável na tela final (depois
-// do contato enviado) — imagem gerada 100% no cliente via <canvas> (mesma
-// técnica do QR Code, sem lib nova) com faixa/acertos/tempo/campanha, e um
-// botão que usa a Web Share API (com arquivo de imagem) quando o navegador
-// suporta, com fallback de download simples. Puramente cosmético/viral —
-// não persiste nada novo, não afeta o lead já gravado.
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
-
-// D-082: contagem de tempo de resposta do quiz — só usada pra exibição no
-// resumo compartilhável, nunca enviada ao servidor (a Edge Function não
-// grava/valida tempo, é puramente decorativo no card).
-function formatarDuracao(ms) {
-  if (!ms || ms < 0) return null;
-  const segundosTotais = Math.round(ms / 1000);
-  const min = Math.floor(segundosTotais / 60);
-  const seg = segundosTotais % 60;
-  return min === 0 ? `${seg}s` : `${min}min ${seg}s`;
-}
-
-// Quebra texto em várias linhas dentro de maxWidth — usado pro card do
-// resumo aceitar títulos/nomes de campanha de qualquer tamanho sem
-// estourar a imagem. Retorna o y logo abaixo do bloco desenhado.
-function desenharTextoComQuebra(ctx, texto, cx, y, maxWidth, lineHeight) {
-  const palavras = String(texto).split(' ');
-  const linhas = [];
-  let linha = '';
-  for (const palavra of palavras) {
-    const teste = linha ? `${linha} ${palavra}` : palavra;
-    if (linha && ctx.measureText(teste).width > maxWidth) {
-      linhas.push(linha);
-      linha = palavra;
-    } else {
-      linha = teste;
-    }
-  }
-  if (linha) linhas.push(linha);
-  linhas.forEach((l, i) => ctx.fillText(l, cx, y + i * lineHeight));
-  return y + linhas.length * lineHeight;
-}
-
-// Desenha o card 1080x1080 (mesmo formato das imagens de Oferta, D-057) do
-// resumo do quiz — logo, nome da campanha, faixa (emoji + título), acertos
-// e tempo. `logoImg` pode ser null (ex: SVG ainda não carregou) — o resto
-// do card é desenhado igual, só sem a logo no topo.
-function desenharResumoQuiz(canvas, { emoji, titulo, acertos, total, tempoTexto, nomeCampanha, primeiroNome, logoImg, link }) {
-  const W = 1080;
-  const H = 1080;
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  const grad = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 900);
-  grad.addColorStop(0, 'rgba(255,203,0,0.12)');
-  grad.addColorStop(1, '#090909');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-  ctx.textAlign = 'center';
-
-  let y = 130;
-  if (logoImg) {
-    const logoH = 90;
-    const logoW = logoImg.width * (logoH / logoImg.height);
-    ctx.drawImage(logoImg, (W - logoW) / 2, y - logoH, logoW, logoH);
-  }
-  y += 90;
-
-  ctx.fillStyle = '#ffcb00';
-  ctx.font = '700 34px "DM Sans", sans-serif';
-  y = desenharTextoComQuebra(ctx, String(nomeCampanha || 'Simulador RJNet').toUpperCase(), W / 2, y, 880, 44) + 150;
-
-  ctx.font = '200px sans-serif';
-  ctx.fillText(emoji || '🎯', W / 2, y);
-  y += 70;
-
-  ctx.fillStyle = '#f4f4f4';
-  ctx.font = '800 62px "DM Sans", sans-serif';
-  y = desenharTextoComQuebra(ctx, titulo || 'Participante', W / 2, y, 920, 72) + 50;
-
-  ctx.fillStyle = '#cccccc';
-  ctx.font = '500 38px "DM Sans", sans-serif';
-  y = desenharTextoComQuebra(ctx, `${primeiroNome} acertou ${acertos} de ${total} perguntas!`, W / 2, y, 920, 48) + 34;
-
-  if (tempoTexto) {
-    ctx.fillStyle = '#888888';
-    ctx.font = '500 32px "DM Sans", sans-serif';
-    ctx.fillText(`⏱ ${tempoTexto}`, W / 2, y);
-  }
-
-  ctx.fillStyle = '#555555';
-  ctx.font = '400 26px "DM Sans", sans-serif';
-  ctx.fillText(link, W / 2, H - 70);
-}
-
-// D-082: gera o card + botão de compartilhar/baixar. Usa Web Share API com
-// arquivo quando o navegador suporta (WhatsApp/Instagram/etc. no celular);
-// cai pro download simples do PNG quando não (mesmo padrão de baixarPng em
-// SimuladorTab.jsx). Não depende de sessão nem grava nada — é só o próprio
-// canvas já renderizado virando arquivo compartilhável.
-function ResumoCompartilhavel({ faixa, acertos, total, tempoMs, nomeCampanha, primeiroNome, slug }) {
-  const canvasRef = useRef(null);
-  const [suportaArquivo, setSuportaArquivo] = useState(false);
-  const [ocupado, setOcupado] = useState(false);
-
-  useEffect(() => {
-    let cancelado = false;
-    const link = `${window.location.origin}/s/${slug}`;
-    const desenhar = (logoImg) => {
-      if (cancelado || !canvasRef.current) return;
-      desenharResumoQuiz(canvasRef.current, {
-        emoji: faixa?.emoji, titulo: faixa?.titulo, acertos, total,
-        tempoTexto: formatarDuracao(tempoMs), nomeCampanha, primeiroNome, logoImg, link,
-      });
-    };
-    const logo = new Image();
-    logo.onload = () => desenhar(logo);
-    logo.onerror = () => desenhar(null);
-    logo.src = '/logo-rjnet.svg';
-    return () => { cancelado = true; };
-  }, [faixa, acertos, total, tempoMs, nomeCampanha, primeiroNome, slug]);
-
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return;
-    try {
-      setSuportaArquivo(navigator.canShare({ files: [new File([], 'x.png', { type: 'image/png' })] }));
-    } catch {
-      setSuportaArquivo(false);
-    }
-  }, []);
-
-  const gerarBlob = () => new Promise((resolve) => canvasRef.current.toBlob(resolve, 'image/png'));
-
-  const compartilhar = async () => {
-    setOcupado(true);
-    try {
-      const blob = await gerarBlob();
-      const arquivo = new File([blob], `resultado-quiz-${slug}.png`, { type: 'image/png' });
-      await navigator.share({
-        files: [arquivo],
-        title: 'Meu resultado no Quiz RJNet',
-        text: `${primeiroNome} acertou ${acertos} de ${total} e é ${faixa?.titulo}! ${faixa?.emoji || ''}`.trim(),
-      });
-    } catch {
-      /* usuário cancelou o compartilhamento ou o navegador recusou — sem erro visível pro usuário */
-    } finally {
-      setOcupado(false);
-    }
-  };
-
-  const baixar = async () => {
-    setOcupado(true);
-    try {
-      const blob = await gerarBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `resultado-quiz-${slug}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } finally {
-      setOcupado(false);
-    }
-  };
-
-  return (
-    <div style={{ marginTop: 22 }}>
-      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: 300, borderRadius: 14, boxShadow: '0 0 0 1px var(--border)' }} />
-      <button
-        type="button" className="btn-primary btn-full" style={{ marginTop: 14 }}
-        onClick={suportaArquivo ? compartilhar : baixar}
-        disabled={ocupado}
-      >
-        {ocupado ? 'Um instante...' : suportaArquivo ? '📤 Compartilhar resultado' : '⬇️ Baixar imagem do resultado'}
-      </button>
-    </div>
-  );
-}
 
 function buscarSimuladorLocal(slug) {
   try {
@@ -239,6 +74,31 @@ function capturarUtm() {
   return Object.keys(utm).length > 0 ? utm : null;
 }
 
+// D-083: progresso do Quiz de Acertos em localStorage, por slug — só usado
+// pro tipo 'quiz'. Guarda o `leadId` devolvido pelo cadastro (fase
+// 'cadastro' na Edge Function) + pergunta atual/respostas (retomar no
+// mesmo navegador) + status ('cadastrado' | 'concluido', pra tela de "já
+// participou"). Nunca guarda resultado do quiz — isso vive só no servidor.
+function chaveQuizLocal(slug) {
+  return `rjnet_simulador_quiz_${slug}`;
+}
+
+function lerProgressoQuizLocal(slug) {
+  try {
+    return JSON.parse(localStorage.getItem(chaveQuizLocal(slug)));
+  } catch {
+    return null;
+  }
+}
+
+function salvarProgressoQuizLocal(slug, progresso) {
+  try {
+    localStorage.setItem(chaveQuizLocal(slug), JSON.stringify(progresso));
+  } catch {
+    /* localStorage indisponível — sem retomada nem "já participou", mas o cadastro/conclusão já foram gravados no servidor */
+  }
+}
+
 // Serviço de interesse do Lead deriva do PERFIL deduzido (D-074/D-077,
 // sempre presente no tipo 'oferta'), não das perguntas de qualificação
 // diretamente — não têm uma chave garantida tipo "usos"/"streaming" fora
@@ -249,7 +109,9 @@ function servicosInteressePorPerfil(perfilKey) {
 
 export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
-  // Ambos os tipos: perguntas → calculando → resultado(-demanda) → contato → enviado
+  // 'oferta'/'demanda': perguntas → calculando → resultado(-demanda) → contato → enviado
+  // 'quiz' (D-083): quiz-cadastro → perguntas → calculando → resultado-quiz → quiz-sorteio-confirmado
+  //                 (ou quiz-ja-participou, se já concluiu antes no mesmo navegador)
   const [fase, setFase] = useState('carregando');
   const [etapa, setEtapa] = useState(0);
   const [respostas, setRespostas] = useState({});
@@ -260,10 +122,13 @@ export default function SimuladorPublico({ slug }) {
   const [website, setWebsite] = useState(''); // honeypot — humano nunca preenche
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
-  // D-082: cronômetro do quiz (início → última pergunta respondida), só pra
-  // exibição no resumo compartilhável — nunca enviado ao servidor.
-  const inicioQuizRef = useRef(null);
-  const [tempoQuizMs, setTempoQuizMs] = useState(null);
+  // D-083: id do lead gravado no cadastro (fase 'cadastro' na Edge
+  // Function) — só existe pro tipo 'quiz', usado depois pra concluir o
+  // quiz (fase 'conclusao') no mesmo lead.
+  const [leadId, setLeadId] = useState(null);
+  // D-083: opcaoId revelado (correta em verde, demais em vermelho) — só
+  // tipo 'quiz'; enquanto truthy, a pergunta atual fica travada.
+  const [revelada, setRevelada] = useState(null);
 
   const utm = useMemo(capturarUtm, []);
 
@@ -271,16 +136,44 @@ export default function SimuladorPublico({ slug }) {
     const aoCarregar = (s) => {
       setSimulador(s);
       if (!s) return;
+
+      if (s.tipo === 'quiz') {
+        const salvo = lerProgressoQuizLocal(slug);
+        if (salvo?.status === 'concluido') {
+          setFase('quiz-ja-participou');
+        } else if (salvo?.leadId) {
+          setLeadId(salvo.leadId);
+          setContato(salvo.contato || contato);
+          setRespostas(salvo.respostas || {});
+          setEtapa(salvo.etapa || 0);
+          setFase('perguntas');
+        } else {
+          setFase('quiz-cadastro');
+        }
+        return;
+      }
+
       setEtapa(0);
       setFase('perguntas');
-      inicioQuizRef.current = Date.now();
     };
     if (!supabaseConfig.url) {
       aoCarregar(buscarSimuladorLocal(slug));
       return;
     }
     fetchSimuladorPublico(slug).then(aoCarregar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
+
+  // D-083: persiste o progresso do quiz (pergunta atual + respostas) no
+  // localStorage a cada mudança — permite retomar no mesmo navegador sem
+  // se cadastrar de novo. Só grava depois do cadastro feito (leadId
+  // presente) e enquanto ainda está em andamento (fase 'perguntas').
+  useEffect(() => {
+    if (simulador?.tipo === 'quiz' && leadId && fase === 'perguntas') {
+      salvarProgressoQuizLocal(slug, { leadId, status: 'cadastrado', etapa, respostas, contato });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulador, leadId, fase, etapa, respostas]);
 
   const tipo = simulador?.tipo;
 
@@ -327,9 +220,6 @@ export default function SimuladorPublico({ slug }) {
     if (etapa + 1 < perguntas.length) {
       setEtapa(etapa + 1);
     } else {
-      if (tipo === 'quiz' && inicioQuizRef.current) {
-        setTempoQuizMs(Date.now() - inicioQuizRef.current);
-      }
       setFase('calculando');
       const proximaFase = tipo === 'oferta' ? 'resultado' : tipo === 'quiz' ? 'resultado-quiz' : 'resultado-demanda';
       setTimeout(() => setFase(proximaFase), 1400);
@@ -342,6 +232,20 @@ export default function SimuladorPublico({ slug }) {
     avancar();
   };
 
+  // D-083: só tipo 'quiz' — revela a alternativa certa (verde) e as demais
+  // erradas (vermelho) por 1,2s antes de avançar sozinho. Sem "Voltar":
+  // uma vez revelada, a resposta daquela pergunta está travada (1 chance
+  // só, sem refazer).
+  const responderQuiz = (opcaoId) => {
+    if (revelada) return;
+    setRespostas((r) => ({ ...r, [pergunta.id]: opcaoId }));
+    setRevelada(opcaoId);
+    setTimeout(() => {
+      setRevelada(null);
+      avancar();
+    }, 1200);
+  };
+
   const toggleMulti = (opcaoId) => {
     const atual = respostas[pergunta.id] || [];
     const novo = atual.includes(opcaoId) ? atual.filter((k) => k !== opcaoId) : [...atual, opcaoId];
@@ -350,6 +254,104 @@ export default function SimuladorPublico({ slug }) {
 
   const voltar = () => {
     if (etapa > 0) setEtapa(etapa - 1);
+  };
+
+  // D-083: cadastro (nome/WhatsApp/LGPD) ANTES do quiz — só tipo 'quiz'.
+  // Grava o lead de verdade no servidor imediatamente (garante o contato
+  // mesmo que a pessoa abandone o quiz depois); o quiz em si só faz um
+  // UPDATE nesse mesmo lead ao concluir (confirmarSorteio abaixo).
+  const submitCadastroQuiz = async (e) => {
+    e.preventDefault();
+    setErro('');
+
+    if (website.trim() !== '') { setFase('perguntas'); return; } // honeypot: aceita silenciosamente, sem gravar nada
+
+    if (!contato.nome.trim()) { setErro('Informe seu nome.'); return; }
+    if (containsLink(contato.nome)) { setErro('O nome não pode conter link.'); return; }
+    if (!validarTelefone(contato.telefone)) { setErro('Telefone inválido. Informe DDD + número.'); return; }
+    if (containsLink(contato.bairro) || containsLink(contato.cidade)) { setErro('Bairro/cidade não podem conter link.'); return; }
+    if (!consentimentoColetado) { setErro('É necessário confirmar o uso dos seus dados para continuar.'); return; }
+
+    setEnviando(true);
+    try {
+      let novoLeadId;
+      if (!supabaseConfig.url) {
+        const novo = criarLeadSimuladorQuizLocal({
+          simuladorId: simulador.id,
+          nome: contato.nome, telefone: contato.telefone,
+          bairro: contato.bairro, cidade: contato.cidade,
+          utm, versaoTermo: 'simulador-v1',
+        });
+        novoLeadId = novo.id;
+      } else {
+        const res = await fetch(`${supabaseConfig.url}/functions/v1/submeter-simulador`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+          },
+          body: JSON.stringify({
+            fase: 'cadastro', simuladorId: simulador.id,
+            nome: contato.nome, telefone: contato.telefone,
+            bairro: contato.bairro, cidade: contato.cidade,
+            utm, consentimentoColetado, website,
+          }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || 'Não foi possível enviar seus dados.');
+        novoLeadId = body.leadId;
+      }
+      setLeadId(novoLeadId);
+      setEtapa(0);
+      setRespostas({});
+      salvarProgressoQuizLocal(slug, { leadId: novoLeadId, status: 'cadastrado', etapa: 0, respostas: {}, contato });
+      setFase('perguntas');
+    } catch (err) {
+      setErro(err.message || 'Não foi possível enviar seus dados. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  // D-083: clique em "Participar do sorteio" — só tipo 'quiz'. Só agora o
+  // resultado do quiz é gravado (UPDATE no lead do cadastro); guardado no
+  // servidor por `pontuacao is null` (1 chance só, sem corrida de
+  // concorrência). Depois disso o localStorage marca 'concluido' — uma
+  // volta ao mesmo navegador mostra "já participou" em vez de refazer.
+  const confirmarSorteio = async () => {
+    setErro('');
+    setEnviando(true);
+    try {
+      if (!supabaseConfig.url) {
+        concluirLeadSimuladorQuizLocal(leadId, {
+          perfilConsumo: {
+            versao: PERGUNTAS_SIMULADOR_VERSAO, tipo: 'quiz', perguntas,
+            respostas: resultadoQuiz.respostas, acertos: resultadoQuiz.acertos, total: resultadoQuiz.total, faixa: faixaQuiz,
+          },
+          pontuacao: resultadoQuiz.acertos,
+          temperatura: resultadoQuiz.temperatura,
+        });
+      } else {
+        const res = await fetch(`${supabaseConfig.url}/functions/v1/submeter-simulador`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+          },
+          body: JSON.stringify({ fase: 'conclusao', simuladorId: simulador.id, leadId, respostas }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || 'Não foi possível registrar sua participação.');
+      }
+      salvarProgressoQuizLocal(slug, { leadId, status: 'concluido' });
+      setFase('quiz-sorteio-confirmado');
+    } catch (err) {
+      setErro(err.message || 'Não foi possível registrar sua participação. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const submit = async (e) => {
@@ -374,19 +376,6 @@ export default function SimuladorPublico({ slug }) {
           perfilConsumo: { versao: PERGUNTAS_SIMULADOR_VERSAO, perguntas, respostas: p.respostas },
           pontuacao: p.pontuacao, servicoInteresse: ['internet_residencial'],
           temperatura: p.temperatura,
-          utm, versaoTermo: 'simulador-v1',
-        });
-      } else if (tipo === 'quiz') {
-        salvarLeadPublicoLocal({
-          origem: 'simulador', simuladorId: simulador.id,
-          nome: contato.nome, telefone: contato.telefone,
-          bairro: contato.bairro, cidade: contato.cidade,
-          perfilConsumo: {
-            versao: PERGUNTAS_SIMULADOR_VERSAO, tipo: 'quiz', perguntas,
-            respostas: resultadoQuiz.respostas, acertos: resultadoQuiz.acertos, total: resultadoQuiz.total, faixa: faixaQuiz,
-          },
-          pontuacao: resultadoQuiz.acertos, servicoInteresse: ['outro'],
-          temperatura: resultadoQuiz.temperatura,
           utm, versaoTermo: 'simulador-v1',
         });
       } else {
@@ -452,22 +441,96 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
             {tipo === 'demanda' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'}
-            {tipo === 'quiz' && 'Valeu por participar! Você já está concorrendo ao brinde RJNET — fique de olho no WhatsApp.'}
             {tipo === 'oferta' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
-          {/* D-082: resumo compartilhável — só no tipo quiz, que tem faixa/acertos pra mostrar */}
-          {tipo === 'quiz' && faixaQuiz && resultadoQuiz && (
-            <ResumoCompartilhavel
-              faixa={faixaQuiz}
-              acertos={resultadoQuiz.acertos}
-              total={resultadoQuiz.total}
-              tempoMs={tempoQuizMs}
-              nomeCampanha={simulador?.nome}
-              primeiroNome={contato.nome.trim().split(/\s+/)[0] || 'Você'}
-              slug={slug}
-            />
-          )}
         </div>
+      </div>
+    );
+  }
+
+  // ─── Quiz: já participou (D-083) — mesmo navegador, 1 chance só ───────
+  if (fase === 'quiz-ja-participou') {
+    return (
+      <div className="qr-public-shell">
+        <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Você já participou desse quiz!</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
+            Cada pessoa participa uma única vez. Fique de olho nas nossas redes sociais e no seu WhatsApp
+            para mais informações sobre o sorteio.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Quiz: sorteio confirmado (D-083) — tela final depois do CTA ───────
+  if (fase === 'quiz-sorteio-confirmado') {
+    return (
+      <div className="qr-public-shell">
+        <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Você está concorrendo! 🎉</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
+            Fique atenta às nossas redes sociais e ao seu WhatsApp para mais informações sobre o sorteio.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Quiz: cadastro ANTES do quiz (D-083) ──────────────────────
+  if (fase === 'quiz-cadastro') {
+    return (
+      <div className="qr-public-shell">
+        <form className="card" onSubmit={submitCadastroQuiz} style={{ padding: '24px 22px' }}>
+          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, display: 'block', margin: '0 auto 14px' }} />
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, textAlign: 'center' }}>
+            Cadastre-se para participar do quiz e concorrer a brindes RJNET!
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 16px', textAlign: 'center' }}>
+            Responda todas as perguntas — você tem só 1 chance, sem pesquisar na internet.
+          </p>
+
+          {/* Honeypot — invisível para gente, visível para robô */}
+          <input
+            type="text" value={website} onChange={(e) => setWebsite(e.target.value)}
+            autoComplete="off" tabIndex={-1}
+            style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+            aria-hidden="true"
+          />
+
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Nome *</label>
+            <input maxLength={120} value={contato.nome} onChange={(e) => setContato((p) => ({ ...p, nome: e.target.value }))} autoFocus />
+          </div>
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>WhatsApp *</label>
+            <input maxLength={15} value={contato.telefone} onChange={(e) => setContato((p) => ({ ...p, telefone: maskTel(e.target.value) }))} placeholder="(24) 99999-9999" inputMode="tel" />
+          </div>
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Cidade</label>
+            <input maxLength={80} value={contato.cidade} onChange={(e) => setContato((p) => ({ ...p, cidade: e.target.value }))} />
+          </div>
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Bairro</label>
+            <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
+          </div>
+
+          <label className="consentimento-check">
+            <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} />
+            <span>
+              Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a
+              utilizá-los para contato comercial, conforme a LGPD.
+            </span>
+          </label>
+
+          {erro && <div className="form-erro">{erro}</div>}
+
+          <button type="submit" className="btn-primary btn-full" disabled={enviando}>
+            {enviando ? 'Enviando...' : 'Cadastrar e começar o quiz →'}
+          </button>
+        </form>
       </div>
     );
   }
@@ -504,7 +567,9 @@ export default function SimuladorPublico({ slug }) {
     );
   }
 
-  // ─── Resultado — Quiz de Acertos (D-080): contagem de acertos → faixa ──
+  // ─── Resultado — Quiz de Acertos (D-080/D-083): contagem de acertos →
+  // faixa → CTA "Participar do sorteio" (só agora grava o resultado — o
+  // cadastro/contato já foi feito antes do quiz) ──
   if (fase === 'resultado-quiz') {
     return (
       <div className="qr-public-shell">
@@ -517,10 +582,11 @@ export default function SimuladorPublico({ slug }) {
             Você acertou {resultadoQuiz.acertos} de {resultadoQuiz.total} perguntas!
           </div>
           <div className="sim-combo-destaque" style={{ borderRadius: 10, padding: '12px 14px', marginTop: 18, fontSize: 13.5, fontWeight: 700 }}>
-            🎁 Deixe seu contato e concorra a um brinde RJNET!
+            🎁 Confirme sua participação e concorra a um brinde RJNET!
           </div>
-          <button type="button" className="btn-primary btn-full" style={{ marginTop: 12 }} onClick={() => setFase('contato')}>
-            Quero concorrer ao brinde →
+          {erro && <div className="form-erro" style={{ marginTop: 12 }}>{erro}</div>}
+          <button type="button" className="btn-primary btn-full" style={{ marginTop: 12 }} onClick={confirmarSorteio} disabled={enviando}>
+            {enviando ? 'Enviando...' : 'Participar do sorteio →'}
           </button>
         </div>
       </div>
@@ -627,7 +693,6 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
             {tipo === 'demanda' && 'Deixe seu contato pra gente te chamar com a melhor solução.'}
-            {tipo === 'quiz' && 'Deixe seu contato pra confirmar sua participação e concorrer a um brinde RJNET.'}
             {tipo === 'oferta' && 'Deixe seu contato pra receber a oferta ideal pro seu perfil no WhatsApp.'}
           </p>
 
@@ -675,7 +740,10 @@ export default function SimuladorPublico({ slug }) {
   }
 
   // ─── Perguntas (uma por tela) — 'oferta': quiz fixo de qualificação;
-  // 'demanda'/'quiz': questionário configurável da campanha ──
+  // 'demanda': questionário configurável da campanha; 'quiz': idem, mas com
+  // feedback verde/vermelho por resposta (D-083) e sem "Voltar" (1 chance
+  // só, resposta já revelada fica travada) ──
+  const isQuizTipo = tipo === 'quiz';
   const totalPassos = perguntas.length;
   const progresso = Math.round(((etapa + 1) / totalPassos) * 100);
   const selecionadas = pergunta.tipo === 'multi' ? (respostas[pergunta.id] || []) : [];
@@ -697,11 +765,20 @@ export default function SimuladorPublico({ slug }) {
         <div className="sim-opcoes" style={{ marginTop: 10 }}>
           {pergunta.opcoes.map((op) => {
             const ativa = pergunta.tipo === 'multi' ? selecionadas.includes(op.id) : respostas[pergunta.id] === op.id;
+            let classe = 'sim-opcao' + (ativa ? ' active' : '');
+            if (isQuizTipo && revelada) {
+              classe += op.id === pergunta.respostaCorretaId ? ' sim-opcao-correta' : ' sim-opcao-errada';
+            }
             return (
               <button
                 type="button" key={op.id}
-                className={'sim-opcao' + (ativa ? ' active' : '')}
-                onClick={() => (pergunta.tipo === 'single' ? responderSingle(op.id) : toggleMulti(op.id))}
+                className={classe}
+                disabled={isQuizTipo && !!revelada}
+                onClick={() => {
+                  if (isQuizTipo) responderQuiz(op.id);
+                  else if (pergunta.tipo === 'single') responderSingle(op.id);
+                  else toggleMulti(op.id);
+                }}
               >
                 {op.texto}
               </button>
@@ -710,7 +787,7 @@ export default function SimuladorPublico({ slug }) {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          {etapa > 0 && <button type="button" className="btn-ghost" style={{ flex: '0 0 auto' }} onClick={voltar}>← Voltar</button>}
+          {!isQuizTipo && etapa > 0 && <button type="button" className="btn-ghost" style={{ flex: '0 0 auto' }} onClick={voltar}>← Voltar</button>}
           {pergunta.tipo === 'multi' && (
             <button
               type="button" className="btn-primary" style={{ flex: 1 }}

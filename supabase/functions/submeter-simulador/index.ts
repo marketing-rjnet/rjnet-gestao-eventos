@@ -26,6 +26,23 @@
 //   a partir da config gravada — o cliente nunca manda `acertos`/faixa
 //   prontos. Primeiro uso real: evento MotoFest (universo de motoclube).
 //
+// D-083: 'quiz' passa a ser em DUAS fases — nunca mais um insert único
+// como 'oferta'/'demanda' continuam sendo. O cadastro (nome/WhatsApp/LGPD)
+// acontece ANTES do quiz, pra garantir o contato mesmo que a pessoa
+// abandone no meio (todo cadastro é um dado bom pra empresa, termine o
+// quiz ou não). `body.fase` distingue as duas escritas:
+//   - 'cadastro': INSERT do lead com contato/consentimento/utm já
+//     completos, mas `pontuacao`/`perfil_consumo` ainda nulos (quiz não
+//     feito) — servidor gera o `id` e devolve em `leadId` pro cliente
+//     guardar (localStorage) e usar depois.
+//   - 'conclusao': UPDATE desse mesmo lead com o resultado do quiz
+//     (`perfil_consumo`/`pontuacao`/`temperatura`), disparado só quando a
+//     pessoa clica "Participar do sorteio" no final — nunca automático.
+//     Guardado por `pontuacao is null` no WHERE (atômico): só a PRIMEIRA
+//     conclusão vale, 1 chance só, sem corrida de concorrência.
+// 'oferta'/'demanda' não usam `fase` — continuam exatamente como antes,
+// um único INSERT com tudo already computado.
+//
 // O motor de scoring abaixo ESPELHA src/lib/simulador.js — duplicado
 // porque este código roda em Deno, fora do bundle do app (mesmo padrão dos
 // validadores em _shared/captacao.ts). Mudou lá, muda aqui.
@@ -298,14 +315,26 @@ Deno.serve(async (req) => {
     const body = await req.json();
 
     // Honeypot: aceita silenciosamente sem gravar nada (mesmo padrão do
-    // submeter-formulario) — não dá pista pro spammer.
+    // submeter-formulario) — não dá pista pro spammer. Só o cadastro/
+    // fluxo legado manda esse campo — 'conclusao' nunca reenvia o form.
     if (typeof body.website === 'string' && body.website.trim() !== '') {
       return json({ ok: true }, 200, corsHeaders);
     }
 
     const simuladorId = sanitizeText(body.simuladorId, 80);
     if (!simuladorId) return json({ error: 'Campanha inválida.' }, 400, corsHeaders);
-    if (body.consentimentoColetado !== true) {
+
+    // D-083: 'cadastro'/'conclusao' só existem pro tipo 'quiz' (2 escritas
+    // no servidor); qualquer outro valor de `fase` (incluindo ausente) é o
+    // fluxo legado de 'oferta'/'demanda', um único insert com tudo já
+    // calculado, inalterado.
+    const fase: 'cadastro' | 'conclusao' | null =
+      body.fase === 'cadastro' || body.fase === 'conclusao' ? body.fase : null;
+
+    // Consentimento só é exigido em quem grava contato pela primeira vez —
+    // a conclusão do quiz não reenvia contato/consentimento, só atualiza o
+    // lead que já os tem gravados desde o cadastro.
+    if (fase !== 'conclusao' && body.consentimentoColetado !== true) {
       return json({ error: 'É necessário confirmar o consentimento para uso dos dados.' }, 400, corsHeaders);
     }
 
@@ -314,7 +343,10 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
     const clientIp = getClientIp(req);
-    if (await atingiuRateLimit(admin, clientIp)) {
+    // Rate limit conta linhas NOVAS em `leads` (D-067) — 'conclusao' é um
+    // UPDATE, não cria linha, então fica fora dessa contagem; quem
+    // protege contra flood é o INSERT do cadastro/legado.
+    if (fase !== 'conclusao' && await atingiuRateLimit(admin, clientIp)) {
       return json({ error: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.' }, 429, corsHeaders);
     }
 
@@ -325,6 +357,52 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (simErro || !simulador || !simulador.ativo) {
       return json({ error: 'Campanha não encontrada ou encerrada.' }, 404, corsHeaders);
+    }
+
+    // ─── D-083: conclusão do quiz — UPDATE no lead já cadastrado ───────
+    // Nunca aceita `acertos`/faixa prontos do cliente — recalcula tudo a
+    // partir da config gravada da campanha, igual ao fluxo legado. A
+    // guarda `pontuacao is null` no WHERE torna a escrita atômica: só a
+    // PRIMEIRA conclusão bem-sucedida vale (1 chance só, sem corrida de
+    // concorrência entre 2 chamadas simultâneas com o mesmo leadId).
+    if (fase === 'conclusao') {
+      if (simulador.tipo !== 'quiz') {
+        return json({ error: 'Essa campanha não usa esse tipo de submissão.' }, 400, corsHeaders);
+      }
+      const leadId = sanitizeText(body.leadId, 80);
+      if (!leadId) return json({ error: 'Cadastro não encontrado. Recarregue a página e cadastre-se novamente.' }, 400, corsHeaders);
+
+      const perguntasQuiz: QuizPergunta[] = simulador.quiz_perguntas ?? [];
+      if (perguntasQuiz.length === 0) {
+        return json({ error: 'Essa campanha ainda está sendo preparada.' }, 400, corsHeaders);
+      }
+      const resultado = corrigirQuiz(perguntasQuiz, body.respostas);
+      const faixa = faixaPorAcertos(simulador.quiz_faixas, resultado.acertos)
+        ?? { emoji: '🎯', titulo: 'Participante' };
+
+      const { data: atualizado, error: updErro } = await admin
+        .from('leads')
+        .update({
+          perfil_consumo: {
+            versao: PERGUNTAS_SIMULADOR_VERSAO, tipo: 'quiz', perguntas: perguntasQuiz,
+            respostas: resultado.respostas, acertos: resultado.acertos, total: resultado.total, faixa,
+          },
+          pontuacao: resultado.acertos,
+          temperatura: resultado.temperatura,
+        })
+        .eq('id', leadId)
+        .eq('simulador_id', simuladorId)
+        .is('pontuacao', null)
+        .select('id');
+
+      if (updErro) {
+        console.error('[rjnet:edge] Falha ao concluir quiz do simulador:', updErro);
+        return json({ error: 'Não foi possível registrar sua participação agora. Tente novamente em instantes.' }, 500, corsHeaders);
+      }
+      if (!atualizado || atualizado.length === 0) {
+        return json({ error: 'Esse quiz já foi concluído para esse cadastro.' }, 409, corsHeaders);
+      }
+      return json({ ok: true }, 200, corsHeaders);
     }
 
     // Contato: nome e WhatsApp obrigatórios (são o próprio objetivo da
@@ -344,6 +422,55 @@ Deno.serve(async (req) => {
       return json({ error: 'Bairro/cidade não podem conter link.' }, 400, corsHeaders);
     }
 
+    // ─── D-083: cadastro do quiz — INSERT parcial, sem resultado ainda ─
+    // Garante o contato mesmo que a pessoa abandone o quiz depois — todo
+    // cadastro é gravado, termine o quiz ou não. `perfil_consumo`/
+    // `pontuacao` ficam nulos até a conclusão (fase 'conclusao' acima).
+    if (fase === 'cadastro') {
+      if (simulador.tipo !== 'quiz') {
+        return json({ error: 'Essa campanha não usa esse tipo de submissão.' }, 400, corsHeaders);
+      }
+      const utmCadastro = sanitizarUtm(body.utm);
+      const leadId = `l-sim-${crypto.randomUUID()}`;
+      const agoraCadastro = new Date().toISOString();
+      const { error: insErro } = await admin.from('leads').insert({
+        id: leadId,
+        evento_id: null,
+        mes_referencia: null,
+        vendedor_id: null,
+        vendedor_nome: null,
+        origem: 'simulador',
+        origem_ip: clientIp,
+        simulador_id: simuladorId,
+        nome,
+        telefone,
+        cpf: null,
+        endereco: null,
+        bairro: bairro || null,
+        cidade: cidade || null,
+        campos_extras: {},
+        perfil_consumo: null,
+        pontuacao: null,
+        oferta_recomendada: null,
+        utm: utmCadastro,
+        servico_interesse: JSON.stringify(['outro']),
+        observacao: null,
+        ja_cliente_rjnet: false,
+        criado_em: agoraCadastro,
+        consentimento_coletado: true,
+        consentimento_em: agoraCadastro,
+        versao_termo: 'simulador-v1',
+        deletado: false,
+      });
+
+      if (insErro) {
+        console.error('[rjnet:edge] Falha ao gravar cadastro do simulador:', insErro);
+        return json({ error: 'Não foi possível registrar seus dados agora. Tente novamente em instantes.' }, 500, corsHeaders);
+      }
+      return json({ ok: true, leadId }, 200, corsHeaders);
+    }
+
+    // ─── Legado: 'oferta'/'demanda' — um único insert com tudo calculado ─
     // D-076/D-077: 2 fluxos independentes por tipo de campanha — nunca mais
     // encadeados na mesma sessão (ver comentário de topo do arquivo).
     let perfilConsumo: unknown = null;
@@ -370,26 +497,10 @@ Deno.serve(async (req) => {
       servicosInteresse = ['internet_residencial'];
       temperatura = perfil.temperatura;
     } else if (simulador.tipo === 'quiz') {
-      // D-080: teste de conhecimento — cada pergunta tem uma resposta
-      // certa; pontuação = contagem de acertos, SEMPRE recalculada aqui a
-      // partir da config gravada (nunca aceita `acertos`/faixa prontos do
-      // cliente, mesmo princípio anti-cliente-hostil do resto do arquivo).
-      const perguntas: QuizPergunta[] = simulador.quiz_perguntas ?? [];
-      if (perguntas.length === 0) {
-        return json({ error: 'Essa campanha ainda está sendo preparada.' }, 400, corsHeaders);
-      }
-
-      const resultado = corrigirQuiz(perguntas, body.respostas);
-      const faixa = faixaPorAcertos(simulador.quiz_faixas, resultado.acertos)
-        ?? { emoji: '🎯', titulo: 'Participante' };
-
-      perfilConsumo = {
-        versao: PERGUNTAS_SIMULADOR_VERSAO, tipo: 'quiz', perguntas,
-        respostas: resultado.respostas, acertos: resultado.acertos, total: resultado.total, faixa,
-      };
-      pontuacao = resultado.acertos;
-      servicosInteresse = ['outro'];
-      temperatura = resultado.temperatura;
+      // D-083: 'quiz' sempre manda `fase` ('cadastro'/'conclusao') — os 2
+      // branches acima já tratam e retornam antes de chegar aqui. Só cai
+      // neste ponto com um bundle desatualizado em cache (version skew).
+      return json({ error: 'Atualize a página e tente novamente.' }, 400, corsHeaders);
     } else {
       // 'oferta' (D-077): perfil DEDUZIDO das respostas do quiz FIXO de
       // qualificação — nunca aceita `body.perfil` pronto do cliente. O
