@@ -128,11 +128,11 @@ src/
 │   │   ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065)
 │   │   └── index.js          # Re-export de formularios (D-062)
 │   └── simulador/
-│       ├── SimuladorTab.jsx  # Campanhas do Simulador (tipos Oferta/Demanda): CRUD + construtor de perguntas + QR (UTM impresso embutido) + link, marketing only (D-072, D-075, D-076)
+│       ├── SimuladorTab.jsx  # Campanhas do Simulador (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/faixas + Sorteador (só quem concluiu o quiz, D-083) + QR (UTM impresso embutido) + link, marketing only (D-072, D-075, D-076, D-080, D-083)
 │       └── index.js          # Re-export de simulador (D-072)
 ├── public/
 │   ├── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
-│   └── SimuladorPublico.jsx    # Página pública — 3 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas→faixa+resumo compartilhável), captura UTM (D-072, D-076, D-077, D-080, D-082)
+│   └── SimuladorPublico.jsx    # Página pública — 3 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: cadastro ANTES do quiz→perguntas com feedback verde/vermelho→faixa→CTA "Participar do sorteio"), captura UTM, retomada via localStorage (D-072, D-076, D-077, D-080, D-083)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
@@ -179,7 +179,7 @@ supabase/
     ├── _shared/captacao.ts               # CORS, sanitização, validadores e rate limit compartilhados das portas públicas (D-072)
     ├── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
     ├── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder; bloqueio de link, IP e rate limit (D-062, D-063, D-067)
-    └── submeter-simulador/index.ts       # Edge Function pública — submissão do Simulador; ramifica por tipo oferta/demanda/quiz, recalcula perfil/score/acertos no servidor (D-072, D-076, D-077, D-080)
+    └── submeter-simulador/index.ts       # Edge Function pública — submissão do Simulador; ramifica por tipo oferta/demanda/quiz, recalcula perfil/score/acertos no servidor; tipo quiz usa 2 fases (cadastro/conclusao) em vez de insert único (D-072, D-076, D-077, D-080, D-083)
 
 tests/
 ├── security.test.js      # E2E: SQL injection, XSS
@@ -312,7 +312,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
 | Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
-| Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (perguntas com resposta certa/errada → faixa de classificação editável, ex: evento MotoFest) — este último ganha também um Sorteador entre participantes; cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080) |
+| Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (cadastro ANTES do quiz → perguntas com resposta certa/errada e feedback verde/vermelho → faixa de classificação editável, ex: evento MotoFest → CTA explícito "Participar do sorteio") — este último ganha também um Sorteador entre quem CONCLUIU o quiz; cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080, D-083) |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
@@ -382,14 +382,14 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/api/campoPersonalizadoApi.js` | ~31 | Factory createCampoPersonalizadoApi — CRUD de campos personalizados reutilizáveis (D-063) |
 | `src/api/simuladorApi.js` | ~40 | Factory createSimuladorApi — CRUD de campanhas do Simulador; semeia perguntas/mensagem pra tipo demanda, quizPerguntas/quizFaixas pra tipo quiz (D-072, D-076, D-080) |
 | `src/lib/simulador.js` | ~541 | Catálogos PERGUNTAS_OFERTA (fixo), PACOTES_INTERNET/APPS_ADICIONAIS/PLANOS_MOVEL, quizPerguntasPadrao/quizFaixasPadrao/corrigirQuiz/faixaPorAcertos, perfilPorRespostasOferta/calcularPerfilDinamico/resumoPerfil — sem imports, testável standalone e espelhado em Deno (D-072, D-074, D-075, D-077, D-080) |
-| `src/public/SimuladorPublico.jsx` | ~727 | Página pública — 3 fluxos independentes por tipo de campanha (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: perguntas certo/errado→faixa de acertos + CTA de sorteio + resumo compartilhável em canvas), captura de UTM, honeypot, logo centralizada e checkbox LGPD sem overflow no mobile (D-072, D-076, D-077, D-080, D-081, D-082) |
-| `src/features/simulador/SimuladorTab.jsx` | ~592 | Gestão de campanhas (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/mensagem/faixas + Sorteador + QR com UTM impresso embutido + link, marketing only (D-072, D-075, D-076, D-080) |
+| `src/public/SimuladorPublico.jsx` | ~804 | Página pública — 3 fluxos independentes por tipo de campanha (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: cadastro ANTES do quiz→perguntas certo/errado com feedback verde/vermelho→faixa de acertos→CTA "Participar do sorteio", retomada e "já participou" via localStorage), captura de UTM, honeypot, logo centralizada e checkbox LGPD sem overflow no mobile (D-072, D-076, D-077, D-080, D-081, D-083) |
+| `src/features/simulador/SimuladorTab.jsx` | ~594 | Gestão de campanhas (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/mensagem/faixas + Sorteador (só quem concluiu o quiz, D-083) + QR com UTM impresso embutido + link, marketing only (D-072, D-075, D-076, D-080, D-083) |
 | `supabase/migracao-simulador.sql` | ~95 | Tabela simuladores + RLS anon + colunas do Simulador em leads + índices (D-072) |
 | `supabase/migracao-simulador-perguntas.sql` | ~30 | Coluna simuladores.perguntas (jsonb) — questionário próprio por campanha (D-075) |
 | `supabase/migracao-simulador-tipos.sql` | ~40 | Migra tipo perfil_consumo/territorial → oferta/demanda + coluna mensagem_resultado (D-076) |
 | `supabase/migracao-simulador-quiz.sql` | ~45 | 3º tipo 'quiz' na constraint + colunas simuladores.quiz_perguntas/quiz_faixas (D-080) |
 | `supabase/functions/_shared/captacao.ts` | ~80 | Miolo compartilhado das Edge Functions públicas: CORS, sanitização, containsLink, rate limit por IP (D-072) |
-| `supabase/functions/submeter-simulador/index.ts` | ~461 | Edge Function pública — ramifica por tipo (oferta: deduz perfil do quiz fixo; demanda: recalcula score das perguntas da campanha; quiz: recalcula acertos/faixa), nunca aceita perfil/score/acertos pronto do cliente, sanitiza UTM (D-072, D-076, D-077, D-080) |
+| `supabase/functions/submeter-simulador/index.ts` | ~572 | Edge Function pública — ramifica por tipo (oferta: deduz perfil do quiz fixo; demanda: recalcula score das perguntas da campanha; quiz: 2 fases `cadastro`/`conclusao` em vez de insert único, guarda atômica `pontuacao is null`), nunca aceita perfil/score/acertos pronto do cliente, sanitiza UTM (D-072, D-076, D-077, D-080, D-083) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/apps/ComercialApp.jsx` | ~67 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |
@@ -411,7 +411,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/leads/MesDetail.jsx` | ~188 | Detalhe do mês: leads por vendedor + tabela agrupada por dia num accordion (`"Hoje"`/`"Ontem"`, dia mais recente aberto por padrão, busca expande dias com match, coluna "Horário" + leads ordenados do mais recente pro mais antigo dentro do dia), espelha `EventDetail.jsx` sem materiais (D-060, D-066, D-068) |
 | `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065) |
 | `src/public/FormularioPublico.jsx` | ~242 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063); bloqueio de link em texto livre no client (D-067); logo centralizada e checkbox LGPD sem overflow no mobile (D-081) |
-| `src/lib/localPublicSubmit.js` | ~37 | Fallback local (sem Supabase) para páginas públicas, dev/teste only (D-061, D-062) |
+| `src/lib/localPublicSubmit.js` | ~85 | Fallback local (sem Supabase) para páginas públicas, dev/teste only; `criarLeadSimuladorQuizLocal`/`concluirLeadSimuladorQuizLocal` espelham as 2 fases do quiz (D-061, D-062, D-083) |
 | `src/hooks/useApp.js` | ~8 | Hook de acesso ao contexto (etapa 7) |
 | `src/hooks/usePersisted.js` | ~26 | Hook de persistência em localStorage/sessionStorage (etapa 15) |
 | `src/hooks/useRanking.js` | ~42 | Hook de polling de ranking com debounce e cleanup; parâmetro `obterFn` opcional reaproveitado para o placar por mês (etapa 15, D-058) |
@@ -422,7 +422,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/ids.js` | ~2 | `genId(prefix)` — gerador de IDs temporários para modo local |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
-| `src/lib/dataService.js` | ~890 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058); `origem_ip` em `LEADS_COLS`/`leadFromDb`/`leadToDb` (D-067) |
+| `src/lib/dataService.js` | ~1007 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058); `origem_ip` em `LEADS_COLS`/`leadFromDb`/`leadToDb` (D-067); `fetchLeadsPorSimulador` filtra `pontuacao != null` — só quem concluiu o quiz é sorteável (D-083) |
 | `src/lib/activityLog.js` | ~100 | Buffer localStorage + Supabase Realtime broadcast + receiveActivityLog (D-044, D-045, D-046) |
 | `src/features/monitoring/MonitoringTab.jsx` | ~460 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards com status de atividade, feed 9 tipos, perf tiers, toolbar sessão, limpar log (D-044–D-051) |
 | `src/lib/security.js` | ~57 | Sanitização de inputs; `containsLink()` detecta URL em texto livre (D-067) |

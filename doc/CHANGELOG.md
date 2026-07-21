@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.24] — Quiz de Acertos: cadastro ANTES do quiz, retomada local e remoção do resumo compartilhável (D-083)
+**Data:** 2026-07-21
+**Branch:** `claude/signup-before-quiz-flow-56jx0g` → mesclado em `main` (PR #89)
+
+**O que mudou**
+- **Cadastro (nome/WhatsApp/LGPD) passa a acontecer ANTES do quiz**, não depois — pedido do responsável pra garantir o contato mesmo que a pessoa abandone o quiz no meio (todo cadastro, concluído ou não, já é um dado bom pra empresa).
+- **`supabase/functions/submeter-simulador/index.ts`** — ganha `body.fase`, só pro tipo `quiz`: `'cadastro'` grava o lead na hora (INSERT com contato/consentimento/UTM, `perfil_consumo`/`pontuacao` ainda nulos, servidor gera e devolve `leadId`); `'conclusao'` faz um UPDATE nesse mesmo lead com o resultado (`perfil_consumo`/`pontuacao`/`temperatura`), disparado só ao clicar **"Participar do sorteio"** — nunca automático. Guardado atomicamente por `WHERE pontuacao is null` (1 chance só, sem coluna nova). `oferta`/`demanda` não usam `fase` e não foram alterados.
+- **`src/public/SimuladorPublico.jsx`** — reescrito o fluxo `quiz`: tela de cadastro combinada com as regras (1 chance, sem pesquisar), feedback visual verde (certa)/vermelho (errada) por resposta com pausa de 1,2s antes de avançar, retomada de progresso via `localStorage` (mesmo navegador), tela de "já participou" pra quem já concluiu, e mensagem final pós-sorteio. **Removida por completo** a funcionalidade de resumo compartilhável (D-082): sem geração de imagem, sem Web Share API, sem download.
+- **Sorteador só considera quem concluiu** — `fetchLeadsPorSimulador` (`dataService.js`) e o filtro local do Sorteador (`SimuladorTab.jsx`) passam a exigir `pontuacao != null`; cadastro sem quiz concluído vira lead de CRM normal, mas não é sorteável.
+- **`src/lib/localPublicSubmit.js`** — novo fallback local (`criarLeadSimuladorQuizLocal`/`concluirLeadSimuladorQuizLocal`) espelhando as 2 fases pro modo sem Supabase.
+
+**Por que mudou**
+- Pedido direto do responsável: garantir o contato de quem participa do Quiz de Acertos mesmo que desista no meio, e permitir retomar o quiz sem precisar se cadastrar de novo caso a pessoa saia e volte no mesmo aparelho.
+
+**Ações manuais necessárias**
+- [x] Redeploy manual da Edge Function `submeter-simulador` no painel do Supabase — feito pelo responsável antes deste merge. **Nota operacional**: o editor do painel não resolve o import relativo `../_shared/captacao.ts` do repositório (nem como arquivo extra dentro da própria função) — a cópia do painel precisou ter o conteúdo de `_shared/captacao.ts` colado direto no `index.ts`, sem import. O repositório mantém a versão limpa com import, correta pra um futuro deploy via Supabase CLI.
+- Nenhuma migração SQL — `pontuacao`/`perfil_consumo` já eram nullable, reaproveitados como sinal de "cadastro sem resultado ainda".
+
+---
+
 ## [v5.23.1] — Operação: reativação do Supabase pausado, verificação do hardening em produção e registro do D-079
 **Data:** 2026-07-17
 **Branch:** commit vazio `ecf2ba2` direto na `main` (re-trigger de deploy) + docs via branch `claude/google-auth-user-classification-kvktvm`

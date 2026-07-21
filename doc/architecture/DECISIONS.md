@@ -2665,6 +2665,40 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-083] — Quiz de Acertos: cadastro ANTES do quiz (não depois), retomada local e remoção do resumo compartilhável
+
+**Data:** 2026-07-21
+**Tipo:** Feature / Correção de fluxo
+
+**Contexto:** O responsável pediu duas mudanças no tipo `quiz` (D-080/D-082): (1) o cadastro (nome/WhatsApp/LGPD) deveria acontecer **antes** do quiz, não depois — assim o contato da pessoa fica garantido mesmo que ela abandone o quiz no meio, já que todo cadastro (termine o quiz ou não) já é um dado bom pra empresa; (2) se a pessoa sair no meio e voltar no mesmo navegador, ela não deveria precisar se cadastrar de novo, retomando o quiz de onde parou. Ficou definido também que só quem **conclui** o quiz e confirma explicitamente concorre ao sorteio — cadastro sozinho não é suficiente. Nesse mesmo pedido, o resumo compartilhável do D-082 foi **removido por completo**.
+
+**Decisão:**
+- **Duas escritas no servidor em vez de uma, só pro tipo `quiz`** (`oferta`/`demanda` continuam com o insert único de sempre, inalterados): a Edge Function `submeter-simulador` ganha um campo `fase` no corpo da requisição.
+  - `fase: 'cadastro'` — INSERT do lead com contato/consentimento/UTM já completos, mas `perfil_consumo`/`pontuacao` ainda `null` (quiz não feito). O servidor gera o `id` (`crypto.randomUUID()`) e devolve em `leadId` na resposta — nunca aceito do cliente.
+  - `fase: 'conclusao'` — UPDATE nesse mesmo lead com o resultado do quiz (`perfil_consumo`/`pontuacao`/`temperatura`, recalculados a partir da config gravada, mesmo princípio anti-cliente-hostil de sempre), disparado só quando a pessoa clica **"Participar do sorteio"** na tela de resultado — nunca automático ao terminar a última pergunta.
+  - **Guarda atômica**: o UPDATE usa `WHERE pontuacao IS NULL` — só a PRIMEIRA conclusão bem-sucedida vale (1 chance só, sem corrida de concorrência entre 2 chamadas com o mesmo `leadId`). Não foi preciso nenhuma coluna nova nem migração SQL — `pontuacao`/`perfil_consumo` já eram nullable, e só o tipo `quiz` passa por um estado intermediário "cadastrado, sem resultado ainda".
+  - Rate limit (D-067) continua contando só a fase `cadastro` (é a única que cria linha nova em `leads`); `conclusao` fica de fora — não há nova superfície de abuso relevante, dado que o `leadId` é um UUID aleatório de 128 bits, não adivinhável.
+- **Todo cadastro é um lead de CRM válido, mesmo sem concluir o quiz** — decisão explícita do responsável: os dados de quem se cadastra e abandona continuam bons pra empresa. Isso é **ortogonal** à elegibilidade pro sorteio, que exige conclusão + clique explícito.
+- **Sorteador só considera quem concluiu**: `fetchLeadsPorSimulador` (`dataService.js`) e o filtro local-mode do Sorteador (`SimuladorTab.jsx`) passam a exigir `pontuacao != null` — sem isso, cadastros incompletos (sem resultado nenhum) poderiam ser sorteados por engano.
+- **Retomada via `localStorage` por slug** (`SimuladorPublico.jsx`, chave `rjnet_simulador_quiz_<slug>`): guarda `leadId`, pergunta atual, respostas e status (`cadastrado`/`concluido`). Cobre só "mesmo navegador" — trocar de aparelho exige novo cadastro, limitação aceita conscientemente (client-side puro, sem token/autenticação cross-device).
+- **"Já participou"**: se o `localStorage` indica status `concluido`, a pessoa vê uma tela dedicada em vez de poder refazer o quiz — reforça o "1 chance só" comunicado na tela de cadastro.
+- **Feedback visual por resposta**: ao escolher uma alternativa, a opção certa fica verde e as demais vermelhas por 1,2s antes de avançar sozinho pra próxima pergunta (classes `.sim-opcao-correta`/`.sim-opcao-errada`, reaproveitando as variáveis `--green`/`--red` já existentes) — só no tipo `quiz`, que é o único com resposta certa/errada. O botão "Voltar" some nesse tipo (resposta já revelada fica travada).
+- **Resumo compartilhável (D-082) removido por completo**: `ResumoCompartilhavel`, `desenharResumoQuiz`, `desenharTextoComQuebra`, `formatarDuracao` e o cronômetro `inicioQuizRef`/`tempoQuizMs` foram deletados de `SimuladorPublico.jsx` — não existe mais compartilhamento/download de imagem do resultado.
+
+**Alternativas Avaliadas:**
+- **Só reordenar a UI (contato aparece primeiro na tela, mas envio único no final, como antes)** — descartada: não atinge o objetivo real ("garantir o contato mesmo com abandono"), já que nada seria gravado até o fim do quiz de qualquer jeito.
+- **Token de autorização separado para o UPDATE de conclusão** (em vez de usar o próprio `leadId` como "chave") — avaliada e descartada por desnecessária: o `leadId` já é um UUID de 128 bits gerado no servidor, nunca exposto publicamente antes de ser devolvido pro próprio autor do cadastro; a guarda `pontuacao is null` já impede reuso.
+- **Coluna nova pra marcar "quiz concluído"** — descartada: `pontuacao is null` já é um sinal suficiente e correto pra esse estado, sem precisar de migração.
+- **Deixar todo cadastro (concluído ou não) elegível ao sorteio** — descartada a pedido explícito do responsável: só quem termina o quiz e confirma participação concorre.
+
+**Arquivos Afetados:** `supabase/functions/submeter-simulador/index.ts` (fases `cadastro`/`conclusao`, guarda atômica, branch legado de `quiz` vira erro de version-skew), `src/lib/localPublicSubmit.js` (`criarLeadSimuladorQuizLocal`/`concluirLeadSimuladorQuizLocal`, fallback local), `src/public/SimuladorPublico.jsx` (reescrita do fluxo `quiz`: fases `quiz-cadastro`/`quiz-ja-participou`/`quiz-sorteio-confirmado`, `localStorage` de progresso, feedback verde/vermelho, remoção do resumo compartilhável), `src/lib/dataService.js` (`fetchLeadsPorSimulador` filtra `pontuacao != null`), `src/features/simulador/SimuladorTab.jsx` (mesmo filtro no Sorteador em modo local), `src/index.css` (`.sim-opcao-correta`/`.sim-opcao-errada`), `tests/simulador.test.js` (testes reescritos: cadastro antes do quiz, feedback de cor, retomada, "já participou"; testes do resumo compartilhável removidos). Fluxos `oferta`/`demanda` não foram tocados.
+
+**Riscos:** Baixo-Médio — sem migração SQL, sem mudança de RLS (Edge Function usa `service_role`, já bypassa RLS). Risco operacional real observado durante o deploy: a Edge Function em produção é colada manualmente no painel do Supabase (mesma dívida técnica do D-078), e o import relativo `../_shared/captacao.ts` do repositório **não resolve** no bundler do editor do painel — precisou inlinear o conteúdo de `_shared/captacao.ts` direto no `index.ts` só na cópia do painel (o repositório mantém a versão com import, correta pra deploy futuro via Supabase CLI). Enquanto a Edge Function nova estava no ar e o frontend antigo ainda em produção (janela entre os deploys), qualquer campanha `quiz` ativa ficaria fora do ar — mitigado fazendo merge do frontend logo em seguida.
+
+**Status:** Ativa — mergeado na `main` via PR #89 em 2026-07-21.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
