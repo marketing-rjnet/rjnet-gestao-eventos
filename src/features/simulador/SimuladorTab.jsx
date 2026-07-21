@@ -392,7 +392,9 @@ function Sorteador({ simulador }) {
     if (isSupabaseMode()) {
       fetchLeadsPorSimulador(simulador.id).then(setParticipantes);
     } else {
-      setParticipantes(leadsCompartilhados.filter((l) => l.simuladorId === simulador.id));
+      // D-083: mesmo filtro do fetchLeadsPorSimulador — só quem TERMINOU o
+      // quiz (pontuacao preenchida na conclusão) concorre ao sorteio.
+      setParticipantes(leadsCompartilhados.filter((l) => l.simuladorId === simulador.id && l.pontuacao != null));
     }
   };
   useEffect(carregar, [simulador.id]);

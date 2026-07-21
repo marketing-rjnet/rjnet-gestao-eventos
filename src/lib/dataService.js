@@ -507,11 +507,14 @@ export async function fetchSimuladorPublico(slug) {
   return simuladorFromDb(data);
 }
 
-// D-080: Sorteador do Quiz — busca TODOS os leads de uma campanha
+// D-080/D-083: Sorteador do Quiz — busca os leads de uma campanha
 // (`simulador_id`), independente de já terem sido distribuídos a um
 // vendedor. Diferente de fetchLeadsSemVendedor/fetchLeadsQrCode (fila de
-// distribuição, só os sem dono): o sorteio precisa do universo completo
-// de quem participou daquela campanha específica.
+// distribuição, só os sem dono): o sorteio precisa do universo de quem
+// participou daquela campanha específica. D-083: cadastro passou a
+// acontecer ANTES do quiz — `pontuacao` só é preenchida na conclusão, então
+// `not null` aqui garante que só quem TERMINOU o quiz concorre (quem só se
+// cadastrou e abandonou continua um lead válido pra CRM, só não é sorteável).
 export async function fetchLeadsPorSimulador(simuladorId, signal) {
   if (!isSupabaseMode() || !simuladorId) return null;
   return trackPerf('fetchLeadsPorSimulador', () =>
@@ -522,6 +525,7 @@ export async function fetchLeadsPorSimulador(simuladorId, signal) {
         .select(LEADS_COLS)
         .eq('simulador_id', simuladorId)
         .eq('deletado', false)
+        .not('pontuacao', 'is', null)
         .order('criado_em', { ascending: false })
         .abortSignal(signal);
       if (error) throw error;
