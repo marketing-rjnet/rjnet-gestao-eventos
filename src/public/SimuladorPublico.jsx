@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseConfig } from '../lib/supabase';
 import { fetchSimuladorPublico } from '../lib/dataService';
 import {
@@ -39,8 +39,186 @@ import { containsLink } from '../lib/security';
 // Atribuição de tráfego: captura utm_* da URL no load — o mesmo link
 // atende anúncio pago (UTMs do gerenciador) e QR impresso (UTMs embutidos
 // pelo SimuladorTab ao gerar o QR).
+//
+// D-082: tipo 'quiz' ganha um resumo compartilhável na tela final (depois
+// do contato enviado) — imagem gerada 100% no cliente via <canvas> (mesma
+// técnica do QR Code, sem lib nova) com faixa/acertos/tempo/campanha, e um
+// botão que usa a Web Share API (com arquivo de imagem) quando o navegador
+// suporta, com fallback de download simples. Puramente cosmético/viral —
+// não persiste nada novo, não afeta o lead já gravado.
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+
+// D-082: contagem de tempo de resposta do quiz — só usada pra exibição no
+// resumo compartilhável, nunca enviada ao servidor (a Edge Function não
+// grava/valida tempo, é puramente decorativo no card).
+function formatarDuracao(ms) {
+  if (!ms || ms < 0) return null;
+  const segundosTotais = Math.round(ms / 1000);
+  const min = Math.floor(segundosTotais / 60);
+  const seg = segundosTotais % 60;
+  return min === 0 ? `${seg}s` : `${min}min ${seg}s`;
+}
+
+// Quebra texto em várias linhas dentro de maxWidth — usado pro card do
+// resumo aceitar títulos/nomes de campanha de qualquer tamanho sem
+// estourar a imagem. Retorna o y logo abaixo do bloco desenhado.
+function desenharTextoComQuebra(ctx, texto, cx, y, maxWidth, lineHeight) {
+  const palavras = String(texto).split(' ');
+  const linhas = [];
+  let linha = '';
+  for (const palavra of palavras) {
+    const teste = linha ? `${linha} ${palavra}` : palavra;
+    if (linha && ctx.measureText(teste).width > maxWidth) {
+      linhas.push(linha);
+      linha = palavra;
+    } else {
+      linha = teste;
+    }
+  }
+  if (linha) linhas.push(linha);
+  linhas.forEach((l, i) => ctx.fillText(l, cx, y + i * lineHeight));
+  return y + linhas.length * lineHeight;
+}
+
+// Desenha o card 1080x1080 (mesmo formato das imagens de Oferta, D-057) do
+// resumo do quiz — logo, nome da campanha, faixa (emoji + título), acertos
+// e tempo. `logoImg` pode ser null (ex: SVG ainda não carregou) — o resto
+// do card é desenhado igual, só sem a logo no topo.
+function desenharResumoQuiz(canvas, { emoji, titulo, acertos, total, tempoTexto, nomeCampanha, primeiroNome, logoImg, link }) {
+  const W = 1080;
+  const H = 1080;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const grad = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 900);
+  grad.addColorStop(0, 'rgba(255,203,0,0.12)');
+  grad.addColorStop(1, '#090909');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+
+  let y = 130;
+  if (logoImg) {
+    const logoH = 90;
+    const logoW = logoImg.width * (logoH / logoImg.height);
+    ctx.drawImage(logoImg, (W - logoW) / 2, y - logoH, logoW, logoH);
+  }
+  y += 90;
+
+  ctx.fillStyle = '#ffcb00';
+  ctx.font = '700 34px "DM Sans", sans-serif';
+  y = desenharTextoComQuebra(ctx, String(nomeCampanha || 'Simulador RJNet').toUpperCase(), W / 2, y, 880, 44) + 150;
+
+  ctx.font = '200px sans-serif';
+  ctx.fillText(emoji || '🎯', W / 2, y);
+  y += 70;
+
+  ctx.fillStyle = '#f4f4f4';
+  ctx.font = '800 62px "DM Sans", sans-serif';
+  y = desenharTextoComQuebra(ctx, titulo || 'Participante', W / 2, y, 920, 72) + 50;
+
+  ctx.fillStyle = '#cccccc';
+  ctx.font = '500 38px "DM Sans", sans-serif';
+  y = desenharTextoComQuebra(ctx, `${primeiroNome} acertou ${acertos} de ${total} perguntas!`, W / 2, y, 920, 48) + 34;
+
+  if (tempoTexto) {
+    ctx.fillStyle = '#888888';
+    ctx.font = '500 32px "DM Sans", sans-serif';
+    ctx.fillText(`⏱ ${tempoTexto}`, W / 2, y);
+  }
+
+  ctx.fillStyle = '#555555';
+  ctx.font = '400 26px "DM Sans", sans-serif';
+  ctx.fillText(link, W / 2, H - 70);
+}
+
+// D-082: gera o card + botão de compartilhar/baixar. Usa Web Share API com
+// arquivo quando o navegador suporta (WhatsApp/Instagram/etc. no celular);
+// cai pro download simples do PNG quando não (mesmo padrão de baixarPng em
+// SimuladorTab.jsx). Não depende de sessão nem grava nada — é só o próprio
+// canvas já renderizado virando arquivo compartilhável.
+function ResumoCompartilhavel({ faixa, acertos, total, tempoMs, nomeCampanha, primeiroNome, slug }) {
+  const canvasRef = useRef(null);
+  const [suportaArquivo, setSuportaArquivo] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    const link = `${window.location.origin}/s/${slug}`;
+    const desenhar = (logoImg) => {
+      if (cancelado || !canvasRef.current) return;
+      desenharResumoQuiz(canvasRef.current, {
+        emoji: faixa?.emoji, titulo: faixa?.titulo, acertos, total,
+        tempoTexto: formatarDuracao(tempoMs), nomeCampanha, primeiroNome, logoImg, link,
+      });
+    };
+    const logo = new Image();
+    logo.onload = () => desenhar(logo);
+    logo.onerror = () => desenhar(null);
+    logo.src = '/logo-rjnet.svg';
+    return () => { cancelado = true; };
+  }, [faixa, acertos, total, tempoMs, nomeCampanha, primeiroNome, slug]);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return;
+    try {
+      setSuportaArquivo(navigator.canShare({ files: [new File([], 'x.png', { type: 'image/png' })] }));
+    } catch {
+      setSuportaArquivo(false);
+    }
+  }, []);
+
+  const gerarBlob = () => new Promise((resolve) => canvasRef.current.toBlob(resolve, 'image/png'));
+
+  const compartilhar = async () => {
+    setOcupado(true);
+    try {
+      const blob = await gerarBlob();
+      const arquivo = new File([blob], `resultado-quiz-${slug}.png`, { type: 'image/png' });
+      await navigator.share({
+        files: [arquivo],
+        title: 'Meu resultado no Quiz RJNet',
+        text: `${primeiroNome} acertou ${acertos} de ${total} e é ${faixa?.titulo}! ${faixa?.emoji || ''}`.trim(),
+      });
+    } catch {
+      /* usuário cancelou o compartilhamento ou o navegador recusou — sem erro visível pro usuário */
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const baixar = async () => {
+    setOcupado(true);
+    try {
+      const blob = await gerarBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `resultado-quiz-${slug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 22 }}>
+      <canvas ref={canvasRef} style={{ width: '100%', maxWidth: 300, borderRadius: 14, boxShadow: '0 0 0 1px var(--border)' }} />
+      <button
+        type="button" className="btn-primary btn-full" style={{ marginTop: 14 }}
+        onClick={suportaArquivo ? compartilhar : baixar}
+        disabled={ocupado}
+      >
+        {ocupado ? 'Um instante...' : suportaArquivo ? '📤 Compartilhar resultado' : '⬇️ Baixar imagem do resultado'}
+      </button>
+    </div>
+  );
+}
 
 function buscarSimuladorLocal(slug) {
   try {
@@ -82,6 +260,10 @@ export default function SimuladorPublico({ slug }) {
   const [website, setWebsite] = useState(''); // honeypot — humano nunca preenche
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  // D-082: cronômetro do quiz (início → última pergunta respondida), só pra
+  // exibição no resumo compartilhável — nunca enviado ao servidor.
+  const inicioQuizRef = useRef(null);
+  const [tempoQuizMs, setTempoQuizMs] = useState(null);
 
   const utm = useMemo(capturarUtm, []);
 
@@ -91,6 +273,7 @@ export default function SimuladorPublico({ slug }) {
       if (!s) return;
       setEtapa(0);
       setFase('perguntas');
+      inicioQuizRef.current = Date.now();
     };
     if (!supabaseConfig.url) {
       aoCarregar(buscarSimuladorLocal(slug));
@@ -144,6 +327,9 @@ export default function SimuladorPublico({ slug }) {
     if (etapa + 1 < perguntas.length) {
       setEtapa(etapa + 1);
     } else {
+      if (tipo === 'quiz' && inicioQuizRef.current) {
+        setTempoQuizMs(Date.now() - inicioQuizRef.current);
+      }
       setFase('calculando');
       const proximaFase = tipo === 'oferta' ? 'resultado' : tipo === 'quiz' ? 'resultado-quiz' : 'resultado-demanda';
       setTimeout(() => setFase(proximaFase), 1400);
@@ -269,6 +455,18 @@ export default function SimuladorPublico({ slug }) {
             {tipo === 'quiz' && 'Valeu por participar! Você já está concorrendo ao brinde RJNET — fique de olho no WhatsApp.'}
             {tipo === 'oferta' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
+          {/* D-082: resumo compartilhável — só no tipo quiz, que tem faixa/acertos pra mostrar */}
+          {tipo === 'quiz' && faixaQuiz && resultadoQuiz && (
+            <ResumoCompartilhavel
+              faixa={faixaQuiz}
+              acertos={resultadoQuiz.acertos}
+              total={resultadoQuiz.total}
+              tempoMs={tempoQuizMs}
+              nomeCampanha={simulador?.nome}
+              primeiroNome={contato.nome.trim().split(/\s+/)[0] || 'Você'}
+              slug={slug}
+            />
+          )}
         </div>
       </div>
     );
