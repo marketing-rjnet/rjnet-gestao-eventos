@@ -2661,7 +2661,7 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 **Riscos:** Baixo — mudança puramente client-side, sem coluna nova, sem Edge Function tocada, sem persistência adicional. `navigator.share`/`canShare` com arquivos não são reproduzíveis no motor Chromium headless usado nos testes automatizados deste ambiente (comportamento verificado via mock de `navigator.share`); a confirmação do menu nativo real (WhatsApp/Instagram no iOS) depende de teste manual do responsável.
 
-**Status:** Em desenvolvimento — implementado nesta sessão, pendente de validação manual num iPhone real antes do merge.
+**Status:** Ativa — mergeado na `main` via PR #87 em 2026-07-21.
 
 ---
 
