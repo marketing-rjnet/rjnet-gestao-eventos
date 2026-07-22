@@ -64,6 +64,12 @@ import { containsLink } from '../lib/security';
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
+// D-088: tempo que a tela "Parabéns, sua participação foi validada!" fica
+// visível antes do aparelho voltar sozinho pro cadastro em branco (ver
+// efeito abaixo) — dá tempo de ler a mensagem sem exigir F5 manual do
+// operador do evento pra liberar o aparelho pra próxima pessoa.
+const QUIZ_RESET_DELAY_MS = 6000;
+
 function buscarSimuladorLocal(slug) {
   try {
     const todos = JSON.parse(localStorage.getItem('rjnet_simuladores')) || [];
@@ -131,6 +137,7 @@ export default function SimuladorPublico({ slug }) {
   const [simulador, setSimulador] = useState(undefined); // undefined = carregando
   // 'oferta'/'demanda': perguntas → calculando → resultado(-demanda) → contato → enviado
   // 'quiz' (D-083/D-084): quiz-cadastro → perguntas → calculando → resultado-quiz → quiz-sorteio-confirmado
+  //                       → (D-088, automático após QUIZ_RESET_DELAY_MS) quiz-cadastro de novo
   //                       (duplicidade de número é bloqueada no cadastro, nunca por navegador)
   const [fase, setFase] = useState('carregando');
   const [etapa, setEtapa] = useState(0);
@@ -196,6 +203,23 @@ export default function SimuladorPublico({ slug }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simulador, leadId, fase, etapa, respostas]);
+
+  // D-088: ao entrar na tela de confirmação do sorteio, agenda a volta
+  // automática pro cadastro em branco — o mesmo comportamento que já
+  // existia ao dar F5 (progresso já foi limpo em confirmarSorteio, D-084),
+  // só que agora acontece sozinho, sem precisar de recarregar a página.
+  useEffect(() => {
+    if (fase !== 'quiz-sorteio-confirmado') return;
+    const t = setTimeout(() => {
+      setLeadId(null);
+      setRespostas({});
+      setEtapa(0);
+      setContato({ nome: '', telefone: '', bairro: '', cidade: '' });
+      setConsentimentoColetado(false);
+      setFase('quiz-cadastro');
+    }, QUIZ_RESET_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [fase]);
 
   const tipo = simulador?.tipo;
 
@@ -490,6 +514,9 @@ export default function SimuladorPublico({ slug }) {
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Você está concorrendo! 🎉</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
             Fique atenta às nossas redes sociais e ao seu WhatsApp para mais informações sobre o sorteio.
+          </div>
+          <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 18 }}>
+            Passando o aparelho para a próxima pessoa? Esta tela libera sozinha em instantes.
           </div>
         </div>
       </div>
