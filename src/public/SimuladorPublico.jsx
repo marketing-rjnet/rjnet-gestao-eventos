@@ -400,7 +400,14 @@ export default function SimuladorPublico({ slug }) {
           body: JSON.stringify({ fase: 'conclusao', simuladorId: simulador.id, leadId, respostas }),
         });
         const body = await res.json();
-        if (!res.ok) throw new Error(body.error || 'Não foi possível registrar sua participação.');
+        // 409 aqui só acontece quando esse leadId já tem pontuação gravada
+        // (guarda `pontuacao is null` no servidor) — ou seja, progresso
+        // local ficou desatualizado apontando pra um cadastro que já foi
+        // concluído antes (ex.: resposta de uma tentativa anterior não
+        // chegou a limpar o localStorage). Não é uma falha real: a
+        // participação já existe, então segue pra tela de confirmação em
+        // vez de deixar a pessoa presa num erro que nunca vai passar.
+        if (!res.ok && res.status !== 409) throw new Error(body.error || 'Não foi possível registrar sua participação.');
       }
       limparProgressoQuizLocal(slug);
       setFase('quiz-sorteio-confirmado');
