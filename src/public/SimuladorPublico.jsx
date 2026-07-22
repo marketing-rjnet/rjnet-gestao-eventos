@@ -816,9 +816,15 @@ export default function SimuladorPublico({ slug }) {
         <div className="sim-opcoes" style={{ marginTop: 10 }}>
           {pergunta.opcoes.map((op) => {
             const ativa = pergunta.tipo === 'multi' ? selecionadas.includes(op.id) : respostas[pergunta.id] === op.id;
-            let classe = 'sim-opcao' + (ativa ? ' active' : '');
+            let classe = 'sim-opcao';
+            // D-089: durante o reveal do Quiz de Acertos, correta/errada
+            // manda sozinha — 'active' (amarelo, mais específico no CSS)
+            // não pode entrar junto, senão sobrepõe o verde/vermelho
+            // justamente na opção que a pessoa clicou.
             if (isQuizTipo && revelada) {
               classe += op.id === pergunta.respostaCorretaId ? ' sim-opcao-correta' : ' sim-opcao-errada';
+            } else if (ativa) {
+              classe += ' active';
             }
             return (
               <button
