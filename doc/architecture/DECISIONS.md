@@ -2797,7 +2797,7 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 **Riscos:** Nenhum — mudança 100% visual/frontend, sem migração de banco. Validado manualmente via Playwright com leads sintéticos de origem `qrcode`/`formulario` (abrir/fechar preserva os botões de ação e a lista).
 
-**Status:** Ativa — mergeado na `main` via PR a ser criado em 2026-07-22.
+**Status:** Ativa — mergeado na `main` via PR #96 em 2026-07-22.
 
 ---
 
