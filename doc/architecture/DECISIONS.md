@@ -2725,6 +2725,59 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-085] — Relatório CSV dos leads "em espera" na fila de distribuição
+
+**Data:** 2026-07-22
+**Tipo:** Feature
+
+**Contexto:** A seção "Leads sem vendedor" (`FilaDistribuicao`, em `LeadsTab.jsx`) já existia desde o D-061/D-072 para o marketing/comercial distribuir manualmente leads captados por QR Code, Formulário e Simulador que chegam sem vendedor atribuído. Diferente das seções de Evento e de Mês de referência na mesma tela, essa fila não tinha exportação — só a visualização em tabela, sem forma de extrair um relatório desses leads "em espera" (ainda não direcionados a ninguém).
+
+**Decisão:**
+- Nova função `exportLeadsSemVendedorCSV()` em `src/utils/csv.js`, seguindo o mesmo padrão das demais exportações do arquivo: recebe os dados já filtrados e funções de rotulagem do chamador (`servicoLabelFn`, `origemDetalheFn`, `camposExtrasTextoFn`) — nenhuma lógica de negócio nova em `csv.js`, só formatação/download.
+- Colunas do CSV: Nome, Telefone, Cidade, Bairro, Serviço, Perfil/Pontuação, Temperatura, Origem (com detalhe de campanha/UTM quando presente), Campos Extras, Responsável, Cadastrado em.
+- Botão **"Exportar em espera"** no cabeçalho do card "Leads sem vendedor" (`FilaDistribuicao`), ao lado do botão "Atualizar" já existente, com contagem no próprio rótulo (`Exportar em espera (N)`) e desabilitado quando não há nenhum lead pendente.
+- Exporta **só o subconjunto `semVendedor`** (leads sem `vendedorId`), nunca `leadsFrios` inteiro — um lead já distribuído deixou de estar "em espera", mesmo que tenha nascido de captação digital.
+- Segue a mesma auditoria de exportação (PA-06/LGPD) das demais exportações da tela: `db.registrarExportacao()` com `filtros: { relatorio: 'leads_em_espera' }`.
+- `FilaDistribuicao` passa a receber `session` como prop (antes não recebia nenhuma), necessária para popular `usuarioId`/`usuarioNome`/`usuarioEmail` na auditoria.
+
+**Alternativas Avaliadas:**
+- **Reaproveitar `exportLeadsCSV()` genérico (usado no export por evento)** — descartado: os leads da fila não têm `eventoId` nem `mesReferencia`, e o relatório precisa de colunas específicas desse canal (Origem, Perfil/Pontuação, Campos Extras) que não existem no export de evento/mês.
+- **Exportar `leadsFrios` completo (incluindo já distribuídos)** — descartado: o pedido era especificamente pelos leads "em espera"; um lead já atribuído a um vendedor tem seu próprio caminho de exportação via evento/mês, e misturar os dois no mesmo CSV confundiria o propósito do relatório.
+
+**Arquivos Afetados:** `src/utils/csv.js` (`exportLeadsSemVendedorCSV`), `src/features/leads/LeadsTab.jsx` (`FilaDistribuicao` ganha prop `session`, função `exportarSemVendedor` e botão de exportação).
+
+**Riscos:** Baixo — mudança 100% frontend, sem migração de banco, sem alteração de RLS. Reaproveita a mesma tabela de auditoria (`audit_exportacoes`) já usada pelos demais exports.
+
+**Status:** Ativa — mergeado na `main` via PR #93 em 2026-07-22.
+
+---
+
+### [D-086] — Listas de Eventos e Meses em Relatórios viram accordion fechado por padrão
+
+**Data:** 2026-07-22
+**Tipo:** Refatoração (UI)
+
+**Contexto:** Na tela de Relatórios (`LeadsTab.jsx`), os cards "Eventos" e "Meses de {ano}" renderizavam a tabela de seleção (checkboxes) sempre aberta e visível por completo — com o tempo, a lista de eventos encerrados e os 12 meses do ano deixaram a tela excessivamente longa, mesmo quando o usuário só precisa marcar rapidamente 1 ou 2 itens para exportar.
+
+**Decisão:**
+- Os dois cards passam a ser um **accordion fechado por padrão** (`useState(false)`, estados independentes `eventosAbertos`/`mesesAbertos`): o cabeçalho do card vira um `<button>` clicável com uma seta que gira 90° ao abrir (`Icon name="arrow_right"`, `transform: rotate(90deg)`) — **mesmo padrão visual já estabelecido** no accordion por dia de `MesDetail.jsx` (D-066), reaproveitado sem inventar um componente novo.
+- A tabela de checkboxes e o botão "Selecionar todos"/"Desmarcar todos" só renderizam quando a seção está aberta.
+- O cabeçalho mostra a contagem mesmo fechado (`N selecionados` quando há seleção, senão `N eventos`/`N meses` do total) — dá visibilidade do estado sem precisar expandir.
+- O texto de resumo abaixo da tabela ("N evento(s) selecionado(s). Use 'Exportar evento'...") **continua visível independente do accordion estar aberto ou fechado** — decisão deliberada para o usuário conseguir conferir o que já selecionou e usar os botões de exportação (que ficam fora do card, no cabeçalho da seção) sem precisar reabrir a lista.
+- Os cards "Leads sem vendedor" (D-085) e "Demanda por região" não foram alterados — só as duas tabelas de seleção apontadas pelo responsável.
+
+**Alternativas Avaliadas:**
+- **Paginação da lista de eventos/meses** — descartada: a lista de meses é sempre 12 itens fixos (não cresce), e a de eventos, embora cresça com o tempo, se beneficia mais de "escondida por padrão, com contagem visível" do que de paginação, que adicionaria complexidade de estado sem resolver o problema real (tela extensa mesmo quando não precisa da lista aberta).
+- **Manter aberto por padrão e só reduzir o espaçamento visual** — descartada a pedido do responsável: o objetivo explícito era "recolher tudo" ao entrar na tela, não só compactar.
+
+**Arquivos Afetados:** `src/features/leads/LeadsTab.jsx` (cards "Eventos" e "Meses de {ano}", estados `eventosAbertos`/`mesesAbertos`).
+
+**Riscos:** Nenhum — mudança 100% visual/frontend, sem migração de banco, sem alteração de RLS ou contrato de API. Validado manualmente via Playwright (abrir/fechar os dois accordions, seleção mantida com a seção fechada, contadores corretos no cabeçalho).
+
+**Status:** Ativa — mergeado na `main` via PR #94 em 2026-07-22.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
