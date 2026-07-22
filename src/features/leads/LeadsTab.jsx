@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon } from '../../components/ui';
 import { servicoLabel, fmtDateLong, mesesDoAno, mesReferenciaLabel } from '../../utils/format';
-import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV } from '../../utils/csv';
+import { exportLeadsCSV, exportLeadsConsolidadoCSV, exportLeadsMesCSV, exportLeadsMesConsolidadoCSV, exportLeadsSemVendedorCSV } from '../../utils/csv';
 import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fetchLeadsSemVendedor, demandaPorRegiao, db } from '../../lib/dataService';
 import { isSupabaseMode } from '../../lib/mode';
 import { resumoPerfil } from '../../lib/simulador';
@@ -15,7 +15,7 @@ const TEMPERATURA_COR = { frio: '#60a5fa', morno: '#fb923c', quente: '#ef4444', 
 // futuros canais frios) chegam sem vendedor. Marketing/Comercial atribui
 // manualmente — a mesma operação de negócio pra qualquer origem, sem regra
 // nova por canal.
-function FilaDistribuicao() {
+function FilaDistribuicao({ session }) {
   const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados, simuladores } = useApp();
   const [leadsRemotos, setLeadsRemotos] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -88,13 +88,39 @@ function FilaDistribuicao() {
 
   const semVendedor = leadsFrios.filter((l) => !l.vendedorId);
 
+  // Relatório dos leads "em espera" — captados por QR Code/Formulário/
+  // Simulador que ainda não foram atribuídos a um vendedor. Auditoria
+  // (PA-06/LGPD) segue o mesmo padrão dos demais exports desta tela.
+  const exportarSemVendedor = () => {
+    exportLeadsSemVendedorCSV(semVendedor, servicoLabel, origemDetalhe, camposExtrasTexto, ({ totalRegistros }) => {
+      db.registrarExportacao({
+        usuarioId: session?.userId || null,
+        usuarioNome: session?.nome || null,
+        usuarioEmail: session?.email || null,
+        filtros: { relatorio: 'leads_em_espera' },
+        totalRegistros,
+      });
+    });
+  };
+
   return (
     <div className="card" style={{ marginTop: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <span className="section-title" style={{ marginBottom: 0 }}>
           Leads sem vendedor {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
         </span>
-        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn-primary"
+            style={{ fontSize: 12, padding: '5px 10px' }}
+            onClick={exportarSemVendedor}
+            disabled={semVendedor.length === 0}
+            title="Exporta os leads em espera (sem vendedor atribuído) em CSV"
+          >
+            ↓ Exportar em espera{semVendedor.length > 0 ? ` (${semVendedor.length})` : ''}
+          </button>
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+        </span>
       </div>
       <div className="tbl-wrap">
         <table>
@@ -445,7 +471,7 @@ export function LeadsTab({ session }) {
         )}
       </div>
 
-      <FilaDistribuicao />
+      <FilaDistribuicao session={session} />
 
       <DemandaPorRegiao />
 

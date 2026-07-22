@@ -47,6 +47,36 @@ export function exportLeadsConsolidadoCSV(leads, evName, servicoLabelFn, onAudit
   if (onAudit) onAudit({ totalRegistros: leads.length, totalEventos });
 }
 
+// D-061/D-072: export da fila de distribuição — leads captados por QR
+// Code/Formulário/Simulador que ainda estão "em espera" (sem vendedor
+// atribuído). Espelha o padrão das demais exportações desta tela: colunas
+// resolvidas via funções passadas pelo chamador (servicoLabel, origemDetalhe,
+// camposExtrasTexto), nunca lógica de negócio aqui.
+// onAudit: callback opcional (async) chamado após o download com { totalRegistros }
+export function exportLeadsSemVendedorCSV(leads, servicoLabelFn, origemDetalheFn, camposExtrasTextoFn, onAudit) {
+  if (leads.length === 0) return;
+  const cabecalho = ["Nome", "Telefone", "Cidade", "Bairro", "Serviço", "Perfil/Pontuação", "Temperatura", "Origem", "Campos Extras", "Responsável", "Cadastrado em"];
+  const linhas = leads.map((l) => [
+    l.nome, l.telefone, l.cidade || "", l.bairro || "",
+    servicoLabelFn(l.servicoInteresse),
+    l.pontuacao != null ? `${l.pontuacao}${l.perfilConsumo?.tipo === 'quiz' ? ' acertos' : ' pts'}` : "",
+    l.temperatura || "",
+    origemDetalheFn(l),
+    camposExtrasTextoFn(l),
+    l.vendedorNome || "Não atribuído",
+    new Date(l.criadoEm).toLocaleString("pt-BR"),
+  ]);
+  const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `leads_em_espera_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  if (onAudit) onAudit({ totalRegistros: leads.length });
+}
+
 // D-058: export de leads de um único mês de referência (fora de eventos).
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportLeadsMesCSV(dados, sufixo, servicoLabel, mesLabel, onAudit) {
