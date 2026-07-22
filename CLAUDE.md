@@ -111,7 +111,7 @@ src/
 │   │   ├── OfertasTab.jsx    # Lista fixa (5 serviços): oferta ativa por serviço, marketing only (D-057)
 │   │   └── index.js          # Re-export de offers (D-057)
 │   ├── leads/
-│   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads (etapa 11)
+│   │   ├── LeadsTab.jsx      # Filtros, gráfico e exportação CSV de leads; fila de distribuição com export dos leads em espera (D-085) e listas de Eventos/Meses em accordion (D-086) (etapa 11)
 │   │   ├── MesDetail.jsx     # Detalhe do mês: leads por vendedor + tabela agrupada por dia (accordion, com horário), espelha EventDetail sem materiais (D-060, D-066, D-068)
 │   │   └── index.js          # Re-export de leads (etapa 11)
 │   ├── checkin/
@@ -140,7 +140,7 @@ src/
 ├── utils/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
-│   ├── csv.js            # exportLeadsCSV (etapa 3)
+│   ├── csv.js            # exportLeadsCSV + exportLeadsSemVendedorCSV (fila de distribuição, D-085) (etapa 3)
 │   ├── ids.js            # genId(prefix) — gerador de IDs temporários para modo local
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
@@ -309,7 +309,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Eventos | marketing, comercial | CRUD de eventos, alocação de materiais, resumo de leads por vendedor (D-059: comercial no mesmo nível do marketing) |
 | Estoque | marketing | Gestão de materiais, status de disponibilidade |
 | Ofertas | marketing, comercial | Oferta ativa por serviço (imagem 1080x1080 + copy), congelada para o vendedor consumir via WhatsApp (D-057, D-059) |
-| Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
+| Leads | marketing, comercial | Export CSV por evento e por mês de referência (D-058), export CSV dos leads em espera na fila de distribuição (D-085), listas de Eventos/Meses em accordion fechado por padrão (D-086), auditoria de exportação (D-059: comercial edita/exclui leads de qualquer vendedor) |
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
 | Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
 | Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (cadastro ANTES do quiz → perguntas com resposta certa/errada e feedback verde/vermelho → faixa de classificação editável, ex: evento MotoFest → CTA explícito "Participar do sorteio") — este último ganha também um Sorteador entre quem CONCLUIU o quiz; duplicidade de cadastro bloqueada por número de WhatsApp na campanha, nunca por navegador (D-084); cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080, D-083, D-084) |
@@ -409,6 +409,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/features/events/EventosTab.jsx` | ~60 | Lista de eventos com filtros (etapa 10) |
 | `src/features/events/EventDetail.jsx` | ~175 | Detalhe do evento, materiais e leads (etapa 10) |
 | `src/features/leads/MesDetail.jsx` | ~188 | Detalhe do mês: leads por vendedor + tabela agrupada por dia num accordion (`"Hoje"`/`"Ontem"`, dia mais recente aberto por padrão, busca expande dias com match, coluna "Horário" + leads ordenados do mais recente pro mais antigo dentro do dia), espelha `EventDetail.jsx` sem materiais (D-060, D-066, D-068) |
+| `src/features/leads/LeadsTab.jsx` | ~594 | Exportação de leads por evento/mês; `FilaDistribuicao` (leads sem vendedor de QR Code/Formulário/Simulador) com export CSV dos leads em espera (D-085); listas de Eventos/Meses em accordion fechado por padrão, mesmo padrão visual de `MesDetail.jsx` (D-086); `DemandaPorRegiao` (relatório interno por cidade/bairro) (etapa 11, D-058, D-085, D-086) |
 | `src/features/formularios/FormBuilderTab.jsx` | ~243 | CRUD de formulários + `CamposPersonalizadosManager`; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065) |
 | `src/public/FormularioPublico.jsx` | ~242 | Página pública dinâmica do Form Builder, sem sessão, sem `AppContext` (D-062, D-063); bloqueio de link em texto livre no client (D-067); logo centralizada e checkbox LGPD sem overflow no mobile (D-081) |
 | `src/lib/localPublicSubmit.js` | ~99 | Fallback local (sem Supabase) para páginas públicas, dev/teste only; `criarLeadSimuladorQuizLocal`/`concluirLeadSimuladorQuizLocal` espelham as 2 fases do quiz; `leadSimuladorQuizDuplicado` bloqueia mesmo número de WhatsApp na campanha (D-061, D-062, D-083, D-084) |
@@ -417,7 +418,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/hooks/useRanking.js` | ~42 | Hook de polling de ranking com debounce e cleanup; parâmetro `obterFn` opcional reaproveitado para o placar por mês (etapa 15, D-058) |
 | `src/utils/format.js` | ~48 | Formatação de datas, labels e iniciais; `mesesDoAno`/`mesReferenciaLabel`/`mesAtualRef` (etapa 1, D-058, D-060) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
-| `src/utils/csv.js` | ~98 | Exportação CSV de leads por evento e por mês (etapa 3, D-058) |
+| `src/utils/csv.js` | ~128 | Exportação CSV de leads por evento, por mês e da fila de distribuição — `exportLeadsSemVendedorCSV` para os leads "em espera" (etapa 3, D-058, D-085) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
 | `src/utils/ids.js` | ~2 | `genId(prefix)` — gerador de IDs temporários para modo local |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |

@@ -4,6 +4,39 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.27] — Relatórios: listas de Eventos e Meses viram accordion fechado por padrão (D-086)
+**Data:** 2026-07-22
+**Branch:** `claude/relatorio-leads-espera-83tvyy` → mesclado em `main` (PR #94)
+
+**O que mudou**
+- Os cards "Eventos" e "Meses de {ano}" na tela de Relatórios (`LeadsTab.jsx`) — usados só pra marcar checkboxes antes de exportar — deixavam a tela muito extensa por renderizarem a tabela sempre aberta.
+- **`src/features/leads/LeadsTab.jsx`** — os dois cards viram accordion fechado por padrão (`eventosAbertos`/`mesesAbertos`, `useState(false)`): o cabeçalho é um botão clicável com seta que gira 90° ao abrir — mesmo padrão visual do accordion por dia já usado em `MesDetail.jsx` (D-066). Tabela e "Selecionar todos" só aparecem quando expandido; o cabeçalho mostra a contagem (selecionados ou total) mesmo fechado; o resumo de seleção abaixo da tabela continua visível independente do estado, e os botões de exportação (fora do card) não dependem do accordion.
+
+**Por que mudou**
+- Pedido direto do responsável: a tela ficava "muito extensa" com as duas listas sempre abertas, mesmo quando só precisava marcar 1-2 itens rapidamente.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança 100% frontend, sem migração de banco. Validado manualmente via Playwright (abrir/fechar os dois accordions, seleção mantida com a seção fechada, contadores corretos no cabeçalho).
+
+---
+
+## [v5.26] — Relatório CSV dos leads em espera na fila de distribuição (D-085)
+**Data:** 2026-07-22
+**Branch:** `claude/relatorio-leads-espera-83tvyy` → mesclado em `main` (PR #93)
+
+**O que mudou**
+- A fila de distribuição (`FilaDistribuicao`, em `LeadsTab.jsx`) — leads captados por QR Code/Formulário/Simulador ainda sem vendedor atribuído — só tinha visualização em tela, sem forma de extrair um relatório.
+- **`src/utils/csv.js`** — nova `exportLeadsSemVendedorCSV()`, mesmo padrão das demais exportações do arquivo (recebe funções de rotulagem do chamador, sem lógica de negócio própria). Colunas: Nome, Telefone, Cidade, Bairro, Serviço, Perfil/Pontuação, Temperatura, Origem, Campos Extras, Responsável, Cadastrado em.
+- **`src/features/leads/LeadsTab.jsx`** — botão "Exportar em espera (N)" no cabeçalho do card "Leads sem vendedor", exportando só o subconjunto `semVendedor` (sem `vendedorId`) — nunca a fila inteira, já que um lead distribuído deixou de estar "em espera". Segue a mesma auditoria PA-06/LGPD (`db.registrarExportacao`) das demais exportações.
+
+**Por que mudou**
+- Pedido direto do responsável: extrair um relatório específico dos leads "sem direcionamento" (QR Code e demais canais digitais) que ficam aguardando distribuição, do mesmo jeito que já era possível para leads de evento e de mês.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança 100% frontend, sem migração de banco.
+
+---
+
 ## [v5.25] — Quiz de Acertos: bloqueio de duplicidade por WhatsApp, não por navegador (D-084)
 **Data:** 2026-07-21
 **Branch:** `claude/quiz-phone-duplicate-check` → mesclado em `main` (PR #91)
