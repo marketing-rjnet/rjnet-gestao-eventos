@@ -2764,7 +2764,7 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 - A tabela de checkboxes e o botão "Selecionar todos"/"Desmarcar todos" só renderizam quando a seção está aberta.
 - O cabeçalho mostra a contagem mesmo fechado (`N selecionados` quando há seleção, senão `N eventos`/`N meses` do total) — dá visibilidade do estado sem precisar expandir.
 - O texto de resumo abaixo da tabela ("N evento(s) selecionado(s). Use 'Exportar evento'...") **continua visível independente do accordion estar aberto ou fechado** — decisão deliberada para o usuário conseguir conferir o que já selecionou e usar os botões de exportação (que ficam fora do card, no cabeçalho da seção) sem precisar reabrir a lista.
-- Os cards "Leads sem vendedor" (D-085) e "Demanda por região" não foram alterados — só as duas tabelas de seleção apontadas pelo responsável.
+- Os cards "Leads sem vendedor" (D-085) e "Demanda por região" não foram alterados nesta decisão — só as duas tabelas de seleção apontadas pelo responsável. (Nota: "Leads sem vendedor" ganhou o mesmo tratamento logo em seguida — ver **D-087** abaixo.)
 
 **Alternativas Avaliadas:**
 - **Paginação da lista de eventos/meses** — descartada: a lista de meses é sempre 12 itens fixos (não cresce), e a de eventos, embora cresça com o tempo, se beneficia mais de "escondida por padrão, com contagem visível" do que de paginação, que adicionaria complexidade de estado sem resolver o problema real (tela extensa mesmo quando não precisa da lista aberta).
@@ -2775,6 +2775,29 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 **Riscos:** Nenhum — mudança 100% visual/frontend, sem migração de banco, sem alteração de RLS ou contrato de API. Validado manualmente via Playwright (abrir/fechar os dois accordions, seleção mantida com a seção fechada, contadores corretos no cabeçalho).
 
 **Status:** Ativa — mergeado na `main` via PR #94 em 2026-07-22.
+
+---
+
+### [D-087] — Card "Leads sem vendedor" também vira accordion, ações ficam fora do toggle
+
+**Data:** 2026-07-22
+**Tipo:** Refatoração (UI)
+
+**Contexto:** Logo depois do D-086 (accordion nos cards "Eventos"/"Meses"), o responsável pediu o mesmo tratamento para o card "Leads sem vendedor" (`FilaDistribuicao`) — a fila de distribuição de leads captados por QR Code/Formulário/Simulador (D-061/D-072, com export CSV desde D-085) também renderizava sua tabela sempre aberta, com o mesmo problema de tela extensa conforme a fila cresce.
+
+**Decisão:**
+- `FilaDistribuicao` ganha o mesmo padrão de accordion do D-086 — estado `aberto` (`useState(false)`, fechado por padrão), cabeçalho clicável com seta `Icon name="arrow_right"` que gira 90° ao abrir, tabela de leads só renderiza quando `aberto === true`.
+- **Diferença deliberada em relação ao D-086**: os botões **"Exportar em espera"** e **"Atualizar"** ficam FORA do toggle — continuam sempre visíveis no cabeçalho, abertos ou fechados. Motivo: ao contrário de "Selecionar todos" nos cards de Eventos/Meses (que só faz sentido com a tabela de checkboxes visível), exportar e atualizar são ações independentes da tabela estar expandida — o dado já foi carregado via `fetchLeadsSemVendedor()` no `useEffect` de montagem, e esconder essas ações atrás do accordion reduziria a descoberta do relatório adicionado no D-085 logo na sessão anterior.
+- O botão de toggle é um elemento separado (chevron + título + badge de contagem), não o cabeçalho inteiro como no D-086 — necessário porque este cabeçalho já tem outros `<button>` interativos ao lado (Exportar/Atualizar), e HTML não permite `<button>` aninhado.
+
+**Alternativas Avaliadas:**
+- **Mover Exportar/Atualizar para dentro do accordion, igual "Selecionar todos" do D-086** — descartada: reduziria a visibilidade do botão de exportação recém-criado (D-085) sem ganho real, já que essas ações não dependem da tabela estar visível.
+
+**Arquivos Afetados:** `src/features/leads/LeadsTab.jsx` (`FilaDistribuicao`, estado `aberto`).
+
+**Riscos:** Nenhum — mudança 100% visual/frontend, sem migração de banco. Validado manualmente via Playwright com leads sintéticos de origem `qrcode`/`formulario` (abrir/fechar preserva os botões de ação e a lista).
+
+**Status:** Ativa — mergeado na `main` via PR #96 em 2026-07-22.
 
 ---
 
