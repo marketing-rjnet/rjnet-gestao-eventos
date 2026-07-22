@@ -290,6 +290,10 @@ export function LeadsTab({ session }) {
   const { eventos } = useApp();
   const [selecionados, setSelecionados] = useState([]);
   const [carregando, setCarregando] = useState(false);
+  // Accordion: listas de Eventos/Meses começam fechadas pra manter a tela
+  // compacta — mesmo padrão visual do accordion por dia em MesDetail.jsx (D-066).
+  const [eventosAbertos, setEventosAbertos] = useState(false);
+  const [mesesAbertos, setMesesAbertos] = useState(false);
 
   // D-058: leads do dia a dia, fora de eventos — mesmo padrão de interação
   // da tabela de eventos acima, só que por mês de referência.
@@ -417,50 +421,67 @@ export function LeadsTab({ session }) {
       </div>
 
       <div className="card" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span className="section-title" style={{ marginBottom: 0 }}>Eventos</span>
-          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodos}>
-            {selecionados.length === eventos.length ? 'Desmarcar todos' : 'Selecionar todos'}
-          </button>
-        </div>
-        {eventos.length === 0 ? (
-          <div className="empty">Nenhum evento cadastrado.</div>
-        ) : (
-          <div className="tbl-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ width: 40 }}></th>
-                  <th>Evento</th>
-                  <th>Status</th>
-                  <th>Início</th>
-                  <th>Fim</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventos.map((ev) => (
-                  <tr
-                    key={ev.id}
-                    onClick={() => toggle(ev.id)}
-                    style={{ cursor: 'pointer', background: selecionados.includes(ev.id) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
-                  >
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selecionados.includes(ev.id)}
-                        onChange={() => toggle(ev.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </td>
-                    <td className="strong">{ev.nome}</td>
-                    <td><span className={`badge badge-${ev.status}`}>{ev.status}</span></td>
-                    <td>{fmtDateLong(ev.dataInicio)}</td>
-                    <td>{fmtDateLong(ev.dataFim)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <button
+          onClick={() => setEventosAbertos((v) => !v)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-flex', transform: eventosAbertos ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .15s ease' }}>
+              <Icon name="arrow_right" size={13} stroke="var(--text-3)" />
+            </span>
+            <span className="section-title" style={{ marginBottom: 0 }}>Eventos</span>
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
+            {selecionados.length > 0 ? `${selecionados.length} selecionado${selecionados.length > 1 ? 's' : ''}` : `${eventos.length} evento${eventos.length !== 1 ? 's' : ''}`}
+          </span>
+        </button>
+        {eventosAbertos && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodos}>
+                {selecionados.length === eventos.length ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            </div>
+            {eventos.length === 0 ? (
+              <div className="empty">Nenhum evento cadastrado.</div>
+            ) : (
+              <div className="tbl-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}></th>
+                      <th>Evento</th>
+                      <th>Status</th>
+                      <th>Início</th>
+                      <th>Fim</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventos.map((ev) => (
+                      <tr
+                        key={ev.id}
+                        onClick={() => toggle(ev.id)}
+                        style={{ cursor: 'pointer', background: selecionados.includes(ev.id) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
+                      >
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selecionados.includes(ev.id)}
+                            onChange={() => toggle(ev.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </td>
+                        <td className="strong">{ev.nome}</td>
+                        <td><span className={`badge badge-${ev.status}`}>{ev.status}</span></td>
+                        <td>{fmtDateLong(ev.dataInicio)}</td>
+                        <td>{fmtDateLong(ev.dataFim)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
         {selecionados.length > 0 && (
@@ -508,42 +529,59 @@ export function LeadsTab({ session }) {
       </div>
 
       <div className="card" style={{ marginTop: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span className="section-title" style={{ marginBottom: 0 }}>Meses de {anoSelecionado}</span>
-          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodosMeses}>
-            {mesesSelecionados.length === mesesDoAnoSelecionado.length ? 'Desmarcar todos' : 'Selecionar todos'}
-          </button>
-        </div>
-        <div className="tbl-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}></th>
-                <th>Mês</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mesesDoAnoSelecionado.map((m) => (
-                <tr
-                  key={m.value}
-                  onClick={() => toggleMes(m.value)}
-                  style={{ cursor: 'pointer', background: mesesSelecionados.includes(m.value) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
-                >
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={mesesSelecionados.includes(m.value)}
-                      onChange={() => toggleMes(m.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </td>
-                  <td className="strong">{m.label}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <button
+          onClick={() => setMesesAbertos((v) => !v)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-flex', transform: mesesAbertos ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .15s ease' }}>
+              <Icon name="arrow_right" size={13} stroke="var(--text-3)" />
+            </span>
+            <span className="section-title" style={{ marginBottom: 0 }}>Meses de {anoSelecionado}</span>
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
+            {mesesSelecionados.length > 0 ? `${mesesSelecionados.length} selecionado${mesesSelecionados.length > 1 ? 's' : ''}` : `${mesesDoAnoSelecionado.length} meses`}
+          </span>
+        </button>
+        {mesesAbertos && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={toggleTodosMeses}>
+                {mesesSelecionados.length === mesesDoAnoSelecionado.length ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+            </div>
+            <div className="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}></th>
+                    <th>Mês</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mesesDoAnoSelecionado.map((m) => (
+                    <tr
+                      key={m.value}
+                      onClick={() => toggleMes(m.value)}
+                      style={{ cursor: 'pointer', background: mesesSelecionados.includes(m.value) ? 'var(--yellow-dim, rgba(245,192,0,0.08))' : undefined }}
+                    >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={mesesSelecionados.includes(m.value)}
+                          onChange={() => toggleMes(m.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td className="strong">{m.label}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {mesesSelecionados.length > 0 && (
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
             {mesesSelecionados.length} mês{mesesSelecionados.length > 1 ? 'es' : ''} selecionado{mesesSelecionados.length > 1 ? 's' : ''}.
