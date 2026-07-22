@@ -4,6 +4,22 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.28] — Relatórios: card "Leads sem vendedor" também vira accordion (D-087)
+**Data:** 2026-07-22
+**Branch:** `claude/relatorio-leads-espera-83tvyy` → mesclado em `main`
+
+**O que mudou**
+- Logo após o D-086 (accordion nos cards "Eventos"/"Meses"), o card "Leads sem vendedor" (`FilaDistribuicao`) recebeu o mesmo tratamento — pedido direto do responsável.
+- **`src/features/leads/LeadsTab.jsx`** — `FilaDistribuicao` ganha estado `aberto` (`useState(false)`), cabeçalho com seta clicável que gira 90° ao abrir, tabela de leads só renderiza quando expandido. Diferença deliberada em relação ao D-086: os botões "Exportar em espera" (D-085) e "Atualizar" ficam **fora** do toggle, sempre visíveis — não dependem da tabela aberta, e esconder o botão de exportação recém-criado reduziria sua descoberta.
+
+**Por que mudou**
+- Pedido direto do responsável, na sequência do D-086: aplicar o mesmo padrão de accordion também na fila de distribuição.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança 100% frontend, sem migração de banco. Validado manualmente via Playwright com leads sintéticos de origem `qrcode`/`formulario` (abrir/fechar preserva os botões de ação).
+
+---
+
 ## [v5.27] — Relatórios: listas de Eventos e Meses viram accordion fechado por padrão (D-086)
 **Data:** 2026-07-22
 **Branch:** `claude/relatorio-leads-espera-83tvyy` → mesclado em `main` (PR #94)

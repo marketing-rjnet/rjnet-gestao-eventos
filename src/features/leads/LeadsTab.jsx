@@ -19,6 +19,9 @@ function FilaDistribuicao({ session }) {
   const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados, simuladores } = useApp();
   const [leadsRemotos, setLeadsRemotos] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // Accordion fechado por padrão, mesmo padrão de Eventos/Meses (D-086) —
+  // Exportar/Atualizar ficam fora do toggle, pois não dependem da tabela aberta.
+  const [aberto, setAberto] = useState(false);
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
   // campos_extras é guardado por `key` (não por id) — mapeia pra legenda
   // legível sem precisar redesenhar a tela a cada campo novo criado.
@@ -105,10 +108,18 @@ function FilaDistribuicao({ session }) {
 
   return (
     <div className="card" style={{ marginTop: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <span className="section-title" style={{ marginBottom: 0 }}>
-          Leads sem vendedor {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aberto ? 12 : 0, flexWrap: 'wrap', gap: 8 }}>
+        <button
+          onClick={() => setAberto((v) => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <span style={{ display: 'inline-flex', transform: aberto ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .15s ease' }}>
+            <Icon name="arrow_right" size={13} stroke="var(--text-3)" />
+          </span>
+          <span className="section-title" style={{ marginBottom: 0 }}>
+            Leads sem vendedor {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
+          </span>
+        </button>
         <span style={{ display: 'flex', gap: 8 }}>
           <button
             className="btn-primary"
@@ -122,6 +133,7 @@ function FilaDistribuicao({ session }) {
           <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
         </span>
       </div>
+      {aberto && (
       <div className="tbl-wrap">
         <table>
           <thead>
@@ -220,6 +232,7 @@ function FilaDistribuicao({ session }) {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
