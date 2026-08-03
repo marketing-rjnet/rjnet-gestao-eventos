@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { initials } from '../../utils/format';
+import { SENHA_MIN_LENGTH } from '../../lib/constants';
 
 export default function EquipeAuthTab() {
   const { vendedores: perfis, leads, criarUsuario, atualizarPerfil, excluirUsuario } = useApp();
@@ -16,7 +17,7 @@ export default function EquipeAuthTab() {
   const submit = async (e) => {
     e.preventDefault();
     setErro("");
-    if (f.senha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
+    if (f.senha.length < SENHA_MIN_LENGTH) { setErro(`A senha precisa ter pelo menos ${SENHA_MIN_LENGTH} caracteres.`); return; }
     setSalvando(true);
     try {
       await criarUsuario({ nome: f.nome, email: f.email, senha: f.senha, papel: f.papel });
@@ -73,11 +74,15 @@ export default function EquipeAuthTab() {
           <div className="field-row">
             <div className="field-group">
               <label>Nome completo *</label>
-              <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoFocus />
+              <input required maxLength={80} value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex: Pedro Souza" autoComplete="off" autoFocus />
+            </div>
+            <div className="field-group">
+              <label>E-mail de login</label>
+              <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder={`Em branco = gerado do nome (@vendedor.rjnet.com.br)`} autoComplete="off" />
             </div>
             <div className="field-group">
               <label>Senha inicial *</label>
-              <input type="password" required minLength={8} value={f.senha} onChange={(e) => set("senha", e.target.value)} placeholder="Mínimo 8 caracteres" />
+              <input type="password" required minLength={SENHA_MIN_LENGTH} value={f.senha} onChange={(e) => set("senha", e.target.value)} placeholder={`Mínimo ${SENHA_MIN_LENGTH} caracteres`} autoComplete="new-password" data-lpignore="true" data-1p-ignore />
             </div>
             <div className="field-group">
               <label>Papel *</label>
@@ -88,6 +93,7 @@ export default function EquipeAuthTab() {
               </select>
             </div>
           </div>
+          <p className="tab-desc" style={{ margin: "4px 0 0" }}>Essa é a senha que a pessoa vai usar para entrar — avise-a para trocar em "Esqueci minha senha" no primeiro acesso, se preferir.</p>
           {erro && <p className="error-msg">{erro}</p>}
           <div className="modal-actions">
             <button type="button" className="btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
@@ -103,12 +109,13 @@ export default function EquipeAuthTab() {
             <form onSubmit={salvarEdicao}>
               <div className="field-group" style={{ marginBottom: 12 }}>
                 <label>Nome completo</label>
-                <input required maxLength={80} value={editando.nome} onChange={(e) => setEditando((ed) => ({ ...ed, nome: e.target.value }))} />
+                <input required maxLength={80} value={editando.nome} onChange={(e) => setEditando((ed) => ({ ...ed, nome: e.target.value }))} autoComplete="off" />
               </div>
               <div className="field-group" style={{ marginBottom: 16 }}>
                 <label>E-mail de login</label>
-                <input type="email" required value={editando.email} onChange={(e) => setEditando((ed) => ({ ...ed, email: e.target.value }))} />
+                <input type="email" required value={editando.email} onChange={(e) => setEditando((ed) => ({ ...ed, email: e.target.value }))} autoComplete="off" />
               </div>
+              <p className="tab-desc" style={{ margin: "0 0 16px" }}>Ao trocar o e-mail, a pessoa recebe um link para definir a senha do novo endereço.</p>
               <div className="modal-actions">
                 <button type="button" className="btn-ghost" onClick={() => setEditando(null)}>Cancelar</button>
                 <button type="submit" className="btn-primary">Salvar</button>
