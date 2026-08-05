@@ -2801,6 +2801,37 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-089] — Novo módulo: Desafio RJNet — Acerte 00:03:33
+
+**Data:** 2026-08-05
+**Tipo:** Feature
+
+**Contexto:** O responsável pediu um módulo de ativação de evento — um cronômetro físico é parado pelo participante, e o marketing registra manualmente o tempo lido. Quem parar EXATAMENTE no tempo-alvo (00:03:33 nesse evento) ganha um prêmio automaticamente, sem limite de ganhadores; quem não acertar concorre num ranking pela menor diferença. O desafio acontece em múltiplos dias (Sexta-feira/Sábado), cada um com ranking/participantes/estatísticas/ganhadores totalmente independentes. Precisa também de uma tela pública de TV com ranking em tempo real, controle de entrega de prêmio e exportação CSV.
+
+**Decisão:**
+- **Domínio novo, independente de Eventos/Leads** — não é um Lead (não compete pela fila de distribuição) e não é um Evento (não tem materiais/local). Duas tabelas novas: `timer_challenge_events` (o "dia/edição" — nome, slug, `target_centiseconds` configurável, ativo) e `timer_challenge_entries` (as participações, com `event_id` obrigatório — todo filtro no banco é por esse campo, nunca mistura dias). Nomenclatura em inglês é uma exceção deliberada ao padrão português do resto do schema, mantendo os nomes exatos pedidos na especificação.
+- **Cálculo sempre em centésimos internamente, exibição sempre em MM:SS:CC** — `src/lib/desafioCronometro.js` (sem imports, testável standalone, mesmo princípio de `src/lib/simulador.js`) converte o texto digitado (`00:03:33`) pra um inteiro de centésimos (`333`), calcula `differenceCentiseconds = abs(resultado - alvo)` e `isExactHit = differenceCentiseconds === 0`. A UI nunca mostra centésimos crus nem decimal — sempre reformata pra MM:SS:CC, inclusive a diferença.
+- **Ganhadores instantâneos e ranking são o MESMO array, só filtrado por `isExactHit`** — não existem como listas separadas no banco. `isExactHit = true` nunca entra no ranking (nem na RPC pública, nem nas telas administrativas); ranking ordena por menor diferença e, em empate, pelo cadastro mais antigo — só Top 10.
+- **Cadastro é sempre feito por usuário autenticado (marketing), nunca por formulário público** — diferente do Form Builder/Simulador, não existe Edge Function pública de escrita aqui. Isso elimina o problema de "cliente hostil" que exige recálculo no servidor: `calcularResultadoDesafio()` já é a fonte de verdade, chamada uma única vez na gravação.
+- **Tela de TV pública (`/tv/:slug`) é 100% leitura, via UMA RPC** (`timer_challenge_painel_publico`, SECURITY DEFINER) que devolve estatísticas + Top 10 + ganhadores num único payload jsonb, sem telefone e sem tocar a tabela crua. Único ponto do módulo com `grant ... to anon` — decisão explícita e documentada (mesmo espírito de cautela do D-078), porque aqui o "metadado público" já É o ranking, ao contrário de formularios/simuladores/D-062/D-072 (que só expõem nome/config, sem dado de participante).
+- **Realtime da tela de TV via Broadcast, não `postgres_changes`** — a tela é anônima e não tem policy de SELECT nas tabelas (só a RPC acima), então uma subscription `postgres_changes` não entregaria nada a ela (Realtime respeita RLS). Reaproveita o MESMO idioma já usado pelo Monitor (`src/lib/activityLog.js`, D-044/D-046): o painel administrativo dispara um Broadcast no canal `desafio-painel-<eventId>` a cada gravação; a tela de TV escuta e refaz a chamada à RPC. O painel administrativo (autenticado) usa o mecanismo genérico já existente (`subscribeChanges`/`fetchAll`, debounce 1500ms) — nenhuma subscription nova nesse lado.
+- **Acesso marketing-only, mesmo padrão de Estoque/Equipe (D-053/D-059)** — a especificação pedia "Tela para o Marketing"; RLS de escrita e leitura interna checam `papel_atual() = 'marketing'` (não `in ('marketing', 'comercial')`, diferente do padrão-default pós-D-059 pra features novas). Proteção dupla: a tab "Desafio" só existe no `MarketingApp.jsx` (grupo "Ativação" do menu "Mais"), nunca no `ComercialApp.jsx`.
+- **Controle de entrega de prêmio embutido na própria linha do ganhador** — `prizeType`/`delivered`/`deliveryResponsible`/`deliveryAt` são colunas de `timer_challenge_entries`, não uma tabela à parte; `deliveryAt` é preenchido automaticamente ao marcar "Entregue".
+- **Tempo-alvo configurável por dia** (`target_centiseconds`, default 333 = 00:03:33) — o módulo é reutilizável em eventos futuros com outro alvo, sem alteração de código; snapshot gravado em cada `entry.target_centiseconds` (se o alvo do dia mudar depois, participações antigas continuam corretas).
+
+**Alternativas Avaliadas:**
+- **Modelar como um novo `tipo` de Evento (reaproveitar `eventos`/`leads`)** — descartada: a participação do desafio não é um Lead (não tem serviço de interesse, não entra na fila de distribuição, não é atribuída a vendedor) e o ranking por menor diferença é uma regra de ordenação que não existe em nenhum domínio atual; forçar o encaixe geraria colunas nulas/condicionais demais em tabelas já centrais do sistema.
+- **Tela de TV com `postgres_changes` direto** — descartada: exigiria abrir uma policy `anon` de SELECT na tabela de participações (ainda que restrita a colunas específicas via view), reintroduzindo o mesmo tipo de superfície que o D-078 fechou para outras tabelas. Broadcast entrega o mesmo resultado (atualização quase-instantânea) sem esse risco.
+- **RLS de escrita `in ('marketing', 'comercial')` (padrão-default pós-D-059)** — descartada por seguir a letra da especificação ("Tela para o Marketing"); pode ser estendida numa decisão futura se o responsável pedir explicitamente.
+
+**Arquivos Afetados:** `supabase/migracao-desafio-cronometro.sql` (tabelas, RLS, RPC pública); `src/lib/desafioCronometro.js` (domínio puro); `src/lib/desafioRealtime.js` (Broadcast); `src/api/desafioApi.js`; `src/lib/dataService.js` (mapeadores, `fetchAll`, `fetchDesafioEntries`, `fetchDesafioPainelPublico`, `db.saveDesafioEvento`/`removeDesafioEvento`/`saveDesafioEntry`/`removeDesafioEntry`); `src/context/AppProvider.jsx` (estado `desafios`/`desafioEntries`, `carregarDesafioEntries`); `src/features/desafio/*` (gestão: `DesafioTab`, `DesafioDetail`, `DesafioCadastro`, `DesafioRanking`, `DesafioGanhadores`, `DesafioDashboard`, `DesafioQrLink`); `src/hooks/useDesafioPainelPublico.js`; `src/public/DesafioPublico.jsx` (tela de TV, rota `/tv/:slug`); `src/main.jsx` (desvio de rota); `src/apps/MarketingApp.jsx` (tab "Desafio", grupo "Ativação"); `src/utils/csv.js` (`exportDesafioEntriesCSV`); `src/components/ui.jsx` (ícones `target`/`trophy`/`gift`/`tv`); `src/index.css` (`.desafio-tv-*`); `vercel.json` (rewrite `/tv/:path*`); `tests/desafioCronometro.unit.test.js`; `tests/desafio.test.js`.
+
+**Riscos:** Baixo-médio — módulo novo e isolado (não altera domínios existentes). O ponto de maior atenção é o `grant execute ... to anon` da RPC pública, mitigado por (a) a função nunca expor telefone/tabela crua, (b) filtrar sempre por `active = true`, (c) estar documentada explicitamente como exceção. Validado via `node tests/desafioCronometro.unit.test.js` (cálculo de centésimos/diferença/acerto exato) e `tests/desafio.test.js` (E2E: criação de dia, cadastro com e sem acerto exato, ranking, painel, exportação CSV e tela de TV, todos em modo local).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

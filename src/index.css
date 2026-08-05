@@ -845,4 +845,63 @@
 }
 .sim-movel-chip.active { background: var(--rj-blue); color: #111; box-shadow: none; }
 .sim-movel-chip-nome { font-size: 12px; }
+
+/* ============================================================
+   Desafio RJNet — Acerte 00:03:33 (D-089): tela pública de TV.
+   Tela cheia, sem menus, tipografia grande — pensada pra ser vista de
+   longe num monitor/TV conectado no evento. Mesma paleta institucional
+   (amarelo/preto/branco/cinza) das demais telas do sistema.
+   ============================================================ */
+.desafio-tv {
+  min-height: 100vh; width: 100%; background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; padding: clamp(16px, 3vw, 40px);
+  box-sizing: border-box; gap: clamp(14px, 2vw, 28px);
+}
+.desafio-tv-header { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.desafio-tv-header img { height: clamp(40px, 5vw, 64px); }
+.desafio-tv-titles { display: flex; flex-direction: column; gap: 2px; }
+.desafio-tv-title { font-size: clamp(24px, 4vw, 44px); font-weight: 800; letter-spacing: -.02em; color: var(--yellow); }
+.desafio-tv-subtitle { font-size: clamp(14px, 2vw, 22px); color: var(--text-2); font-weight: 600; }
+.desafio-tv-kpis { display: flex; gap: clamp(10px, 2vw, 24px); margin-left: auto; flex-wrap: wrap; }
+.desafio-tv-kpi { text-align: center; background: var(--surface); border-radius: var(--radius); padding: 10px 22px; box-shadow: var(--shadow-glow); }
+.desafio-tv-kpi-value { font-family: "DM Mono", monospace; font-size: clamp(22px, 3.4vw, 40px); font-weight: 800; line-height: 1; }
+.desafio-tv-kpi-label { font-size: clamp(10px, 1.2vw, 13px); color: var(--text-3); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.desafio-tv-body { flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: clamp(14px, 2vw, 28px); min-height: 0; }
+.desafio-tv-panel { background: var(--surface); border-radius: var(--radius-lg); padding: clamp(16px, 2vw, 28px); box-shadow: var(--shadow-card); display: flex; flex-direction: column; min-height: 0; }
+.desafio-tv-panel-title { font-size: clamp(15px, 1.8vw, 22px); font-weight: 800; color: var(--yellow); margin-bottom: clamp(10px, 1.4vw, 18px); }
+.desafio-tv-ranking-row {
+  display: grid; grid-template-columns: clamp(44px,4vw,64px) clamp(48px,5vw,80px) 1fr clamp(90px,10vw,150px) clamp(90px,10vw,150px);
+  align-items: center; gap: 10px; padding: clamp(8px, 1.2vw, 16px) 6px;
+  border-bottom: 1px solid var(--border); font-size: clamp(14px, 1.8vw, 24px);
+}
+.desafio-tv-ranking-row:first-child { color: var(--text-3); font-size: clamp(11px, 1.1vw, 14px); text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid var(--border-2); }
+.desafio-tv-ranking-row.top1 { color: var(--yellow); font-weight: 800; }
+.desafio-tv-pos { font-weight: 800; font-family: "DM Mono", monospace; }
+.desafio-tv-mono { font-family: "DM Mono", monospace; }
+.desafio-tv-empty { color: var(--text-3); font-size: clamp(14px, 1.6vw, 18px); padding: 20px 0; text-align: center; }
+.desafio-tv-winners-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.desafio-tv-winner-item { background: var(--yellow-dim); border-radius: 10px; padding: 10px 14px; border: 1px solid var(--yellow-glow); }
+.desafio-tv-winner-name { font-weight: 700; font-size: clamp(13px, 1.4vw, 17px); }
+.desafio-tv-winner-meta { font-size: clamp(11px, 1.1vw, 13px); color: var(--text-3); margin-top: 2px; }
+
+/* Overlay de novo ganhador — escurece a tela, confetes, logo, mensagem.
+   Volta pro ranking sozinho depois de DESAFIO_WINNER_OVERLAY_MS. */
+.desafio-tv-winner-overlay {
+  position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  text-align: center; padding: 24px; animation: desafioFadeIn .3s ease;
+}
+@keyframes desafioFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.desafio-tv-winner-overlay img { height: clamp(48px, 6vw, 84px); }
+.desafio-tv-winner-overlay .msg { font-size: clamp(20px, 3.2vw, 40px); font-weight: 800; color: var(--yellow); }
+.desafio-tv-winner-overlay .name { font-size: clamp(26px, 5vw, 60px); font-weight: 800; color: #fff; }
+.desafio-tv-winner-overlay .detail { font-size: clamp(14px, 2vw, 24px); color: var(--text-2); }
+.desafio-tv-winner-overlay .time { font-family: "DM Mono", monospace; font-size: clamp(22px, 4vw, 48px); color: var(--yellow); font-weight: 800; }
+.desafio-confetti { position: absolute; top: -10px; font-size: 28px; animation: desafioFall linear forwards; }
+@keyframes desafioFall { from { transform: translateY(-10px) rotate(0deg); opacity: 1; } to { transform: translateY(110vh) rotate(360deg); opacity: .9; } }
+
+@media (max-width: 900px) {
+  .desafio-tv-body { grid-template-columns: 1fr; }
+  .desafio-tv-ranking-row { grid-template-columns: 36px 44px 1fr 80px 80px; }
+}
 .sim-movel-chip-preco { font-size: 11px; font-weight: 700; opacity: .8; }

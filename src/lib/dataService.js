@@ -289,6 +289,56 @@ const simuladorToDb = (s) => ({
   ativo: s.ativo ?? true, criado_em: s.criadoEm || new Date().toISOString(),
 });
 
+// Desafio RJNet — Acerte 00:03:33 (D-089): nomenclatura em inglês por
+// exceção deliberada (ver comentário em migracao-desafio-cronometro.sql).
+// `timer_challenge_events` é o "dia/edição" do desafio; `timer_challenge_
+// entries` são as participações, sempre calculadas por
+// src/lib/desafioCronometro.js antes de chegar aqui — nunca recalculadas
+// nesta camada.
+const desafioEventoFromDb = (r) => ({
+  id: r.id, nome: r.name, slug: r.slug,
+  targetCentiseconds: r.target_centiseconds ?? 333,
+  ativo: r.active ?? true,
+  criadoEm: r.created_at,
+});
+const desafioEventoToDb = (e) => ({
+  id: e.id, name: e.nome, slug: e.slug,
+  target_centiseconds: e.targetCentiseconds ?? 333,
+  active: e.ativo ?? true,
+  created_at: e.criadoEm || new Date().toISOString(),
+});
+
+const desafioEntryFromDb = (r) => ({
+  id: r.id, eventId: r.event_id,
+  participantNumber: r.participant_number, participantName: r.participant_name,
+  phone: r.phone ?? '',
+  resultDisplay: r.result_display,
+  resultCentiseconds: r.result_centiseconds,
+  targetCentiseconds: r.target_centiseconds,
+  differenceCentiseconds: r.difference_centiseconds,
+  isExactHit: r.is_exact_hit ?? false,
+  prizeType: r.prize_type ?? null,
+  delivered: r.delivered ?? false,
+  deliveryResponsible: r.delivery_responsible ?? null,
+  deliveryAt: r.delivery_at ?? null,
+  criadoEm: r.created_at,
+});
+const desafioEntryToDb = (e) => ({
+  id: e.id, event_id: e.eventId,
+  participant_number: e.participantNumber, participant_name: e.participantName,
+  phone: e.phone || null,
+  result_display: e.resultDisplay,
+  result_centiseconds: e.resultCentiseconds,
+  target_centiseconds: e.targetCentiseconds,
+  difference_centiseconds: e.differenceCentiseconds,
+  is_exact_hit: e.isExactHit ?? false,
+  prize_type: e.prizeType || null,
+  delivered: e.delivered ?? false,
+  delivery_responsible: e.deliveryResponsible || null,
+  delivery_at: e.deliveryAt || null,
+  created_at: e.criadoEm || new Date().toISOString(),
+});
+
 const perfilFromDb = (r) => ({
   id: r.id, email: r.email ?? "", nome: r.nome,
   papel: r.papel, ativo: r.ativo,
@@ -321,7 +371,7 @@ export async function fetchAll(signal) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
-      const [materiais, perfis, eventos, ofertas, formularios, camposPersonalizados, simuladores] = await Promise.all([
+      const [materiais, perfis, eventos, ofertas, formularios, camposPersonalizados, simuladores, desafios] = await Promise.all([
         supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
         supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
         supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
@@ -332,6 +382,8 @@ export async function fetchAll(signal) {
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
         supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
+        // D-089: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
+        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,active,created_at').order('created_at', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -356,6 +408,7 @@ export async function fetchAll(signal) {
         formularios: formularios.error ? [] : formularios.data.map(formularioFromDb),
         camposPersonalizados: camposPersonalizados.error ? [] : camposPersonalizados.data.map(campoPersonalizadoFromDb),
         simuladores: simuladores.error ? [] : simuladores.data.map(simuladorFromDb),
+        desafios: desafios.error ? [] : desafios.data.map(desafioEventoFromDb),
         leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
@@ -712,6 +765,45 @@ export async function demandaPorRegiao() {
   });
 }
 
+// D-089: participações de UM dia do Desafio — on-demand, mesmo modelo de
+// fetchLeadsEvento (TB-004): a lista de dias (`timer_challenge_events`)
+// carrega no boot, mas as participações só quando o marketing abre a
+// gestão de um dia específico.
+const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_number,participant_name,phone,result_display,result_centiseconds,target_centiseconds,difference_centiseconds,is_exact_hit,prize_type,delivered,delivery_responsible,delivery_at,created_at';
+
+export async function fetchDesafioEntries(eventId, signal) {
+  if (!isSupabaseMode() || !eventId) return null;
+  return trackPerf('fetchDesafioEntries', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('timer_challenge_entries')
+        .select(DESAFIO_ENTRIES_COLS)
+        .eq('event_id', eventId)
+        .eq('deleted', false)
+        .order('created_at', { ascending: false })
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(desafioEntryFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar participantes do desafio:', err.message || err);
+    return null;
+  });
+}
+
+// D-089: leitura pública (anon) via RPC — nunca a tabela direto (ver
+// comentário em migracao-desafio-cronometro.sql). Usada pela tela de TV,
+// sem sessão nenhuma. `found: false` quando o slug não existe ou o dia
+// não está ativo.
+export async function fetchDesafioPainelPublico(slug) {
+  if (!isSupabaseMode() || !slug) return null;
+  const { data, error } = await supabase.rpc('timer_challenge_painel_publico', { p_slug: slug });
+  if (error || !data?.found) return null;
+  return data;
+}
+
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
 
 function exec(promise, acao, onFail, onSuccess, meta = {}) {
@@ -823,6 +915,12 @@ export const db = {
   // Simulador: mesmo padrão simples de saveFormulario.
   saveSimulador: (s) => exec(supabase?.from('simuladores').upsert(simuladorToDb(s)), 'salvar simulador'),
   removeSimulador: (id) => exec(supabase?.from('simuladores').delete().eq('id', id), 'remover simulador'),
+
+  // D-089: Desafio RJNet — mesmo padrão simples de saveFormulario/saveSimulador.
+  saveDesafioEvento: (e, onSuccess) => exec(supabase?.from('timer_challenge_events').upsert(desafioEventoToDb(e)), 'salvar desafio', undefined, onSuccess),
+  removeDesafioEvento: (id) => exec(supabase?.from('timer_challenge_events').delete().eq('id', id), 'remover desafio'),
+  saveDesafioEntry: (e, onSuccess, onFail) => exec(supabase?.from('timer_challenge_entries').upsert(desafioEntryToDb(e)), 'salvar participante do desafio', onFail, onSuccess),
+  removeDesafioEntry: (id, onSuccess) => exec(supabase?.from('timer_challenge_entries').update({ deleted: true }).eq('id', id), 'remover participante do desafio', undefined, onSuccess),
 
   // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
   // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).

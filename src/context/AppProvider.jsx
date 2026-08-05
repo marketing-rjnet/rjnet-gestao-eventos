@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
-import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchLeadsQrCode, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
+import { fetchAll, fetchLeadsEvento, fetchLeadsMes, fetchLeadsQrCode, fetchOfertasEnviadasEvento, fetchOfertasEnviadasMes, fetchDesafioEntries, subscribeChanges, auth, flushPendingQueue } from '../lib/dataService';
 import { SYNC_STATUS, STATUS_EVENTO } from '../lib/constants';
 import { MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS } from '../utils/mockData';
 import { usePersisted } from '../hooks/usePersisted';
@@ -14,6 +14,7 @@ import { createOfertaApi } from '../api/ofertaApi';
 import { createFormularioApi } from '../api/formularioApi';
 import { createCampoPersonalizadoApi } from '../api/campoPersonalizadoApi';
 import { createSimuladorApi } from '../api/simuladorApi';
+import { createDesafioApi } from '../api/desafioApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -29,6 +30,10 @@ export function AppProvider({ children }) {
   const [camposPersonalizados, setCamposPersonalizados] = usePersisted("rjnet_campos_personalizados", []);
   // Simulador: campanhas de captação gamificada (QR + link de tráfego pago)
   const [simuladores, setSimuladores] = usePersisted("rjnet_simuladores", []);
+  // D-089: Desafio RJNet — dias/edições (tabela pequena, carrega no boot) +
+  // participações do dia atualmente aberto na gestão (on-demand)
+  const [desafios, setDesafios] = usePersisted("rjnet_desafios", []);
+  const [desafioEntries, setDesafioEntries] = usePersisted("rjnet_desafio_entries", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -36,6 +41,8 @@ export function AppProvider({ children }) {
   // TB-004/D-058: rastreia qual contexto (evento ou mês) tem leads carregados —
   // usado pelo realtime para recarregar o mesmo contexto.
   const leadsContextRef = useRef(null); // { tipo: 'evento' | 'mes', id }
+  // D-089: mesmo modelo, para o dia do Desafio atualmente aberto na gestão.
+  const desafioContextRef = useRef(null); // eventId
 
   const carregar = async () => {
     abortRef.current?.abort();
@@ -57,6 +64,12 @@ export function AppProvider({ children }) {
     setFormularios(dados.formularios);
     setCamposPersonalizados(dados.camposPersonalizados);
     setSimuladores(dados.simuladores);
+    setDesafios(dados.desafios);
+    // D-089: recarrega participações do dia do Desafio atualmente aberto na gestão
+    if (desafioContextRef.current) {
+      const desafioEntriesData = await fetchDesafioEntries(desafioContextRef.current, signal);
+      if (desafioEntriesData !== null && !controller.signal.aborted) setDesafioEntries(desafioEntriesData);
+    }
     // TB-004/D-058: recarrega leads do contexto ativo (evento ou mês) quando realtime dispara
     const ctx = leadsContextRef.current;
     if (ctx?.tipo === 'evento') {
@@ -108,6 +121,15 @@ export function AppProvider({ children }) {
     if (data !== null) setLeads(data);
   };
 
+  // D-089: participações de um dia do Desafio, on-demand — mesmo modelo de
+  // carregarLeadsEvento.
+  const carregarDesafioEntries = async (eventId) => {
+    if (!isSupabaseMode() || !eventId) return;
+    desafioContextRef.current = eventId;
+    const data = await fetchDesafioEntries(eventId);
+    if (data !== null) setDesafioEntries(data);
+  };
+
   useEffect(() => {
     if (!isSupabaseMode()) return;
     carregar();
@@ -118,6 +140,7 @@ export function AppProvider({ children }) {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
         setOfertas([]); setOfertasEnviadas([]); setFormularios([]); setCamposPersonalizados([]); setSimuladores([]);
+        setDesafios([]); setDesafioEntries([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -160,6 +183,11 @@ export function AppProvider({ children }) {
   const { addSimulador, updateSimulador, removeSimulador } =
     createSimuladorApi({ simuladores, setSimuladores });
 
+  const {
+    addDesafioEvento, updateDesafioEvento, removeDesafioEvento,
+    addDesafioEntry, atualizarEntregaPremio, removeDesafioEntry,
+  } = createDesafioApi({ desafios, setDesafios, entries: desafioEntries, setEntries: setDesafioEntries });
+
   // TB-009: antes recalculava o flatMap sobre eventos/materiais a cada
   // chamada de getMateriaisDisponiveis() (EstoqueTab, Dashboard, EventDetail
   // chamam em todo render). Memoizado por [materiais, eventos] — a função
@@ -177,6 +205,7 @@ export function AppProvider({ children }) {
 
   const value = useMemo(() => ({
     materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados, simuladores,
+    desafios, desafioEntries,
     isLoading, syncStatus,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
@@ -188,9 +217,11 @@ export function AppProvider({ children }) {
     addFormulario, updateFormulario, removeFormulario,
     addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado,
     addSimulador, updateSimulador, removeSimulador,
+    addDesafioEvento, updateDesafioEvento, removeDesafioEvento,
+    addDesafioEntry, atualizarEntregaPremio, removeDesafioEntry,
     obterRanking, obterRankingMes,
     recarregar: carregar,
-    carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode,
+    carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode, carregarDesafioEntries,
     getLeadsEvento: (eid) => leads.filter((l) => l.eventoId === eid),
     getLeadsMes: (mes) => leads.filter((l) => l.mesReferencia === mes),
     getEventosAtivos: () => eventos.filter((e) => e.status === STATUS_EVENTO.ATIVO),
@@ -198,7 +229,7 @@ export function AppProvider({ children }) {
     ofertaJaEnviada: (leadId, servico) => ofertasEnviadas.some((o) => o.leadId === leadId && o.servico === servico),
     getMateriaisDisponiveis: () => materiaisDisponiveis,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, simuladores, isLoading, syncStatus, materiaisDisponiveis]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, simuladores, desafios, desafioEntries, isLoading, syncStatus, materiaisDisponiveis]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

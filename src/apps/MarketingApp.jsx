@@ -11,6 +11,7 @@ import { EquipeTab, EquipeAuthTab } from '../features/team';
 import { MonitoringTab } from '../features/monitoring';
 import { FormBuilderTab } from '../features/formularios';
 import { SimuladorTab } from '../features/simulador';
+import { DesafioTab } from '../features/desafio';
 
 // D-065: 3 botões diretos (uso diário) + 1 botão "Mais" com o restante
 // agrupado por categoria — mesma estrutura no header desktop e no bottom
@@ -24,6 +25,7 @@ const DIRECT_TABS = [
 const MORE_GROUPS = [
   { title: "Captação",  items: [{ id: "formularios", label: "Formulários", ico: "edit" }, { id: "simulador", label: "Simulador", ico: "chart" }] },
   { title: "Comercial", items: [{ id: "ofertas", label: "Ofertas", ico: "box" }] },
+  { title: "Ativação",  items: [{ id: "desafio", label: "Desafio", ico: "target" }] },
   { title: "Operação",  items: [{ id: "estoque", label: "Estoque", ico: "box" }, { id: "checkin", label: "Check-in", ico: "search" }] },
   { title: "Sistema",   items: [{ id: "equipe", label: "Equipe", ico: "briefcase" }, { id: "monitor", label: "Monitor", ico: "activity" }] },
 ];
@@ -94,6 +96,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
       {tab === "ofertas" && <OfertasTab />}
       {tab === "formularios" && <FormBuilderTab />}
       {tab === "simulador" && <SimuladorTab />}
+      {tab === "desafio" && <DesafioTab />}
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}

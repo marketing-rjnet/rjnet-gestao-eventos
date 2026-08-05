@@ -10,6 +10,7 @@ import { AppProvider } from './context';
 import Root from './apps/Root';
 import FormularioPublico from './public/FormularioPublico';
 import SimuladorPublico from './public/SimuladorPublico';
+import DesafioPublico from './public/DesafioPublico';
 
 Chart.register(...registerables);
 
@@ -44,6 +45,9 @@ const formMatch = window.location.pathname.match(/^\/f\/([^/]+)\/?$/);
 // Simulador de Perfil de Consumo: mesma exceção mínima, em /s/:slug —
 // página pública do quiz gamificado (campanhas de tráfego pago + QR).
 const simMatch = window.location.pathname.match(/^\/s\/([^/]+)\/?$/);
+// Desafio RJNet — Acerte 00:03:33 (D-089): mesma exceção mínima, em
+// /tv/:slug — tela pública de TV (ranking em tempo real, sem sessão).
+const tvMatch = window.location.pathname.match(/^\/tv\/([^/]+)\/?$/);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
@@ -51,6 +55,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <FormularioPublico slug={decodeURIComponent(formMatch[1])} />
     ) : simMatch ? (
       <SimuladorPublico slug={decodeURIComponent(simMatch[1])} />
+    ) : tvMatch ? (
+      <DesafioPublico slug={decodeURIComponent(tvMatch[1])} />
     ) : (
       <AppProvider><Root /></AppProvider>
     )}

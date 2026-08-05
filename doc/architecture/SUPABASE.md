@@ -169,6 +169,18 @@ WHERE schemaname = 'public'
 -- não aplicada corretamente ou vazamento de acesso.
 ```
 
+**Query de verificação de EXECUTE anônimo em funções** (não aparece na query acima — `pg_policies` só cobre RLS de tabela, não grants de função):
+```sql
+SELECT routine_name, grantee, privilege_type
+FROM information_schema.role_routine_grants
+WHERE grantee IN ('anon', 'public');
+-- Resultado esperado em produção (após D-089): só
+-- `timer_challenge_painel_publico` (Desafio RJNet, tela de TV — restrita a
+-- ranking/ganhadores sem telefone). Qualquer outra função com EXECUTE pra
+-- anon/public é um problema (ver V-02 do D-078: limpar_leads_expirados()
+-- não deve ter esse grant).
+```
+
 ---
 
 ## MFA TOTP (PA-12)
@@ -218,6 +230,7 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 18 | `supabase/migracao-campos-personalizados.sql` | ⚠️ Pendente execução em produção (D-063) | Tabela `campos_personalizados`, RLS `anon` de leitura, coluna `leads.campos_extras` (jsonb) |
 | 19 | `supabase/migracao-moderacao-formulario.sql` | ⚠️ Pendente execução em produção (D-067) | Coluna `leads.origem_ip` + índice para rate limit (5 submissões/10min por IP no formulário público) |
 | 20 | `supabase/migracao-rls-vendedor-leads-v2.sql` | ✅ Aplicado em produção em 2026-07-07 (PA-11 v2) | RLS: reaplica `vendedor_id = auth.uid()` em `leads_select` por cima da versão vigente (linha 15). Confirmado via `pg_policies` pós-aplicação. **Qualquer migração futura que reescreva `leads_select` sem essa condição reabre o mesmo gap** — checar esta linha antes de tocar nessa policy de novo |
+| 21 | `supabase/migracao-desafio-cronometro.sql` | ⚠️ Pendente execução em produção (D-089) | Tabelas `timer_challenge_events`/`timer_challenge_entries` (domínio novo e independente, sem tocar `leads`/`eventos`), RLS marketing-only, RPC pública `timer_challenge_painel_publico` (SECURITY DEFINER). Não depende de nenhuma migração anterior desta lista além de `migracao-auth.sql` (usa `papel_atual()`) — pode ser aplicada em qualquer momento |
 
 > Status "⚠️ Pendente execução em produção" nas linhas 9–19 reflete o que estava
 > registrado antes destas migrações existirem — **confirme o estado real em
@@ -285,3 +298,15 @@ Primeiro uso de **Supabase Storage** no projeto. `supabase/migracao-ofertas.sql`
 3. `origem_ip` capturado para permitir investigação manual de abuso
 
 Processo de remoção/denúncia de conteúdo ilegal: `doc/SEGURANCA_MODERACAO.md`. Alternativa de migrar a captação para Google Forms foi avaliada e **descartada** — não transfere a responsabilidade legal, e reintroduziria a duplicação de caminho de captação que D-065 acabou de eliminar.
+
+---
+
+## Desafio RJNet — Acerte 00:03:33 (D-089)
+
+**`migracao-desafio-cronometro.sql`** cria um domínio novo e isolado (não altera `leads`/`eventos`/nenhuma tabela existente):
+
+- `timer_challenge_events` (dias/edições do desafio) e `timer_challenge_entries` (participações, sempre filtradas por `event_id`). RLS restrita a `papel_atual() = 'marketing'` — **não** `comercial` (única exceção deliberada ao padrão-default pós-D-059, seguindo a especificação "Tela para o Marketing" à risca).
+- RPC pública `timer_challenge_painel_publico(p_slug text)` (SECURITY DEFINER) — devolve estatísticas + Top 10 do ranking + ganhadores instantâneos (sem telefone) num único payload jsonb, usada pela tela de TV `/tv/:slug`. **Primeiro `grant execute ... to anon` para uma função neste projeto** — decisão documentada em D-089, distinta do precedente de leitura `anon` em tabela (`formularios`/`campos_personalizados`/`simuladores`, que só expõe metadado de campanha).
+- Sem Edge Function nova: o cadastro é sempre feito por um usuário `marketing` autenticado (nunca por formulário público), então não há "cliente hostil" a se defender — `src/lib/desafioCronometro.js` já é a fonte de verdade do cálculo, chamada uma única vez no cliente antes do INSERT.
+- Realtime da tela de TV via **Broadcast** (canal `desafio-painel-<eventId>`, mesmo idioma de `activityLog.js`/Monitor), nunca `postgres_changes` — a tela é anônima e não tem policy de SELECT nas tabelas, então uma subscription normal não entregaria nada a ela.
+- Não depende de `NOTIFY pgrst` pra funcionar no frontend admin (usa o `fetchAll` genérico), mas rode mesmo assim por hábito depois de aplicar.

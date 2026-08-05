@@ -1,0 +1,1 @@
+export { DesafioTab } from './DesafioTab';

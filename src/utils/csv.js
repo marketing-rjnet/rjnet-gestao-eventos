@@ -126,3 +126,33 @@ export function exportLeadsMesConsolidadoCSV(leads, mesLabel, servicoLabelFn, on
   const totalMeses = new Set(leads.map((l) => l.mesReferencia)).size;
   if (onAudit) onAudit({ totalRegistros: leads.length, totalMeses });
 }
+
+// D-089: Desafio RJNet — Acerte 00:03:33. Exporta as participações de UM
+// dia (ranking + ganhadores instantâneos juntos, coluna "Acerto exato?"
+// distingue) — mesmo padrão das demais exportações: sem lógica de negócio
+// aqui, só formatação de colunas já calculadas em src/lib/desafioCronometro.js.
+// onAudit: callback opcional (async) chamado após o download com { totalRegistros }
+export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaFn, onAudit) {
+  if (entries.length === 0) return;
+  const cabecalho = ["Número", "Nome", "Telefone", "Resultado", "Acerto exato?", "Diferença", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
+  const linhas = entries.map((e) => [
+    e.participantNumber, e.participantName, e.phone || "",
+    e.resultDisplay, e.isExactHit ? "Sim" : "Não",
+    e.isExactHit ? "" : formatarDiferencaFn(e.differenceCentiseconds),
+    e.prizeType || "", e.delivered ? "Sim" : "Não", e.deliveryResponsible || "",
+    new Date(e.criadoEm).toLocaleString("pt-BR"),
+  ]);
+  const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `desafio_${slugParaArquivo(desafioNome)}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  if (onAudit) onAudit({ totalRegistros: entries.length });
+}
+
+function slugParaArquivo(nome) {
+  return (nome || "dia").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "") || "dia";
+}

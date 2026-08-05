@@ -72,7 +72,8 @@ src/
 │   ├── equipeApi.js      # Factory createEquipeApi — CRUD de usuários Auth com RBAC (modo Supabase)
 │   ├── formularioApi.js  # Factory createFormularioApi — CRUD de formulários do Form Builder (D-062)
 │   ├── campoPersonalizadoApi.js # Factory createCampoPersonalizadoApi — campos personalizados reutilizáveis (D-063)
-│   └── simuladorApi.js   # Factory createSimuladorApi — campanhas do Simulador, 3 tipos oferta/demanda/quiz (D-072, D-076, D-080)
+│   ├── simuladorApi.js   # Factory createSimuladorApi — campanhas do Simulador, 3 tipos oferta/demanda/quiz (D-072, D-076, D-080)
+│   └── desafioApi.js     # Factory createDesafioApi — dias/participações do Desafio RJNet — Acerte 00:03:33 (D-089)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -127,20 +128,31 @@ src/
 │   ├── formularios/
 │   │   ├── FormBuilderTab.jsx # CRUD de formulários + CamposPersonalizadosManager; cada formulário já gera seu próprio QR Code/link, marketing only (D-062, D-063, D-065)
 │   │   └── index.js          # Re-export de formularios (D-062)
-│   └── simulador/
-│       ├── SimuladorTab.jsx  # Campanhas do Simulador (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/faixas + Sorteador (só quem concluiu o quiz, D-083) + QR (UTM impresso embutido) + link, marketing only (D-072, D-075, D-076, D-080, D-083, D-084)
-│       └── index.js          # Re-export de simulador (D-072)
+│   ├── simulador/
+│   │   ├── SimuladorTab.jsx  # Campanhas do Simulador (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/faixas + Sorteador (só quem concluiu o quiz, D-083) + QR (UTM impresso embutido) + link, marketing only (D-072, D-075, D-076, D-080, D-083, D-084)
+│   │   └── index.js          # Re-export de simulador (D-072)
+│   └── desafio/               # Desafio RJNet — Acerte 00:03:33, marketing only (D-089)
+│       ├── DesafioTab.jsx      # Lista/criação de dias do desafio (tempo-alvo configurável por dia)
+│       ├── DesafioDetail.jsx   # Sub-navegação de um dia: Cadastro/Ranking/Ganhadores/Painel/Tela de TV
+│       ├── DesafioCadastro.jsx    # Formulário: número/nome/telefone/resultado do cronômetro
+│       ├── DesafioRanking.jsx     # Top 10 por menor diferença (nunca inclui acertos exatos)
+│       ├── DesafioGanhadores.jsx  # 🏆 Ganhadores Instantâneos + controle de entrega de prêmio
+│       ├── DesafioDashboard.jsx   # KPIs, últimos participantes, participantes por dia, export CSV
+│       ├── DesafioQrLink.jsx      # QR Code + link da tela de TV (`/tv/:slug`)
+│       └── index.js
 ├── public/
 │   ├── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
-│   └── SimuladorPublico.jsx    # Página pública — 3 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: cadastro ANTES do quiz→perguntas com feedback verde/vermelho→faixa→CTA "Participar do sorteio"), captura UTM, retomada via localStorage; duplicidade bloqueada por WhatsApp no servidor, não por navegador (D-072, D-076, D-077, D-080, D-083, D-084)
+│   ├── SimuladorPublico.jsx    # Página pública — 3 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: cadastro ANTES do quiz→perguntas com feedback verde/vermelho→faixa→CTA "Participar do sorteio"), captura UTM, retomada via localStorage; duplicidade bloqueada por WhatsApp no servidor, não por navegador (D-072, D-076, D-077, D-080, D-083, D-084)
+│   └── DesafioPublico.jsx      # Tela pública de TV do Desafio RJNet (`/tv/:slug`) — sem sessão, tela cheia, ranking Top 10 + ganhadores em tempo real via RPC + Broadcast, animação de novo ganhador (D-089)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
-│   └── useRanking.js     # Hook de polling de ranking com debounce e cleanup automático (etapa 15)
+│   ├── useRanking.js     # Hook de polling de ranking com debounce e cleanup automático (etapa 15)
+│   └── useDesafioPainelPublico.js # Hook da tela de TV do Desafio RJNet — RPC pública + Broadcast (Supabase) ou poll leve (modo local), sem sessão (D-089)
 ├── utils/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
-│   ├── csv.js            # exportLeadsCSV + exportLeadsSemVendedorCSV (fila de distribuição, D-085) (etapa 3)
+│   ├── csv.js            # exportLeadsCSV + exportLeadsSemVendedorCSV (fila de distribuição, D-085) + exportDesafioEntriesCSV (D-089) (etapa 3)
 │   ├── ids.js            # genId(prefix) — gerador de IDs temporários para modo local
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
@@ -153,6 +165,8 @@ src/
     ├── cache.js          # Cache em memória com TTL
     ├── localPublicSubmit.js # Fallback local (sem Supabase) para as páginas públicas (Form Builder, Simulador) — dev/teste only; `criarLeadSimuladorQuizLocal`/`concluirLeadSimuladorQuizLocal` espelham as 2 fases do quiz, `leadSimuladorQuizDuplicado` bloqueia mesmo número na campanha (D-061, D-062, D-083, D-084)
     ├── simulador.js      # Catálogo fixo PERGUNTAS_SIMULADOR + scoring (calcularPerfil/resumoPerfil) — sem imports, espelhado em Deno (D-072)
+    ├── desafioCronometro.js # Domínio puro do Desafio RJNet: parse/format MM:SS:CC↔centésimos, cálculo de diferença/acerto exato — sem imports (D-089)
+    ├── desafioRealtime.js   # Broadcast do painel do Desafio por dia (canal `desafio-painel-<eventId>`), mesmo idioma de activityLog.js (D-089)
     └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, CAMPOS_FORMULARIO (etapas 5, D-062)
 
 supabase/
@@ -173,6 +187,7 @@ supabase/
 ├── migracao-simulador-perguntas.sql  # Coluna simuladores.perguntas (jsonb) — questionário próprio por campanha (D-075)
 ├── migracao-simulador-tipos.sql      # Migra tipo perfil_consumo/territorial → oferta/demanda + coluna mensagem_resultado (D-076)
 ├── migracao-simulador-quiz.sql       # 3º tipo 'quiz' + colunas simuladores.quiz_perguntas/quiz_faixas (D-080)
+├── migracao-desafio-cronometro.sql   # Tabelas timer_challenge_events/timer_challenge_entries + RPC pública timer_challenge_painel_publico (D-089)
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
@@ -187,6 +202,8 @@ tests/
 ├── lead.unit.test.js     # Unit: validação de leads
 ├── simulador.unit.test.js # Unit: catálogo + scoring do Simulador (importa o módulo real, D-072)
 ├── simulador.test.js     # E2E: wizard público do Simulador em modo local (D-072)
+├── desafioCronometro.unit.test.js # Unit: parse/format do cronômetro + cálculo de diferença/acerto exato (D-089)
+├── desafio.test.js       # E2E: Desafio RJNet — cadastro, ranking, ganhadores, painel, export CSV e tela de TV (D-089)
 ├── comercial.test.js     # E2E: dashboard comercial
 ├── estoque.test.js       # E2E: inventário
 ├── marketing.test.js     # E2E: dashboard marketing
@@ -251,6 +268,8 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | `formularios` | Formulários do Form Builder — nome, slug, campos escolhidos do catálogo fixo, campos personalizados vinculados, obrigatoriedade; leitura `anon` restrita a `ativo=true` (D-062) |
 | `campos_personalizados` | Catálogo de campos de texto livre reutilizáveis entre formulários, criados pelo marketing; leitura `anon` restrita a `ativo=true` (D-063) |
 | `simuladores` | Campanhas do Simulador — identidade (nome, slug, tipo, agrupador); tipo `oferta` usa quiz fixo em código (sem construtor); tipo `demanda` guarda seu PRÓPRIO questionário em `perguntas` (jsonb) + `mensagem_resultado`; tipo `quiz` guarda perguntas com resposta certa em `quiz_perguntas` (jsonb) + faixas de classificação em `quiz_faixas` (jsonb), editados pelo marketing; leitura `anon` restrita a `ativo=true` (D-072, D-075, D-076, D-080) |
+| `timer_challenge_events` | Desafio RJNet — Acerte 00:03:33 (D-089): dias/edições do desafio — nome, slug, `target_centiseconds` (tempo-alvo, configurável, default 333), ativo; sem leitura `anon` (tela pública só via RPC) |
+| `timer_challenge_entries` | Desafio RJNet (D-089): participações de um dia — número/nome/telefone do participante, resultado (`result_display`/`result_centiseconds`), `difference_centiseconds`, `is_exact_hit` (ganhador instantâneo), controle de entrega de prêmio (`prize_type`/`delivered`/`delivery_responsible`/`delivery_at`) |
 
 ### Enums usados nos dados
 
@@ -271,6 +290,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing`/`comercial` (D-059)
 - `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
 - `formularios`/`campos_personalizados` (D-062, D-063): **primeiras policies `anon` do projeto** — leitura pública restrita a `ativo=true`, necessária para a página pública do Form Builder renderizar sem sessão; escrita restrita a `marketing`
+- `timer_challenge_events`/`timer_challenge_entries` (D-089): leitura e escrita restritas a `marketing` (mesmo padrão de Estoque/Equipe, não `comercial`); **sem** policy `anon` — a tela pública de TV nunca lê as tabelas direto, só via a RPC `timer_challenge_painel_publico` (SECURITY DEFINER, único `grant execute ... to anon` do projeto, restrito a ranking Top 10 + ganhadores sem telefone)
 
 ### Storage
 
@@ -301,7 +321,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 
 ## Módulos da UI
 
-**Navegação do Marketing (D-065):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários), **Comercial** (Ofertas), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial mantém os 4 botões diretos de sempre (sem "Mais"), Vendedor não muda.
+**Navegação do Marketing (D-065, D-089):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários, Simulador), **Comercial** (Ofertas), **Ativação** (Desafio), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial mantém os 4 botões diretos de sempre (sem "Mais"), Vendedor não muda.
 
 | Tab | Papel | Funcionalidade |
 |-----|-------|---------------|
@@ -313,6 +333,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
 | Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
 | Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (cadastro ANTES do quiz → perguntas com resposta certa/errada e feedback verde/vermelho → faixa de classificação editável, ex: evento MotoFest → CTA explícito "Participar do sorteio") — este último ganha também um Sorteador entre quem CONCLUIU o quiz; duplicidade de cadastro bloqueada por número de WhatsApp na campanha, nunca por navegador (D-084); cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080, D-083, D-084) |
+| Desafio | marketing | **Desafio RJNet — Acerte 00:03:33** (D-089): cadastro de participantes por dia/edição do desafio (número/nome/telefone/resultado do cronômetro, MM:SS:CC), ranking Top 10 por menor diferença (nunca inclui acertos exatos), lista de 🏆 Ganhadores Instantâneos com controle de entrega de prêmio, painel de estatísticas + export CSV, e QR Code/link de uma tela pública de TV (`/tv/:slug`) com ranking em tempo real e animação de novo ganhador; múltiplos dias 100% independentes; marketing-only (não `comercial`) |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
@@ -390,6 +411,15 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-simulador-quiz.sql` | ~45 | 3º tipo 'quiz' na constraint + colunas simuladores.quiz_perguntas/quiz_faixas (D-080) |
 | `supabase/functions/_shared/captacao.ts` | ~80 | Miolo compartilhado das Edge Functions públicas: CORS, sanitização, containsLink, rate limit por IP (D-072) |
 | `supabase/functions/submeter-simulador/index.ts` | ~598 | Edge Function pública — ramifica por tipo (oferta: deduz perfil do quiz fixo; demanda: recalcula score das perguntas da campanha; quiz: 2 fases `cadastro`/`conclusao` em vez de insert único, guarda atômica `pontuacao is null`, cadastro recusa número de WhatsApp já cadastrado na campanha), nunca aceita perfil/score/acertos pronto do cliente, sanitiza UTM (D-072, D-076, D-077, D-080, D-083, D-084) |
+| `src/lib/desafioCronometro.js` | ~65 | Domínio puro do Desafio RJNet — parse/format MM:SS:CC↔centésimos, `calcularResultadoDesafio()` (diferença + acerto exato); sem imports, testável standalone (D-089) |
+| `src/lib/desafioRealtime.js` | ~35 | Broadcast do painel do Desafio por dia (`desafio-painel-<eventId>`), mesmo idioma de `activityLog.js`; usado pelo painel admin (emissor) e pela tela de TV anônima (receptor) (D-089) |
+| `src/api/desafioApi.js` | ~95 | Factory createDesafioApi — CRUD de dias + cadastro/edição de participações (calcula resultado antes de gravar) + controle de entrega de prêmio (D-089) |
+| `src/hooks/useDesafioPainelPublico.js` | ~75 | Hook da tela de TV — RPC pública + Broadcast em modo Supabase, poll leve em modo local; detecta ganhador novo comparando com a última lista vista (D-089) |
+| `src/public/DesafioPublico.jsx` | ~150 | Tela pública de TV (`/tv/:slug`) — sem sessão, tela cheia, ranking Top 10 + ganhadores instantâneos + animação "Novo Ganhador" (confete, ~5s, volta sozinha) (D-089) |
+| `src/features/desafio/DesafioTab.jsx` | ~110 | Lista/criação de dias do desafio (tempo-alvo configurável por dia) (D-089) |
+| `src/features/desafio/DesafioDetail.jsx` | ~55 | Sub-navegação de um dia (Cadastro/Ranking/Ganhadores/Painel/Tela de TV); carrega participações on-demand (D-089) |
+| `src/features/desafio/DesafioGanhadores.jsx` | ~85 | 🏆 Ganhadores Instantâneos + controle de entrega de prêmio (tipo, entregue, responsável, horário) (D-089) |
+| `supabase/migracao-desafio-cronometro.sql` | ~180 | Tabelas `timer_challenge_events`/`timer_challenge_entries`, RLS marketing-only, RPC pública `timer_challenge_painel_publico` (SECURITY DEFINER, `grant ... to anon`) (D-089) |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
 | `src/apps/ComercialApp.jsx` | ~67 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |
@@ -438,5 +468,5 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-campos-personalizados.sql` | ~63 | Tabela `campos_personalizados`, colunas em `formularios`/`leads`, RLS `anon` (D-063) |
 | `supabase/functions/submeter-formulario/index.ts` | ~251 | Edge Function pública — submissão do Form Builder + campos personalizados (D-062, D-063); bloqueio de link, captura de IP e rate limit (D-067) |
 | `supabase/migracao-moderacao-formulario.sql` | ~40 | Coluna `leads.origem_ip` + índice para rate limit (D-067) |
-| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrite SPA para `/f/:path*` (D-062; a rewrite `/qr/:path*` foi retirada em D-065) |
+| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrite SPA para `/f/:path*` (D-062; a rewrite `/qr/:path*` foi retirada em D-065) e `/tv/:path*` (D-089) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

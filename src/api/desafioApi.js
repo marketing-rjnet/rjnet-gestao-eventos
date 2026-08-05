@@ -1,0 +1,91 @@
+import { db } from '../lib/dataService';
+import { genId, slugify } from '../utils/ids';
+import { calcularResultadoDesafio, TARGET_CENTISECONDS_PADRAO } from '../lib/desafioCronometro';
+import { broadcastDesafioPainel } from '../lib/desafioRealtime';
+
+// Desafio RJNet — Acerte 00:03:33 (D-089). Mesmo padrão factory dos
+// demais domínios: atualização otimista local + gravação assíncrona via
+// db.*. `desafios` são os dias/edições (carregados no boot, tabela
+// pequena); `entries` são as participações do dia atualmente aberto na
+// gestão (carregadas on-demand via carregarDesafioEntries).
+export function createDesafioApi({ desafios, setDesafios, entries, setEntries }) {
+  return {
+    addDesafioEvento: ({ nome, targetCentiseconds }) => {
+      const novo = {
+        id: genId('desafio'),
+        nome,
+        slug: `${slugify(nome)}-${Math.random().toString(36).slice(2, 6)}`,
+        targetCentiseconds: targetCentiseconds || TARGET_CENTISECONDS_PADRAO,
+        ativo: true,
+        criadoEm: new Date().toISOString(),
+      };
+      setDesafios((p) => [novo, ...p]);
+      db.saveDesafioEvento(novo);
+      return novo;
+    },
+    updateDesafioEvento: (id, patch) => {
+      const atual = desafios.find((d) => d.id === id);
+      setDesafios((p) => p.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+      if (atual) db.saveDesafioEvento({ ...atual, ...patch });
+    },
+    removeDesafioEvento: (id) => {
+      setDesafios((p) => p.filter((d) => d.id !== id));
+      db.removeDesafioEvento(id);
+    },
+
+    // Cadastro (D-089): recebe o texto digitado no cronômetro (MM:SS:CC) e
+    // o alvo do dia — calcula tudo (centésimos, diferença, acerto exato)
+    // ANTES de gravar. Ganhadores instantâneos e ranking nunca são listas
+    // separadas no banco: são o MESMO array filtrado por `isExactHit`.
+    addDesafioEntry: (eventId, { participantNumber, participantName, phone }, resultDisplay, onError) => {
+      const desafio = desafios.find((d) => d.id === eventId);
+      if (!desafio) { onError?.('Dia do desafio não encontrado.'); return null; }
+      let calculo;
+      try {
+        calculo = calcularResultadoDesafio({ resultDisplay, targetCentiseconds: desafio.targetCentiseconds });
+      } catch (err) {
+        onError?.(err.message);
+        return null;
+      }
+      const novo = {
+        id: genId('tce'),
+        eventId,
+        participantNumber: participantNumber.trim(),
+        participantName: participantName.trim(),
+        phone: (phone || '').trim(),
+        ...calculo,
+        prizeType: null,
+        delivered: false,
+        deliveryResponsible: null,
+        deliveryAt: null,
+        criadoEm: new Date().toISOString(),
+      };
+      setEntries((p) => [novo, ...p]);
+      db.saveDesafioEntry(novo, () => broadcastDesafioPainel(eventId), () => onError?.('Falha ao salvar — tentando novamente.'));
+      return novo;
+    },
+
+    // Controle de entrega do prêmio — só relevante para ganhadores instantâneos.
+    atualizarEntregaPremio: (id, { prizeType, delivered, deliveryResponsible }) => {
+      const atual = entries.find((e) => e.id === id);
+      if (!atual) return;
+      const atualizado = {
+        ...atual,
+        ...(prizeType !== undefined ? { prizeType } : {}),
+        ...(delivered !== undefined ? {
+          delivered,
+          deliveryAt: delivered ? new Date().toISOString() : null,
+        } : {}),
+        ...(deliveryResponsible !== undefined ? { deliveryResponsible } : {}),
+      };
+      setEntries((p) => p.map((e) => (e.id === id ? atualizado : e)));
+      db.saveDesafioEntry(atualizado, () => broadcastDesafioPainel(atualizado.eventId));
+    },
+
+    removeDesafioEntry: (id) => {
+      const atual = entries.find((e) => e.id === id);
+      setEntries((p) => p.filter((e) => e.id !== id));
+      db.removeDesafioEntry(id, () => atual && broadcastDesafioPainel(atual.eventId));
+    },
+  };
+}
