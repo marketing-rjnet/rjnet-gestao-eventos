@@ -3,8 +3,8 @@ import { isSupabaseMode } from '../lib/mode';
 import { fetchDesafioPainelPublico } from '../lib/dataService';
 import { subscribeDesafioPainel } from '../lib/desafioRealtime';
 
-// Desafio RJNet — Acerte 00:03:33 (D-089): hook da tela pública de TV —
-// sem sessão, sem AppContext (mesmo desenho de FormularioPublico/
+// Desafio RJNet — Acerte 00:03:33 (D-089, D-090): hook da tela pública de
+// TV — sem sessão, sem AppContext (mesmo desenho de FormularioPublico/
 // SimuladorPublico). Busca o painel (ranking Top 10 + ganhadores +
 // estatísticas, tudo já filtrado/calculado no servidor) e reage a
 // Broadcasts do painel administrativo pra atualizar sem F5.
@@ -13,6 +13,7 @@ import { subscribeDesafioPainel } from '../lib/desafioRealtime';
 // localStorage pelo AppProvider (`rjnet_desafios`/`rjnet_desafio_entries`)
 // e reproduz EXATAMENTE a mesma regra da RPC pública — nunca é o caminho
 // de produção, só permite ver a tela de TV funcionando sem Supabase.
+// D-090: sem "número do participante"; ganha menorDiferença/médiaDosTempos.
 function painelLocal(slug) {
   try {
     const desafios = JSON.parse(localStorage.getItem('rjnet_desafios')) || [];
@@ -20,23 +21,28 @@ function painelLocal(slug) {
     if (!desafio) return { found: false };
     const todasEntries = JSON.parse(localStorage.getItem('rjnet_desafio_entries')) || [];
     const entries = todasEntries.filter((e) => e.eventId === desafio.id);
-    const naoExatos = entries.filter((e) => !e.isExactHit)
+    const semGanhadores = entries.filter((e) => !e.isExactHit);
+    const naoExatos = [...semGanhadores]
       .sort((a, b) => a.differenceCentiseconds - b.differenceCentiseconds || new Date(a.criadoEm) - new Date(b.criadoEm))
       .slice(0, 10)
       .map((e, i) => ({
-        position: i + 1, participant_number: e.participantNumber, participant_name: e.participantName,
+        position: i + 1, participant_name: e.participantName,
         result_display: e.resultDisplay, difference_centiseconds: e.differenceCentiseconds,
       }));
     const ganhadores = entries.filter((e) => e.isExactHit)
       .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
       .map((e) => ({
-        participant_number: e.participantNumber, participant_name: e.participantName,
+        participant_name: e.participantName,
         created_at: e.criadoEm, prize_type: e.prizeType, delivered: e.delivered,
       }));
+    const minDifferenceCentiseconds = semGanhadores.length
+      ? Math.min(...semGanhadores.map((e) => e.differenceCentiseconds)) : null;
+    const averageCentiseconds = entries.length
+      ? Math.round(entries.reduce((acc, e) => acc + e.resultCentiseconds, 0) / entries.length) : null;
     return {
       found: true,
       event: { id: desafio.id, name: desafio.nome, slug: desafio.slug, targetCentiseconds: desafio.targetCentiseconds },
-      stats: { totalParticipants: entries.length, totalWinners: ganhadores.length },
+      stats: { totalParticipants: entries.length, totalWinners: ganhadores.length, minDifferenceCentiseconds, averageCentiseconds },
       ranking: naoExatos,
       winners: ganhadores,
     };

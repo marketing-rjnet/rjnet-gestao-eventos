@@ -2,7 +2,7 @@
 const { test, expect } = require('@playwright/test');
 const { loginMarketing } = require('./helpers/auth');
 
-// Desafio RJNet — Acerte 00:03:33 (D-089)
+// Desafio RJNet — Acerte 00:03:33 (D-089, D-090)
 async function goToDesafio(page) {
   await loginMarketing(page);
   await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
@@ -25,7 +25,6 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Ganhador');
     await page.locator('button', { hasText: 'Criar dia' }).click();
 
-    await page.locator('input[placeholder="Ex: 042"]').fill('001');
     await page.locator('input[placeholder="Nome completo"]').fill('João Silva');
     await page.locator('input[placeholder="00:03:33"]').fill('00:03:33');
     await page.locator('button', { hasText: 'Salvar participante' }).click();
@@ -44,7 +43,6 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Ranking');
     await page.locator('button', { hasText: 'Criar dia' }).click();
 
-    await page.locator('input[placeholder="Ex: 042"]').fill('002');
     await page.locator('input[placeholder="Nome completo"]').fill('Maria Souza');
     await page.locator('input[placeholder="00:03:33"]').fill('00:03:35');
     await page.locator('button', { hasText: 'Salvar participante' }).click();
@@ -62,7 +60,6 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Painel');
     await page.locator('button', { hasText: 'Criar dia' }).click();
 
-    await page.locator('input[placeholder="Ex: 042"]').fill('003');
     await page.locator('input[placeholder="Nome completo"]').fill('Carlos Teste');
     await page.locator('input[placeholder="00:03:33"]').fill('00:03:40');
     await page.locator('button', { hasText: 'Salvar participante' }).click();
@@ -76,12 +73,11 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     expect(download.suggestedFilename()).toContain('desafio_');
   });
 
-  test('tela de TV mostra o ranking em modo local', async ({ page, context }) => {
+  test('tela de TV mostra o ranking e os KPIs (menor diferença, média, alvo) em modo local', async ({ page, context }) => {
     await goToDesafio(page);
     await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia TV');
     await page.locator('button', { hasText: 'Criar dia' }).click();
 
-    await page.locator('input[placeholder="Ex: 042"]').fill('004');
     await page.locator('input[placeholder="Nome completo"]').fill('Ana TV');
     await page.locator('input[placeholder="00:03:33"]').fill('00:03:33');
     await page.locator('button', { hasText: 'Salvar participante' }).click();
@@ -93,6 +89,10 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     await tvPage.goto(url.trim());
     await expect(tvPage.locator('.desafio-tv-title')).toHaveText('DESAFIO RJNET');
     await expect(tvPage.locator('.desafio-tv-winner-item', { hasText: 'Ana TV' })).toBeVisible({ timeout: 8000 });
+    // D-090: KPIs do painel administrativo espelhados na tela de TV
+    await expect(tvPage.locator('.desafio-tv-kpi-label')).toContainText([
+      'Participantes', 'Ganhadores', 'Menor diferença', 'Média dos tempos', 'Alvo',
+    ]);
   });
 
 });

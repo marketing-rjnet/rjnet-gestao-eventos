@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDesafioPainelPublico } from '../hooks/useDesafioPainelPublico';
 import { centesimosParaTempo, formatarDiferenca } from '../lib/desafioCronometro';
 
-// Desafio RJNet — Acerte 00:03:33 (D-089): tela pública de TV — sem
-// sessão, sem menus, tela cheia, atualização automática (ver
+// Desafio RJNet — Acerte 00:03:33 (D-089, D-090): tela pública de TV —
+// sem sessão, sem menus, tela cheia, atualização automática (ver
 // useDesafioPainelPublico: RPC pública + Broadcast em modo Supabase, poll
 // leve em modo local/dev). Sempre que surge um ganhador novo, mostra a
 // animação de comemoração por alguns segundos e volta sozinha pro ranking.
+// D-090: KPIs espelham o painel administrativo (Participantes, Ganhadores,
+// Menor diferença, Média dos tempos, Alvo) — sem "número do participante".
 const WINNER_OVERLAY_MS = 5000;
 const CONFETTI_EMOJIS = ['🎉', '🎊', '⭐', '🏆', '✨'];
 
@@ -36,7 +38,7 @@ function WinnerOverlay({ ganhador, targetCentiseconds, onFim }) {
   useEffect(() => {
     const t = setTimeout(onFim, WINNER_OVERLAY_MS);
     return () => clearTimeout(t);
-  }, [ganhador.participant_number, onFim]);
+  }, [ganhador.created_at, onFim]);
 
   return (
     <div className="desafio-tv-winner-overlay">
@@ -57,12 +59,14 @@ export default function DesafioPublico({ slug }) {
 
   // Detecta ganhador NOVO comparando com a última lista vista — dispara a
   // animação uma única vez por ganhador (nunca repete ao simplesmente
-  // re-renderizar com os mesmos dados).
+  // re-renderizar com os mesmos dados). `created_at` é único o bastante
+  // (timestamptz com resolução de microssegundos) pra servir de chave —
+  // D-090 removeu o "número do participante" que era usado aqui antes.
   useEffect(() => {
     if (!painel?.found) return;
-    const idsAtuais = new Set(painel.winners.map((w) => `${w.participant_number}-${w.created_at}`));
+    const idsAtuais = new Set(painel.winners.map((w) => w.created_at));
     if (ultimosIdsRef.current) {
-      const novo = painel.winners.find((w) => !ultimosIdsRef.current.has(`${w.participant_number}-${w.created_at}`));
+      const novo = painel.winners.find((w) => !ultimosIdsRef.current.has(w.created_at));
       if (novo) setOverlayGanhador(novo);
     }
     ultimosIdsRef.current = idsAtuais;
@@ -113,6 +117,18 @@ export default function DesafioPublico({ slug }) {
             <div className="desafio-tv-kpi-value">{stats.totalWinners}</div>
             <div className="desafio-tv-kpi-label">Ganhadores</div>
           </div>
+          <div className="desafio-tv-kpi">
+            <div className="desafio-tv-kpi-value">{stats.minDifferenceCentiseconds != null ? formatarDiferenca(stats.minDifferenceCentiseconds) : '—'}</div>
+            <div className="desafio-tv-kpi-label">Menor diferença</div>
+          </div>
+          <div className="desafio-tv-kpi">
+            <div className="desafio-tv-kpi-value">{stats.averageCentiseconds != null ? centesimosParaTempo(stats.averageCentiseconds) : '—'}</div>
+            <div className="desafio-tv-kpi-label">Média dos tempos</div>
+          </div>
+          <div className="desafio-tv-kpi">
+            <div className="desafio-tv-kpi-value">{centesimosParaTempo(event.targetCentiseconds)}</div>
+            <div className="desafio-tv-kpi-label">Alvo</div>
+          </div>
         </div>
       </div>
 
@@ -120,15 +136,14 @@ export default function DesafioPublico({ slug }) {
         <div className="desafio-tv-panel">
           <div className="desafio-tv-panel-title">TOP 10 MAIS PRÓXIMOS</div>
           <div className="desafio-tv-ranking-row">
-            <span>Pos.</span><span>Nº</span><span>Nome</span><span>Tempo</span><span>Diferença</span>
+            <span>Pos.</span><span>Nome</span><span>Tempo</span><span>Diferença</span>
           </div>
           {ranking.length === 0 ? (
             <div className="desafio-tv-empty">Aguardando os primeiros participantes...</div>
           ) : (
             ranking.map((r) => (
-              <div key={`${r.participant_number}-${r.position}`} className={'desafio-tv-ranking-row' + (r.position === 1 ? ' top1' : '')}>
+              <div key={r.position} className={'desafio-tv-ranking-row' + (r.position === 1 ? ' top1' : '')}>
                 <span className="desafio-tv-pos">{r.position}º</span>
-                <span className="desafio-tv-mono">{r.participant_number}</span>
                 <span>{r.participant_name}</span>
                 <span className="desafio-tv-mono">{r.result_display}</span>
                 <span className="desafio-tv-mono">{formatarDiferenca(r.difference_centiseconds)}</span>
@@ -144,8 +159,8 @@ export default function DesafioPublico({ slug }) {
           ) : (
             <div className="desafio-tv-winners-list">
               {winners.map((w) => (
-                <div key={`${w.participant_number}-${w.created_at}`} className="desafio-tv-winner-item">
-                  <div className="desafio-tv-winner-name">{w.participant_name} <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>#{w.participant_number}</span></div>
+                <div key={w.created_at} className="desafio-tv-winner-item">
+                  <div className="desafio-tv-winner-name">{w.participant_name}</div>
                   <div className="desafio-tv-winner-meta">
                     {new Date(w.created_at).toLocaleTimeString('pt-BR')} · {w.prize_type || 'prêmio a definir'} · {w.delivered ? '✓ entregue' : 'entrega pendente'}
                   </div>

@@ -29,13 +29,12 @@ export function DesafioRanking({ desafio, entries }) {
         <div className="tbl-wrap" style={{ marginTop: 10 }}>
           <table>
             <thead>
-              <tr><th>Pos.</th><th>Nº</th><th>Nome</th><th>Tempo</th><th>Diferença</th><th></th></tr>
+              <tr><th>Pos.</th><th>Nome</th><th>Tempo</th><th>Diferença</th><th></th></tr>
             </thead>
             <tbody>
               {ranking.map((e, idx) => (
                 <tr key={e.id}>
                   <td className="strong">{idx + 1}º</td>
-                  <td>{e.participantNumber}</td>
                   <td>{e.participantName}</td>
                   <td className="mono">{e.resultDisplay}</td>
                   <td className="mono">{centesimosParaTempo(e.differenceCentiseconds)}</td>

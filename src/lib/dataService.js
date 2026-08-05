@@ -310,7 +310,9 @@ const desafioEventoToDb = (e) => ({
 
 const desafioEntryFromDb = (r) => ({
   id: r.id, eventId: r.event_id,
-  participantNumber: r.participant_number, participantName: r.participant_name,
+  // D-090: "número do participante" foi removido — o telefone (opcional)
+  // já é o identificador que o responsável sempre quis dizer com "número".
+  participantName: r.participant_name,
   phone: r.phone ?? '',
   resultDisplay: r.result_display,
   resultCentiseconds: r.result_centiseconds,
@@ -325,7 +327,7 @@ const desafioEntryFromDb = (r) => ({
 });
 const desafioEntryToDb = (e) => ({
   id: e.id, event_id: e.eventId,
-  participant_number: e.participantNumber, participant_name: e.participantName,
+  participant_name: e.participantName,
   phone: e.phone || null,
   result_display: e.resultDisplay,
   result_centiseconds: e.resultCentiseconds,
@@ -769,7 +771,7 @@ export async function demandaPorRegiao() {
 // fetchLeadsEvento (TB-004): a lista de dias (`timer_challenge_events`)
 // carrega no boot, mas as participações só quando o marketing abre a
 // gestão de um dia específico.
-const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_number,participant_name,phone,result_display,result_centiseconds,target_centiseconds,difference_centiseconds,is_exact_hit,prize_type,delivered,delivery_responsible,delivery_at,created_at';
+const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_name,phone,result_display,result_centiseconds,target_centiseconds,difference_centiseconds,is_exact_hit,prize_type,delivered,delivery_responsible,delivery_at,created_at';
 
 export async function fetchDesafioEntries(eventId, signal) {
   if (!isSupabaseMode() || !eventId) return null;

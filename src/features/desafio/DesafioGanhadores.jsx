@@ -51,7 +51,7 @@ function GanhadorRow({ ganhador, onAtualizar, confirmDelete, onPedirExclusao, on
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Icon name="trophy" size={18} stroke="var(--yellow)" />
         <div>
-          <div className="strong">{ganhador.participantName} <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>#{ganhador.participantNumber}</span></div>
+          <div className="strong">{ganhador.participantName}</div>
           <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
             {new Date(ganhador.criadoEm).toLocaleTimeString('pt-BR')} · {ganhador.phone || 'sem telefone'}
           </div>

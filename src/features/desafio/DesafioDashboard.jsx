@@ -54,11 +54,10 @@ export function DesafioDashboard({ desafio, entries }) {
         ) : (
           <div className="tbl-wrap" style={{ marginTop: 10 }}>
             <table>
-              <thead><tr><th>Nº</th><th>Nome</th><th>Tempo</th><th>Status</th><th>Cadastrado em</th></tr></thead>
+              <thead><tr><th>Nome</th><th>Tempo</th><th>Status</th><th>Cadastrado em</th></tr></thead>
               <tbody>
                 {stats.ultimos.map((e) => (
                   <tr key={e.id}>
-                    <td>{e.participantNumber}</td>
                     <td>{e.participantName}</td>
                     <td className="mono">{e.resultDisplay}</td>
                     <td>{e.isExactHit ? '🏆 Ganhador' : centesimosParaTempo(e.differenceCentiseconds)}</td>

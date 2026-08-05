@@ -33,11 +33,13 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       db.removeDesafioEvento(id);
     },
 
-    // Cadastro (D-089): recebe o texto digitado no cronômetro (MM:SS:CC) e
-    // o alvo do dia — calcula tudo (centésimos, diferença, acerto exato)
-    // ANTES de gravar. Ganhadores instantâneos e ranking nunca são listas
-    // separadas no banco: são o MESMO array filtrado por `isExactHit`.
-    addDesafioEntry: (eventId, { participantNumber, participantName, phone }, resultDisplay, onError) => {
+    // Cadastro (D-089, D-090): recebe o texto digitado no cronômetro
+    // (MM:SS:CC) e o alvo do dia — calcula tudo (centésimos, diferença,
+    // acerto exato) ANTES de gravar. Ganhadores instantâneos e ranking
+    // nunca são listas separadas no banco: são o MESMO array filtrado por
+    // `isExactHit`. D-090: não existe mais um "número do participante" à
+    // parte — o telefone (opcional) já cumpre esse papel.
+    addDesafioEntry: (eventId, { participantName, phone }, resultDisplay, onError) => {
       const desafio = desafios.find((d) => d.id === eventId);
       if (!desafio) { onError?.('Dia do desafio não encontrado.'); return null; }
       let calculo;
@@ -50,7 +52,6 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       const novo = {
         id: genId('tce'),
         eventId,
-        participantNumber: participantNumber.trim(),
         participantName: participantName.trim(),
         phone: (phone || '').trim(),
         ...calculo,

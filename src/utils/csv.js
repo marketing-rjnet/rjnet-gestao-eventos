@@ -127,16 +127,18 @@ export function exportLeadsMesConsolidadoCSV(leads, mesLabel, servicoLabelFn, on
   if (onAudit) onAudit({ totalRegistros: leads.length, totalMeses });
 }
 
-// D-089: Desafio RJNet — Acerte 00:03:33. Exporta as participações de UM
-// dia (ranking + ganhadores instantâneos juntos, coluna "Acerto exato?"
-// distingue) — mesmo padrão das demais exportações: sem lógica de negócio
-// aqui, só formatação de colunas já calculadas em src/lib/desafioCronometro.js.
+// D-089/D-090: Desafio RJNet — Acerte 00:03:33. Exporta as participações
+// de UM dia (ranking + ganhadores instantâneos juntos, coluna "Acerto
+// exato?" distingue) — mesmo padrão das demais exportações: sem lógica de
+// negócio aqui, só formatação de colunas já calculadas em
+// src/lib/desafioCronometro.js. D-090: sem coluna "Número" — o telefone
+// já é o identificador do participante.
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaFn, onAudit) {
   if (entries.length === 0) return;
-  const cabecalho = ["Número", "Nome", "Telefone", "Resultado", "Acerto exato?", "Diferença", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
+  const cabecalho = ["Nome", "Telefone", "Resultado", "Acerto exato?", "Diferença", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
   const linhas = entries.map((e) => [
-    e.participantNumber, e.participantName, e.phone || "",
+    e.participantName, e.phone || "",
     e.resultDisplay, e.isExactHit ? "Sim" : "Não",
     e.isExactHit ? "" : formatarDiferencaFn(e.differenceCentiseconds),
     e.prizeType || "", e.delivered ? "Sim" : "Não", e.deliveryResponsible || "",

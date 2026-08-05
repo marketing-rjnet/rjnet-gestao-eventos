@@ -2832,6 +2832,32 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-090] — Desafio RJNet: remove "número do participante"; tela de TV ganha menor diferença/média/alvo
+
+**Data:** 2026-08-05
+**Tipo:** Feature / Correção de especificação
+
+**Contexto:** Pós-deploy do D-089, o responsável esclareceu que "Número do participante" na especificação original nunca se referiu a um identificador numérico à parte (ficha/bilhete) — era o próprio telefone de contato, campo que o formulário já tinha (opcional, na parte de baixo). O campo, como implementado, era redundante. Pediu também que a tela de TV mostre os mesmos parâmetros já presentes no painel administrativo (`DesafioDashboard.jsx`) — menor diferença, média dos tempos, alvo, participantes — não só participantes/ganhadores.
+
+**Decisão:**
+- **Remove `participant_number` de ponta a ponta** — coluna dropada de `timer_challenge_entries` (`migracao-desafio-remove-numero.sql`), removida do formulário de cadastro (`DesafioCadastro.jsx`), do Ranking/Ganhadores/Dashboard administrativos, do CSV (`exportDesafioEntriesCSV`) e da RPC pública/tela de TV. Identificação do participante passa a ser só Nome (+ Telefone, quando presente, na lista de Ganhadores/CSV) — sem introduzir nenhum identificador numérico novo no lugar.
+- **Não foi um `DROP COLUMN` isolado** — a mesma migração recria a RPC `timer_challenge_painel_publico` (ela referenciava a coluna removida nas subqueries de ranking/ganhadores) e, no mesmo passo, adiciona as 2 estatísticas novas (`minDifferenceCentiseconds`, `averageCentiseconds`) ao payload — evitar uma segunda rodada de `CREATE OR REPLACE FUNCTION` só para isso.
+- **Tela de TV ganha 3 KPIs novos** (Menor diferença, Média dos tempos, Alvo), ficando com 5 no total ao lado de Participantes/Ganhadores — mesmos critérios já usados no painel administrativo: `minDifferenceCentiseconds` só considera quem NÃO acertou exatamente (ganhador sempre tem diferença 0, incluir distorceria "quão perto chegou o mais próximo sem ganhar"); `averageCentiseconds` é a média de TODOS os tempos registrados (inclui ganhadores). Alvo não precisou de campo novo no payload — já vinha em `event.targetCentiseconds`.
+- **Modo local (`painelLocal()` em `useDesafioPainelPublico.js`) espelha exatamente a mesma regra** da RPC — mesmo princípio já seguido desde D-089 (nunca dois caminhos de cálculo divergentes entre Supabase e local/dev).
+- **Chaves de React/dedup que usavam `participant_number` migraram para `created_at`** (tela de TV) — `created_at` tem resolução de microssegundos no Postgres, suficiente como identificador único de exibição sem precisar expor o `id` interno da linha via RPC pública.
+
+**Alternativas Avaliadas:**
+- **Manter a coluna, só ocultar da UI** — descartada: deixaria `not null` sem gravação (quebraria o INSERT) ou exigiria um valor fantasma (ex: string vazia) só pra satisfazer a constraint; mais simples remover de verdade já que era uma interpretação equivocada da especificação, não um dado que alguém precise reter.
+- **Usar o telefone como "número" e continuar chamando a coluna de `participant_number`** — descartada: manteria uma nomenclatura de coluna enganosa (telefone formatado não é um "número de participante") sem ganho nenhum sobre simplesmente reaproveitar a coluna `phone` que já existia.
+
+**Arquivos Afetados:** `supabase/migracao-desafio-remove-numero.sql` (nova); `src/lib/dataService.js` (mapeadores, `DESAFIO_ENTRIES_COLS`); `src/api/desafioApi.js`; `src/features/desafio/DesafioCadastro.jsx`, `DesafioRanking.jsx`, `DesafioGanhadores.jsx`, `DesafioDashboard.jsx`; `src/utils/csv.js`; `src/public/DesafioPublico.jsx`; `src/hooks/useDesafioPainelPublico.js`; `src/index.css` (`.desafio-tv-ranking-row`/`.desafio-tv-kpis`); `tests/desafio.test.js`.
+
+**Riscos:** Baixo — `DROP COLUMN` é destrutivo por natureza, mas a coluna só continha dados de teste (módulo lançado no mesmo dia); nenhum dado de produção real dependia dela. Validado via `npm run build`, `npm run test:unit` e `tests/desafio.test.js` (E2E) após a mudança.
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

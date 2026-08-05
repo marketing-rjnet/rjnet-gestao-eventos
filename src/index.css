@@ -862,15 +862,15 @@
 .desafio-tv-titles { display: flex; flex-direction: column; gap: 2px; }
 .desafio-tv-title { font-size: clamp(24px, 4vw, 44px); font-weight: 800; letter-spacing: -.02em; color: var(--yellow); }
 .desafio-tv-subtitle { font-size: clamp(14px, 2vw, 22px); color: var(--text-2); font-weight: 600; }
-.desafio-tv-kpis { display: flex; gap: clamp(10px, 2vw, 24px); margin-left: auto; flex-wrap: wrap; }
-.desafio-tv-kpi { text-align: center; background: var(--surface); border-radius: var(--radius); padding: 10px 22px; box-shadow: var(--shadow-glow); }
+.desafio-tv-kpis { display: flex; gap: clamp(8px, 1.6vw, 20px); margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.desafio-tv-kpi { text-align: center; background: var(--surface); border-radius: var(--radius); padding: 10px 18px; box-shadow: var(--shadow-glow); }
 .desafio-tv-kpi-value { font-family: "DM Mono", monospace; font-size: clamp(22px, 3.4vw, 40px); font-weight: 800; line-height: 1; }
 .desafio-tv-kpi-label { font-size: clamp(10px, 1.2vw, 13px); color: var(--text-3); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
 .desafio-tv-body { flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: clamp(14px, 2vw, 28px); min-height: 0; }
 .desafio-tv-panel { background: var(--surface); border-radius: var(--radius-lg); padding: clamp(16px, 2vw, 28px); box-shadow: var(--shadow-card); display: flex; flex-direction: column; min-height: 0; }
 .desafio-tv-panel-title { font-size: clamp(15px, 1.8vw, 22px); font-weight: 800; color: var(--yellow); margin-bottom: clamp(10px, 1.4vw, 18px); }
 .desafio-tv-ranking-row {
-  display: grid; grid-template-columns: clamp(44px,4vw,64px) clamp(48px,5vw,80px) 1fr clamp(90px,10vw,150px) clamp(90px,10vw,150px);
+  display: grid; grid-template-columns: clamp(44px,4vw,64px) 1fr clamp(90px,10vw,150px) clamp(90px,10vw,150px);
   align-items: center; gap: 10px; padding: clamp(8px, 1.2vw, 16px) 6px;
   border-bottom: 1px solid var(--border); font-size: clamp(14px, 1.8vw, 24px);
 }
@@ -902,6 +902,6 @@
 
 @media (max-width: 900px) {
   .desafio-tv-body { grid-template-columns: 1fr; }
-  .desafio-tv-ranking-row { grid-template-columns: 36px 44px 1fr 80px 80px; }
+  .desafio-tv-ranking-row { grid-template-columns: 36px 1fr 80px 80px; }
 }
 .sim-movel-chip-preco { font-size: 11px; font-weight: 700; opacity: .8; }

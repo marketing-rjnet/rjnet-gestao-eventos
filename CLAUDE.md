@@ -188,6 +188,7 @@ supabase/
 ├── migracao-simulador-tipos.sql      # Migra tipo perfil_consumo/territorial → oferta/demanda + coluna mensagem_resultado (D-076)
 ├── migracao-simulador-quiz.sql       # 3º tipo 'quiz' + colunas simuladores.quiz_perguntas/quiz_faixas (D-080)
 ├── migracao-desafio-cronometro.sql   # Tabelas timer_challenge_events/timer_challenge_entries + RPC pública timer_challenge_painel_publico (D-089)
+├── migracao-desafio-remove-numero.sql # Remove timer_challenge_entries.participant_number; RPC ganha minDifferenceCentiseconds/averageCentiseconds (D-090)
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
@@ -269,7 +270,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | `campos_personalizados` | Catálogo de campos de texto livre reutilizáveis entre formulários, criados pelo marketing; leitura `anon` restrita a `ativo=true` (D-063) |
 | `simuladores` | Campanhas do Simulador — identidade (nome, slug, tipo, agrupador); tipo `oferta` usa quiz fixo em código (sem construtor); tipo `demanda` guarda seu PRÓPRIO questionário em `perguntas` (jsonb) + `mensagem_resultado`; tipo `quiz` guarda perguntas com resposta certa em `quiz_perguntas` (jsonb) + faixas de classificação em `quiz_faixas` (jsonb), editados pelo marketing; leitura `anon` restrita a `ativo=true` (D-072, D-075, D-076, D-080) |
 | `timer_challenge_events` | Desafio RJNet — Acerte 00:03:33 (D-089): dias/edições do desafio — nome, slug, `target_centiseconds` (tempo-alvo, configurável, default 333), ativo; sem leitura `anon` (tela pública só via RPC) |
-| `timer_challenge_entries` | Desafio RJNet (D-089): participações de um dia — número/nome/telefone do participante, resultado (`result_display`/`result_centiseconds`), `difference_centiseconds`, `is_exact_hit` (ganhador instantâneo), controle de entrega de prêmio (`prize_type`/`delivered`/`delivery_responsible`/`delivery_at`) |
+| `timer_challenge_entries` | Desafio RJNet (D-089, D-090): participações de um dia — nome/telefone do participante (sem número identificador, removido em D-090), resultado (`result_display`/`result_centiseconds`), `difference_centiseconds`, `is_exact_hit` (ganhador instantâneo), controle de entrega de prêmio (`prize_type`/`delivered`/`delivery_responsible`/`delivery_at`) |
 
 ### Enums usados nos dados
 
@@ -333,7 +334,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
 | Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
 | Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (cadastro ANTES do quiz → perguntas com resposta certa/errada e feedback verde/vermelho → faixa de classificação editável, ex: evento MotoFest → CTA explícito "Participar do sorteio") — este último ganha também um Sorteador entre quem CONCLUIU o quiz; duplicidade de cadastro bloqueada por número de WhatsApp na campanha, nunca por navegador (D-084); cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080, D-083, D-084) |
-| Desafio | marketing | **Desafio RJNet — Acerte 00:03:33** (D-089): cadastro de participantes por dia/edição do desafio (número/nome/telefone/resultado do cronômetro, MM:SS:CC), ranking Top 10 por menor diferença (nunca inclui acertos exatos), lista de 🏆 Ganhadores Instantâneos com controle de entrega de prêmio, painel de estatísticas + export CSV, e QR Code/link de uma tela pública de TV (`/tv/:slug`) com ranking em tempo real e animação de novo ganhador; múltiplos dias 100% independentes; marketing-only (não `comercial`) |
+| Desafio | marketing | **Desafio RJNet — Acerte 00:03:33** (D-089, D-090): cadastro de participantes por dia/edição do desafio (nome/telefone/resultado do cronômetro, MM:SS:CC — sem "número do participante", D-090), ranking Top 10 por menor diferença (nunca inclui acertos exatos), lista de 🏆 Ganhadores Instantâneos com controle de entrega de prêmio, painel de estatísticas + export CSV, e QR Code/link de uma tela pública de TV (`/tv/:slug`) com ranking + KPIs (participantes, ganhadores, menor diferença, média dos tempos, alvo) em tempo real e animação de novo ganhador; múltiplos dias 100% independentes; marketing-only (não `comercial`) |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
