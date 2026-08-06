@@ -6,6 +6,7 @@ Sistema de gerenciamento de eventos de campo **e do dia a dia comercial** da RJN
 
 ## Visão Geral
 
+
 O sistema nasceu para resolver um problema operacional concreto: eventos de campo da RJNet envolviam equipes de vendedores capturando leads em locais com conexão instável, e um time de marketing que precisava acompanhar resultados e controlar materiais em tempo real. Ele evoluiu para cobrir também o **dia a dia do vendedor fora de eventos** (D-058) — o vendedor alterna livremente entre o contexto "Evento" (campo) e "Atividade do Mês" (comercial contínuo, por mês de referência) — e, mais recentemente, um **canal de captação público sem sessão** via Form Builder (D-062, D-063): formulários configuráveis pelo marketing, cada um com seu próprio QR Code/link, que convergem para o mesmo Lead.
 
 **Três perfis de acesso:**
