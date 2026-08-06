@@ -295,11 +295,19 @@ const simuladorToDb = (s) => ({
 // entries` são as participações, sempre calculadas por
 // src/lib/desafioCronometro.js antes de chegar aqui — nunca recalculadas
 // nesta camada.
+// D-091: prêmio (descrição + imagem) por dia — mesmo padrão de
+// ofertaFromDb/ofertaToDb (D-057): guarda o path, monta a URL pública
+// completa aqui a partir de supabaseConfig.url, com `?v=` para cache-busting.
 const desafioEventoFromDb = (r) => ({
   id: r.id, nome: r.name, slug: r.slug,
   targetCentiseconds: r.target_centiseconds ?? 333,
   ativo: r.active ?? true,
   criadoEm: r.created_at,
+  premioDescricao: r.prize_description ?? '',
+  premioImagemPath: r.prize_image_path ?? null,
+  premioImagemUrl: r.prize_image_path
+    ? `${supabaseConfig.url}/storage/v1/object/public/desafio-premios/${r.prize_image_path}?v=${r.prize_updated_at || r.created_at}`
+    : null,
 });
 const desafioEventoToDb = (e) => ({
   id: e.id, name: e.nome, slug: e.slug,
@@ -384,8 +392,8 @@ export async function fetchAll(signal) {
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
         supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
-        // D-089: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
-        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,active,created_at').order('created_at', { ascending: false }).abortSignal(signal),
+        // D-089/D-091: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
+        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,active,created_at,prize_description,prize_image_path,prize_updated_at').order('created_at', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -798,12 +806,23 @@ export async function fetchDesafioEntries(eventId, signal) {
 // D-089: leitura pública (anon) via RPC — nunca a tabela direto (ver
 // comentário em migracao-desafio-cronometro.sql). Usada pela tela de TV,
 // sem sessão nenhuma. `found: false` quando o slug não existe ou o dia
-// não está ativo.
+// não está ativo. D-091: a RPC devolve o PATH cru do prêmio (bucket
+// público `desafio-premios`) — a URL completa é montada aqui, mesmo
+// padrão de `desafioEventoFromDb`/`ofertaFromDb`.
 export async function fetchDesafioPainelPublico(slug) {
   if (!isSupabaseMode() || !slug) return null;
   const { data, error } = await supabase.rpc('timer_challenge_painel_publico', { p_slug: slug });
   if (error || !data?.found) return null;
-  return data;
+  const prizeImagePath = data.event?.prizeImagePath;
+  return {
+    ...data,
+    event: {
+      ...data.event,
+      prizeImageUrl: prizeImagePath
+        ? `${supabaseConfig.url}/storage/v1/object/public/desafio-premios/${prizeImagePath}?v=${data.event.prizeUpdatedAt || ''}`
+        : null,
+    },
+  };
 }
 
 /* ─── Escrita (fire-and-forget com log de erro e retry) ──────────── */
@@ -921,6 +940,44 @@ export const db = {
   // D-089: Desafio RJNet — mesmo padrão simples de saveFormulario/saveSimulador.
   saveDesafioEvento: (e, onSuccess) => exec(supabase?.from('timer_challenge_events').upsert(desafioEventoToDb(e)), 'salvar desafio', undefined, onSuccess),
   removeDesafioEvento: (id) => exec(supabase?.from('timer_challenge_events').delete().eq('id', id), 'remover desafio'),
+
+  // D-091: prêmio do dia — mesma exceção ao padrão 100%-síncrono de
+  // db.save* já aberta pelo D-057 (saveOferta): o upload no Storage
+  // precisa terminar antes de gravar o path final. UPDATE parcial (nunca
+  // upsert) — salvar só o prêmio não deve exigir nome/slug/target/ativo.
+  saveDesafioPremio: async ({ eventId, descricao, file, removerImagem, oldImagemPath }, onSuccess, onFail) => {
+    if (!isSupabaseMode()) { if (onSuccess) onSuccess(); return; }
+    let imagemPath = oldImagemPath ?? null;
+    try {
+      if (removerImagem && oldImagemPath) {
+        await supabase.storage.from('desafio-premios').remove([oldImagemPath]).catch(() => {});
+        imagemPath = null;
+      }
+      if (file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const path = `${eventId}.${ext}`;
+        if (oldImagemPath && oldImagemPath !== path) {
+          await supabase.storage.from('desafio-premios').remove([oldImagemPath]).catch(() => {});
+        }
+        const { error: upErr } = await supabase.storage.from('desafio-premios').upload(path, file, { upsert: true });
+        if (upErr) throw upErr;
+        imagemPath = path;
+      }
+      exec(
+        supabase.from('timer_challenge_events').update({
+          prize_description: descricao || null,
+          prize_image_path: imagemPath,
+          prize_updated_at: new Date().toISOString(),
+        }).eq('id', eventId),
+        'salvar prêmio do desafio',
+        onFail,
+        onSuccess,
+      );
+    } catch (err) {
+      console.error('[rjnet] Falha ao enviar imagem do prêmio:', err.message);
+      if (onFail) onFail(err.message);
+    }
+  },
   saveDesafioEntry: (e, onSuccess, onFail) => exec(supabase?.from('timer_challenge_entries').upsert(desafioEntryToDb(e)), 'salvar participante do desafio', onFail, onSuccess),
   removeDesafioEntry: (id, onSuccess) => exec(supabase?.from('timer_challenge_entries').update({ deleted: true }).eq('id', id), 'remover participante do desafio', undefined, onSuccess),
 

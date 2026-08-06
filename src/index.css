@@ -884,6 +884,16 @@
 .desafio-tv-winner-name { font-weight: 700; font-size: clamp(13px, 1.4vw, 17px); }
 .desafio-tv-winner-meta { font-size: clamp(11px, 1.1vw, 13px); color: var(--text-3); margin-top: 2px; }
 
+/* D-091: coluna ao lado do ranking (Prêmio + Ganhadores empilhados) */
+.desafio-tv-side { display: flex; flex-direction: column; gap: clamp(14px, 2vw, 28px); min-height: 0; }
+.desafio-tv-side > .desafio-tv-panel:last-child { flex: 1; }
+.desafio-tv-panel-premio { flex: none; align-items: center; text-align: center; }
+.desafio-tv-premio-img {
+  width: 100%; max-height: clamp(120px, 18vw, 220px); object-fit: contain;
+  border-radius: var(--radius); margin-bottom: 10px;
+}
+.desafio-tv-premio-desc { font-size: clamp(13px, 1.5vw, 18px); color: var(--text-2); font-weight: 600; }
+
 /* Overlay de novo ganhador — escurece a tela, confetes, logo, mensagem.
    Volta pro ranking sozinho depois de DESAFIO_WINNER_OVERLAY_MS. */
 .desafio-tv-winner-overlay {
