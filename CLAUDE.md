@@ -135,7 +135,7 @@ src/
 │       ├── DesafioTab.jsx      # Lista/criação de dias do desafio (tempo-alvo configurável por dia)
 │       ├── DesafioDetail.jsx   # Sub-navegação de um dia: Cadastro/Ranking/Ganhadores/Prêmio/Painel/Tela de TV
 │       ├── DesafioCadastro.jsx    # Formulário: número/nome/telefone/resultado do cronômetro
-│       ├── DesafioRanking.jsx     # Top 10 por menor diferença (nunca inclui acertos exatos)
+│       ├── DesafioRanking.jsx     # Top 10 por menor diferença (nunca inclui acertos exatos), coluna Prêmio por posição (D-095)
 │       ├── DesafioGanhadores.jsx  # 🏆 Ganhadores Instantâneos + controle de entrega de prêmio
 │       ├── DesafioPremio.jsx      # Prêmio do dia: descrição + imagem opcional, exibido só na Tela de TV (D-091)
 │       ├── DesafioPremiosRanking.jsx # Prêmio por posição do ranking (1º-10º), catálogo fixo de 3 opções sem imagem, independente do prêmio geral (D-092, D-093)
@@ -154,7 +154,7 @@ src/
 ├── utils/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
-│   ├── csv.js            # exportLeadsCSV + exportLeadsSemVendedorCSV (fila de distribuição, D-085) + exportDesafioEntriesCSV (D-089) (etapa 3)
+│   ├── csv.js            # exportLeadsCSV + exportLeadsSemVendedorCSV (fila de distribuição, D-085) + exportDesafioEntriesCSV (D-089, D-095) (etapa 3)
 │   ├── ids.js            # genId(prefix) — gerador de IDs temporários para modo local
 │   └── mockData.js       # MOCK_MATERIAIS, MOCK_VENDEDORES, MOCK_EVENTOS, MOCK_LEADS (etapa 4)
 └── lib/
@@ -460,7 +460,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/hooks/useRanking.js` | ~42 | Hook de polling de ranking com debounce e cleanup; parâmetro `obterFn` opcional reaproveitado para o placar por mês (etapa 15, D-058) |
 | `src/utils/format.js` | ~48 | Formatação de datas, labels e iniciais; `mesesDoAno`/`mesReferenciaLabel`/`mesAtualRef` (etapa 1, D-058, D-060) |
 | `src/utils/masks.js` | ~34 | Máscaras e validadores de CPF/telefone (etapa 2) |
-| `src/utils/csv.js` | ~128 | Exportação CSV de leads por evento, por mês e da fila de distribuição — `exportLeadsSemVendedorCSV` para os leads "em espera" (etapa 3, D-058, D-085) |
+| `src/utils/csv.js` | ~175 | Exportação CSV de leads por evento, por mês e da fila de distribuição — `exportLeadsSemVendedorCSV` para os leads "em espera" (etapa 3, D-058, D-085) + `exportDesafioEntriesCSV` (etapa 3, D-089, D-095) |
 | `src/utils/mockData.js` | ~57 | Dados mock para modo local (etapa 4) |
 | `src/utils/ids.js` | ~2 | `genId(prefix)` — gerador de IDs temporários para modo local |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |

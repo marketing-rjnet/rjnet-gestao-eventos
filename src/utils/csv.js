@@ -132,18 +132,33 @@ export function exportLeadsMesConsolidadoCSV(leads, mesLabel, servicoLabelFn, on
 // exato?" distingue) — mesmo padrão das demais exportações: sem lógica de
 // negócio aqui, só formatação de colunas já calculadas em
 // src/lib/desafioCronometro.js. D-090: sem coluna "Número" — o telefone
-// já é o identificador do participante.
+// já é o identificador do participante. D-095: `premiosRanking` (opcional,
+// `desafio.premiosRanking`) cruza a posição de cada participante no Top 10
+// com o prêmio configurado pra aquela posição — mesma ordenação usada em
+// DesafioRanking.jsx (menor diferença, depois cadastro mais antigo).
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
-export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaFn, onAudit) {
+export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaFn, onAudit, premiosRanking) {
   if (entries.length === 0) return;
-  const cabecalho = ["Nome", "Telefone", "Resultado", "Acerto exato?", "Diferença", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
-  const linhas = entries.map((e) => [
-    e.participantName, e.phone || "",
-    e.resultDisplay, e.isExactHit ? "Sim" : "Não",
-    e.isExactHit ? "" : formatarDiferencaFn(e.differenceCentiseconds),
-    e.prizeType || "", e.delivered ? "Sim" : "Não", e.deliveryResponsible || "",
-    new Date(e.criadoEm).toLocaleString("pt-BR"),
-  ]);
+  const ranking = entries
+    .filter((e) => !e.isExactHit)
+    .sort((a, b) => a.differenceCentiseconds - b.differenceCentiseconds || new Date(a.criadoEm) - new Date(b.criadoEm))
+    .slice(0, 10);
+  const posicaoPorId = new Map(ranking.map((e, idx) => [e.id, idx + 1]));
+  const premioPorPosicao = new Map((premiosRanking || []).map((p) => [p.position, p.nome]));
+
+  const cabecalho = ["Nome", "Telefone", "Resultado", "Acerto exato?", "Diferença", "Posição no Ranking", "Prêmio do Ranking", "Prêmio (Ganhador Instantâneo)", "Entregue", "Responsável entrega", "Cadastrado em"];
+  const linhas = entries.map((e) => {
+    const posicao = posicaoPorId.get(e.id) || null;
+    return [
+      e.participantName, e.phone || "",
+      e.resultDisplay, e.isExactHit ? "Sim" : "Não",
+      e.isExactHit ? "" : formatarDiferencaFn(e.differenceCentiseconds),
+      posicao ? `${posicao}º` : "",
+      posicao ? (premioPorPosicao.get(posicao) || "") : "",
+      e.prizeType || "", e.delivered ? "Sim" : "Não", e.deliveryResponsible || "",
+      new Date(e.criadoEm).toLocaleString("pt-BR"),
+    ];
+  });
   const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
