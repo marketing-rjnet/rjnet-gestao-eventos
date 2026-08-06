@@ -2887,6 +2887,36 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-092] — Desafio RJNet: prêmio por POSIÇÃO do ranking (1º ao 10º), coluna própria na Tela de TV
+
+**Data:** 2026-08-06
+**Tipo:** Feature
+
+**Contexto:** Logo após o D-091 entrar em produção, o responsável pediu uma extensão: além do prêmio geral do dia (descrição + imagem, já implementado), ele quer definir um prêmio DIFERENTE por posição do ranking Top 10 (1º lugar ganha X, 2º ganha Y, ...), visível como coluna própria na tabela do ranking da Tela de TV — os participantes acompanham em tempo real qual prêmio está em jogo em cada posição, conforme o ranking muda a cada novo cadastro. Confirmado antes de implementar: (1) o prêmio geral do dia é mantido, os dois coexistem; (2) cada posição leva um ícone pequeno (a maioria dos prêmios são apps de streaming — só o logo já basta) + nome, não uma foto grande; (3) exibido como 5ª coluna na própria tabela do ranking, não como painel separado.
+
+**Decisão:**
+- **Array independente do prêmio geral** — nova coluna `timer_challenge_events.prize_ranking` (jsonb), formato `[{"position":1,"name":"Disney+","iconPath":"<event_id>-rank1.png"}, ...]`. Não confundir com `prize_description`/`prize_image_path` do D-091 (prêmio geral do dia, sem posição) nem com `prize_type` de `timer_challenge_entries` (D-089, o prêmio que UM ganhador específico recebeu na entrega) — são 3 conceitos de "prêmio" independentes no mesmo módulo, cada um com seu propósito.
+- **Ícones no MESMO bucket `desafio-premios`** (D-091, D-057) — path determinístico `<event_id>-rank<position>.<ext>`, distinto do path do prêmio geral (`<event_id>.<ext>`), sem colisão. Sem bucket novo nem policy nova — as policies do D-091 já cobrem qualquer objeto do bucket, independente do path.
+- **Formulário único salva as 10 posições de uma vez** (`DesafioPremiosRanking.jsx`, novo componente, empilhado abaixo de `DesafioPremio.jsx` na mesma sub-aba "Prêmio") — 1 linha por posição (1º a 10º), cada uma com upload de ícone (máx. 1MB, é só um logo) + campo de nome (até 40 caracteres); posição sem nome nem ícone significa "sem prêmio nessa posição". Um único botão "Salvar prêmios do ranking" processa as 10 de uma vez, fazendo upload só das que trocaram de ícone — mesmo princípio de não duplicar ação de salvar por linha.
+- **`db.saveDesafioPremiosRanking` é UPDATE parcial** (mesmo padrão de `saveDesafioPremio`, D-091) — grava só `prize_ranking` + bump de `prize_updated_at` (reaproveitado como cache-bust de TODOS os ícones do prêmio do dia, geral ou por posição — simplificação deliberada: uma coluna de timestamp só, não uma por ícone, custo é um cache-bust redundante do prêmio geral quando só os ícones do ranking mudam, aceitável).
+- **RPC pública recriada** (mesmo princípio do D-089/D-091) para incluir `prizeRanking` no payload do `event` — devolve os paths crus, URL completa montada no cliente (`fetchDesafioPainelPublico`), mesmo padrão do prêmio geral.
+- **Exibição: 5ª coluna na tabela do ranking da Tela de TV** (`Pos. | Nome | Tempo | Diferença | Prêmio`), não um painel à parte — `premioDaPosicao()` casa a posição de cada linha do ranking (`r.position`, já vem 1..N contíguo da RPC) com a entrada correspondente de `prizeRanking`; posição sem prêmio configurado mostra "—". Como o ranking só lista quem já participou, prêmios de posições 5-10 só aparecem quando participantes suficientes ocuparem essas posições — o acompanhamento "em tempo real" pedido pelo responsável.
+- **Modo local sem ícone persistente** — mesma limitação já aceita para o prêmio geral (D-091) e para `ofertas` (D-057): nome funciona normalmente, ícone (blob URL) não sobrevive a um reload.
+
+**Alternativas Avaliadas:**
+- **Substituir o prêmio geral do dia pelos prêmios por posição** — descartada pelo responsável: ele quer os dois ao mesmo tempo (prêmio geral pra divulgação ampla do dia + prêmios específicos por posição pra criar expectativa de ranking).
+- **Painel separado tipo legenda (\"1º — Disney+, 2º — HBO Max...\") em vez de coluna na tabela** — descartada pelo responsável: coluna na própria linha do ranking deixa óbvio pro participante o que ELE especificamente ganha na posição em que está, sem precisar cruzar duas listas visualmente.
+- **Foto grande por posição (mesmo padrão do prêmio geral)** — descartada pelo responsável: com 10 posições, ficaria visualmente pesado e a maioria dos prêmios já tem um ícone de app reconhecível (Disney+, HBO Max) que dispensa uma foto maior.
+- **Uma coluna de `prize_updated_at` por posição (11 timestamps)** — descartada por complexidade desproporcional ao ganho (evitar um cache-bust redundante ocasional); optou-se por 1 timestamp compartilhado, mesmo trade-off já aceito em outros lugares do projeto pela simplicidade do schema.
+
+**Arquivos Afetados:** `supabase/migracao-desafio-premio-ranking.sql` (novo — coluna `prize_ranking`, RPC recriada); `src/lib/dataService.js` (`desafioPremioIconUrl`, `desafioEventoFromDb`, `fetchAll`, `fetchDesafioPainelPublico`, `db.saveDesafioPremiosRanking`); `src/api/desafioApi.js` (`saveDesafioPremiosRanking`); `src/context/AppProvider.jsx`; `src/features/desafio/DesafioPremiosRanking.jsx` (novo); `src/features/desafio/DesafioDetail.jsx`; `src/hooks/useDesafioPainelPublico.js` (`painelLocal`); `src/public/DesafioPublico.jsx` (`premioDaPosicao`, 5ª coluna do ranking); `src/index.css` (`.desafio-tv-ranking-row` com 5 colunas, `.desafio-tv-premio-cell`).
+
+**Riscos:** Baixo — extensão aditiva do D-091, mesmo bucket/RPC/padrão de UPDATE parcial já validado em produção. Único ponto de atenção é o cache-bust compartilhado (`prize_updated_at` único para até 11 imagens do mesmo dia) — mitigado por ser só um refetch redundante ocasional, nunca uma imagem errada exibida. Validado via `npm run build`, testes unitários (inalterados) e `tests/desafio.test.js` (E2E, aditivo — não altera os asserts existentes).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

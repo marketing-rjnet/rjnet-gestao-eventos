@@ -12,6 +12,15 @@ import { centesimosParaTempo, formatarDiferenca } from '../lib/desafioCronometro
 const WINNER_OVERLAY_MS = 5000;
 const CONFETTI_EMOJIS = ['🎉', '🎊', '⭐', '🏆', '✨'];
 
+// D-092: prêmio por posição do ranking — array independente do prêmio
+// geral do dia (D-091). Só existe entrada pra posição que o marketing
+// configurou; posição sem prêmio (nome vazio e sem ícone) não mostra nada.
+function premioDaPosicao(prizeRanking, position) {
+  const p = (prizeRanking || []).find((x) => x.position === position);
+  if (!p || (!p.name && !p.iconUrl)) return null;
+  return p;
+}
+
 function Confetti() {
   const pecas = useMemo(() => Array.from({ length: 26 }, (_, i) => ({
     id: i,
@@ -136,19 +145,30 @@ export default function DesafioPublico({ slug }) {
         <div className="desafio-tv-panel">
           <div className="desafio-tv-panel-title">TOP 10 MAIS PRÓXIMOS</div>
           <div className="desafio-tv-ranking-row">
-            <span>Pos.</span><span>Nome</span><span>Tempo</span><span>Diferença</span>
+            <span>Pos.</span><span>Nome</span><span>Tempo</span><span>Diferença</span><span>Prêmio</span>
           </div>
           {ranking.length === 0 ? (
             <div className="desafio-tv-empty">Aguardando os primeiros participantes...</div>
           ) : (
-            ranking.map((r) => (
-              <div key={r.position} className={'desafio-tv-ranking-row' + (r.position === 1 ? ' top1' : '')}>
-                <span className="desafio-tv-pos">{r.position}º</span>
-                <span>{r.participant_name}</span>
-                <span className="desafio-tv-mono">{r.result_display}</span>
-                <span className="desafio-tv-mono">{formatarDiferenca(r.difference_centiseconds)}</span>
-              </div>
-            ))
+            ranking.map((r) => {
+              const premio = premioDaPosicao(event.prizeRanking, r.position);
+              return (
+                <div key={r.position} className={'desafio-tv-ranking-row' + (r.position === 1 ? ' top1' : '')}>
+                  <span className="desafio-tv-pos">{r.position}º</span>
+                  <span>{r.participant_name}</span>
+                  <span className="desafio-tv-mono">{r.result_display}</span>
+                  <span className="desafio-tv-mono">{formatarDiferenca(r.difference_centiseconds)}</span>
+                  <span className="desafio-tv-premio-cell">
+                    {premio ? (
+                      <>
+                        {premio.iconUrl && <img src={premio.iconUrl} alt="" />}
+                        {premio.name && <span>{premio.name}</span>}
+                      </>
+                    ) : '—'}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
 

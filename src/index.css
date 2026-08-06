@@ -870,7 +870,7 @@
 .desafio-tv-panel { background: var(--surface); border-radius: var(--radius-lg); padding: clamp(16px, 2vw, 28px); box-shadow: var(--shadow-card); display: flex; flex-direction: column; min-height: 0; }
 .desafio-tv-panel-title { font-size: clamp(15px, 1.8vw, 22px); font-weight: 800; color: var(--yellow); margin-bottom: clamp(10px, 1.4vw, 18px); }
 .desafio-tv-ranking-row {
-  display: grid; grid-template-columns: clamp(44px,4vw,64px) 1fr clamp(90px,10vw,150px) clamp(90px,10vw,150px);
+  display: grid; grid-template-columns: clamp(40px,3.6vw,58px) 1fr clamp(80px,9vw,130px) clamp(80px,9vw,130px) clamp(90px,10vw,150px);
   align-items: center; gap: 10px; padding: clamp(8px, 1.2vw, 16px) 6px;
   border-bottom: 1px solid var(--border); font-size: clamp(14px, 1.8vw, 24px);
 }
@@ -878,6 +878,10 @@
 .desafio-tv-ranking-row.top1 { color: var(--yellow); font-weight: 800; }
 .desafio-tv-pos { font-weight: 800; font-family: "DM Mono", monospace; }
 .desafio-tv-mono { font-family: "DM Mono", monospace; }
+/* D-092: prêmio por posição do ranking — ícone pequeno + nome, na própria linha */
+.desafio-tv-premio-cell { display: flex; align-items: center; gap: 6px; font-size: clamp(12px, 1.3vw, 17px); color: var(--text-2); overflow: hidden; }
+.desafio-tv-premio-cell img { width: clamp(18px, 2vw, 28px); height: clamp(18px, 2vw, 28px); object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+.desafio-tv-premio-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desafio-tv-empty { color: var(--text-3); font-size: clamp(14px, 1.6vw, 18px); padding: 20px 0; text-align: center; }
 .desafio-tv-winners-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .desafio-tv-winner-item { background: var(--yellow-dim); border-radius: 10px; padding: 10px 14px; border: 1px solid var(--yellow-glow); }
@@ -912,6 +916,6 @@
 
 @media (max-width: 900px) {
   .desafio-tv-body { grid-template-columns: 1fr; }
-  .desafio-tv-ranking-row { grid-template-columns: 36px 1fr 80px 80px; }
+  .desafio-tv-ranking-row { grid-template-columns: 32px 1fr 66px 66px 66px; }
 }
 .sim-movel-chip-preco { font-size: 11px; font-weight: 700; opacity: .8; }
