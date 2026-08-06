@@ -2945,6 +2945,31 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-094] — Desafio RJNet: Tela de TV sempre mostra as 10 posições do ranking, mesmo sem participante
+
+**Data:** 2026-08-06
+**Tipo:** Correção de UX
+
+**Contexto:** Depois do D-093, o responsável testou em produção e notou um problema: a tabela do ranking na Tela de TV só renderiza uma linha por PARTICIPANTE já cadastrado (a RPC devolve `position` 1..N onde N é o total de participantes, até 10) — então, com poucos participantes (ou nenhum), quem está assistindo só vê 1, 2 ou 3 linhas, sem noção de que existem 10 posições no total, cada uma com um prêmio (RJNET Móvel/HBO Max/Disney+) esperando. A configuração dos prêmios continua manual pelo marketing (`DesafioPremiosRanking.jsx`, D-092/D-093) — isso não mudou, o responsável fez questão de manter esse controle. O problema era só a Tela de TV esconder posições vazias.
+
+**Decisão:**
+- **A tabela do ranking na Tela de TV sempre renderiza as 10 posições** (`POSICOES_RANKING`, `1..10`), independente de quantos participantes já existem — não mais `ranking.map(...)` sobre o array que só tem N linhas. Para cada posição, procura a entrada correspondente em `ranking` (`ranking.find(x => x.position === posicao)`); se não existir, mostra `—` no lugar de Nome/Tempo/Diferença, mas o **prêmio da posição continua aparecendo normalmente**, vindo direto de `event.prizeRanking` (que já é independente de quem ocupa a posição).
+- **Linhas sem participante ganham a classe `.vazia`**, que esmaece (opacity .35) só as células de Nome/Tempo/Diferença — a posição (`1º`, `2º`...) e o prêmio permanecem em opacidade total, porque são exatamente o que a pessoa precisa enxergar de longe numa tela de TV: "nessa posição, o prêmio é Disney+".
+- **Mensagem "Aguardando os primeiros participantes..." removida** — não faz mais sentido com a tabela sempre mostrando as 10 posições; o próprio esqueleto da tabela (linhas vazias) já comunica que ninguém chegou lá ainda.
+- **Painel administrativo de Ranking (`DesafioRanking.jsx`) não foi alterado** — essa mudança é só da Tela de TV pública, consistente com a decisão do D-091/D-092 de que a exibição de prêmio é exclusiva da Tela de TV.
+
+**Alternativas Avaliadas:**
+- **Adicionar um aviso textual tipo "3 prêmios em disputa" acima da tabela** — descartada: menos direto que ver a lista completa das 10 posições com os prêmios já anexados a cada uma, que é autoexplicativo sem precisar de texto extra.
+- **Esmaecer a linha inteira (incluindo o prêmio) quando vazia** — descartada: o pedido explícito era garantir que o prêmio ficasse visível MESMO sem ninguém na posição — esmaecer o prêmio junto derrotaria o propósito.
+
+**Arquivos Afetados:** `src/public/DesafioPublico.jsx` (`POSICOES_RANKING`, loop de renderização do ranking); `src/index.css` (`.desafio-tv-ranking-row.vazia`).
+
+**Riscos:** Nenhum — mudança 100% visual/frontend na Tela de TV pública, sem migração de banco, sem alteração de RPC/RLS. Validado via `npm run build` e `tests/desafio.test.js` (E2E, sem assert sobre a mensagem removida).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
