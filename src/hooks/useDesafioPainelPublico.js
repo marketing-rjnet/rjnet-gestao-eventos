@@ -43,15 +43,14 @@ function painelLocal(slug) {
       found: true,
       event: {
         id: desafio.id, name: desafio.nome, slug: desafio.slug, targetCentiseconds: desafio.targetCentiseconds,
-        // D-091/D-092: modo local não tem Storage — a URL do blob local
-        // (createObjectURL) não sobrevive a um reload, então só o texto/nome
-        // é confiável aqui; mesma limitação já aceita para imagens em modo
-        // local (ver saveOferta).
+        // D-091: modo local não tem Storage — a URL do blob local
+        // (createObjectURL) não sobrevive a um reload, então só o texto é
+        // confiável aqui; mesma limitação já aceita pra imagem em modo
+        // local (ver saveOferta). D-093: prêmios por posição são só texto
+        // (catálogo fixo), sem essa limitação.
         prizeDescription: desafio.premioDescricao || null,
         prizeImageUrl: desafio.premioImagemUrl || null,
-        prizeRanking: (desafio.premiosRanking || []).map((p) => ({
-          position: p.position, name: p.nome || '', iconUrl: p.iconUrl || null,
-        })),
+        prizeRanking: (desafio.premiosRanking || []).map((p) => ({ position: p.position, name: p.nome || '' })),
       },
       stats: { totalParticipants: entries.length, totalWinners: ganhadores.length, minDifferenceCentiseconds, averageCentiseconds },
       ranking: naoExatos,
