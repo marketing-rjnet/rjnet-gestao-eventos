@@ -27,7 +27,7 @@ export function DesafioDashboard({ desafio, entries }) {
     return { total, ganhadores, menorDiferenca, mediaCentesimos, porDia, ultimos };
   }, [entries]);
 
-  const exportar = () => exportDesafioEntriesCSV(entries, desafio.nome, formatarDiferenca);
+  const exportar = () => exportDesafioEntriesCSV(entries, desafio.nome, formatarDiferenca, undefined, desafio.premiosRanking);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

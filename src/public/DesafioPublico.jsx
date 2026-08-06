@@ -11,6 +11,10 @@ import { centesimosParaTempo, formatarDiferenca } from '../lib/desafioCronometro
 // Menor diferença, Média dos tempos, Alvo) — sem "número do participante".
 const WINNER_OVERLAY_MS = 5000;
 const CONFETTI_EMOJIS = ['🎉', '🎊', '⭐', '🏆', '✨'];
+// D-094: a tabela do ranking sempre mostra as 10 posições, mesmo as que
+// ainda não têm participante — quem está assistindo precisa ver de cara
+// quais prêmios estão em jogo em cada posição, não só nas já ocupadas.
+const POSICOES_RANKING = Array.from({ length: 10 }, (_, i) => i + 1);
 
 // D-092/D-093: prêmio por posição do ranking — array independente do
 // prêmio geral do dia (D-091). Catálogo fixo de 3 opções, só texto (sem
@@ -146,22 +150,19 @@ export default function DesafioPublico({ slug }) {
           <div className="desafio-tv-ranking-row">
             <span>Pos.</span><span>Nome</span><span>Tempo</span><span>Diferença</span><span>Prêmio</span>
           </div>
-          {ranking.length === 0 ? (
-            <div className="desafio-tv-empty">Aguardando os primeiros participantes...</div>
-          ) : (
-            ranking.map((r) => {
-              const premio = premioDaPosicao(event.prizeRanking, r.position);
-              return (
-                <div key={r.position} className={'desafio-tv-ranking-row' + (r.position === 1 ? ' top1' : '')}>
-                  <span className="desafio-tv-pos">{r.position}º</span>
-                  <span>{r.participant_name}</span>
-                  <span className="desafio-tv-mono">{r.result_display}</span>
-                  <span className="desafio-tv-mono">{formatarDiferenca(r.difference_centiseconds)}</span>
-                  <span className="desafio-tv-premio-cell">{premio || '—'}</span>
-                </div>
-              );
-            })
-          )}
+          {POSICOES_RANKING.map((posicao) => {
+            const r = ranking.find((x) => x.position === posicao);
+            const premio = premioDaPosicao(event.prizeRanking, posicao);
+            return (
+              <div key={posicao} className={'desafio-tv-ranking-row' + (posicao === 1 && r ? ' top1' : '') + (!r ? ' vazia' : '')}>
+                <span className="desafio-tv-pos">{posicao}º</span>
+                <span>{r ? r.participant_name : '—'}</span>
+                <span className="desafio-tv-mono">{r ? r.result_display : '—'}</span>
+                <span className="desafio-tv-mono">{r ? formatarDiferenca(r.difference_centiseconds) : '—'}</span>
+                <span className="desafio-tv-premio-cell">{premio || '—'}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* D-091: coluna ao lado do ranking — Prêmio (quando configurado) + Ganhadores */}

@@ -2945,6 +2945,56 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-094] — Desafio RJNet: Tela de TV sempre mostra as 10 posições do ranking, mesmo sem participante
+
+**Data:** 2026-08-06
+**Tipo:** Correção de UX
+
+**Contexto:** Depois do D-093, o responsável testou em produção e notou um problema: a tabela do ranking na Tela de TV só renderiza uma linha por PARTICIPANTE já cadastrado (a RPC devolve `position` 1..N onde N é o total de participantes, até 10) — então, com poucos participantes (ou nenhum), quem está assistindo só vê 1, 2 ou 3 linhas, sem noção de que existem 10 posições no total, cada uma com um prêmio (RJNET Móvel/HBO Max/Disney+) esperando. A configuração dos prêmios continua manual pelo marketing (`DesafioPremiosRanking.jsx`, D-092/D-093) — isso não mudou, o responsável fez questão de manter esse controle. O problema era só a Tela de TV esconder posições vazias.
+
+**Decisão:**
+- **A tabela do ranking na Tela de TV sempre renderiza as 10 posições** (`POSICOES_RANKING`, `1..10`), independente de quantos participantes já existem — não mais `ranking.map(...)` sobre o array que só tem N linhas. Para cada posição, procura a entrada correspondente em `ranking` (`ranking.find(x => x.position === posicao)`); se não existir, mostra `—` no lugar de Nome/Tempo/Diferença, mas o **prêmio da posição continua aparecendo normalmente**, vindo direto de `event.prizeRanking` (que já é independente de quem ocupa a posição).
+- **Linhas sem participante ganham a classe `.vazia`**, que esmaece (opacity .35) só as células de Nome/Tempo/Diferença — a posição (`1º`, `2º`...) e o prêmio permanecem em opacidade total, porque são exatamente o que a pessoa precisa enxergar de longe numa tela de TV: "nessa posição, o prêmio é Disney+".
+- **Mensagem "Aguardando os primeiros participantes..." removida** — não faz mais sentido com a tabela sempre mostrando as 10 posições; o próprio esqueleto da tabela (linhas vazias) já comunica que ninguém chegou lá ainda.
+- **Painel administrativo de Ranking (`DesafioRanking.jsx`) não foi alterado** — essa mudança é só da Tela de TV pública, consistente com a decisão do D-091/D-092 de que a exibição de prêmio é exclusiva da Tela de TV.
+
+**Alternativas Avaliadas:**
+- **Adicionar um aviso textual tipo "3 prêmios em disputa" acima da tabela** — descartada: menos direto que ver a lista completa das 10 posições com os prêmios já anexados a cada uma, que é autoexplicativo sem precisar de texto extra.
+- **Esmaecer a linha inteira (incluindo o prêmio) quando vazia** — descartada: o pedido explícito era garantir que o prêmio ficasse visível MESMO sem ninguém na posição — esmaecer o prêmio junto derrotaria o propósito.
+
+**Arquivos Afetados:** `src/public/DesafioPublico.jsx` (`POSICOES_RANKING`, loop de renderização do ranking); `src/index.css` (`.desafio-tv-ranking-row.vazia`).
+
+**Riscos:** Nenhum — mudança 100% visual/frontend na Tela de TV pública, sem migração de banco, sem alteração de RPC/RLS. Validado via `npm run build` e `tests/desafio.test.js` (E2E, sem assert sobre a mensagem removida).
+
+**Status:** Ativa.
+
+---
+
+### [D-095] — Desafio RJNet: prêmio do ranking visível no painel administrativo e no CSV exportado
+
+**Data:** 2026-08-06
+**Tipo:** Feature
+
+**Contexto:** O responsável confirmou o fluxo de trabalho pretendido para os prêmios por posição do ranking (D-092/D-093): a escolha do prêmio por posição continua exclusiva da sub-aba "Prêmio" (nunca no painel público) — ele decide isso com calma, muitas vezes só depois que o dia termina, já sabendo quem ficou em cada posição. O que faltava: quando ele exporta o CSV das participações pra registrar/organizar a entrega, o arquivo não tinha nenhuma coluna cruzando "essa pessoa, nessa posição" com "esse prêmio" — ele precisaria abrir a sub-aba "Prêmio" à parte e cruzar manualmente com a tabela de Ranking pra descobrir quem ganhou o quê.
+
+**Decisão:**
+- **`exportDesafioEntriesCSV` ganha 2 colunas novas**: "Posição no Ranking" e "Prêmio do Ranking" — calculadas com a MESMA ordenação já usada em `DesafioRanking.jsx` (menor diferença, depois cadastro mais antigo, Top 10), cruzada com `desafio.premiosRanking` (D-092/D-093). Só participantes que efetivamente estão no Top 10 (não-ganhadores instantâneos) recebem posição/prêmio — os demais ficam com essas 2 colunas vazias, mesmo padrão das colunas já condicionais da função (ex: "Diferença" vazia pra quem acertou exato).
+- **Coluna "Prêmio" renomeada para "Prêmio (Ganhador Instantâneo)"** no cabeçalho do CSV — evita ambiguidade agora que existem 2 conceitos de prêmio na mesma exportação (o prêmio ENTREGUE a quem acertou exato, D-089, e o prêmio da POSIÇÃO no ranking, D-092/D-093).
+- **`DesafioRanking.jsx` (painel administrativo) ganha uma coluna "Prêmio"** na própria tabela, mesma fonte de dado (`desafio.premiosRanking`) — dá pro marketing conferir a correlação posição↔prêmio↔pessoa na tela antes mesmo de exportar, sem precisar alternar pra sub-aba "Prêmio" e voltar. Diferente da decisão original do D-091/D-092 (prêmio só na Tela de TV, nunca no painel) — aqui o pedido explícito do responsável foi o oposto: ele QUER ver no painel interno, é a Tela de TV que nunca mostra a pessoa por trás da posição antes da hora.
+- **`exportDesafioEntriesCSV` ganha um 5º parâmetro opcional** (`premiosRanking`) — assinatura anterior (`entries, desafioNome, formatarDiferencaFn, onAudit`) preservada, novo parâmetro no final não quebra nenhuma chamada existente.
+
+**Alternativas Avaliadas:**
+- **Calcular a posição no servidor/RPC e gravar em `timer_challenge_entries`** — descartada: a posição de cada participante MUDA conforme novos cadastros chegam (não é um atributo fixo do registro), recalcular sob demanda na leitura (export/painel) é mais simples e sempre correto, sem precisar recalcular linhas antigas a cada novo cadastro.
+- **Mostrar o prêmio também na Tela de TV associado ao NOME da pessoa (não só à posição)** — fora de escopo desta decisão: a Tela de TV já mostra prêmio por posição desde D-092/D-093/D-094; a pessoa vendo a tela já entende que, se ficar na posição X, ganha o prêmio ali. Essa correlação nominal (pessoa→prêmio) é o que o responsável quer só para SI PRÓPRIO, no painel/export, não pro público.
+
+**Arquivos Afetados:** `src/utils/csv.js` (`exportDesafioEntriesCSV`); `src/features/desafio/DesafioDashboard.jsx` (passa `desafio.premiosRanking` na chamada de export); `src/features/desafio/DesafioRanking.jsx` (coluna "Prêmio" na tabela).
+
+**Riscos:** Nenhum — mudança aditiva (novas colunas, parâmetro opcional), sem migração de banco, sem alteração de RLS/RPC. Validado via `npm run build` e `tests/desafio.test.js` (E2E, sem quebra de assert existente).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

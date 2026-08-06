@@ -7,7 +7,10 @@ import { centesimosParaTempo } from '../../lib/desafioCronometro';
 // Regras (espelham a RPC pública timer_challenge_painel_publico):
 // ganhadores instantâneos (isExactHit) NUNCA aparecem aqui — eles têm
 // lista própria (DesafioGanhadores.jsx). Ordenação: menor diferença
-// primeiro, depois o cadastro mais antigo. Mostra só o Top 10.
+// primeiro, depois o cadastro mais antigo. Mostra só o Top 10. D-095:
+// coluna "Prêmio" mostra o prêmio configurado pra cada posição (D-092/
+// D-093, editado na sub-aba "Prêmio") — visão de conferência pro
+// marketing antes de exportar, sem precisar alternar entre sub-abas.
 export function DesafioRanking({ desafio, entries }) {
   const { removeDesafioEntry } = useApp();
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -16,6 +19,7 @@ export function DesafioRanking({ desafio, entries }) {
     .sort((a, b) => a.differenceCentiseconds - b.differenceCentiseconds || new Date(a.criadoEm) - new Date(b.criadoEm))
     .slice(0, 10),
   [entries]);
+  const premioPorPosicao = useMemo(() => new Map((desafio.premiosRanking || []).map((p) => [p.position, p.nome])), [desafio.premiosRanking]);
 
   return (
     <div className="card">
@@ -29,7 +33,7 @@ export function DesafioRanking({ desafio, entries }) {
         <div className="tbl-wrap" style={{ marginTop: 10 }}>
           <table>
             <thead>
-              <tr><th>Pos.</th><th>Nome</th><th>Tempo</th><th>Diferença</th><th></th></tr>
+              <tr><th>Pos.</th><th>Nome</th><th>Tempo</th><th>Diferença</th><th>Prêmio</th><th></th></tr>
             </thead>
             <tbody>
               {ranking.map((e, idx) => (
@@ -38,6 +42,7 @@ export function DesafioRanking({ desafio, entries }) {
                   <td>{e.participantName}</td>
                   <td className="mono">{e.resultDisplay}</td>
                   <td className="mono">{centesimosParaTempo(e.differenceCentiseconds)}</td>
+                  <td>{premioPorPosicao.get(idx + 1) || '—'}</td>
                   <td>
                     {confirmDelete === e.id ? (
                       <span style={{ display: 'flex', gap: 4 }}>

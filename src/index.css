@@ -880,6 +880,11 @@
 .desafio-tv-mono { font-family: "DM Mono", monospace; }
 /* D-092/D-093: prêmio por posição do ranking — só texto (catálogo fixo, sem imagem) */
 .desafio-tv-premio-cell { font-size: clamp(12px, 1.3vw, 17px); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* D-094: linhas de posição ainda sem participante — nome/tempo/diferença esmaecidos,
+   mas posição e prêmio continuam 100% legíveis (é o que a pessoa precisa ver de longe). */
+.desafio-tv-ranking-row.vazia > span:nth-child(2),
+.desafio-tv-ranking-row.vazia > span:nth-child(3),
+.desafio-tv-ranking-row.vazia > span:nth-child(4) { opacity: .35; }
 .desafio-tv-empty { color: var(--text-3); font-size: clamp(14px, 1.6vw, 18px); padding: 20px 0; text-align: center; }
 .desafio-tv-winners-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .desafio-tv-winner-item { background: var(--yellow-dim); border-radius: 10px; padding: 10px 14px; border: 1px solid var(--yellow-glow); }
