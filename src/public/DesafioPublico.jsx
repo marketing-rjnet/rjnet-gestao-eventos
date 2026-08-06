@@ -12,13 +12,12 @@ import { centesimosParaTempo, formatarDiferenca } from '../lib/desafioCronometro
 const WINNER_OVERLAY_MS = 5000;
 const CONFETTI_EMOJIS = ['🎉', '🎊', '⭐', '🏆', '✨'];
 
-// D-092: prêmio por posição do ranking — array independente do prêmio
-// geral do dia (D-091). Só existe entrada pra posição que o marketing
-// configurou; posição sem prêmio (nome vazio e sem ícone) não mostra nada.
+// D-092/D-093: prêmio por posição do ranking — array independente do
+// prêmio geral do dia (D-091). Catálogo fixo de 3 opções, só texto (sem
+// imagem, D-093). Só existe entrada pra posição que o marketing configurou.
 function premioDaPosicao(prizeRanking, position) {
   const p = (prizeRanking || []).find((x) => x.position === position);
-  if (!p || (!p.name && !p.iconUrl)) return null;
-  return p;
+  return p?.name || null;
 }
 
 function Confetti() {
@@ -158,14 +157,7 @@ export default function DesafioPublico({ slug }) {
                   <span>{r.participant_name}</span>
                   <span className="desafio-tv-mono">{r.result_display}</span>
                   <span className="desafio-tv-mono">{formatarDiferenca(r.difference_centiseconds)}</span>
-                  <span className="desafio-tv-premio-cell">
-                    {premio ? (
-                      <>
-                        {premio.iconUrl && <img src={premio.iconUrl} alt="" />}
-                        {premio.name && <span>{premio.name}</span>}
-                      </>
-                    ) : '—'}
-                  </span>
+                  <span className="desafio-tv-premio-cell">{premio || '—'}</span>
                 </div>
               );
             })

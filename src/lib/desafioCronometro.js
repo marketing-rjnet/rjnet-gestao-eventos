@@ -12,6 +12,12 @@ export const TARGET_CENTISECONDS_PADRAO = 333;
 
 export const TIPOS_PREMIO = ['RJNET Móvel 24GB', 'Disney+', 'HBO Max', 'Outro'];
 
+// D-093: prêmios por POSIÇÃO do ranking (1º ao 10º) — catálogo fixo de 3
+// opções (sem texto livre, sem imagem), cada posição escolhe uma delas.
+// Distinto de TIPOS_PREMIO acima (que é o prêmio ENTREGUE a um ganhador
+// instantâneo específico, D-089) — conceitos independentes do módulo.
+export const PREMIOS_POSICAO_RANKING = ['RJNET Móvel', 'HBO Max', 'Disney+'];
+
 const REGEX_TEMPO = /^(\d{2}):(\d{2}):(\d{2})$/;
 
 // Valida o formato exato MM:SS:CC com segundos/centésimos dentro do range

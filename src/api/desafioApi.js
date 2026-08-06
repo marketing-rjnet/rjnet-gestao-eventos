@@ -53,32 +53,20 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       );
     },
 
-    // D-092: prêmios por posição do ranking (1º ao 10º) — independente do
-    // prêmio geral acima. `ranking` chega já com as 10 posições (nome +
-    // file novo opcional + flag de remover ícone), montado pelo
-    // DesafioPremio.jsx a partir do estado local do formulário. Otimista:
-    // nome sempre reflete na hora; ícone só é confirmado após o upload.
+    // D-092/D-093: prêmios por posição do ranking (1º ao 10º) — independente
+    // do prêmio geral acima. `ranking` chega com as 10 posições, cada uma
+    // com `name` sendo uma das 3 opções fixas (`PREMIOS_POSICAO_RANKING`)
+    // ou string vazia (sem prêmio) — sem imagem/ícone (D-093 removeu). 100%
+    // otimista: sem upload, reflete na hora.
     saveDesafioPremiosRanking: (eventId, { ranking }, onError) => {
       const atual = desafios.find((d) => d.id === eventId);
       if (!atual) { onError?.('Dia do desafio não encontrado.'); return; }
-      const atuaisPorPosicao = new Map((atual.premiosRanking || []).map((p) => [p.position, p]));
       setDesafios((p) => p.map((d) => (d.id === eventId ? {
         ...d,
-        premiosRanking: ranking.map((r) => ({
-          position: r.position,
-          nome: r.name,
-          iconPath: r.removerIcone ? null : (atuaisPorPosicao.get(r.position)?.iconPath ?? null),
-          iconUrl: r.removerIcone ? null : (atuaisPorPosicao.get(r.position)?.iconUrl ?? null),
-        })),
+        premiosRanking: ranking.map((r) => ({ position: r.position, nome: r.name })),
       } : d)));
       db.saveDesafioPremiosRanking(
-        {
-          eventId,
-          ranking: ranking.map((r) => ({
-            position: r.position, name: r.name, file: r.file, removerIcone: r.removerIcone,
-            oldIconPath: atuaisPorPosicao.get(r.position)?.iconPath ?? null,
-          })),
-        },
+        { eventId, ranking },
         undefined,
         onError,
       );

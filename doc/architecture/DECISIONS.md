@@ -2917,6 +2917,34 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-093] — Desafio RJNet: prêmios do ranking viram catálogo fixo de 3 opções, sem imagem
+
+**Data:** 2026-08-06
+**Tipo:** Feature / Correção de especificação
+
+**Contexto:** Poucos minutos depois do D-092 (prêmio por posição do ranking com texto livre + ícone opcional) entrar em produção, o responsável mudou o desenho: em vez de cada uma das 10 posições aceitar qualquer texto + imagem, o Desafio passa a ter só 3 prêmios possíveis no total — RJNET Móvel, HBO Max, Disney+ — e cada posição escolhe UMA dessas 3 (nunca texto livre, nunca imagem). Pediu também que as 3 opções fiquem visíveis lado a lado em botões clicáveis por posição, não escondidas atrás de um `<select>` — pra ficar óbvio de cara que só existem essas 3 escolhas.
+
+**Decisão:**
+- **Catálogo fixo `PREMIOS_POSICAO_RANKING`** (`src/lib/desafioCronometro.js`, ao lado de `TIPOS_PREMIO` já existente) — array de 3 strings, sem imagem/ícone associado. Distinto de `TIPOS_PREMIO` (D-089, o prêmio ENTREGUE a um ganhador instantâneo específico) — são catálogos de conceitos diferentes do mesmo módulo, coincidência de nomes parecidos (streaming) não os torna a mesma lista.
+- **Remove upload de imagem por completo** dessa área — `DesafioPremiosRanking.jsx` reescrito sem `<input type="file">`, sem preview, sem estado de arquivo. O prêmio geral do dia (D-091, `DesafioPremio.jsx`, descrição + imagem) **não foi tocado** — continua exatamente como estava; só os prêmios POR POSIÇÃO perderam a imagem.
+- **UI: 3 botões por posição, não dropdown** — cada uma das 10 linhas mostra os 3 nomes como botões (`.seg-btn`, mesmo componente visual das sub-abas), clicar seleciona (clicar de novo no já selecionado desmarca, deixando a posição sem prêmio). Decisão explícita do responsável: contra um `<select>`, que esconderia as opções atrás de um clique extra.
+- **`prize_ranking` continua jsonb, mesmo shape de array por posição** — só o conteúdo aceito mudou (de texto livre pra uma das 3 strings fixas, validado no cliente, nunca no banco — mesmo nível de validação relaxada já usado noutros catálogos "fixos" do projeto, como `CAMPOS_FORMULARIO`). Migração `migracao-desafio-premio-ranking-fixo.sql` limpa a chave `iconPath` das poucas linhas gravadas durante a janela curta em que o D-092 esteve no ar (nenhum ícone de produção existia ainda).
+- **`db.saveDesafioPremiosRanking` deixa de ser assíncrona/com upload** — sem Storage envolvido, vira um UPDATE parcial síncrono simples (mesmo padrão de `saveFormulario`/`saveSimulador`), diferente de `saveDesafioPremio` (prêmio geral, que continua com upload por causa da imagem).
+- **Ícones já enviados durante a janela do D-092 ficam órfãos no bucket** `desafio-premios` — sem risco (bucket público, sem dado sensível), remoção manual e opcional pelo painel do Supabase Storage.
+
+**Alternativas Avaliadas:**
+- **Manter texto livre + imagem, só adicionar sugestões dos 3 nomes** — descartada pelo responsável: ele quer as 3 opções como ÚNICAS possíveis, não sugestões sobre um campo livre.
+- **Dropdown (`<select>`) com as 3 opções + "nenhum"** — descartada pelo responsável na sequência da minha proposta inicial: prefere as opções sempre visíveis como botões, sem precisar abrir um menu pra ver o que dá pra escolher.
+- **Reaproveitar `TIPOS_PREMIO` (que já tem "RJNET Móvel 24GB"/"Disney+"/"HBO Max"/"Outro")** — descartada: é um catálogo de um conceito diferente (prêmio entregue a um ganhador específico, com opção "Outro" genérica); usar a mesma lista misturaria os dois conceitos e um ajuste futuro num catalog afetaria o outro sem necessidade.
+
+**Arquivos Afetados:** `supabase/migracao-desafio-premio-ranking-fixo.sql` (novo — limpeza de dados + comentário de coluna); `src/lib/desafioCronometro.js` (`PREMIOS_POSICAO_RANKING`); `src/features/desafio/DesafioPremiosRanking.jsx` (reescrito — botões em vez de input+upload); `src/api/desafioApi.js` (`saveDesafioPremiosRanking` simplificada); `src/lib/dataService.js` (mapeadores sem `iconPath`/`iconUrl`, `db.saveDesafioPremiosRanking` síncrona); `src/hooks/useDesafioPainelPublico.js` (`painelLocal`); `src/public/DesafioPublico.jsx` (`premioDaPosicao` devolve só string); `src/index.css` (`.desafio-tv-premio-cell` sem estilo de ícone).
+
+**Riscos:** Baixo — simplificação que reduz superfície (menos upload, menos Storage, menos estado assíncrono). Nenhum dado de produção real dependia do formato anterior (D-092 esteve no ar por poucos minutos). Validado via `npm run build`, testes unitários (inalterados) e `tests/desafio.test.js` (E2E, sem alteração de asserts — mudança é só na sub-aba "Prêmio", não coberta por assert específico ainda).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
