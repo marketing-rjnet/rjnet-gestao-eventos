@@ -2858,6 +2858,35 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-091] — Desafio RJNet: área de Prêmio por dia (descrição + imagem), exibida na Tela de TV
+
+**Data:** 2026-08-06
+**Tipo:** Feature
+
+**Contexto:** O responsável pediu uma área para descrever o prêmio de cada dia do Desafio (os prêmios são basicamente assinaturas de streaming — Disney+, HBO Max, RJNet Play) e exibi-la ao lado do ranking, com suporte a imagem (PNG). Confirmado antes de implementar: (1) é por dia/edição, não um prêmio único global — coerente com o isolamento total por `event_id` já estabelecido no D-089; (2) aparece só na Tela de TV pública (`/tv/:slug`), não no painel administrativo de Ranking; (3) o marketing edita numa sub-aba própria em `DesafioDetail`.
+
+**Decisão:**
+- **Atributo do DIA, não do participante** — `prize_description`/`prize_image_path`/`prize_updated_at`, novas colunas em `timer_challenge_events` (`migracao-desafio-premio.sql`). Não confundir com `prize_type` de `timer_challenge_entries` (D-089): aquele é o prêmio que UM ganhador específico recebeu, controlado em `DesafioGanhadores.jsx`; este é a descrição do prêmio em jogo, exibida a todos antes de qualquer resultado.
+- **Nova sub-aba "Prêmio" em `DesafioDetail.jsx`** (`DesafioPremio.jsx`), ao lado de Cadastro/Ranking/Ganhadores/Painel/Tela de TV — formulário de texto livre (até 500 caracteres) + upload de imagem opcional (máx. 3MB), com preview local imediato via blob URL antes de salvar (mesmo padrão de `OfertaModal.jsx`, D-057).
+- **Imagem no bucket público `desafio-premios`** (Supabase Storage), path determinístico `<event_id>.<ext>` — 1 imagem ativa por dia, sobrescrita ao trocar, sem histórico. Mesmo padrão do bucket `ofertas` (D-057): público por decisão consciente (material promocional sem dado pessoal), policies de storage restritas a `papel_atual() = 'marketing'` para escrita.
+- **`db.saveDesafioPremio` é UPDATE parcial, nunca upsert** — diferente de `db.saveDesafioEvento` (upsert completo, usado por nome/slug/tempo-alvo/ativo), salvar só o prêmio não pode exigir os demais campos do dia. Mesma exceção ao padrão 100%-síncrono de `db.save*` já aberta pelo D-057 (`saveOferta`): o upload no Storage precisa terminar antes de gravar o path final.
+- **RPC pública `timer_challenge_painel_publico` recriada** para incluir `prizeDescription`/`prizeImagePath`/`prizeUpdatedAt` no objeto `event` do payload — a Tela de TV nunca lê a tabela direto (regra do D-089), então o prêmio só chega até ela por essa RPC. A RPC devolve o PATH cru; a URL pública completa é montada no cliente a partir de `supabaseConfig.url` (`fetchDesafioPainelPublico`), mesmo padrão já usado para `ofertas.imagem_path` (`ofertaFromDb`) — evita hardcode de URL do projeto dentro do SQL.
+- **Exibição só na Tela de TV, ao lado do ranking** — `DesafioPublico.jsx` ganha uma coluna à direita do Top 10 (`.desafio-tv-side`) com dois painéis empilhados: Prêmio (só renderiza se houver descrição ou imagem — dia sem prêmio configurado não mostra painel vazio) acima de Ganhadores Instantâneos, que já ocupava essa coluna. Decisão explícita do responsável de NÃO duplicar essa área no painel administrativo de Ranking (`DesafioRanking.jsx`) — o prêmio já tem edição/preview própria na sub-aba "Prêmio".
+- **Modo local sem imagem persistente** — mesma limitação já aceita para `ofertas` em modo local (sem Supabase Storage): a descrição funciona normalmente (persistida em `localStorage` via `rjnet_desafios`), mas a URL de blob local de uma imagem não sobrevive a um reload. Documentado inline em `useDesafioPainelPublico.js`, não é caminho de produção.
+
+**Alternativas Avaliadas:**
+- **Prêmio único global (não por dia)** — descartada pelo responsável: dias diferentes do desafio podem ter prêmios diferentes, e o módulo inteiro já é desenhado para isolamento total por dia (D-089).
+- **Exibir também no painel administrativo (`DesafioRanking.jsx`)** — descartada pelo responsável nesta rodada: a sub-aba "Prêmio" já cobre a necessidade de conferência do marketing (mostra o preview salvo); manter a Tela de TV como único destino evita duplicar a mesma informação em dois lugares que teriam que ficar sincronizados.
+- **Editar o prêmio direto no formulário de criação/edição do dia (`DesafioTab.jsx`)** — descartada: misturaria a configuração operacional do dia (nome, tempo-alvo) com um conteúdo editorial (texto + imagem) que muda com mais frequência; uma sub-aba própria, com preview, é mais consistente com o padrão já usado para Ofertas (D-057, tela dedicada por serviço).
+
+**Arquivos Afetados:** `supabase/migracao-desafio-premio.sql` (novo — colunas, bucket `desafio-premios`, RPC recriada); `src/lib/dataService.js` (`desafioEventoFromDb`/`ToDb`, `fetchAll`, `fetchDesafioPainelPublico`, `db.saveDesafioPremio`); `src/api/desafioApi.js` (`saveDesafioPremio`); `src/context/AppProvider.jsx`; `src/features/desafio/DesafioPremio.jsx` (novo); `src/features/desafio/DesafioDetail.jsx` (sub-aba "Prêmio"); `src/hooks/useDesafioPainelPublico.js` (`painelLocal`); `src/public/DesafioPublico.jsx` (painel de prêmio na Tela de TV); `src/index.css` (`.desafio-tv-side`, `.desafio-tv-panel-premio`, `.desafio-tv-premio-img`/`-desc`).
+
+**Riscos:** Baixo — extensão aditiva de um módulo já isolado (D-089), sem alterar tabelas/RLS/RPCs de nenhum outro domínio. Mesmo padrão de bucket público já validado em produção pelo D-057 (Ofertas). Validado via `npm run build` e `node tests/desafioCronometro.unit.test.js` (inalterado); `tests/desafio.test.js` (E2E) roda sem alteração de asserts, já que a nova sub-aba/painel são aditivos.
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

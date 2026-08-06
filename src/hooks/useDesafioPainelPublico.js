@@ -41,7 +41,14 @@ function painelLocal(slug) {
       ? Math.round(entries.reduce((acc, e) => acc + e.resultCentiseconds, 0) / entries.length) : null;
     return {
       found: true,
-      event: { id: desafio.id, name: desafio.nome, slug: desafio.slug, targetCentiseconds: desafio.targetCentiseconds },
+      event: {
+        id: desafio.id, name: desafio.nome, slug: desafio.slug, targetCentiseconds: desafio.targetCentiseconds,
+        // D-091: modo local não tem Storage — a URL do blob local (createObjectURL)
+        // não sobrevive a um reload, então só a descrição é confiável aqui; mesma
+        // limitação já aceita para imagens em modo local (ver saveOferta).
+        prizeDescription: desafio.premioDescricao || null,
+        prizeImageUrl: desafio.premioImagemUrl || null,
+      },
       stats: { totalParticipants: entries.length, totalWinners: ganhadores.length, minDifferenceCentiseconds, averageCentiseconds },
       ranking: naoExatos,
       winners: ganhadores,

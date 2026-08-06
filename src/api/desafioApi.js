@@ -33,6 +33,26 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       db.removeDesafioEvento(id);
     },
 
+    // D-091: prêmio do dia (descrição + imagem, ex: streaming — Disney+/HBO
+    // Max/RJNet Play), exibido ao lado do ranking na Tela de TV. Atualização
+    // otimista local com o que já se sabe na hora (descrição sempre; imagem
+    // só é confirmada depois do upload — db.saveDesafioPremio devolve o path
+    // final via onSuccess, recarregado no próximo fetchAll/realtime).
+    saveDesafioPremio: (eventId, { descricao, file, removerImagem }, onError) => {
+      const atual = desafios.find((d) => d.id === eventId);
+      if (!atual) { onError?.('Dia do desafio não encontrado.'); return; }
+      setDesafios((p) => p.map((d) => (d.id === eventId ? {
+        ...d,
+        premioDescricao: descricao,
+        ...(removerImagem ? { premioImagemPath: null, premioImagemUrl: null } : {}),
+      } : d)));
+      db.saveDesafioPremio(
+        { eventId, descricao, file, removerImagem, oldImagemPath: atual.premioImagemPath },
+        undefined,
+        onError,
+      );
+    },
+
     // Cadastro (D-089, D-090): recebe o texto digitado no cronômetro
     // (MM:SS:CC) e o alvo do dia — calcula tudo (centésimos, diferença,
     // acerto exato) ANTES de gravar. Ganhadores instantâneos e ranking

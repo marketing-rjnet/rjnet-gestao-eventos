@@ -152,22 +152,33 @@ export default function DesafioPublico({ slug }) {
           )}
         </div>
 
-        <div className="desafio-tv-panel">
-          <div className="desafio-tv-panel-title">🏆 Ganhadores Instantâneos</div>
-          {winners.length === 0 ? (
-            <div className="desafio-tv-empty">Ninguém acertou exatamente ainda.</div>
-          ) : (
-            <div className="desafio-tv-winners-list">
-              {winners.map((w) => (
-                <div key={w.created_at} className="desafio-tv-winner-item">
-                  <div className="desafio-tv-winner-name">{w.participant_name}</div>
-                  <div className="desafio-tv-winner-meta">
-                    {new Date(w.created_at).toLocaleTimeString('pt-BR')} · {w.prize_type || 'prêmio a definir'} · {w.delivered ? '✓ entregue' : 'entrega pendente'}
-                  </div>
-                </div>
-              ))}
+        {/* D-091: coluna ao lado do ranking — Prêmio (quando configurado) + Ganhadores */}
+        <div className="desafio-tv-side">
+          {(event.prizeDescription || event.prizeImageUrl) && (
+            <div className="desafio-tv-panel desafio-tv-panel-premio">
+              <div className="desafio-tv-panel-title">🎁 Prêmio</div>
+              {event.prizeImageUrl && <img src={event.prizeImageUrl} alt="Prêmio" className="desafio-tv-premio-img" />}
+              {event.prizeDescription && <div className="desafio-tv-premio-desc">{event.prizeDescription}</div>}
             </div>
           )}
+
+          <div className="desafio-tv-panel">
+            <div className="desafio-tv-panel-title">🏆 Ganhadores Instantâneos</div>
+            {winners.length === 0 ? (
+              <div className="desafio-tv-empty">Ninguém acertou exatamente ainda.</div>
+            ) : (
+              <div className="desafio-tv-winners-list">
+                {winners.map((w) => (
+                  <div key={w.created_at} className="desafio-tv-winner-item">
+                    <div className="desafio-tv-winner-name">{w.participant_name}</div>
+                    <div className="desafio-tv-winner-meta">
+                      {new Date(w.created_at).toLocaleTimeString('pt-BR')} · {w.prize_type || 'prêmio a definir'} · {w.delivered ? '✓ entregue' : 'entrega pendente'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
