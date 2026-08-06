@@ -186,7 +186,7 @@ export function AppProvider({ children }) {
   const {
     addDesafioEvento, updateDesafioEvento, removeDesafioEvento,
     addDesafioEntry, atualizarEntregaPremio, removeDesafioEntry,
-    saveDesafioPremio,
+    saveDesafioPremio, saveDesafioPremiosRanking,
   } = createDesafioApi({ desafios, setDesafios, entries: desafioEntries, setEntries: setDesafioEntries });
 
   // TB-009: antes recalculava o flatMap sobre eventos/materiais a cada
@@ -219,7 +219,7 @@ export function AppProvider({ children }) {
     addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado,
     addSimulador, updateSimulador, removeSimulador,
     addDesafioEvento, updateDesafioEvento, removeDesafioEvento,
-    addDesafioEntry, atualizarEntregaPremio, removeDesafioEntry, saveDesafioPremio,
+    addDesafioEntry, atualizarEntregaPremio, removeDesafioEntry, saveDesafioPremio, saveDesafioPremiosRanking,
     obterRanking, obterRankingMes,
     recarregar: carregar,
     carregarLeadsEvento, carregarLeadsMes, carregarLeadsQrCode, carregarDesafioEntries,

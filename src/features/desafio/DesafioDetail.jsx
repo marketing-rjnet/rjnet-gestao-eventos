@@ -7,6 +7,7 @@ import { DesafioGanhadores } from './DesafioGanhadores';
 import { DesafioDashboard } from './DesafioDashboard';
 import { DesafioQrLink } from './DesafioQrLink';
 import { DesafioPremio } from './DesafioPremio';
+import { DesafioPremiosRanking } from './DesafioPremiosRanking';
 
 const SUB_TABS = [
   { id: 'cadastro',   label: 'Cadastro',   ico: 'edit' },
@@ -48,7 +49,12 @@ export function DesafioDetail({ desafio, onBack }) {
         {sub === 'cadastro' && <DesafioCadastro desafio={desafio} />}
         {sub === 'ranking' && <DesafioRanking desafio={desafio} entries={desafioEntries} />}
         {sub === 'ganhadores' && <DesafioGanhadores desafio={desafio} entries={desafioEntries} />}
-        {sub === 'premio' && <DesafioPremio desafio={desafio} />}
+        {sub === 'premio' && (
+          <>
+            <DesafioPremio desafio={desafio} />
+            <DesafioPremiosRanking desafio={desafio} />
+          </>
+        )}
         {sub === 'dashboard' && <DesafioDashboard desafio={desafio} entries={desafioEntries} />}
         {sub === 'tv' && <DesafioQrLink desafio={desafio} />}
       </div>

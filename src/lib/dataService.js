@@ -295,9 +295,18 @@ const simuladorToDb = (s) => ({
 // entries` são as participações, sempre calculadas por
 // src/lib/desafioCronometro.js antes de chegar aqui — nunca recalculadas
 // nesta camada.
+// D-091/D-092: monta a URL pública de um ícone/imagem do bucket
+// `desafio-premios` a partir do path cru — reaproveitada tanto pelo
+// prêmio geral do dia quanto pelos prêmios por posição do ranking.
+const desafioPremioIconUrl = (path, versao) => path
+  ? `${supabaseConfig.url}/storage/v1/object/public/desafio-premios/${path}?v=${versao || ''}`
+  : null;
+
 // D-091: prêmio (descrição + imagem) por dia — mesmo padrão de
 // ofertaFromDb/ofertaToDb (D-057): guarda o path, monta a URL pública
 // completa aqui a partir de supabaseConfig.url, com `?v=` para cache-busting.
+// D-092: prêmios por POSIÇÃO do ranking (1º ao 10º) — array independente
+// do prêmio geral, cada posição com nome + ícone opcional (mesmo bucket).
 const desafioEventoFromDb = (r) => ({
   id: r.id, nome: r.name, slug: r.slug,
   targetCentiseconds: r.target_centiseconds ?? 333,
@@ -305,9 +314,11 @@ const desafioEventoFromDb = (r) => ({
   criadoEm: r.created_at,
   premioDescricao: r.prize_description ?? '',
   premioImagemPath: r.prize_image_path ?? null,
-  premioImagemUrl: r.prize_image_path
-    ? `${supabaseConfig.url}/storage/v1/object/public/desafio-premios/${r.prize_image_path}?v=${r.prize_updated_at || r.created_at}`
-    : null,
+  premioImagemUrl: desafioPremioIconUrl(r.prize_image_path, r.prize_updated_at || r.created_at),
+  premiosRanking: (r.prize_ranking || []).map((p) => ({
+    position: p.position, nome: p.name || '', iconPath: p.iconPath || null,
+    iconUrl: desafioPremioIconUrl(p.iconPath, r.prize_updated_at || r.created_at),
+  })),
 });
 const desafioEventoToDb = (e) => ({
   id: e.id, name: e.nome, slug: e.slug,
@@ -392,8 +403,8 @@ export async function fetchAll(signal) {
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
         supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
-        // D-089/D-091: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
-        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,active,created_at,prize_description,prize_image_path,prize_updated_at').order('created_at', { ascending: false }).abortSignal(signal),
+        // D-089/D-091/D-092: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
+        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,active,created_at,prize_description,prize_image_path,prize_updated_at,prize_ranking').order('created_at', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -806,21 +817,23 @@ export async function fetchDesafioEntries(eventId, signal) {
 // D-089: leitura pública (anon) via RPC — nunca a tabela direto (ver
 // comentário em migracao-desafio-cronometro.sql). Usada pela tela de TV,
 // sem sessão nenhuma. `found: false` quando o slug não existe ou o dia
-// não está ativo. D-091: a RPC devolve o PATH cru do prêmio (bucket
-// público `desafio-premios`) — a URL completa é montada aqui, mesmo
-// padrão de `desafioEventoFromDb`/`ofertaFromDb`.
+// não está ativo. D-091/D-092: a RPC devolve os PATHs crus dos prêmios
+// (bucket público `desafio-premios`) — as URLs completas são montadas
+// aqui, mesmo padrão de `desafioEventoFromDb`/`ofertaFromDb`.
 export async function fetchDesafioPainelPublico(slug) {
   if (!isSupabaseMode() || !slug) return null;
   const { data, error } = await supabase.rpc('timer_challenge_painel_publico', { p_slug: slug });
   if (error || !data?.found) return null;
-  const prizeImagePath = data.event?.prizeImagePath;
+  const versao = data.event?.prizeUpdatedAt || '';
   return {
     ...data,
     event: {
       ...data.event,
-      prizeImageUrl: prizeImagePath
-        ? `${supabaseConfig.url}/storage/v1/object/public/desafio-premios/${prizeImagePath}?v=${data.event.prizeUpdatedAt || ''}`
-        : null,
+      prizeImageUrl: desafioPremioIconUrl(data.event?.prizeImagePath, versao),
+      prizeRanking: (data.event?.prizeRanking || []).map((p) => ({
+        position: p.position, name: p.name || '',
+        iconUrl: desafioPremioIconUrl(p.iconPath, versao),
+      })),
     },
   };
 }
@@ -975,6 +988,48 @@ export const db = {
       );
     } catch (err) {
       console.error('[rjnet] Falha ao enviar imagem do prêmio:', err.message);
+      if (onFail) onFail(err.message);
+    }
+  },
+
+  // D-092: prêmios por posição do ranking (1º ao 10º) — array independente
+  // do prêmio geral do dia (D-091). Cada posição pode ter um ícone próprio
+  // (path determinístico `<eventId>-rank<position>.<ext>`, mesmo bucket
+  // `desafio-premios`); salva as 10 posições de uma vez (mesmo padrão de
+  // formulário único do admin), fazendo upload só das que trocaram de
+  // ícone. UPDATE parcial, nunca upsert — mesmo princípio de saveDesafioPremio.
+  saveDesafioPremiosRanking: async ({ eventId, ranking }, onSuccess, onFail) => {
+    if (!isSupabaseMode()) { if (onSuccess) onSuccess(); return; }
+    try {
+      const linhas = await Promise.all((ranking || []).map(async (r) => {
+        let iconPath = r.oldIconPath ?? null;
+        if (r.removerIcone && r.oldIconPath) {
+          await supabase.storage.from('desafio-premios').remove([r.oldIconPath]).catch(() => {});
+          iconPath = null;
+        }
+        if (r.file) {
+          const ext = r.file.name.split('.').pop().toLowerCase();
+          const path = `${eventId}-rank${r.position}.${ext}`;
+          if (r.oldIconPath && r.oldIconPath !== path) {
+            await supabase.storage.from('desafio-premios').remove([r.oldIconPath]).catch(() => {});
+          }
+          const { error: upErr } = await supabase.storage.from('desafio-premios').upload(path, r.file, { upsert: true });
+          if (upErr) throw upErr;
+          iconPath = path;
+        }
+        return { position: r.position, name: r.name || '', iconPath };
+      }));
+      exec(
+        supabase.from('timer_challenge_events').update({
+          prize_ranking: linhas,
+          prize_updated_at: new Date().toISOString(),
+        }).eq('id', eventId),
+        'salvar prêmios do ranking',
+        onFail,
+        onSuccess,
+      );
+    } catch (err) {
+      console.error('[rjnet] Falha ao enviar ícones dos prêmios do ranking:', err.message);
       if (onFail) onFail(err.message);
     }
   },

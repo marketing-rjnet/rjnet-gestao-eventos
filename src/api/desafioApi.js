@@ -53,6 +53,37 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       );
     },
 
+    // D-092: prêmios por posição do ranking (1º ao 10º) — independente do
+    // prêmio geral acima. `ranking` chega já com as 10 posições (nome +
+    // file novo opcional + flag de remover ícone), montado pelo
+    // DesafioPremio.jsx a partir do estado local do formulário. Otimista:
+    // nome sempre reflete na hora; ícone só é confirmado após o upload.
+    saveDesafioPremiosRanking: (eventId, { ranking }, onError) => {
+      const atual = desafios.find((d) => d.id === eventId);
+      if (!atual) { onError?.('Dia do desafio não encontrado.'); return; }
+      const atuaisPorPosicao = new Map((atual.premiosRanking || []).map((p) => [p.position, p]));
+      setDesafios((p) => p.map((d) => (d.id === eventId ? {
+        ...d,
+        premiosRanking: ranking.map((r) => ({
+          position: r.position,
+          nome: r.name,
+          iconPath: r.removerIcone ? null : (atuaisPorPosicao.get(r.position)?.iconPath ?? null),
+          iconUrl: r.removerIcone ? null : (atuaisPorPosicao.get(r.position)?.iconUrl ?? null),
+        })),
+      } : d)));
+      db.saveDesafioPremiosRanking(
+        {
+          eventId,
+          ranking: ranking.map((r) => ({
+            position: r.position, name: r.name, file: r.file, removerIcone: r.removerIcone,
+            oldIconPath: atuaisPorPosicao.get(r.position)?.iconPath ?? null,
+          })),
+        },
+        undefined,
+        onError,
+      );
+    },
+
     // Cadastro (D-089, D-090): recebe o texto digitado no cronômetro
     // (MM:SS:CC) e o alvo do dia — calcula tudo (centésimos, diferença,
     // acerto exato) ANTES de gravar. Ganhadores instantâneos e ranking
