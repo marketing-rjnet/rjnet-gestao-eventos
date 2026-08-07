@@ -49,7 +49,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
   return (
     <div>
       <header className="app-header">
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
+        <img src="/logo-rjnet.svg" alt="RJNET" style={{height:"36px"}} />
         <nav className="header-nav">
           {DIRECT_TABS.map((t) => (
             <button key={t.id} className={"nav-tab" + (tab === t.id ? " active" : "")} onClick={() => switchTab(t.id)}>

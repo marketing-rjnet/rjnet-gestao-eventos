@@ -456,6 +456,7 @@ Deno.serve(async (req) => {
         return json({ error: 'Esse número de WhatsApp já está cadastrado nessa campanha.' }, 409, corsHeaders);
       }
 
+      const jaClienteRjnet = body.jaClienteRjnet === true;
       const utmCadastro = sanitizarUtm(body.utm);
       const leadId = `l-sim-${crypto.randomUUID()}`;
       const agoraCadastro = new Date().toISOString();
@@ -481,7 +482,7 @@ Deno.serve(async (req) => {
         utm: utmCadastro,
         servico_interesse: JSON.stringify(['outro']),
         observacao: null,
-        ja_cliente_rjnet: false,
+        ja_cliente_rjnet: jaClienteRjnet,
         criado_em: agoraCadastro,
         consentimento_coletado: true,
         consentimento_em: agoraCadastro,

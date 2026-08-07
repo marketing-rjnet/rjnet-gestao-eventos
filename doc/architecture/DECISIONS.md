@@ -3020,6 +3020,31 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-097] — Quiz de Acertos: campo "Já é cliente RJNET?" no cadastro; normalização da grafia "RJNET" (caixa alta) em todo texto de interface
+
+**Data:** 2026-08-07
+**Tipo:** Feature / Correção de conteúdo
+
+**Contexto:** O responsável pediu 2 ajustes no cadastro do tipo `quiz` do Simulador (cadastro ANTES do quiz, D-083): (1) capturar também se a pessoa já é cliente RJNET — mesma pergunta sim/não que já existe no cadastro de lead do vendedor (`VendedorApp.jsx`), ausente no cadastro público; (2) a grafia da marca aparecia inconsistente pela interface — variações "RJnet"/"RJNet" (nunca minúscula solta) — e deveria ser sempre "RJNET" (caixa alta) em qualquer texto visível ao usuário.
+
+**Decisão:**
+- **Cadastro do Quiz (`SimuladorPublico.jsx`, fase `quiz-cadastro`) ganha o campo "Já é cliente RJNET?"** — mesmo controle segmentado (Sim/Não) e mesmo campo (`jaClienteRjnet` no frontend, `leads.ja_cliente_rjnet` no banco) já usado pelo cadastro do vendedor — **sem coluna nova**. Opcional (default "Não"), não bloqueia o envio do formulário.
+- **Edge Function `submeter-simulador`, fase `'cadastro'`**: passa a ler `body.jaClienteRjnet` (`=== true`, nunca confia em outro tipo) e gravar em `ja_cliente_rjnet` no INSERT — antes sempre gravava `false` fixo. Fase `'conclusao'` não muda (é um UPDATE que não mexe nesse campo). Fluxo legado `oferta`/`demanda` (insert único) não foi alterado — continuam gravando `ja_cliente_rjnet: false` fixo, fora do escopo desse pedido (não têm tela de "cadastro" própria com esse campo).
+- **Modo local** (`localPublicSubmit.js`): nenhuma mudança de código — `criarLeadSimuladorQuizLocal(dados)` já fazia spread de `dados` sobre o default `jaClienteRjnet: false`; bastou `SimuladorPublico.jsx` passar o valor escolhido na chamada.
+- **Grafia "RJNET"**: normalizado para caixa alta em todo texto/atributo **visível ao usuário** — `alt` das logos, títulos de página (`<title>`, "Desafio RJNet" → "Desafio RJNET"), mensagens ("consultor da RJNET", "autorizo a RJNET Telecomunicações"), rótulos ("Já é cliente RJNET?"), cabeçalhos de CSV ("Já Cliente RJNET"), nomes de item em dados mock/checklist de estoque, texto de ajuda de formulário (placeholder de exemplo em `DesafioPremio.jsx`). **Fora do escopo, deliberadamente**: comentários de código (`// Desafio RJNet — Acerte 00:03:33...`, dezenas de ocorrências) e a documentação em `doc/`/`CLAUDE.md` — são referência interna de engenharia, não conteúdo que o usuário final vê; normalizar ali seria um diff enorme sem efeito perceptível pra quem usa o sistema. Identificadores técnicos (`jaClienteRjnet`, `ja_cliente_rjnet`, `/logo-rjnet.svg`, chaves de `localStorage`, nome do pacote `rjnet-gestao-eventos`, canal `rjnet-monitor`) também não foram tocados — são nomes de código, não grafia de marca.
+
+**Alternativas Avaliadas:**
+- **Normalizar a grafia em TODO o repositório, incluindo comentários e `doc/`** — descartada por ora: dezenas de arquivos de documentação/decisões históricas usam "RJNet" há meses; reescrever tudo é um diff grande e de baixo valor prático (ninguém fora da equipe de engenharia lê esses arquivos), sem relação com o pedido original (grafia que o USUÁRIO vê). Pode ser feito à parte se o responsável pedir explicitamente.
+- **Renomear `/logo-rjnet.svg` e identificadores como `jaClienteRjnet`** — descartada: são nomes de arquivo/código, não texto de marca; renomear exigiria tocar dezenas de referências sem nenhum ganho visível ao usuário final, e quebraria o histórico de commits do asset.
+
+**Arquivos Afetados:** `src/public/SimuladorPublico.jsx` (campo no cadastro + grafia); `supabase/functions/submeter-simulador/index.ts` (grava `jaClienteRjnet` na fase `cadastro`); `index.html`, `src/apps/{ComercialApp,MarketingApp,VendedorApp}.jsx`, `src/auth/{Login,LoginAuth,NovaSenha}.jsx`, `src/public/{FormularioPublico,DesafioPublico}.jsx`, `src/utils/{csv,mockData}.js`, `src/components/modals/MaterialChecklistModal.jsx`, `src/lib/simulador.js`, `src/features/desafio/{DesafioTab,DesafioPremio}.jsx` (grafia "RJNET").
+
+**Riscos:** Nenhum — campo novo é opcional e reaproveita coluna/API já existentes; grafia é troca de texto estático, sem lógica afetada. Validado via `npm run build` + suíte de testes unitários (`security`, `lead`, `simulador`).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

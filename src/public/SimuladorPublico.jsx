@@ -58,6 +58,12 @@ import { containsLink } from '../lib/security';
 // outra pessoa na sequência, sem nenhuma tela de "já participou" bloqueando
 // por navegador).
 //
+// D-097: cadastro do Quiz ganha "Já é cliente RJNET?" (sim/não), mesmo
+// campo (`jaClienteRjnet`/`ja_cliente_rjnet`) já usado pelo cadastro do
+// vendedor em VendedorApp.jsx — sem coluna nova, só passou a ser
+// preenchível também na fase 'cadastro' pública (antes sempre gravada
+// como `false`).
+//
 // Atribuição de tráfego: captura utm_* da URL no load — o mesmo link
 // atende anúncio pago (UTMs do gerenciador) e QR impresso (UTMs embutidos
 // pelo SimuladorTab ao gerar o QR).
@@ -144,7 +150,7 @@ export default function SimuladorPublico({ slug }) {
   const [respostas, setRespostas] = useState({});
   const [combo, setCombo] = useState({ yellow: false, black: false, upgrade: false, movel: null });
   const [appInfo, setAppInfo] = useState(null); // 'yellow' | 'black' | null — popup de conteúdo do app
-  const [contato, setContato] = useState({ nome: '', telefone: '', bairro: '', cidade: '' });
+  const [contato, setContato] = useState({ nome: '', telefone: '', bairro: '', cidade: '', jaClienteRjnet: false });
   const [consentimentoColetado, setConsentimentoColetado] = useState(false);
   const [website, setWebsite] = useState(''); // honeypot — humano nunca preenche
   const [erro, setErro] = useState('');
@@ -214,7 +220,7 @@ export default function SimuladorPublico({ slug }) {
       setLeadId(null);
       setRespostas({});
       setEtapa(0);
-      setContato({ nome: '', telefone: '', bairro: '', cidade: '' });
+      setContato({ nome: '', telefone: '', bairro: '', cidade: '', jaClienteRjnet: false });
       setConsentimentoColetado(false);
       setFase('quiz-cadastro');
     }, QUIZ_RESET_DELAY_MS);
@@ -334,6 +340,7 @@ export default function SimuladorPublico({ slug }) {
           simuladorId: simulador.id,
           nome: contato.nome, telefone: contato.telefone,
           bairro: contato.bairro, cidade: contato.cidade,
+          jaClienteRjnet: contato.jaClienteRjnet,
           utm, versaoTermo: 'simulador-v1',
         });
         novoLeadId = novo.id;
@@ -349,6 +356,7 @@ export default function SimuladorPublico({ slug }) {
             fase: 'cadastro', simuladorId: simulador.id,
             nome: contato.nome, telefone: contato.telefone,
             bairro: contato.bairro, cidade: contato.cidade,
+            jaClienteRjnet: contato.jaClienteRjnet,
             utm, consentimentoColetado, website,
           }),
         });
@@ -501,11 +509,11 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 40, marginBottom: 20 }} />
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
-            {tipo === 'demanda' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp.'}
-            {tipo === 'oferta' && 'Em breve um consultor da RJNet entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
+            {tipo === 'demanda' && 'Em breve um consultor da RJNET entra em contato pelo WhatsApp.'}
+            {tipo === 'oferta' && 'Em breve um consultor da RJNET entra em contato pelo WhatsApp com a oferta ideal pro seu perfil.'}
           </div>
         </div>
       </div>
@@ -517,7 +525,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 40, marginBottom: 20 }} />
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Você está concorrendo! 🎉</div>
           <div style={{ color: 'var(--text-3)', fontSize: 14 }}>
             Fique atenta às nossas redes sociais e ao seu WhatsApp para mais informações sobre o sorteio.
@@ -535,7 +543,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <form className="card" onSubmit={submitCadastroQuiz} style={{ padding: '24px 22px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, display: 'block', margin: '0 auto 14px' }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, display: 'block', margin: '0 auto 14px' }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, textAlign: 'center' }}>
             Cadastre-se para participar do quiz e concorrer a brindes RJNET!
           </div>
@@ -567,11 +575,18 @@ export default function SimuladorPublico({ slug }) {
             <label>Bairro</label>
             <input maxLength={80} value={contato.bairro} onChange={(e) => setContato((p) => ({ ...p, bairro: e.target.value }))} />
           </div>
+          <div className="big-field" style={{ marginBottom: 10 }}>
+            <label>Já é cliente RJNET?</label>
+            <div className="seg-control">
+              <button type="button" className={"seg-btn" + (!contato.jaClienteRjnet ? " active" : "")} onClick={() => setContato((p) => ({ ...p, jaClienteRjnet: false }))}>Não</button>
+              <button type="button" className={"seg-btn" + (contato.jaClienteRjnet ? " active" : "")} onClick={() => setContato((p) => ({ ...p, jaClienteRjnet: true }))}>Sim</button>
+            </div>
+          </div>
 
           <label className="consentimento-check">
             <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} />
             <span>
-              Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a
+              Confirmo que forneci meus dados voluntariamente e autorizo a RJNET Telecomunicações a
               utilizá-los para contato comercial, conforme a LGPD.
             </span>
           </label>
@@ -591,7 +606,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card sim-calculando">
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 24 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, marginBottom: 24 }} />
           <div className="sim-spinner" aria-hidden="true" />
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 18 }}>Analisando suas respostas...</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>Encontrando a conexão ideal pra sua casa</div>
@@ -605,7 +620,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 16 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, marginBottom: 16 }} />
           <div className="sim-resultado-badge">Obrigado por responder!</div>
           <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5, margin: '14px 0 4px' }}>
             {simulador.mensagemResultado || mensagemResultadoPadrao()}
@@ -625,7 +640,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 16 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, marginBottom: 16 }} />
           <div className="sim-resultado-badge">Resultado do quiz</div>
           <div style={{ fontSize: 40, margin: '14px 0 4px' }}>{faixaQuiz.emoji}</div>
           <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>{faixaQuiz.titulo}</div>
@@ -656,7 +671,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ padding: '26px 22px', textAlign: 'center' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, marginBottom: 16 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, marginBottom: 16 }} />
           <div className="sim-resultado-badge">Pacote recomendado pro seu perfil</div>
           <div style={{ fontSize: 22, fontWeight: 800, margin: '10px 0 2px' }}>
             {pacote.mega} Mega{pacote.destaque ? ' ⭐' : ''}
@@ -740,7 +755,7 @@ export default function SimuladorPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <form className="card" onSubmit={submit} style={{ padding: '24px 22px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, display: 'block', margin: '0 auto 14px' }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, display: 'block', margin: '0 auto 14px' }} />
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Quase lá!</div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
             {tipo === 'demanda' && 'Deixe seu contato pra gente te chamar com a melhor solução.'}
@@ -775,7 +790,7 @@ export default function SimuladorPublico({ slug }) {
           <label className="consentimento-check">
             <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} />
             <span>
-              Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a
+              Confirmo que forneci meus dados voluntariamente e autorizo a RJNET Telecomunicações a
               utilizá-los para recomendação de plano e contato comercial, conforme a LGPD.
             </span>
           </label>
@@ -802,7 +817,7 @@ export default function SimuladorPublico({ slug }) {
   return (
     <div className="qr-public-shell">
       <div className="card" style={{ padding: '24px 22px' }}>
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 32, display: 'block', margin: '0 auto 14px' }} />
+        <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 32, display: 'block', margin: '0 auto 14px' }} />
         <div className="sim-progress" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
           <div className="sim-progress-fill" style={{ width: `${progresso}%` }} />
         </div>

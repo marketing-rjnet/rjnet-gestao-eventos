@@ -1,7 +1,7 @@
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportLeadsCSV(dados, sufixo, servicoLabel, evName, onAudit) {
   if (dados.length === 0) return;
-  const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Evento", "Observação", "Cadastrado em"];
+  const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNET", "Vendedor", "Evento", "Observação", "Cadastrado em"];
   const linhas = dados.map((l) => [
     l.nome, l.cpf || "", l.telefone, l.endereco || "",
     servicoLabel(l.servicoInteresse), l.temperatura,
@@ -25,7 +25,7 @@ export function exportLeadsCSV(dados, sufixo, servicoLabel, evName, onAudit) {
 // onAudit: callback opcional chamado após o download com { totalRegistros, totalEventos }
 export function exportLeadsConsolidadoCSV(leads, evName, servicoLabelFn, onAudit) {
   if (leads.length === 0) return;
-  const cabecalho = ["Evento", "Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Observação", "Cadastrado em"];
+  const cabecalho = ["Evento", "Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNET", "Vendedor", "Observação", "Cadastrado em"];
   const linhas = leads.map((l) => [
     evName(l.eventoId),
     l.nome, l.cpf || "", l.telefone, l.endereco || "",
@@ -111,7 +111,7 @@ export function exportLeadsSimuladorCSV(leads, simuladorNome, servicoLabelFn, ca
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportLeadsMesCSV(dados, sufixo, servicoLabel, mesLabel, onAudit) {
   if (dados.length === 0) return;
-  const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Mês", "Observação", "Cadastrado em"];
+  const cabecalho = ["Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNET", "Vendedor", "Mês", "Observação", "Cadastrado em"];
   const linhas = dados.map((l) => [
     l.nome, l.cpf || "", l.telefone, l.endereco || "",
     servicoLabel(l.servicoInteresse), l.temperatura,
@@ -135,7 +135,7 @@ export function exportLeadsMesCSV(dados, sufixo, servicoLabel, mesLabel, onAudit
 // onAudit: callback opcional chamado após o download com { totalRegistros, totalMeses }
 export function exportLeadsMesConsolidadoCSV(leads, mesLabel, servicoLabelFn, onAudit) {
   if (leads.length === 0) return;
-  const cabecalho = ["Mês", "Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNet", "Vendedor", "Observação", "Cadastrado em"];
+  const cabecalho = ["Mês", "Nome", "CPF", "Telefone", "Endereço", "Serviço", "Temperatura", "Já Cliente RJNET", "Vendedor", "Observação", "Cadastrado em"];
   const linhas = leads.map((l) => [
     mesLabel(l.mesReferencia),
     l.nome, l.cpf || "", l.telefone, l.endereco || "",

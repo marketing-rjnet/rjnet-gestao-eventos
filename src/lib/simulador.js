@@ -479,7 +479,7 @@ export function corrigirQuiz(perguntas, brutas) {
 // mensagem). Este é só o valor inicial de uma campanha nova — o marketing
 // edita à vontade na gestão.
 export function mensagemResultadoPadrao() {
-  return 'Show! Baseado nas suas respostas, um consultor da RJNet vai entrar em contato com a melhor solução pra você.';
+  return 'Show! Baseado nas suas respostas, um consultor da RJNET vai entrar em contato com a melhor solução pra você.';
 }
 
 // Resumo legível do perfil ("2 a 4 pessoas · Streaming · Sem internet hoje

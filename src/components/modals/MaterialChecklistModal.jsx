@@ -5,14 +5,14 @@ import { usePersisted } from '../../hooks/usePersisted';
 import { sanitizeText } from '../../lib/security';
 
 const CHECKLIST_INICIAL = [
-  { nome: 'Caixas RJNet de madeira',      quantidade: 12 },
+  { nome: 'Caixas RJNET de madeira',      quantidade: 12 },
   { nome: 'Banco preto dobrável',          quantidade: 3  },
   { nome: 'Base windbanner',               quantidade: 19 },
   { nome: 'Peça esconde fio',              quantidade: 13 },
   { nome: 'Base ferro windbanner 5m',      quantidade: 4  },
   { nome: 'Base ferro windbanner 2m',      quantidade: 2  },
   { nome: 'Mochila pirolito',              quantidade: 2  },
-  { nome: 'Minibanner Conheça RJNet 5G Air', quantidade: 10 },
+  { nome: 'Minibanner Conheça RJNET 5G Air', quantidade: 10 },
   { nome: 'Banqueta amarela',              quantidade: 2  },
   { nome: 'Escada dobrável',              quantidade: 1  },
   { nome: 'Saco de areia (base)',          quantidade: 7  },

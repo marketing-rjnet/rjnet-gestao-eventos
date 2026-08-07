@@ -29,7 +29,7 @@ export function NovaSenha({ darkMode, toggleDark, onConcluido }) {
   return (
     <div className="login-bg">
       <div className="login-card">
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
+        <img src="/logo-rjnet.svg" alt="RJNET" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
         <p className="login-tag">Gestão de Eventos</p>
         <p className="login-sub">Defina a sua nova senha</p>
         <form onSubmit={submit} className="login-form">

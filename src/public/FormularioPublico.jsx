@@ -139,9 +139,9 @@ export default function FormularioPublico({ slug }) {
     return (
       <div className="qr-public-shell">
         <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
-          <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 40, marginBottom: 20 }} />
+          <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 40, marginBottom: 20 }} />
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Recebemos seus dados!</div>
-          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Em breve um consultor da RJNet entra em contato com você.</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>Em breve um consultor da RJNET entra em contato com você.</div>
         </div>
       </div>
     );
@@ -150,7 +150,7 @@ export default function FormularioPublico({ slug }) {
   return (
     <div className="qr-public-shell">
       <form className="card" onSubmit={submit} style={{ padding: '24px 22px' }}>
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{ height: 36, display: 'block', margin: '0 auto 18px' }} />
+        <img src="/logo-rjnet.svg" alt="RJNET" style={{ height: 36, display: 'block', margin: '0 auto 18px' }} />
         <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>{formulario.nome}</div>
 
         {/* Honeypot — invisível para gente, visível para robô */}
@@ -226,7 +226,7 @@ export default function FormularioPublico({ slug }) {
         <label className="consentimento-check">
           <input type="checkbox" checked={consentimentoColetado} onChange={(e) => setConsentimentoColetado(e.target.checked)} />
           <span>
-            Confirmo que forneci meus dados voluntariamente e autorizo a RJNet Telecomunicações a
+            Confirmo que forneci meus dados voluntariamente e autorizo a RJNET Telecomunicações a
             utilizá-los para contato comercial, conforme a LGPD.
           </span>
         </label>

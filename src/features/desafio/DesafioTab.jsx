@@ -40,7 +40,7 @@ export function DesafioTab() {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="page-title">Desafio RJNet</div>
+          <div className="page-title">Desafio RJNET</div>
           <p className="tab-desc">
             🎯 Acerte exatamente o tempo-alvo no cronômetro. Cada dia/edição do desafio tem ranking, participantes,
             estatísticas e ganhadores totalmente independentes — crie um dia por edição (ex: Sexta-feira, Sábado).

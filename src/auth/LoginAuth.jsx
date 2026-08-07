@@ -59,7 +59,7 @@ export function LoginAuth({ onLogin, darkMode, toggleDark }) {
         <Icon name={darkMode ? "sun" : "moon"} size={17} />
       </button>
       <div className="login-card">
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
+        <img src="/logo-rjnet.svg" alt="RJNET" style={{height:"90px",display:"block",margin:"0 auto 8px"}} />
         <p className="login-tag">Gestão de Eventos</p>
 
         {mfaState ? (

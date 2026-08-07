@@ -54,7 +54,7 @@ export function DesafioPremio({ desafio }) {
     <div className="card" style={{ maxWidth: 520 }}>
       <span className="section-title">🎁 Prêmio do dia</span>
       <p className="campo-hint" style={{ marginTop: 4, marginBottom: 14 }}>
-        Descreva o que está em jogo (ex: assinatura Disney+ de 1 mês, HBO Max, RJNet Play) e, se quiser, adicione
+        Descreva o que está em jogo (ex: assinatura Disney+ de 1 mês, HBO Max, RJNET Play) e, se quiser, adicione
         uma imagem — ambos aparecem ao lado do ranking na Tela de TV pública deste dia.
       </p>
       <form onSubmit={submit}>

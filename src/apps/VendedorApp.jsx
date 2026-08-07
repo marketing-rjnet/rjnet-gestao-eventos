@@ -90,7 +90,7 @@ function LeadEditInline({ lead, onSave, onCancel }) {
         <textarea rows="2" value={e.observacao} onChange={(ev) => upd("observacao", ev.target.value)} />
       </div>
       <div className="big-field" style={{ marginBottom: 14 }}>
-        <label>Já é cliente RJNet?</label>
+        <label>Já é cliente RJNET?</label>
         <div className="seg-control">
           <button type="button" className={"seg-btn" + (!e.jaClienteRjnet ? " active" : "")} onClick={() => upd("jaClienteRjnet", false)}>Não</button>
           <button type="button" className={"seg-btn" + (e.jaClienteRjnet ? " active" : "")} onClick={() => upd("jaClienteRjnet", true)}>Sim</button>
@@ -326,7 +326,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
   return (
     <div>
       <header className="app-header">
-        <img src="/logo-rjnet.svg" alt="RJNet" style={{height:"36px"}} />
+        <img src="/logo-rjnet.svg" alt="RJNET" style={{height:"36px"}} />
         <div className="header-right" style={{ marginLeft: "auto", gap: 8 }}>
           <SyncBadge />
           <button className="theme-toggle" onClick={toggleDark} title="Alternar tema"><Icon name={darkMode ? "sun" : "moon"} size={17} /></button>
@@ -547,7 +547,7 @@ export default function VendedorApp({ session, onLogout, darkMode, toggleDark })
                       </div>
                     </div>
                     <div className="big-field">
-                      <label>Já é cliente RJNet?</label>
+                      <label>Já é cliente RJNET?</label>
                       <div className="seg-control">
                         <button type="button" className={"seg-btn" + (!f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", false)}>Não</button>
                         <button type="button" className={"seg-btn" + (f.jaClienteRjnet ? " active" : "")} onClick={() => set("jaClienteRjnet", true)}>Sim</button>

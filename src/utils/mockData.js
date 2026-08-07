@@ -8,7 +8,7 @@ export const MOCK_MATERIAIS = [
   { id: "m7", nome: "Banner Gradil", quantidade: 12 },
   { id: "m8", nome: "Banner Poste", quantidade: 15 },
   { id: "m9", nome: 'Banner "Como Acessar"', quantidade: 8 },
-  { id: "m10", nome: 'Banner "Evento Conectado RJNet"', quantidade: 6 },
+  { id: "m10", nome: 'Banner "Evento Conectado RJNET"', quantidade: 6 },
 ];
 
 export const MOCK_VENDEDORES = [

@@ -55,7 +55,7 @@ function WinnerOverlay({ ganhador, targetCentiseconds, onFim }) {
   return (
     <div className="desafio-tv-winner-overlay">
       <Confetti />
-      <img src="/logo-rjnet.svg" alt="RJNet" />
+      <img src="/logo-rjnet.svg" alt="RJNET" />
       <div className="msg">🎉 TEMOS UM NOVO GANHADOR!</div>
       <div className="name">{ganhador.participant_name}</div>
       <div className="detail">Acertou exatamente</div>
@@ -115,7 +115,7 @@ export default function DesafioPublico({ slug }) {
       )}
 
       <div className="desafio-tv-header">
-        <img src="/logo-rjnet.svg" alt="RJNet" />
+        <img src="/logo-rjnet.svg" alt="RJNET" />
         <div className="desafio-tv-titles">
           <div className="desafio-tv-title">DESAFIO RJNET</div>
           <div className="desafio-tv-subtitle">🎯 Acerte exatamente {centesimosParaTempo(event.targetCentiseconds)} — {event.name}</div>
