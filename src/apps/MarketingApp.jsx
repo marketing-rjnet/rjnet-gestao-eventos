@@ -95,7 +95,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
       {tab === "estoque" && <EstoqueTab />}
       {tab === "ofertas" && <OfertasTab />}
       {tab === "formularios" && <FormBuilderTab />}
-      {tab === "simulador" && <SimuladorTab />}
+      {tab === "simulador" && <SimuladorTab session={session} />}
       {tab === "desafio" && <DesafioTab />}
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}

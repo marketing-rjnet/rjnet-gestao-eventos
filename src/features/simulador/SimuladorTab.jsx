@@ -5,10 +5,12 @@ import {
   perguntasPadrao, mensagemResultadoPadrao,
   quizPerguntasPadrao, quizFaixasPadrao,
 } from '../../lib/simulador';
-import { fetchLeadsPorSimulador } from '../../lib/dataService';
+import { fetchLeadsPorSimulador, fetchLeadsPorSimuladorCompleto, db } from '../../lib/dataService';
 import { isSupabaseMode } from '../../lib/mode';
 import { slugify } from '../../utils/ids';
 import { sanitizeText } from '../../lib/security';
+import { servicoLabel } from '../../utils/format';
+import { exportLeadsSimuladorCSV } from '../../utils/csv';
 
 // Simulador — gestão de campanhas. D-076/D-080: 3 fluxos públicos
 // independentes, nunca mais encadeados na mesma sessão:
@@ -446,8 +448,8 @@ function Sorteador({ simulador }) {
   );
 }
 
-export function SimuladorTab() {
-  const { simuladores, addSimulador, updateSimulador, removeSimulador } = useApp();
+export function SimuladorTab({ session }) {
+  const { simuladores, addSimulador, updateSimulador, removeSimulador, leads: leadsCompartilhados, camposPersonalizados } = useApp();
   const [nome, setNome] = useState('');
   const [campanha, setCampanha] = useState('');
   const [tipo, setTipo] = useState('oferta');
@@ -455,6 +457,36 @@ export function SimuladorTab() {
   const [perguntasAbertasId, setPerguntasAbertasId] = useState(null);
   const [sorteioAbertoId, setSorteioAbertoId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [exportandoId, setExportandoId] = useState(null);
+
+  // D-096: campos_extras é guardado por `key` — mapeia pra legenda legível,
+  // mesmo padrão de FilaDistribuicao (LeadsTab.jsx).
+  const labelPorKey = Object.fromEntries(camposPersonalizados.map((c) => [c.key, c.label]));
+  const camposExtrasTexto = (l) => Object.entries(l.camposExtras || {})
+    .map(([key, valor]) => `${labelPorKey[key] || key}: ${valor}`)
+    .join(' · ');
+
+  // D-096: cada campanha exporta só OS SEUS PRÓPRIOS leads (simulador_id) —
+  // nunca mistura leads de campanhas/temas diferentes no mesmo CSV. Traz
+  // TODOS os leads da campanha (cadastro concluído ou não), diferente do
+  // Sorteador (fetchLeadsPorSimulador), que só sorteia quem terminou o quiz.
+  const exportarLeadsCampanha = async (simulador) => {
+    setExportandoId(simulador.id);
+    const leadsCampanha = isSupabaseMode()
+      ? await fetchLeadsPorSimuladorCompleto(simulador.id)
+      : leadsCompartilhados.filter((l) => l.simuladorId === simulador.id);
+    setExportandoId(null);
+    if (!leadsCampanha?.length) { alert('Nenhum lead encontrado para essa campanha ainda.'); return; }
+    exportLeadsSimuladorCSV(leadsCampanha, simulador.nome, servicoLabel, camposExtrasTexto, ({ totalRegistros }) => {
+      db.registrarExportacao({
+        usuarioId: session?.userId || null,
+        usuarioNome: session?.nome || null,
+        usuarioEmail: session?.email || null,
+        filtros: { simulador: simulador.id, tema: simulador.nome },
+        totalRegistros,
+      });
+    });
+  };
 
   const criar = (e) => {
     e.preventDefault();
@@ -557,6 +589,16 @@ export function SimuladorTab() {
                     ) : (
                       <span style={{ fontSize: 11.5, color: 'var(--text-3)' }}>Configure as perguntas pra liberar o QR/Link</span>
                     )}
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ fontSize: 12 }}
+                      onClick={() => exportarLeadsCampanha(s)}
+                      disabled={exportandoId === s.id}
+                      title="Exporta só os leads desta campanha (tema) — nunca mistura com outra ação"
+                    >
+                      {exportandoId === s.id ? 'Exportando...' : '↓ Exportar leads'}
+                    </button>
                     <button type="button" className="btn-ghost" style={{ fontSize: 12 }} onClick={() => updateSimulador(s.id, { ativo: !s.ativo })}>
                       {s.ativo ? 'Encerrar' : 'Reativar'}
                     </button>

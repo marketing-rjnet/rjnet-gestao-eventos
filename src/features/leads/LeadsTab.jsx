@@ -22,6 +22,9 @@ function FilaDistribuicao({ session }) {
   // Accordion fechado por padrão, mesmo padrão de Eventos/Meses (D-086) —
   // Exportar/Atualizar ficam fora do toggle, pois não dependem da tabela aberta.
   const [aberto, setAberto] = useState(false);
+  // D-096: filtro por tema (campanha do Simulador, formulário ou QR Code) —
+  // nunca mistura leads de ações diferentes na mesma visualização/export.
+  const [temaSelecionado, setTemaSelecionado] = useState('');
   const vendedoresAtivos = vendedores.filter((v) => (v.papel === 'vendedor' || !v.papel) && v.ativo);
   // campos_extras é guardado por `key` (não por id) — mapeia pra legenda
   // legível sem precisar redesenhar a tela a cada campo novo criado.
@@ -89,18 +92,30 @@ function FilaDistribuicao({ session }) {
   if (leadsFrios === null) return null;
   if (leadsFrios.length === 0) return null;
 
-  const semVendedor = leadsFrios.filter((l) => !l.vendedorId);
+  // D-096: "tema" identifica de qual ação/campanha o lead veio — a campanha
+  // do Simulador quando existe (mais específico), senão o formulário/QR Code,
+  // senão a origem crua. Chave estável (id) pro filtro, rótulo legível
+  // (origemDetalhe, já usado na coluna Origem) pro dropdown.
+  const temaChave = (l) => l.simuladorId || l.formularioId || l.qrCodeId || `origem:${l.origem}`;
+  const temasDisponiveis = (() => {
+    const mapa = new Map();
+    leadsFrios.forEach((l) => { const chave = temaChave(l); if (!mapa.has(chave)) mapa.set(chave, origemDetalhe(l)); });
+    return [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  })();
+  const leadsExibidos = temaSelecionado ? leadsFrios.filter((l) => temaChave(l) === temaSelecionado) : leadsFrios;
+  const semVendedor = leadsExibidos.filter((l) => !l.vendedorId);
 
   // Relatório dos leads "em espera" — captados por QR Code/Formulário/
   // Simulador que ainda não foram atribuídos a um vendedor. Auditoria
   // (PA-06/LGPD) segue o mesmo padrão dos demais exports desta tela.
+  // D-096: exporta só o tema selecionado (se houver), nunca mistura ações.
   const exportarSemVendedor = () => {
     exportLeadsSemVendedorCSV(semVendedor, servicoLabel, origemDetalhe, camposExtrasTexto, ({ totalRegistros }) => {
       db.registrarExportacao({
         usuarioId: session?.userId || null,
         usuarioNome: session?.nome || null,
         usuarioEmail: session?.email || null,
-        filtros: { relatorio: 'leads_em_espera' },
+        filtros: { relatorio: 'leads_em_espera', tema: temaSelecionado || 'todos' },
         totalRegistros,
       });
     });
@@ -120,7 +135,18 @@ function FilaDistribuicao({ session }) {
             Leads sem vendedor {semVendedor.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{semVendedor.length} para distribuir</span>}
           </span>
         </button>
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {temasDisponiveis.length > 1 && (
+            <select
+              value={temaSelecionado}
+              onChange={(e) => setTemaSelecionado(e.target.value)}
+              style={{ fontSize: 12 }}
+              title="Filtra a lista e a exportação por tema (campanha/ação de origem)"
+            >
+              <option value="">Todos os temas</option>
+              {temasDisponiveis.map(([chave, label]) => <option key={chave} value={chave}>{label}</option>)}
+            </select>
+          )}
           <button
             className="btn-primary"
             style={{ fontSize: 12, padding: '5px 10px' }}
@@ -148,7 +174,7 @@ function FilaDistribuicao({ session }) {
             </tr>
           </thead>
           <tbody>
-            {leadsFrios.map((l) => {
+            {leadsExibidos.map((l) => {
               const resumo = resumoPerfil(l.perfilConsumo);
               return (
               <tr key={l.id}>
@@ -242,13 +268,17 @@ function FilaDistribuicao({ session }) {
 // digital com localização). Relatório interno agregado, sem dado pessoal;
 // NUNCA expõe cobertura de rede (esse dado nem existe no sistema).
 function DemandaPorRegiao() {
-  const { leads: leadsCompartilhados } = useApp();
+  const { leads: leadsCompartilhados, simuladores } = useApp();
   const [linhas, setLinhas] = useState(null);
+  // D-096: sem filtro, cidades/bairros de campanhas diferentes ficavam
+  // somados na mesma linha, sem como saber qual ação gerou qual demanda —
+  // dropdown filtra o agregado por UMA campanha (tema) do Simulador de cada vez.
+  const [temaSelecionado, setTemaSelecionado] = useState('');
 
-  const agregarLocal = () => {
+  const agregarLocal = (simuladorId) => {
     const mapa = new Map();
     leadsCompartilhados
-      .filter((l) => l.origem && (l.cidade || l.bairro))
+      .filter((l) => l.origem && (l.cidade || l.bairro) && (!simuladorId || l.simuladorId === simuladorId))
       .forEach((l) => {
         const chave = `${l.cidade || '(não informado)'}|${l.bairro || '(não informado)'}`;
         mapa.set(chave, (mapa.get(chave) || 0) + 1);
@@ -259,42 +289,65 @@ function DemandaPorRegiao() {
   };
 
   const carregar = () => {
-    if (isSupabaseMode()) demandaPorRegiao().then(setLinhas);
-    else setLinhas(agregarLocal());
+    if (isSupabaseMode()) demandaPorRegiao(temaSelecionado || null).then(setLinhas);
+    else setLinhas(agregarLocal(temaSelecionado || null));
   };
-  useEffect(carregar, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(carregar, [temaSelecionado]);
 
-  if (!linhas || linhas.length === 0) return null;
+  // Sem nenhuma campanha cadastrada e sem nenhum dado agregado ainda: nada
+  // pra mostrar nem pra filtrar — mesmo comportamento de antes do D-096.
+  if ((!linhas || linhas.length === 0) && simuladores.length === 0) return null;
 
   return (
     <div className="card" style={{ marginTop: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
         <span className="section-title" style={{ marginBottom: 0 }}>Demanda por região</span>
-        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {simuladores.length > 0 && (
+            <select
+              value={temaSelecionado}
+              onChange={(e) => setTemaSelecionado(e.target.value)}
+              style={{ fontSize: 12 }}
+              title="Filtra o agregado por tema (campanha do Simulador)"
+            >
+              <option value="">Todos os temas</option>
+              {simuladores.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+          )}
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
+        </span>
       </div>
       <p className="tab-desc" style={{ marginBottom: 12 }}>
         Interessados captados digitalmente (Simulador, formulários) por cidade e bairro — inteligência comercial interna.
+        {temaSelecionado ? ' Filtrado por tema — cada campanha conta separada, nunca somada com outra.' : ''}
       </p>
-      <div className="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Cidade</th>
-              <th>Bairro</th>
-              <th style={{ textAlign: 'right' }}>Interessados</th>
-            </tr>
-          </thead>
-          <tbody>
-            {linhas.map((r) => (
-              <tr key={`${r.cidade}|${r.bairro}`}>
-                <td className="strong">{r.cidade}</td>
-                <td>{r.bairro}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--rj-blue)' }}>{r.total}</td>
+      {!linhas || linhas.length === 0 ? (
+        <div className="empty" style={{ padding: '12px 0' }}>
+          {temaSelecionado ? 'Nenhum interessado com cidade/bairro para esse tema ainda.' : 'Nenhum dado de demanda por região ainda.'}
+        </div>
+      ) : (
+        <div className="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cidade</th>
+                <th>Bairro</th>
+                <th style={{ textAlign: 'right' }}>Interessados</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {linhas.map((r) => (
+                <tr key={`${r.cidade}|${r.bairro}`}>
+                  <td className="strong">{r.cidade}</td>
+                  <td>{r.bairro}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--rj-blue)' }}>{r.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
