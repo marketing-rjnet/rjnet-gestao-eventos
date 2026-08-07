@@ -77,6 +77,36 @@ export function exportLeadsSemVendedorCSV(leads, servicoLabelFn, origemDetalheFn
   if (onAudit) onAudit({ totalRegistros: leads.length });
 }
 
+// D-096: export de TODOS os leads de UMA campanha do Simulador (tema) —
+// cadastro concluído ou não. Botão próprio em cada card de SimuladorTab.jsx,
+// pra nunca misturar leads de campanhas/ações diferentes no mesmo CSV
+// (diferente de exportLeadsSemVendedorCSV, que junta todas as origens).
+// Mesmo padrão de colunas de exportLeadsSemVendedorCSV, sem "Origem" — o
+// arquivo inteiro já é de uma campanha só.
+// onAudit: callback opcional (async) chamado após o download com { totalRegistros }
+export function exportLeadsSimuladorCSV(leads, simuladorNome, servicoLabelFn, camposExtrasTextoFn, onAudit) {
+  if (leads.length === 0) return;
+  const cabecalho = ["Nome", "Telefone", "Cidade", "Bairro", "Serviço", "Perfil/Pontuação", "Temperatura", "Campos Extras", "Responsável", "Cadastrado em"];
+  const linhas = leads.map((l) => [
+    l.nome, l.telefone, l.cidade || "", l.bairro || "",
+    servicoLabelFn(l.servicoInteresse),
+    l.pontuacao != null ? `${l.pontuacao}${l.perfilConsumo?.tipo === 'quiz' ? ' acertos' : ' pts'}` : "",
+    l.temperatura || "",
+    camposExtrasTextoFn ? camposExtrasTextoFn(l) : "",
+    l.vendedorNome || "Não atribuído",
+    new Date(l.criadoEm).toLocaleString("pt-BR"),
+  ]);
+  const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `simulador_${slugParaArquivo(simuladorNome)}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  if (onAudit) onAudit({ totalRegistros: leads.length });
+}
+
 // D-058: export de leads de um único mês de referência (fora de eventos).
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportLeadsMesCSV(dados, sufixo, servicoLabel, mesLabel, onAudit) {

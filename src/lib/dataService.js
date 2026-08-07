@@ -610,6 +610,35 @@ export async function fetchLeadsPorSimulador(simuladorId, signal) {
   });
 }
 
+// D-096: export COMPLETO de uma campanha do Simulador — todos os leads
+// vinculados ao simulador_id, cadastro concluído ou não. Diferente de
+// fetchLeadsPorSimulador (Sorteador), que só traz quem TERMINOU o quiz
+// (pontuacao != null) — pra exportação em CSV o marketing quer o universo
+// inteiro daquele tema, inclusive quem só se cadastrou e abandonou. Cada
+// campanha em SimuladorTab.jsx tem seu próprio botão de exportação usando
+// esta função, garantindo que o CSV nunca mistura leads de temas diferentes.
+export async function fetchLeadsPorSimuladorCompleto(simuladorId, signal) {
+  if (!isSupabaseMode() || !simuladorId) return null;
+  return trackPerf('fetchLeadsPorSimuladorCompleto', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('leads')
+        .select(LEADS_COLS)
+        .eq('simulador_id', simuladorId)
+        .eq('deletado', false)
+        .order('criado_em', { ascending: false })
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads da campanha para exportação:', err.message || err);
+    return null;
+  });
+}
+
 // Distribuição: qualquer lead "frio" (sem vendedor ainda), não importa a
 // origem (QR Code, Form Builder, futuros canais) — generaliza
 // fetchLeadsQrCode para a fila de distribuição do marketing/comercial.
@@ -770,11 +799,14 @@ export function invalidarRankingMes(mesReferencia) {
 // sai da função; mesmo padrão security definer de ranking_mes). Alimentado
 // principalmente pelas campanhas territoriais do Simulador, mas conta
 // qualquer lead público que informou cidade/bairro.
-export async function demandaPorRegiao() {
+// D-096: `simuladorId` opcional filtra o agregado pra UMA campanha (tema) —
+// sem isso, cidades/bairros de campanhas diferentes ficavam somados na
+// mesma linha, sem como saber qual ação gerou qual demanda.
+export async function demandaPorRegiao(simuladorId) {
   if (!isSupabaseMode()) return null;
   return trackPerf('demandaPorRegiao', () =>
     withRetry(async () => {
-      const { data, error } = await supabase.rpc('demanda_por_regiao');
+      const { data, error } = await supabase.rpc('demanda_por_regiao', { p_simulador_id: simuladorId || null });
       if (error) throw error;
       return data.map((r) => ({ cidade: r.cidade, bairro: r.bairro, total: Number(r.total) }));
     }, { maxAttempts: 2, baseDelayMs: 500 })

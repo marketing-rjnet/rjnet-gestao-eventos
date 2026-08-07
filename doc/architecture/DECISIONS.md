@@ -2995,6 +2995,31 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-096] — Leads sem vendedor, Demanda por Região e Simulador: separação por tema (campanha)
+
+**Data:** 2026-08-07
+**Tipo:** Feature
+
+**Contexto:** O responsável reportou que, com várias campanhas do Simulador ativas ao mesmo tempo (ex: "MÊS DA JUVENTUDE", "ARRAIA DA CIDADE", "motofest"), a fila de distribuição ("Leads sem vendedor") e o relatório "Demanda por Região" mostravam os leads/interessados de TODAS as campanhas misturados, sem nenhuma forma de isolar "o que veio de qual ação". Pediu que cada campanha tivesse sua própria área de exportação, e que os 2 relatórios da tela de Relatórios ganhassem um filtro (dropdown) por tema, sem misturar 2 ações diferentes na mesma visualização/exportação.
+
+**Decisão:**
+- **`SimuladorTab.jsx` ganha um botão "↓ Exportar leads" em CADA campanha** (os 3 tipos — Oferta/Demanda/Quiz, não só Quiz), que baixa um CSV só com os leads daquele `simulador_id`. Nova `fetchLeadsPorSimuladorCompleto()` (`dataService.js`) traz TODOS os leads da campanha (cadastro concluído ou não) — diferente de `fetchLeadsPorSimulador()` (Sorteador), que só traz quem terminou o quiz (`pontuacao != null`); pra exportação em CSV o universo certo é o de todo mundo que interagiu com aquele tema, não só quem foi elegível ao sorteio. Nova `exportLeadsSimuladorCSV()` em `csv.js`, mesmo padrão das demais exportações (colunas resolvidas via funções passadas pelo chamador, zero lógica de negócio no arquivo). Auditoria (PA-06/LGPD) via `db.registrarExportacao()`, `filtros: { simulador, tema }`.
+- **`FilaDistribuicao` (Leads sem vendedor, `LeadsTab.jsx`) ganha um dropdown "Tema"** — só aparece quando há mais de 1 tema entre os leads carregados. "Tema" é resolvido por uma chave estável (`simuladorId || formularioId || qrCodeId || origem`), com o rótulo já existente de `origemDetalhe()` (nome da campanha/QR/formulário). Selecionar um tema filtra a TABELA e a EXPORTAÇÃO ("Exportar em espera") — nunca mistura leads de campanhas diferentes no mesmo CSV. Sem filtro selecionado, comportamento idêntico ao de antes (todos juntos, como já era).
+- **`DemandaPorRegiao` (mesmo arquivo) ganha o mesmo tipo de dropdown**, restrito a campanhas do Simulador (fonte majoritária de cidade/bairro no sistema — Form Builder só captura bairro, não cidade). A RPC `demanda_por_regiao()` (D-073) ganha um parâmetro opcional `p_simulador_id text default null` (`simuladores.id`/`leads.simulador_id` são `text`, não `uuid` — confirmado em `migracao-simulador.sql`) — sem ele, agrega tudo (comportamento antigo); com ele, agrega só aquela campanha. Migração nova (`migracao-demanda-tema.sql`) faz `DROP FUNCTION` da versão de aridade 0 antes de criar a de aridade 1 com default, porque para o Postgres essas são assinaturas diferentes (senão as duas coexistiriam). Continua `security definer`, só `COUNT` sai da função — nenhum dado pessoal.
+- **Sem migração para "Eventos" (a lista de eventos físicos em Relatórios)**: cada evento já é 100% isolado por `evento_id` desde sempre (constraint de exclusividade D-058, export "Exportar evento" já traz só aquele evento) — não havia mistura ali para corrigir; o pedido do responsável sobre "eventos" se referia ao conceito geral de "cada ação/campanha separada", já coberto pelos itens acima.
+
+**Alternativas Avaliadas:**
+- **Filtrar "Demanda por Região" também por formulário/QR Code** — descartada por ora: `CAMPOS_FORMULARIO` (Form Builder) não inclui "cidade", só "bairro" (D-062), então o relatório de cidade+bairro é alimentado majoritariamente por campanhas do Simulador; escopo mantido simples (só `p_simulador_id`) até haver demanda real de filtrar por formulário também.
+- **Mostrar todas as campanhas lado a lado (sem dropdown) em vez de 1 por vez** — descartada: o pedido explícito foi "dropdown" — filtrar uma de cada vez mantém a tabela pequena e legível, sem paginação/agrupamento visual novo.
+
+**Arquivos Afetados:** `src/lib/dataService.js` (`fetchLeadsPorSimuladorCompleto`, `demandaPorRegiao(simuladorId)`); `src/utils/csv.js` (`exportLeadsSimuladorCSV`); `src/features/simulador/SimuladorTab.jsx` (botão por campanha, recebe `session`); `src/apps/MarketingApp.jsx` (passa `session` pro Simulador); `src/features/leads/LeadsTab.jsx` (`FilaDistribuicao`/`DemandaPorRegiao` ganham dropdown de tema); `supabase/migracao-demanda-tema.sql` (nova).
+
+**Riscos:** Baixo — mudanças aditivas na maior parte (novo botão, novo parâmetro opcional com default `null` preservando o comportamento antigo). Único ponto que exige atenção operacional: a migração faz `DROP FUNCTION public.demanda_por_regiao()` antes de recriar — rodar em produção fora de horário de uso do relatório, seguido de `NOTIFY pgrst, 'reload schema'` (mesmo procedimento das demais migrações). Validado via `npm run build` + suíte de testes unitários (`security`, `lead`, `simulador`).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
