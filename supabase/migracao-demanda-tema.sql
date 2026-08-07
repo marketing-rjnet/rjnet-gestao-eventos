@@ -14,13 +14,17 @@
 -- agregado passa a contar só os interessados daquela campanha (tema);
 -- quando omitido/nulo, o comportamento é idêntico ao de antes (soma tudo).
 --
+-- IMPORTANTE: `simuladores.id`/`leads.simulador_id` são `text`, não `uuid`
+-- (ver migracao-simulador.sql — slug-like, gerado no cliente), então o
+-- parâmetro do filtro também é `text`.
+--
 -- A função antiga (aridade 0) é substituída por uma nova de aridade 1 com
 -- DEFAULT — não são a mesma assinatura para o Postgres, por isso o DROP
 -- explícito antes do CREATE (evita ficar com as duas versões coexistindo).
 
 drop function if exists public.demanda_por_regiao();
 
-create or replace function public.demanda_por_regiao(p_simulador_id uuid default null)
+create or replace function public.demanda_por_regiao(p_simulador_id text default null)
 returns table (cidade text, bairro text, total bigint)
 language sql stable
 security definer set search_path = public
@@ -39,11 +43,11 @@ as $$
   order by 1, total desc
 $$;
 
-revoke all on function public.demanda_por_regiao(uuid) from public, anon;
-grant execute on function public.demanda_por_regiao(uuid) to authenticated;
+revoke all on function public.demanda_por_regiao(text) from public, anon;
+grant execute on function public.demanda_por_regiao(text) to authenticated;
 
 -- =============================================================
 -- Verificação
 -- =============================================================
--- select * from demanda_por_regiao();                          -- tudo, como antes
--- select * from demanda_por_regiao('<uuid-da-campanha>');       -- só 1 tema
+-- select * from demanda_por_regiao();                        -- tudo, como antes
+-- select * from demanda_por_regiao('<id-da-campanha>');       -- só 1 tema
