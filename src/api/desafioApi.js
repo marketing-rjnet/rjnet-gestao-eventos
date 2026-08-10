@@ -1,21 +1,24 @@
 import { db } from '../lib/dataService';
 import { genId, slugify } from '../utils/ids';
-import { calcularResultadoDesafio, TARGET_CENTISECONDS_PADRAO } from '../lib/desafioCronometro';
+import { calcularResultadoDesafio, TARGET_CENTISECONDS_PADRAO, MAX_TENTATIVAS_PADRAO } from '../lib/desafioCronometro';
 import { broadcastDesafioPainel } from '../lib/desafioRealtime';
 
-// Desafio RJNet — Acerte 00:03:33 (D-089). Mesmo padrão factory dos
+// Desafio RJNet — Acerte 00:03:33 (D-089, D-098). Mesmo padrão factory dos
 // demais domínios: atualização otimista local + gravação assíncrona via
 // db.*. `desafios` são os dias/edições (carregados no boot, tabela
-// pequena); `entries` são as participações do dia atualmente aberto na
-// gestão (carregadas on-demand via carregarDesafioEntries).
+// pequena); `entries` são os PARTICIPANTES do dia atualmente aberto na
+// gestão (carregadas on-demand via carregarDesafioEntries), cada um já
+// com o array `tentativas` anexado (D-098 — até `maxTentativas` linhas
+// por participante, nunca colunas tentativa1/tentativa2/tentativa3).
 export function createDesafioApi({ desafios, setDesafios, entries, setEntries }) {
   return {
-    addDesafioEvento: ({ nome, targetCentiseconds }) => {
+    addDesafioEvento: ({ nome, targetCentiseconds, maxTentativas }) => {
       const novo = {
         id: genId('desafio'),
         nome,
         slug: `${slugify(nome)}-${Math.random().toString(36).slice(2, 6)}`,
         targetCentiseconds: targetCentiseconds || TARGET_CENTISECONDS_PADRAO,
+        maxTentativas: maxTentativas || MAX_TENTATIVAS_PADRAO,
         ativo: true,
         criadoEm: new Date().toISOString(),
       };
@@ -72,13 +75,18 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       );
     },
 
-    // Cadastro (D-089, D-090): recebe o texto digitado no cronômetro
-    // (MM:SS:CC) e o alvo do dia — calcula tudo (centésimos, diferença,
-    // acerto exato) ANTES de gravar. Ganhadores instantâneos e ranking
-    // nunca são listas separadas no banco: são o MESMO array filtrado por
-    // `isExactHit`. D-090: não existe mais um "número do participante" à
-    // parte — o telefone (opcional) já cumpre esse papel.
-    addDesafioEntry: (eventId, { participantName, phone }, resultDisplay, onError) => {
+    // Cadastro (D-089, D-090, D-098): cria o PARTICIPANTE já com a 1ª
+    // tentativa — calcula tudo (centésimos, diferença, acerto exato) ANTES
+    // de gravar, mesmo princípio de sempre. `prizeType` (opcional, D-098) é
+    // o prêmio que a pessoa está concorrendo/recebeu, mesmo catálogo
+    // TIPOS_PREMIO já usado no controle de entrega dos ganhadores — aqui só
+    // populado mais cedo, no cadastro, em vez de só depois em Ganhadores.
+    // Tentativas seguintes usam addDesafioTentativa() sobre este MESMO id —
+    // o operador nunca recadastra a pessoa. Ganhadores instantâneos e
+    // ranking nunca são listas separadas no banco: um participante entra
+    // num ou noutro conforme sua MELHOR tentativa (melhorTentativa(),
+    // desafioCronometro.js) tiver isExactHit ou não.
+    addDesafioEntry: (eventId, { participantName, phone, prizeType }, resultDisplay, onError) => {
       const desafio = desafios.find((d) => d.id === eventId);
       if (!desafio) { onError?.('Dia do desafio não encontrado.'); return null; }
       let calculo;
@@ -88,21 +96,66 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
         onError?.(err.message);
         return null;
       }
+      const entryId = genId('tce');
+      const tentativa1 = { id: genId('tca'), eventId, entryId, attemptNumber: 1, ...calculo, criadoEm: new Date().toISOString() };
       const novo = {
-        id: genId('tce'),
+        id: entryId,
         eventId,
         participantName: participantName.trim(),
         phone: (phone || '').trim(),
-        ...calculo,
-        prizeType: null,
+        prizeType: prizeType || null,
         delivered: false,
         deliveryResponsible: null,
         deliveryAt: null,
         criadoEm: new Date().toISOString(),
+        tentativas: [tentativa1],
       };
       setEntries((p) => [novo, ...p]);
       db.saveDesafioEntry(novo, () => broadcastDesafioPainel(eventId), () => onError?.('Falha ao salvar — tentando novamente.'));
+      db.saveDesafioAttempt(tentativa1, () => broadcastDesafioPainel(eventId), () => onError?.('Falha ao salvar a tentativa — tentando novamente.'));
       return novo;
+    },
+
+    // D-098: nova tentativa sobre um participante JÁ cadastrado — nunca
+    // cria um segundo registro (o operador não recadastra a pessoa).
+    // Bloqueia além do limite configurado do dia (`maxTentativas`, padrão
+    // 3) — "depois da terceira tentativa, não permitir uma quarta".
+    addDesafioTentativa: (entryId, resultDisplay, onError) => {
+      const atual = entries.find((e) => e.id === entryId);
+      if (!atual) { onError?.('Participante não encontrado.'); return null; }
+      const desafio = desafios.find((d) => d.id === atual.eventId);
+      if (!desafio) { onError?.('Dia do desafio não encontrado.'); return null; }
+      const max = desafio.maxTentativas || MAX_TENTATIVAS_PADRAO;
+      const tentativasAtuais = atual.tentativas || [];
+      if (tentativasAtuais.length >= max) { onError?.(`Limite de ${max} tentativas atingido para este participante.`); return null; }
+      let calculo;
+      try {
+        calculo = calcularResultadoDesafio({ resultDisplay, targetCentiseconds: desafio.targetCentiseconds });
+      } catch (err) {
+        onError?.(err.message);
+        return null;
+      }
+      const proximoNumero = tentativasAtuais.length + 1;
+      const nova = { id: genId('tca'), eventId: atual.eventId, entryId, attemptNumber: proximoNumero, ...calculo, criadoEm: new Date().toISOString() };
+      setEntries((p) => p.map((e) => (e.id === entryId ? { ...e, tentativas: [...(e.tentativas || []), nova] } : e)));
+      db.saveDesafioAttempt(nova, () => broadcastDesafioPainel(atual.eventId), () => onError?.('Falha ao salvar — tentando novamente.'));
+      return nova;
+    },
+
+    // D-098: edição rápida do participante — SEMPRE sobre o id do registro
+    // existente (nunca nome/telefone como identificador, nunca cria um
+    // participante novo). Só toca nome/telefone; tentativas, prêmio,
+    // evento e ranking ficam intocados (preservados via spread de `atual`).
+    updateDesafioParticipante: (entryId, { participantName, phone }, onError) => {
+      const atual = entries.find((e) => e.id === entryId);
+      if (!atual) { onError?.('Participante não encontrado.'); return; }
+      const atualizado = {
+        ...atual,
+        ...(participantName !== undefined ? { participantName: participantName.trim() } : {}),
+        ...(phone !== undefined ? { phone: phone.trim() } : {}),
+      };
+      setEntries((p) => p.map((e) => (e.id === entryId ? atualizado : e)));
+      db.saveDesafioEntry(atualizado, () => broadcastDesafioPainel(atual.eventId), () => onError?.('Falha ao salvar — tentando novamente.'));
     },
 
     // Controle de entrega do prêmio — só relevante para ganhadores instantâneos.

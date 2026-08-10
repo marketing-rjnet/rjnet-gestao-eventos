@@ -157,15 +157,23 @@ export function exportLeadsMesConsolidadoCSV(leads, mesLabel, servicoLabelFn, on
   if (onAudit) onAudit({ totalRegistros: leads.length, totalMeses });
 }
 
-// D-089/D-090: Desafio RJNet — Acerte 00:03:33. Exporta as participações
-// de UM dia (ranking + ganhadores instantâneos juntos, coluna "Acerto
-// exato?" distingue) — mesmo padrão das demais exportações: sem lógica de
-// negócio aqui, só formatação de colunas já calculadas em
-// src/lib/desafioCronometro.js. D-090: sem coluna "Número" — o telefone
-// já é o identificador do participante. D-095: `premiosRanking` (opcional,
+// D-089/D-090/D-098: Desafio RJNet — Acerte 00:03:33. Exporta as
+// participações de UM dia (ranking + ganhadores instantâneos juntos,
+// coluna "Acerto exato?" distingue) — mesmo padrão das demais
+// exportações: sem lógica de negócio aqui, só formatação de colunas já
+// calculadas pelo chamador. D-090: sem coluna "Número" — o telefone já é
+// o identificador do participante. D-095: `premiosRanking` (opcional,
 // `desafio.premiosRanking`) cruza a posição de cada participante no Top 10
 // com o prêmio configurado pra aquela posição — mesma ordenação usada em
 // DesafioRanking.jsx (menor diferença, depois cadastro mais antigo).
+// D-098: cada participante pode ter várias tentativas agora — o chamador
+// (DesafioDashboard.jsx) já resolve a MELHOR tentativa via
+// melhorTentativa() antes de chamar esta função e passa `resultDisplay`/
+// `differenceCentiseconds`/`isExactHit`/`attemptCount` como campos planos
+// (mesmo contrato de antes do D-098, csv.js não precisou aprender a olhar
+// pra dentro de `tentativas`); "Prêmio (Ganhador Instantâneo)" virou só
+// "Prêmio" — o mesmo campo (`prizeType`) agora nasce no cadastro, não só
+// na entrega.
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaFn, onAudit, premiosRanking) {
   if (entries.length === 0) return;
@@ -176,12 +184,13 @@ export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaF
   const posicaoPorId = new Map(ranking.map((e, idx) => [e.id, idx + 1]));
   const premioPorPosicao = new Map((premiosRanking || []).map((p) => [p.position, p.nome]));
 
-  const cabecalho = ["Nome", "Telefone", "Resultado", "Acerto exato?", "Diferença", "Posição no Ranking", "Prêmio do Ranking", "Prêmio (Ganhador Instantâneo)", "Entregue", "Responsável entrega", "Cadastrado em"];
+  const cabecalho = ["Nome", "Telefone", "Melhor Resultado", "Tentativas", "Acerto exato?", "Diferença", "Posição no Ranking", "Prêmio do Ranking", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
   const linhas = entries.map((e) => {
     const posicao = posicaoPorId.get(e.id) || null;
     return [
       e.participantName, e.phone || "",
-      e.resultDisplay, e.isExactHit ? "Sim" : "Não",
+      e.resultDisplay, e.attemptCount ?? "",
+      e.isExactHit ? "Sim" : "Não",
       e.isExactHit ? "" : formatarDiferencaFn(e.differenceCentiseconds),
       posicao ? `${posicao}º` : "",
       posicao ? (premioPorPosicao.get(posicao) || "") : "",

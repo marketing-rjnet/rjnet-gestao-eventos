@@ -10,6 +10,15 @@
 // Tempo-alvo padrão deste desafio: 00:03:33 = 3*100 + 33 = 333 centésimos.
 export const TARGET_CENTISECONDS_PADRAO = 333;
 
+// D-098: até 3 tentativas por participante, configurável por dia
+// (`timer_challenge_events.max_attempts`) — este valor é só o PADRÃO
+// usado ao criar um novo dia, nunca um limite hardcoded no cálculo.
+export const MAX_TENTATIVAS_PADRAO = 3;
+
+// D-098: mesmo catálogo já usado no controle de entrega de prêmio dos
+// ganhadores instantâneos (Ganhadores) — reaproveitado como "prêmio que
+// o participante está concorrendo/recebendo", selecionável já no
+// cadastro (nunca uma segunda lista de prêmios).
 export const TIPOS_PREMIO = ['RJNET Móvel 24GB', 'Disney+', 'HBO Max', 'Outro'];
 
 // D-093: prêmios por POSIÇÃO do ranking (1º ao 10º) — catálogo fixo de 3
@@ -80,3 +89,40 @@ export function calcularResultadoDesafio({ resultDisplay, targetCentiseconds }) 
 // (nunca decimal) — reaproveita centesimosParaTempo, já que diferença é
 // só mais uma contagem de centésimos.
 export const formatarDiferenca = (diffCentesimos) => centesimosParaTempo(diffCentesimos);
+
+// ─── D-098: múltiplas tentativas por participante ──────────────────────
+
+// Formatação automática do campo de cronômetro (CronometroInput.jsx): a
+// partir dos dígitos CRUS já digitados (sem os ":"), monta o texto
+// MM:SS:CC preenchendo da direita pra esquerda — mesmo princípio de um
+// campo de valor monetário (o último dígito digitado é sempre o de
+// centésimos). Puramente textual, não passa pela conversão de
+// centésimos/aritmética (diferente de centesimosParaTempo, que converte
+// um TOTAL de centésimos já calculado). Só os últimos 6 dígitos contam —
+// dígitos além do limite empurram os mais antigos pra fora, nunca lança
+// erro nem trava a digitação.
+export function formatarDigitosCronometro(digitos) {
+  const limpos = String(digitos || '').replace(/\D/g, '').slice(-6);
+  const preenchido = limpos.padStart(6, '0');
+  return `${preenchido.slice(0, 2)}:${preenchido.slice(2, 4)}:${preenchido.slice(4, 6)}`;
+}
+
+// A "melhor tentativa" de um participante é sempre a de MENOR
+// differenceCentiseconds — comparação sempre pelo valor numérico interno
+// (nunca string), como pede a especificação. Empate (duas tentativas com
+// a mesma diferença) resolvido pela de menor `attemptNumber` — a
+// primeira a alcançar aquele resultado. Fonte ÚNICA de verdade pra "qual
+// tentativa vale" em qualquer tela (Cadastro, Ranking, Ganhadores,
+// Painel, Tela de TV, CSV) e também na RPC pública (mesma regra
+// replicada em SQL — ver migracao-desafio-tentativas.sql). Retorna null
+// se a lista estiver vazia (participante sem nenhuma tentativa ainda não
+// deveria existir, mas a função não assume isso).
+export function melhorTentativa(tentativas) {
+  if (!tentativas || tentativas.length === 0) return null;
+  return tentativas.reduce((melhor, atual) => {
+    if (!melhor) return atual;
+    if (atual.differenceCentiseconds < melhor.differenceCentiseconds) return atual;
+    if (atual.differenceCentiseconds === melhor.differenceCentiseconds && atual.attemptNumber < melhor.attemptNumber) return atual;
+    return melhor;
+  }, null);
+}

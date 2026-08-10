@@ -46,7 +46,7 @@ export function DesafioDetail({ desafio, onBack }) {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        {sub === 'cadastro' && <DesafioCadastro desafio={desafio} />}
+        {sub === 'cadastro' && <DesafioCadastro desafio={desafio} entries={desafioEntries} />}
         {sub === 'ranking' && <DesafioRanking desafio={desafio} entries={desafioEntries} />}
         {sub === 'ganhadores' && <DesafioGanhadores desafio={desafio} entries={desafioEntries} />}
         {sub === 'premio' && (

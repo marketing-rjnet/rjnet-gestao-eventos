@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseMode } from '../lib/mode';
 import { fetchDesafioPainelPublico } from '../lib/dataService';
 import { subscribeDesafioPainel } from '../lib/desafioRealtime';
+import { melhorTentativa } from '../lib/desafioCronometro';
 
 // Desafio RJNet — Acerte 00:03:33 (D-089, D-090): hook da tela pública de
 // TV — sem sessão, sem AppContext (mesmo desenho de FormularioPublico/
@@ -14,6 +15,10 @@ import { subscribeDesafioPainel } from '../lib/desafioRealtime';
 // e reproduz EXATAMENTE a mesma regra da RPC pública — nunca é o caminho
 // de produção, só permite ver a tela de TV funcionando sem Supabase.
 // D-090: sem "número do participante"; ganha menorDiferença/médiaDosTempos.
+// D-098: cada entry já chega com `tentativas` anexado (mesmo shape do
+// modo Supabase) — classificação sempre pela MELHOR tentativa
+// (melhorTentativa(), desafioCronometro.js — mesma função usada em toda
+// tela administrativa, nunca uma 2ª cópia da regra).
 function painelLocal(slug) {
   try {
     const desafios = JSON.parse(localStorage.getItem('rjnet_desafios')) || [];
@@ -21,24 +26,28 @@ function painelLocal(slug) {
     if (!desafio) return { found: false };
     const todasEntries = JSON.parse(localStorage.getItem('rjnet_desafio_entries')) || [];
     const entries = todasEntries.filter((e) => e.eventId === desafio.id);
-    const semGanhadores = entries.filter((e) => !e.isExactHit);
-    const naoExatos = [...semGanhadores]
-      .sort((a, b) => a.differenceCentiseconds - b.differenceCentiseconds || new Date(a.criadoEm) - new Date(b.criadoEm))
+    const avaliadas = entries
+      .map((e) => ({ e, melhor: melhorTentativa(e.tentativas) }))
+      .filter((x) => x.melhor);
+    const semGanhadores = avaliadas.filter((x) => !x.melhor.isExactHit);
+    const ranking = [...semGanhadores]
+      .sort((a, b) => a.melhor.differenceCentiseconds - b.melhor.differenceCentiseconds || new Date(a.e.criadoEm) - new Date(b.e.criadoEm))
       .slice(0, 10)
-      .map((e, i) => ({
-        position: i + 1, participant_name: e.participantName,
-        result_display: e.resultDisplay, difference_centiseconds: e.differenceCentiseconds,
+      .map((x, i) => ({
+        position: i + 1, participant_name: x.e.participantName,
+        result_display: x.melhor.resultDisplay, difference_centiseconds: x.melhor.differenceCentiseconds,
       }));
-    const ganhadores = entries.filter((e) => e.isExactHit)
-      .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
-      .map((e) => ({
-        participant_name: e.participantName,
-        created_at: e.criadoEm, prize_type: e.prizeType, delivered: e.delivered,
+    const ganhadores = avaliadas.filter((x) => x.melhor.isExactHit)
+      .sort((a, b) => new Date(b.melhor.criadoEm) - new Date(a.melhor.criadoEm))
+      .map((x) => ({
+        participant_name: x.e.participantName,
+        created_at: x.melhor.criadoEm, prize_type: x.e.prizeType, delivered: x.e.delivered,
       }));
     const minDifferenceCentiseconds = semGanhadores.length
-      ? Math.min(...semGanhadores.map((e) => e.differenceCentiseconds)) : null;
-    const averageCentiseconds = entries.length
-      ? Math.round(entries.reduce((acc, e) => acc + e.resultCentiseconds, 0) / entries.length) : null;
+      ? Math.min(...semGanhadores.map((x) => x.melhor.differenceCentiseconds)) : null;
+    const todasTentativas = entries.flatMap((e) => e.tentativas || []);
+    const averageCentiseconds = todasTentativas.length
+      ? Math.round(todasTentativas.reduce((acc, t) => acc + t.resultCentiseconds, 0) / todasTentativas.length) : null;
     return {
       found: true,
       event: {
@@ -52,8 +61,8 @@ function painelLocal(slug) {
         prizeImageUrl: desafio.premioImagemUrl || null,
         prizeRanking: (desafio.premiosRanking || []).map((p) => ({ position: p.position, name: p.nome || '' })),
       },
-      stats: { totalParticipants: entries.length, totalWinners: ganhadores.length, minDifferenceCentiseconds, averageCentiseconds },
-      ranking: naoExatos,
+      stats: { totalParticipants: avaliadas.length, totalWinners: ganhadores.length, minDifferenceCentiseconds, averageCentiseconds },
+      ranking,
       winners: ganhadores,
     };
   } catch {

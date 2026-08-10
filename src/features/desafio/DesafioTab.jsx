@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Icon } from '../../components/ui';
 import { sanitizeText } from '../../lib/security';
-import { TARGET_CENTISECONDS_PADRAO, centesimosParaTempo, validarFormatoTempo, parseTempoParaCentesimos } from '../../lib/desafioCronometro';
+import { CronometroInput } from '../../components/CronometroInput';
+import { TARGET_CENTISECONDS_PADRAO, MAX_TENTATIVAS_PADRAO, centesimosParaTempo, validarFormatoTempo, parseTempoParaCentesimos } from '../../lib/desafioCronometro';
 import { DesafioDetail } from './DesafioDetail';
 
 // Desafio RJNet — Acerte 00:03:33 (D-089). Gestão dos dias/edições do
@@ -14,6 +15,7 @@ export function DesafioTab() {
   const { desafios, addDesafioEvento, updateDesafioEvento, removeDesafioEvento } = useApp();
   const [nome, setNome] = useState('');
   const [alvo, setAlvo] = useState(centesimosParaTempo(TARGET_CENTISECONDS_PADRAO));
+  const [maxTentativas, setMaxTentativas] = useState(MAX_TENTATIVAS_PADRAO);
   const [erro, setErro] = useState('');
   const [abertoId, setAbertoId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -24,9 +26,11 @@ export function DesafioTab() {
     const nomeLimpo = sanitizeText(nome, 60);
     if (!nomeLimpo) { setErro('Dê um nome ao dia (ex: Sexta-feira).'); return; }
     if (!validarFormatoTempo(alvo)) { setErro('Tempo-alvo inválido. Use MM:SS:CC (ex: 00:03:33).'); return; }
-    const novo = addDesafioEvento({ nome: nomeLimpo, targetCentiseconds: parseTempoParaCentesimos(alvo) });
+    const max = parseInt(maxTentativas, 10) || MAX_TENTATIVAS_PADRAO;
+    const novo = addDesafioEvento({ nome: nomeLimpo, targetCentiseconds: parseTempoParaCentesimos(alvo), maxTentativas: max });
     setNome('');
     setAlvo(centesimosParaTempo(TARGET_CENTISECONDS_PADRAO));
+    setMaxTentativas(MAX_TENTATIVAS_PADRAO);
     setAbertoId(novo.id);
   };
 
@@ -57,13 +61,24 @@ export function DesafioTab() {
           </div>
           <div className="big-field" style={{ marginBottom: 14 }}>
             <label>Tempo-alvo (MM:SS:CC) *</label>
-            <input
-              required maxLength={8} value={alvo} onChange={(e) => setAlvo(e.target.value)}
+            <CronometroInput
+              value={alvo} onChange={setAlvo}
               placeholder="00:03:33" className="mono" style={{ maxWidth: 140, fontSize: 18, textAlign: 'center' }}
             />
             <p className="campo-hint" style={{ marginTop: 6 }}>
               Padrão deste desafio: 00:03:33. Configurável por dia — dá pra reaproveitar o módulo em eventos futuros
               com outro tempo-alvo, sem alterar código.
+            </p>
+          </div>
+          <div className="big-field" style={{ marginBottom: 14 }}>
+            <label>Tentativas por participante</label>
+            <input
+              type="number" min="1" max="10" value={maxTentativas}
+              onChange={(e) => setMaxTentativas(e.target.value)}
+              style={{ maxWidth: 100 }}
+            />
+            <p className="campo-hint" style={{ marginTop: 6 }}>
+              Padrão: 3. Depois da última tentativa permitida, o cadastro não deixa adicionar mais nenhuma para aquele participante.
             </p>
           </div>
           {erro && <div className="form-erro">{erro}</div>}
@@ -83,7 +98,8 @@ export function DesafioTab() {
                   <div>
                     <div className="strong">{d.nome}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      Alvo: <span className="mono">{centesimosParaTempo(d.targetCentiseconds)}</span> · {d.ativo ? 'ativo' : 'encerrado'}
+                      Alvo: <span className="mono">{centesimosParaTempo(d.targetCentiseconds)}</span>
+                      {' '}· até {d.maxTentativas || 3} tentativas · {d.ativo ? 'ativo' : 'encerrado'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
