@@ -173,7 +173,9 @@ export function exportLeadsMesConsolidadoCSV(leads, mesLabel, servicoLabelFn, on
 // (mesmo contrato de antes do D-098, csv.js não precisou aprender a olhar
 // pra dentro de `tentativas`); "Prêmio (Ganhador Instantâneo)" virou só
 // "Prêmio" — o mesmo campo (`prizeType`) agora nasce no cadastro, não só
-// na entrega.
+// na entrega. D-099: `jaClienteRjnet` já vem pronto no participante (não
+// depende de tentativa nenhuma), mesma coluna "Já Cliente RJNET" já usada
+// no export de leads.
 // onAudit: callback opcional (async) chamado após o download com { totalRegistros }
 export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaFn, onAudit, premiosRanking) {
   if (entries.length === 0) return;
@@ -184,11 +186,11 @@ export function exportDesafioEntriesCSV(entries, desafioNome, formatarDiferencaF
   const posicaoPorId = new Map(ranking.map((e, idx) => [e.id, idx + 1]));
   const premioPorPosicao = new Map((premiosRanking || []).map((p) => [p.position, p.nome]));
 
-  const cabecalho = ["Nome", "Telefone", "Melhor Resultado", "Tentativas", "Acerto exato?", "Diferença", "Posição no Ranking", "Prêmio do Ranking", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
+  const cabecalho = ["Nome", "Telefone", "Já Cliente RJNET", "Melhor Resultado", "Tentativas", "Acerto exato?", "Diferença", "Posição no Ranking", "Prêmio do Ranking", "Prêmio", "Entregue", "Responsável entrega", "Cadastrado em"];
   const linhas = entries.map((e) => {
     const posicao = posicaoPorId.get(e.id) || null;
     return [
-      e.participantName, e.phone || "",
+      e.participantName, e.phone || "", e.jaClienteRjnet ? "Sim" : "Não",
       e.resultDisplay, e.attemptCount ?? "",
       e.isExactHit ? "Sim" : "Não",
       e.isExactHit ? "" : formatarDiferencaFn(e.differenceCentiseconds),

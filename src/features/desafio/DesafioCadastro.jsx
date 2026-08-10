@@ -8,20 +8,23 @@ import { centesimosParaTempo, TIPOS_PREMIO, melhorTentativa, formatarDiferenca }
 import { DesafioTentativas } from './DesafioTentativas';
 import { DesafioEditarParticipante } from './DesafioEditarParticipante';
 
-// Desafio RJNet — Acerte 00:03:33 (D-089, D-090, D-098): tela de cadastro
-// do marketing — o console principal do operador durante o evento.
-// addDesafioEntry() já cria o participante com a 1ª tentativa (converte
-// pra centésimos, calcula diferença, identifica acerto exato ANTES de
-// gravar — src/lib/desafioCronometro.js); este componente só coleta e
-// mostra. D-098: até `maxTentativas` tentativas por participante SEM
-// recadastrar a pessoa — por isso a lista "Participantes cadastrados"
+// Desafio RJNet — Acerte 00:03:33 (D-089, D-090, D-098, D-099): tela de
+// cadastro do marketing — o console principal do operador durante o
+// evento. addDesafioEntry() já cria o participante com a 1ª tentativa
+// (converte pra centésimos, calcula diferença, identifica acerto exato
+// ANTES de gravar — src/lib/desafioCronometro.js); este componente só
+// coleta e mostra. D-098: até `maxTentativas` tentativas por participante
+// SEM recadastrar a pessoa — por isso a lista "Participantes cadastrados"
 // abaixo do formulário, com busca por nome, tentativa nova e edição
-// rápida sempre à mão, sem precisar trocar de sub-aba.
+// rápida sempre à mão, sem precisar trocar de sub-aba. D-099: campo "Já é
+// cliente RJNET?" — mesmo campo/semântica de leads.jaClienteRjnet,
+// puramente informativo (CRM/CSV), nunca exposto na Tela de TV.
 export function DesafioCadastro({ desafio, entries }) {
   const { addDesafioEntry } = useApp();
   const [participantName, setParticipantName] = useState('');
   const [phone, setPhone] = useState('');
   const [prizeType, setPrizeType] = useState('');
+  const [jaClienteRjnet, setJaClienteRjnet] = useState(false);
   const [resultado, setResultado] = useState('');
   const [erro, setErro] = useState('');
   const [ultimoId, setUltimoId] = useState(null);
@@ -29,7 +32,7 @@ export function DesafioCadastro({ desafio, entries }) {
   const [editando, setEditando] = useState(null);
 
   const limpar = () => {
-    setParticipantName(''); setPhone(''); setPrizeType(''); setResultado('');
+    setParticipantName(''); setPhone(''); setPrizeType(''); setJaClienteRjnet(false); setResultado('');
   };
 
   const salvar = (e) => {
@@ -40,7 +43,7 @@ export function DesafioCadastro({ desafio, entries }) {
 
     const novo = addDesafioEntry(
       desafio.id,
-      { participantName: nome, phone: phone.trim(), prizeType: prizeType || null },
+      { participantName: nome, phone: phone.trim(), prizeType: prizeType || null, jaClienteRjnet },
       resultado,
       (msg) => setErro(msg),
     );
@@ -96,6 +99,13 @@ export function DesafioCadastro({ desafio, entries }) {
               Qual prêmio esta pessoa está concorrendo/recebendo. Dá pra ajustar depois em Ganhadores ou na edição rápida.
             </p>
           </div>
+          <div className="big-field" style={{ marginBottom: 12 }}>
+            <label>Já é cliente RJNET?</label>
+            <div className="seg-control">
+              <button type="button" className={'seg-btn' + (!jaClienteRjnet ? ' active' : '')} onClick={() => setJaClienteRjnet(false)}>Não</button>
+              <button type="button" className={'seg-btn' + (jaClienteRjnet ? ' active' : '')} onClick={() => setJaClienteRjnet(true)}>Sim</button>
+            </div>
+          </div>
           <div className="big-field" style={{ marginBottom: 14 }}>
             <label>Tentativa 1 (MM:SS:CC) *</label>
             <CronometroInput
@@ -119,7 +129,10 @@ export function DesafioCadastro({ desafio, entries }) {
               </button>
             </div>
             <div style={{ marginTop: 8 }}>
-              <div className="strong">{ultimo.participantName}</div>
+              <div className="strong">
+                {ultimo.participantName}
+                {ultimo.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
+              </div>
               {ultimo.phone && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{ultimo.phone}</div>}
               {ultimo.prizeType && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>🎁 {ultimo.prizeType}</div>}
               <div style={{ marginTop: 10 }}>
@@ -152,7 +165,10 @@ export function DesafioCadastro({ desafio, entries }) {
               <div key={e.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <div>
-                    <div className="strong">{e.participantName}</div>
+                    <div className="strong">
+                      {e.participantName}
+                      {e.jaClienteRjnet && <span className="badge badge-ativo" style={{ marginLeft: 6, fontSize: 10 }}>Já cliente</span>}
+                    </div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                       {e.phone || 'sem telefone'}{e.prizeType ? ` · 🎁 ${e.prizeType}` : ''}
                     </div>

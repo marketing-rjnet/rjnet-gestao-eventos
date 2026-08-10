@@ -347,6 +347,9 @@ const desafioEntryFromDb = (r) => ({
   delivered: r.delivered ?? false,
   deliveryResponsible: r.delivery_responsible ?? null,
   deliveryAt: r.delivery_at ?? null,
+  // D-099: mesmo campo/semântica de leads.ja_cliente_rjnet — só uso
+  // interno (CRM/CSV), nunca lido pela RPC pública da Tela de TV.
+  jaClienteRjnet: r.ja_cliente_rjnet ?? false,
   criadoEm: r.created_at,
 });
 const desafioEntryToDb = (e) => ({
@@ -357,6 +360,7 @@ const desafioEntryToDb = (e) => ({
   delivered: e.delivered ?? false,
   delivery_responsible: e.deliveryResponsible || null,
   delivery_at: e.deliveryAt || null,
+  ja_cliente_rjnet: e.jaClienteRjnet ?? false,
   created_at: e.criadoEm || new Date().toISOString(),
 });
 
@@ -853,7 +857,7 @@ export async function demandaPorRegiao(simuladorId) {
 // pelo modo local (ver AppProvider/desafioApi). Tabela pequena por dia
 // (no máximo dezenas/centenas de linhas), então o agrupamento em memória
 // é mais simples que uma RPC agregadora, sem custo real.
-const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_name,phone,prize_type,delivered,delivery_responsible,delivery_at,created_at';
+const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_name,phone,prize_type,delivered,delivery_responsible,delivery_at,ja_cliente_rjnet,created_at';
 const DESAFIO_ATTEMPTS_COLS = 'id,event_id,entry_id,attempt_number,result_display,result_centiseconds,target_centiseconds,difference_centiseconds,is_exact_hit,created_at';
 
 export async function fetchDesafioEntries(eventId, signal) {

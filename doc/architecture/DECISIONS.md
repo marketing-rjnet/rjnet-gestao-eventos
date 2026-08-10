@@ -3076,6 +3076,30 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-099] — Desafio RJNet: fix de broadcast do prêmio + campo "Já é cliente RJNET?" no cadastro
+
+**Data:** 2026-08-10
+**Tipo:** Correção de bug / Feature
+
+**Contexto:** Após validar o D-098 em produção, o responsável reportou 2 pontos: (1) ao escolher um prêmio (geral do dia ou por posição do ranking, sub-aba "Prêmio"), a mudança não aparecia na Tela de TV em tempo real — só depois de algum outro evento (ex: novo cadastro) disparar uma atualização por coincidência; (2) faltava capturar se o participante já é cliente RJNET, mesmo campo já usado no cadastro de lead do vendedor e no Quiz do Simulador (D-097).
+
+**Decisão:**
+- **Bug real, anterior ao D-098**: `saveDesafioPremio` (prêmio geral do dia, D-091) e `saveDesafioPremiosRanking` (prêmio por posição, D-092) chamavam `db.save*(...)` passando `onSuccess: undefined` — nunca disparavam `broadcastDesafioPainel(eventId)`. Em modo local isso passava despercebido (a Tela de TV tem poll de 3s como fallback de dev), mas em modo Supabase (produção) a TV só recebe atualização via Broadcast — sem ele, a troca de prêmio ficava "presa" até outro evento do módulo (cadastro, nova tentativa, edição) disparar um broadcast e arrastar a atualização junto. Corrigido: os dois agora passam `() => broadcastDesafioPainel(eventId)` como `onSuccess`, mesmo padrão já usado em `addDesafioEntry`/`addDesafioTentativa`/`updateDesafioParticipante`/`atualizarEntregaPremio`. Nenhuma mudança de mecanismo — mesmo canal Broadcast do D-089, só faltava a chamada.
+- **Campo "Já é cliente RJNET?"** no cadastro do participante — mesmo campo/semântica de `leads.jaClienteRjnet` (`VendedorApp.jsx`) e do cadastro do Quiz (D-097), mesmo controle segmentado Não/Sim. Nova coluna `timer_challenge_entries.ja_cliente_rjnet` (boolean, default `false`) — puramente informativo (CRM interno/CSV), **não** exposto na RPC pública (mesmo critério de `phone`, que também não é lido pela Tela de TV). Editável também na edição rápida (`DesafioEditarParticipante.jsx`), já que é um dado que também pode ser corrigido depois. Badge "Já cliente" exibido no card "Último cadastrado" e na lista "Participantes cadastrados" (mesmo componente `.badge.badge-ativo` já usado em `VendedorApp.jsx`) — decisão de não adicionar como coluna nas tabelas de Ranking/Ganhadores/Tela de TV para não sobrecarregar telas que já têm várias colunas.
+
+**Alternativas Avaliadas:**
+- **Investigar se o problema era de cache/CDN antes de mexer no código** — descartado após ler `saveDesafioPremio`/`saveDesafioPremiosRanking` e confirmar a ausência do `onSuccess`; reproduzido e corrigido via teste E2E (escolher prêmio por posição → Tela de TV atualiza sem F5), sem precisar investigar infraestrutura.
+
+**Impactos:** Nenhuma quebra de comportamento existente — o fix de broadcast é estritamente aditivo (só adiciona a chamada que faltava). O campo novo é opcional (default `false`), não afeta ranking/tentativas/RPC pública.
+
+**Arquivos Afetados:** `src/api/desafioApi.js` (fix de broadcast em `saveDesafioPremio`/`saveDesafioPremiosRanking`; `addDesafioEntry`/`updateDesafioParticipante` ganham `jaClienteRjnet`); `supabase/migracao-desafio-ja-cliente.sql` (novo); `src/lib/dataService.js` (mapeadores + `DESAFIO_ENTRIES_COLS`); `src/features/desafio/DesafioCadastro.jsx` (campo no formulário + badge), `DesafioEditarParticipante.jsx` (campo editável); `src/utils/csv.js` (coluna "Já Cliente RJNET"); `tests/desafio.test.js` (2 cenários novos).
+
+**Riscos:** Nenhum. Validado via `npx playwright test tests/desafio.test.js` (13 cenários, incluindo o prêmio por posição refletindo na Tela de TV sem F5 e o cadastro com "já é cliente" aparecendo no badge).
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

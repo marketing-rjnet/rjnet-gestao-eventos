@@ -41,6 +41,10 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
     // otimista local com o que já se sabe na hora (descrição sempre; imagem
     // só é confirmada depois do upload — db.saveDesafioPremio devolve o path
     // final via onSuccess, recarregado no próximo fetchAll/realtime).
+    // D-099: onSuccess dispara broadcastDesafioPainel — faltava aqui (bug
+    // anterior ao D-098), então em modo Supabase (sem poll, só broadcast) a
+    // Tela de TV nunca refletia a troca do prêmio até algum OUTRO evento
+    // disparar um broadcast por coincidência.
     saveDesafioPremio: (eventId, { descricao, file, removerImagem }, onError) => {
       const atual = desafios.find((d) => d.id === eventId);
       if (!atual) { onError?.('Dia do desafio não encontrado.'); return; }
@@ -51,7 +55,7 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       } : d)));
       db.saveDesafioPremio(
         { eventId, descricao, file, removerImagem, oldImagemPath: atual.premioImagemPath },
-        undefined,
+        () => broadcastDesafioPainel(eventId),
         onError,
       );
     },
@@ -60,7 +64,8 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
     // do prêmio geral acima. `ranking` chega com as 10 posições, cada uma
     // com `name` sendo uma das 3 opções fixas (`PREMIOS_POSICAO_RANKING`)
     // ou string vazia (sem prêmio) — sem imagem/ícone (D-093 removeu). 100%
-    // otimista: sem upload, reflete na hora.
+    // otimista: sem upload, reflete na hora. D-099: broadcast no onSuccess
+    // (mesmo fix do saveDesafioPremio acima).
     saveDesafioPremiosRanking: (eventId, { ranking }, onError) => {
       const atual = desafios.find((d) => d.id === eventId);
       if (!atual) { onError?.('Dia do desafio não encontrado.'); return; }
@@ -70,7 +75,7 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       } : d)));
       db.saveDesafioPremiosRanking(
         { eventId, ranking },
-        undefined,
+        () => broadcastDesafioPainel(eventId),
         onError,
       );
     },
@@ -86,7 +91,7 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
     // ranking nunca são listas separadas no banco: um participante entra
     // num ou noutro conforme sua MELHOR tentativa (melhorTentativa(),
     // desafioCronometro.js) tiver isExactHit ou não.
-    addDesafioEntry: (eventId, { participantName, phone, prizeType }, resultDisplay, onError) => {
+    addDesafioEntry: (eventId, { participantName, phone, prizeType, jaClienteRjnet }, resultDisplay, onError) => {
       const desafio = desafios.find((d) => d.id === eventId);
       if (!desafio) { onError?.('Dia do desafio não encontrado.'); return null; }
       let calculo;
@@ -107,6 +112,8 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
         delivered: false,
         deliveryResponsible: null,
         deliveryAt: null,
+        // D-099: mesmo campo/semântica de leads.jaClienteRjnet.
+        jaClienteRjnet: jaClienteRjnet ?? false,
         criadoEm: new Date().toISOString(),
         tentativas: [tentativa1],
       };
@@ -142,17 +149,19 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       return nova;
     },
 
-    // D-098: edição rápida do participante — SEMPRE sobre o id do registro
-    // existente (nunca nome/telefone como identificador, nunca cria um
-    // participante novo). Só toca nome/telefone; tentativas, prêmio,
-    // evento e ranking ficam intocados (preservados via spread de `atual`).
-    updateDesafioParticipante: (entryId, { participantName, phone }, onError) => {
+    // D-098/D-099: edição rápida do participante — SEMPRE sobre o id do
+    // registro existente (nunca nome/telefone como identificador, nunca
+    // cria um participante novo). Só toca nome/telefone/já-cliente;
+    // tentativas, prêmio, evento e ranking ficam intocados (preservados
+    // via spread de `atual`).
+    updateDesafioParticipante: (entryId, { participantName, phone, jaClienteRjnet }, onError) => {
       const atual = entries.find((e) => e.id === entryId);
       if (!atual) { onError?.('Participante não encontrado.'); return; }
       const atualizado = {
         ...atual,
         ...(participantName !== undefined ? { participantName: participantName.trim() } : {}),
         ...(phone !== undefined ? { phone: phone.trim() } : {}),
+        ...(jaClienteRjnet !== undefined ? { jaClienteRjnet } : {}),
       };
       setEntries((p) => p.map((e) => (e.id === entryId ? atualizado : e)));
       db.saveDesafioEntry(atualizado, () => broadcastDesafioPainel(atual.eventId), () => onError?.('Falha ao salvar — tentando novamente.'));
