@@ -1,33 +1,57 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../hooks/useApp';
 import { Kpi } from '../../components/ui';
-import { centesimosParaTempo, formatarDiferenca } from '../../lib/desafioCronometro';
+import { centesimosParaTempo, formatarDiferenca, melhorTentativa } from '../../lib/desafioCronometro';
 import { exportDesafioEntriesCSV } from '../../utils/csv';
 
-// Desafio RJNet — Acerte 00:03:33 (D-089): painel administrativo do dia —
-// KPIs, últimos cadastrados, participantes por dia (agrupado por data
-// local, mesmo cuidado de MesDetail.jsx pra não virar o dia errado perto
-// da meia-noite) e exportação CSV. Toda estatística é derivada só das
-// participações desse `event_id` (nunca mistura dias).
+// Desafio RJNet — Acerte 00:03:33 (D-089, D-098): painel administrativo
+// do dia — KPIs, últimos cadastrados, participantes por dia (agrupado
+// por data local, mesmo cuidado de MesDetail.jsx pra não virar o dia
+// errado perto da meia-noite) e exportação CSV. Toda estatística é
+// derivada só das participações desse `event_id` (nunca mistura dias) e
+// sempre pela MELHOR tentativa de cada participante (melhorTentativa(),
+// desafioCronometro.js — mesma regra do Ranking/Ganhadores/RPC pública).
 export function DesafioDashboard({ desafio, entries }) {
   const { desafios } = useApp();
 
   const stats = useMemo(() => {
-    const total = entries.length;
-    const ganhadores = entries.filter((e) => e.isExactHit).length;
-    const naoExatos = entries.filter((e) => !e.isExactHit);
-    const menorDiferenca = naoExatos.length ? Math.min(...naoExatos.map((e) => e.differenceCentiseconds)) : null;
-    const mediaCentesimos = total ? Math.round(entries.reduce((acc, e) => acc + e.resultCentiseconds, 0) / total) : null;
+    const avaliados = entries
+      .map((e) => ({ entry: e, melhor: melhorTentativa(e.tentativas) }))
+      .filter((x) => x.melhor);
+    const total = avaliados.length;
+    const ganhadores = avaliados.filter((x) => x.melhor.isExactHit).length;
+    const naoExatos = avaliados.filter((x) => !x.melhor.isExactHit);
+    const menorDiferenca = naoExatos.length ? Math.min(...naoExatos.map((x) => x.melhor.differenceCentiseconds)) : null;
+    // Média de TODOS os tempos registrados (toda tentativa, inclusive de ganhadores).
+    const todasTentativas = entries.flatMap((e) => e.tentativas || []);
+    const mediaCentesimos = todasTentativas.length
+      ? Math.round(todasTentativas.reduce((acc, t) => acc + t.resultCentiseconds, 0) / todasTentativas.length)
+      : null;
     const porDia = {};
-    for (const e of entries) {
+    for (const { entry: e } of avaliados) {
       const key = new Date(e.criadoEm).toLocaleDateString('pt-BR');
       porDia[key] = (porDia[key] || 0) + 1;
     }
-    const ultimos = [...entries].sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm)).slice(0, 8);
+    const ultimos = [...avaliados].sort((a, b) => new Date(b.entry.criadoEm) - new Date(a.entry.criadoEm)).slice(0, 8);
     return { total, ganhadores, menorDiferenca, mediaCentesimos, porDia, ultimos };
   }, [entries]);
 
-  const exportar = () => exportDesafioEntriesCSV(entries, desafio.nome, formatarDiferenca, undefined, desafio.premiosRanking);
+  // csv.js não carrega lógica de negócio — o cálculo de "melhor tentativa"
+  // acontece aqui (mesma regra de sempre) e vira campos planos no formato
+  // que exportDesafioEntriesCSV já esperava antes do D-098.
+  const exportar = () => {
+    const paraExportar = entries.map((e) => {
+      const melhor = melhorTentativa(e.tentativas);
+      return {
+        ...e,
+        resultDisplay: melhor?.resultDisplay || '',
+        differenceCentiseconds: melhor?.differenceCentiseconds ?? 0,
+        isExactHit: melhor?.isExactHit || false,
+        attemptCount: (e.tentativas || []).length,
+      };
+    });
+    exportDesafioEntriesCSV(paraExportar, desafio.nome, formatarDiferenca, undefined, desafio.premiosRanking);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -54,13 +78,14 @@ export function DesafioDashboard({ desafio, entries }) {
         ) : (
           <div className="tbl-wrap" style={{ marginTop: 10 }}>
             <table>
-              <thead><tr><th>Nome</th><th>Tempo</th><th>Status</th><th>Cadastrado em</th></tr></thead>
+              <thead><tr><th>Nome</th><th>Melhor tempo</th><th>Tentativas</th><th>Status</th><th>Cadastrado em</th></tr></thead>
               <tbody>
-                {stats.ultimos.map((e) => (
+                {stats.ultimos.map(({ entry: e, melhor }) => (
                   <tr key={e.id}>
                     <td>{e.participantName}</td>
-                    <td className="mono">{e.resultDisplay}</td>
-                    <td>{e.isExactHit ? '🏆 Ganhador' : centesimosParaTempo(e.differenceCentiseconds)}</td>
+                    <td className="mono">{melhor.resultDisplay}</td>
+                    <td>{(e.tentativas || []).length}</td>
+                    <td>{melhor.isExactHit ? '🏆 Ganhador' : centesimosParaTempo(melhor.differenceCentiseconds)}</td>
                     <td>{new Date(e.criadoEm).toLocaleString('pt-BR')}</td>
                   </tr>
                 ))}

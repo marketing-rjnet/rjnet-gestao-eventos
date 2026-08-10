@@ -310,6 +310,8 @@ const desafioPremioIconUrl = (path, versao) => path
 const desafioEventoFromDb = (r) => ({
   id: r.id, nome: r.name, slug: r.slug,
   targetCentiseconds: r.target_centiseconds ?? 333,
+  // D-098: tentativas permitidas por participante nesse dia (padrão 3).
+  maxTentativas: r.max_attempts ?? 3,
   ativo: r.active ?? true,
   criadoEm: r.created_at,
   premioDescricao: r.prize_description ?? '',
@@ -321,21 +323,26 @@ const desafioEventoFromDb = (r) => ({
 const desafioEventoToDb = (e) => ({
   id: e.id, name: e.nome, slug: e.slug,
   target_centiseconds: e.targetCentiseconds ?? 333,
+  max_attempts: e.maxTentativas ?? 3,
   active: e.ativo ?? true,
   created_at: e.criadoEm || new Date().toISOString(),
 });
 
+// D-098: `timer_challenge_entries` representa só o PARTICIPANTE (nome,
+// telefone, prêmio que está concorrendo/recebeu) — o resultado do
+// cronômetro saiu daqui e virou 1 linha por tentativa em
+// `timer_challenge_attempts` (desafioAttemptFromDb/ToDb abaixo). O array
+// `tentativas` é montado em fetchDesafioEntries (2 queries em paralelo,
+// agrupadas em memória) — nunca gravado como coluna nesta tabela.
 const desafioEntryFromDb = (r) => ({
   id: r.id, eventId: r.event_id,
   // D-090: "número do participante" foi removido — o telefone (opcional)
   // já é o identificador que o responsável sempre quis dizer com "número".
   participantName: r.participant_name,
   phone: r.phone ?? '',
-  resultDisplay: r.result_display,
-  resultCentiseconds: r.result_centiseconds,
-  targetCentiseconds: r.target_centiseconds,
-  differenceCentiseconds: r.difference_centiseconds,
-  isExactHit: r.is_exact_hit ?? false,
+  // D-098: prêmio vinculado ao participante — selecionável já no
+  // cadastro (TIPOS_PREMIO), reconfirmável/ajustável depois na tela de
+  // Ganhadores quando vira entrega efetiva.
   prizeType: r.prize_type ?? null,
   delivered: r.delivered ?? false,
   deliveryResponsible: r.delivery_responsible ?? null,
@@ -346,16 +353,36 @@ const desafioEntryToDb = (e) => ({
   id: e.id, event_id: e.eventId,
   participant_name: e.participantName,
   phone: e.phone || null,
-  result_display: e.resultDisplay,
-  result_centiseconds: e.resultCentiseconds,
-  target_centiseconds: e.targetCentiseconds,
-  difference_centiseconds: e.differenceCentiseconds,
-  is_exact_hit: e.isExactHit ?? false,
   prize_type: e.prizeType || null,
   delivered: e.delivered ?? false,
   delivery_responsible: e.deliveryResponsible || null,
   delivery_at: e.deliveryAt || null,
   created_at: e.criadoEm || new Date().toISOString(),
+});
+
+// D-098: 1 linha por tentativa (attempt_number 1..maxTentativas do dia),
+// sempre calculada ANTES de gravar via
+// src/lib/desafioCronometro.js::calcularResultadoDesafio() — nunca
+// recalculada nesta camada, mesmo princípio já valia pra entries.
+const desafioAttemptFromDb = (r) => ({
+  id: r.id, eventId: r.event_id, entryId: r.entry_id,
+  attemptNumber: r.attempt_number,
+  resultDisplay: r.result_display,
+  resultCentiseconds: r.result_centiseconds,
+  targetCentiseconds: r.target_centiseconds,
+  differenceCentiseconds: r.difference_centiseconds,
+  isExactHit: r.is_exact_hit ?? false,
+  criadoEm: r.created_at,
+});
+const desafioAttemptToDb = (a) => ({
+  id: a.id, event_id: a.eventId, entry_id: a.entryId,
+  attempt_number: a.attemptNumber,
+  result_display: a.resultDisplay,
+  result_centiseconds: a.resultCentiseconds,
+  target_centiseconds: a.targetCentiseconds,
+  difference_centiseconds: a.differenceCentiseconds,
+  is_exact_hit: a.isExactHit ?? false,
+  created_at: a.criadoEm || new Date().toISOString(),
 });
 
 const perfilFromDb = (r) => ({
@@ -401,8 +428,8 @@ export async function fetchAll(signal) {
         supabase.from('campos_personalizados').select('id,label,key,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // Simulador: mesmo tratamento gracioso — sem a migração, cai para lista vazia
         supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
-        // D-089/D-091/D-092: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
-        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,active,created_at,prize_description,prize_image_path,prize_updated_at,prize_ranking').order('created_at', { ascending: false }).abortSignal(signal),
+        // D-089/D-091/D-092/D-098: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
+        supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,max_attempts,active,created_at,prize_description,prize_image_path,prize_updated_at,prize_ranking').order('created_at', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -816,26 +843,41 @@ export async function demandaPorRegiao(simuladorId) {
   });
 }
 
-// D-089: participações de UM dia do Desafio — on-demand, mesmo modelo de
-// fetchLeadsEvento (TB-004): a lista de dias (`timer_challenge_events`)
-// carrega no boot, mas as participações só quando o marketing abre a
-// gestão de um dia específico.
-const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_name,phone,result_display,result_centiseconds,target_centiseconds,difference_centiseconds,is_exact_hit,prize_type,delivered,delivery_responsible,delivery_at,created_at';
+// D-089/D-098: participações de UM dia do Desafio — on-demand, mesmo
+// modelo de fetchLeadsEvento (TB-004): a lista de dias
+// (`timer_challenge_events`) carrega no boot, mas participantes E
+// tentativas só quando o marketing abre a gestão de um dia específico.
+// D-098: 2 queries em paralelo (entries + attempts, ambas escopadas por
+// event_id — nunca por entry_id um de cada vez) agrupadas em memória —
+// cada entry sai com um array `tentativas` já anexado, mesmo shape usado
+// pelo modo local (ver AppProvider/desafioApi). Tabela pequena por dia
+// (no máximo dezenas/centenas de linhas), então o agrupamento em memória
+// é mais simples que uma RPC agregadora, sem custo real.
+const DESAFIO_ENTRIES_COLS = 'id,event_id,participant_name,phone,prize_type,delivered,delivery_responsible,delivery_at,created_at';
+const DESAFIO_ATTEMPTS_COLS = 'id,event_id,entry_id,attempt_number,result_display,result_centiseconds,target_centiseconds,difference_centiseconds,is_exact_hit,created_at';
 
 export async function fetchDesafioEntries(eventId, signal) {
   if (!isSupabaseMode() || !eventId) return null;
   return trackPerf('fetchDesafioEntries', () =>
     withRetry(async () => {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-      const { data, error } = await supabase
-        .from('timer_challenge_entries')
-        .select(DESAFIO_ENTRIES_COLS)
-        .eq('event_id', eventId)
-        .eq('deleted', false)
-        .order('created_at', { ascending: false })
-        .abortSignal(signal);
-      if (error) throw error;
-      return data.map(desafioEntryFromDb);
+      const [entriesRes, attemptsRes] = await Promise.all([
+        supabase.from('timer_challenge_entries').select(DESAFIO_ENTRIES_COLS)
+          .eq('event_id', eventId).eq('deleted', false)
+          .order('created_at', { ascending: false }).abortSignal(signal),
+        supabase.from('timer_challenge_attempts').select(DESAFIO_ATTEMPTS_COLS)
+          .eq('event_id', eventId)
+          .order('attempt_number', { ascending: true }).abortSignal(signal),
+      ]);
+      if (entriesRes.error) throw entriesRes.error;
+      if (attemptsRes.error) throw attemptsRes.error;
+      const tentativasPorEntry = new Map();
+      for (const a of attemptsRes.data.map(desafioAttemptFromDb)) {
+        if (!tentativasPorEntry.has(a.entryId)) tentativasPorEntry.set(a.entryId, []);
+        tentativasPorEntry.get(a.entryId).push(a);
+      }
+      return entriesRes.data.map(desafioEntryFromDb)
+        .map((e) => ({ ...e, tentativas: tentativasPorEntry.get(e.id) || [] }));
     })
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
@@ -1031,8 +1073,20 @@ export const db = {
     onFail,
     onSuccess,
   ),
+  // D-098: cadastro/edição rápida do PARTICIPANTE (nome, telefone, prêmio,
+  // entrega) — nunca inclui resultado de cronômetro (isso é tentativa,
+  // ver saveDesafioAttempt abaixo). Mesma função upsert de sempre serve
+  // tanto o cadastro inicial quanto updateDesafioParticipante (edição de
+  // nome/telefone) e atualizarEntregaPremio — todas operam sobre o MESMO
+  // id existente (upsert por PK), nunca criam um segundo registro.
   saveDesafioEntry: (e, onSuccess, onFail) => exec(supabase?.from('timer_challenge_entries').upsert(desafioEntryToDb(e)), 'salvar participante do desafio', onFail, onSuccess),
   removeDesafioEntry: (id, onSuccess) => exec(supabase?.from('timer_challenge_entries').update({ deleted: true }).eq('id', id), 'remover participante do desafio', undefined, onSuccess),
+
+  // D-098: 1 tentativa (attempt_number sequencial, calculada por
+  // calcularResultadoDesafio ANTES de chamar isto) sobre um participante
+  // JÁ existente — nunca upsert de um "entry" novo. Insert simples (id
+  // gerado no cliente é único por definição, não há conflito esperado).
+  saveDesafioAttempt: (a, onSuccess, onFail) => exec(supabase?.from('timer_challenge_attempts').insert(desafioAttemptToDb(a)), 'salvar tentativa do desafio', onFail, onSuccess),
 
   // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
   // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).
