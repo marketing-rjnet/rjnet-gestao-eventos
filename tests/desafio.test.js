@@ -238,6 +238,58 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     ]);
   });
 
+  test('cadastra participante marcando "já é cliente RJNET" — aparece na lista (D-099)', async ({ page }) => {
+    await goToDesafio(page);
+    await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Ja Cliente');
+    await page.locator('button', { hasText: 'Criar dia' }).click();
+
+    await page.locator('input[placeholder="Nome completo"]').fill('Cliente Antigo');
+    await page.locator('.big-field', { hasText: 'Já é cliente RJNET?' }).locator('.seg-btn', { hasText: 'Sim' }).click();
+    await digitarCronometro(page.locator('input[placeholder="00:03:33"]').first(), '0340'); // 00:03:40
+    await page.locator('button', { hasText: 'Salvar participante' }).click();
+
+    const cardUltimo = page.locator('.card', { hasText: 'Último cadastrado' });
+    await expect(cardUltimo).toContainText('Cliente Antigo');
+    await expect(cardUltimo.locator('.badge', { hasText: 'Já cliente' })).toBeVisible();
+
+    // Reflete também na lista "Participantes cadastrados"
+    const listaCard = page.locator('.card', { hasText: 'Participantes cadastrados' });
+    await expect(listaCard).toContainText('Cliente Antigo');
+    await expect(listaCard.locator('.badge', { hasText: 'Já cliente' })).toBeVisible();
+  });
+
+  test('tela de TV reflete alteração do prêmio por posição sem recarregar (D-099 — fix do broadcast)', async ({ page, context }) => {
+    test.setTimeout(60_000);
+    await goToDesafio(page);
+    await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Premio TV');
+    await page.locator('button', { hasText: 'Criar dia' }).click();
+
+    // Precisa de ao menos 1 participante pra abrir a Tela de TV com dado —
+    // o prêmio por posição aparece independente de ranking (D-094).
+    await page.locator('input[placeholder="Nome completo"]').fill('Participante Base');
+    await digitarCronometro(page.locator('input[placeholder="00:03:33"]').first(), '0340');
+    await page.locator('button', { hasText: 'Salvar participante' }).click();
+
+    await page.locator('.seg-btn', { hasText: 'Tela de TV' }).click();
+    const url = (await page.locator('.mono', { hasText: '/tv/' }).textContent()).trim();
+    const tvPage = await context.newPage();
+    await tvPage.goto(url);
+    await expect(tvPage.locator('.desafio-tv-title')).toHaveText('DESAFIO RJNET');
+
+    // Configura o prêmio da 1ª posição do ranking — as posições são
+    // renderizadas na ordem 1º..10º, então o 1º botão "HBO Max" da lista
+    // corresponde à posição 1.
+    await page.locator('.seg-btn', { hasText: 'Prêmio' }).click();
+    await page.locator('.card', { hasText: 'Prêmios do Ranking' }).locator('button', { hasText: 'HBO Max' }).first().click();
+    await page.locator('button', { hasText: 'Salvar prêmios do ranking' }).click();
+
+    // A Tela de TV atualiza sozinha (broadcast, sem F5) — antes do fix,
+    // saveDesafioPremiosRanking nunca chamava broadcastDesafioPainel.
+    // .desafio-tv-ranking-row inclui o cabeçalho (Pos./Nome/...) como a
+    // 1ª ocorrência — a linha da posição 1 é a 2ª (índice 1).
+    await expect(tvPage.locator('.desafio-tv-ranking-row').nth(1).locator('text=HBO Max')).toBeVisible({ timeout: 8000 });
+  });
+
   test('tela de TV reflete edição de nome sem recarregar manualmente (D-098)', async ({ page, context }) => {
     test.setTimeout(60_000);
     await goToDesafio(page);

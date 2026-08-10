@@ -4,25 +4,30 @@ import { Icon } from '../../components/ui';
 import { sanitizeText } from '../../lib/security';
 import { maskTel } from '../../utils/masks';
 
-// D-098: edição rápida de Nome/Telefone sobre o participante JÁ existente
-// — o `id` do registro é o identificador (nunca nome/telefone), então a
-// edição nunca cria um segundo participante nem mexe em tentativas,
-// prêmio, evento ou ranking (updateDesafioParticipante só faz PATCH dos
-// 2 campos). Mesmo padrão visual dos demais modais do projeto
-// (.modal-overlay/.modal-box — ver MaterialModal.jsx), reaproveitado em
-// qualquer tela administrativa que liste participantes (Cadastro,
-// Ranking, Ganhadores).
+// D-098/D-099: edição rápida de Nome/Telefone/Já-cliente sobre o
+// participante JÁ existente — o `id` do registro é o identificador
+// (nunca nome/telefone), então a edição nunca cria um segundo
+// participante nem mexe em tentativas, prêmio, evento ou ranking
+// (updateDesafioParticipante só faz PATCH desses campos). Mesmo padrão
+// visual dos demais modais do projeto (.modal-overlay/.modal-box — ver
+// MaterialModal.jsx), reaproveitado em qualquer tela administrativa que
+// liste participantes (Cadastro, Ranking, Ganhadores).
 export function DesafioEditarParticipante({ entry, onClose }) {
   const { updateDesafioParticipante } = useApp();
   const [nome, setNome] = useState(entry.participantName);
   const [telefone, setTelefone] = useState(entry.phone || '');
+  const [jaClienteRjnet, setJaClienteRjnet] = useState(!!entry.jaClienteRjnet);
   const [erro, setErro] = useState('');
 
   const salvar = (e) => {
     e.preventDefault();
     const nomeLimpo = sanitizeText(nome, 120);
     if (!nomeLimpo) { setErro('Nome é obrigatório.'); return; }
-    updateDesafioParticipante(entry.id, { participantName: nomeLimpo, phone: telefone.trim() }, (msg) => setErro(msg));
+    updateDesafioParticipante(
+      entry.id,
+      { participantName: nomeLimpo, phone: telefone.trim(), jaClienteRjnet },
+      (msg) => setErro(msg),
+    );
     onClose();
   };
 
@@ -41,6 +46,13 @@ export function DesafioEditarParticipante({ entry, onClose }) {
           <div className="field-group">
             <label>Telefone</label>
             <input value={telefone} onChange={(e) => setTelefone(maskTel(e.target.value))} placeholder="(00) 00000-0000" inputMode="numeric" />
+          </div>
+          <div className="field-group">
+            <label>Já é cliente RJNET?</label>
+            <div className="seg-control">
+              <button type="button" className={'seg-btn' + (!jaClienteRjnet ? ' active' : '')} onClick={() => setJaClienteRjnet(false)}>Não</button>
+              <button type="button" className={'seg-btn' + (jaClienteRjnet ? ' active' : '')} onClick={() => setJaClienteRjnet(true)}>Sim</button>
+            </div>
           </div>
           {erro && <div className="form-erro">{erro}</div>}
           <div className="modal-actions">
