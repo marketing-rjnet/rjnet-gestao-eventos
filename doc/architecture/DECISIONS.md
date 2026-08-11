@@ -3094,7 +3094,7 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 **Arquivos Afetados:** `src/api/desafioApi.js` (fix de broadcast em `saveDesafioPremio`/`saveDesafioPremiosRanking`; `addDesafioEntry`/`updateDesafioParticipante` ganham `jaClienteRjnet`); `supabase/migracao-desafio-ja-cliente.sql` (novo); `src/lib/dataService.js` (mapeadores + `DESAFIO_ENTRIES_COLS`); `src/features/desafio/DesafioCadastro.jsx` (campo no formulário + badge), `DesafioEditarParticipante.jsx` (campo editável); `src/utils/csv.js` (coluna "Já Cliente RJNET"); `tests/desafio.test.js` (2 cenários novos).
 
-**Riscos:** Nenhum. Validado via `npx playwright test tests/desafio.test.js` (13 cenários, incluindo o prêmio por posição refletindo na Tela de TV sem F5 e o cadastro com "já é cliente" aparecendo no badge).
+**Riscos:** Nenhum. Validado via `npx playwright test tests/desafio.test.js` (13 cenários, incluindo o prêmio por posição refletindo na Tela de TV sem F5 e o cadastro com "já é cliente" aparecendo no badge). `migracao-desafio-ja-cliente.sql` aplicada no SQL Editor do Supabase de produção pelo responsável — mergeada na `main`.
 
 **Status:** Ativa.
 
