@@ -274,6 +274,9 @@ function DemandaPorRegiao() {
   // somados na mesma linha, sem como saber qual ação gerou qual demanda —
   // dropdown filtra o agregado por UMA campanha (tema) do Simulador de cada vez.
   const [temaSelecionado, setTemaSelecionado] = useState('');
+  // Accordion fechado por padrão, mesmo padrão de FilaDistribuicao (D-087) —
+  // dado já carregado no mount, então filtro/"Atualizar" ficam fora do toggle.
+  const [aberto, setAberto] = useState(false);
 
   const agregarLocal = (simuladorId) => {
     const mapa = new Map();
@@ -301,8 +304,18 @@ function DemandaPorRegiao() {
 
   return (
     <div className="card" style={{ marginTop: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
-        <span className="section-title" style={{ marginBottom: 0 }}>Demanda por região</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aberto ? 4 : 0, flexWrap: 'wrap', gap: 8 }}>
+        <button
+          onClick={() => setAberto((v) => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <span style={{ display: 'inline-flex', transform: aberto ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .15s ease' }}>
+            <Icon name="arrow_right" size={13} stroke="var(--text-3)" />
+          </span>
+          <span className="section-title" style={{ marginBottom: 0 }}>
+            Demanda por região {linhas && linhas.length > 0 && <span className="badge badge-planejado" style={{ marginLeft: 6 }}>{linhas.length}</span>}
+          </span>
+        </button>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {simuladores.length > 0 && (
             <select
@@ -318,35 +331,39 @@ function DemandaPorRegiao() {
           <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={carregar}>Atualizar</button>
         </span>
       </div>
-      <p className="tab-desc" style={{ marginBottom: 12 }}>
-        Interessados captados digitalmente (Simulador, formulários) por cidade e bairro — inteligência comercial interna.
-        {temaSelecionado ? ' Filtrado por tema — cada campanha conta separada, nunca somada com outra.' : ''}
-      </p>
-      {!linhas || linhas.length === 0 ? (
-        <div className="empty" style={{ padding: '12px 0' }}>
-          {temaSelecionado ? 'Nenhum interessado com cidade/bairro para esse tema ainda.' : 'Nenhum dado de demanda por região ainda.'}
-        </div>
-      ) : (
-        <div className="tbl-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Cidade</th>
-                <th>Bairro</th>
-                <th style={{ textAlign: 'right' }}>Interessados</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((r) => (
-                <tr key={`${r.cidade}|${r.bairro}`}>
-                  <td className="strong">{r.cidade}</td>
-                  <td>{r.bairro}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--rj-blue)' }}>{r.total}</td>
+      {aberto && (
+      <>
+        <p className="tab-desc" style={{ marginBottom: 12, marginTop: 12 }}>
+          Interessados captados digitalmente (Simulador, formulários) por cidade e bairro — inteligência comercial interna.
+          {temaSelecionado ? ' Filtrado por tema — cada campanha conta separada, nunca somada com outra.' : ''}
+        </p>
+        {!linhas || linhas.length === 0 ? (
+          <div className="empty" style={{ padding: '12px 0' }}>
+            {temaSelecionado ? 'Nenhum interessado com cidade/bairro para esse tema ainda.' : 'Nenhum dado de demanda por região ainda.'}
+          </div>
+        ) : (
+          <div className="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cidade</th>
+                  <th>Bairro</th>
+                  <th style={{ textAlign: 'right' }}>Interessados</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {linhas.map((r) => (
+                  <tr key={`${r.cidade}|${r.bairro}`}>
+                    <td className="strong">{r.cidade}</td>
+                    <td>{r.bairro}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--rj-blue)' }}>{r.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>
       )}
     </div>
   );
