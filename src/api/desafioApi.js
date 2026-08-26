@@ -149,6 +149,32 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
       return nova;
     },
 
+    // Correção de uma tentativa já registrada — mesmo cálculo de sempre
+    // (calcularResultadoDesafio, contra o target do dia), só que sobre o
+    // id da tentativa existente em vez de criar uma nova. Nunca mexe em
+    // attemptNumber (identidade da tentativa dentro do participante).
+    updateDesafioTentativa: (entryId, attemptId, resultDisplay, onError) => {
+      const atual = entries.find((e) => e.id === entryId);
+      if (!atual) { onError?.('Participante não encontrado.'); return null; }
+      const tentativaAtual = (atual.tentativas || []).find((t) => t.id === attemptId);
+      if (!tentativaAtual) { onError?.('Tentativa não encontrada.'); return null; }
+      const desafio = desafios.find((d) => d.id === atual.eventId);
+      if (!desafio) { onError?.('Dia do desafio não encontrado.'); return null; }
+      let calculo;
+      try {
+        calculo = calcularResultadoDesafio({ resultDisplay, targetCentiseconds: desafio.targetCentiseconds });
+      } catch (err) {
+        onError?.(err.message);
+        return null;
+      }
+      const atualizada = { ...tentativaAtual, ...calculo };
+      setEntries((p) => p.map((e) => (e.id === entryId
+        ? { ...e, tentativas: (e.tentativas || []).map((t) => (t.id === attemptId ? atualizada : t)) }
+        : e)));
+      db.updateDesafioAttempt(atualizada, () => broadcastDesafioPainel(atual.eventId), () => onError?.('Falha ao salvar — tentando novamente.'));
+      return atualizada;
+    },
+
     // D-098/D-099: edição rápida do participante — SEMPRE sobre o id do
     // registro existente (nunca nome/telefone como identificador, nunca
     // cria um participante novo). Só toca nome/telefone/já-cliente;

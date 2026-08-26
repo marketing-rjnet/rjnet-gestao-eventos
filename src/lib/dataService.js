@@ -1092,6 +1092,25 @@ export const db = {
   // gerado no cliente é único por definição, não há conflito esperado).
   saveDesafioAttempt: (a, onSuccess, onFail) => exec(supabase?.from('timer_challenge_attempts').insert(desafioAttemptToDb(a)), 'salvar tentativa do desafio', onFail, onSuccess),
 
+  // Correção de uma tentativa JÁ registrada (ex: erro de leitura do
+  // cronômetro pelo operador) — UPDATE parcial só dos campos de
+  // resultado, nunca attempt_number/entry_id/event_id (identidade da
+  // tentativa não muda). Resultado recalculado por
+  // calcularResultadoDesafio() ANTES de chamar isto, mesmo princípio de
+  // saveDesafioAttempt — esta camada nunca recalcula.
+  updateDesafioAttempt: (a, onSuccess, onFail) => exec(
+    supabase?.from('timer_challenge_attempts').update({
+      result_display: a.resultDisplay,
+      result_centiseconds: a.resultCentiseconds,
+      target_centiseconds: a.targetCentiseconds,
+      difference_centiseconds: a.differenceCentiseconds,
+      is_exact_hit: a.isExactHit ?? false,
+    }).eq('id', a.id),
+    'corrigir tentativa do desafio',
+    onFail,
+    onSuccess,
+  ),
+
   // D-057: indicador de que o vendedor abriu o WhatsApp com a oferta pronta —
   // NÃO é confirmação de entrega/leitura (wa.me não expõe esse dado).
   // D-058: eventoId/mesReferencia são mutuamente exclusivos, como em leads.

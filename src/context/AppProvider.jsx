@@ -185,7 +185,7 @@ export function AppProvider({ children }) {
 
   const {
     addDesafioEvento, updateDesafioEvento, removeDesafioEvento,
-    addDesafioEntry, addDesafioTentativa, updateDesafioParticipante,
+    addDesafioEntry, addDesafioTentativa, updateDesafioTentativa, updateDesafioParticipante,
     atualizarEntregaPremio, removeDesafioEntry,
     saveDesafioPremio, saveDesafioPremiosRanking,
   } = createDesafioApi({ desafios, setDesafios, entries: desafioEntries, setEntries: setDesafioEntries });
@@ -220,7 +220,7 @@ export function AppProvider({ children }) {
     addCampoPersonalizado, updateCampoPersonalizado, removeCampoPersonalizado,
     addSimulador, updateSimulador, removeSimulador,
     addDesafioEvento, updateDesafioEvento, removeDesafioEvento,
-    addDesafioEntry, addDesafioTentativa, updateDesafioParticipante,
+    addDesafioEntry, addDesafioTentativa, updateDesafioTentativa, updateDesafioParticipante,
     atualizarEntregaPremio, removeDesafioEntry, saveDesafioPremio, saveDesafioPremiosRanking,
     obterRanking, obterRankingMes,
     recarregar: carregar,
