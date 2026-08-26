@@ -163,6 +163,39 @@ test.describe('Desafio RJNet — Acerte 00:03:33', () => {
     await expect(page.locator('.card', { hasText: 'Participantes cadastrados' }).locator('.strong', { hasText: 'João da Silva' })).toHaveCount(1);
   });
 
+  test('corrige o valor de uma tentativa já registrada, sem criar tentativa nova', async ({ page }) => {
+    await goToDesafio(page);
+    await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Correcao');
+    await page.locator('button', { hasText: 'Criar dia' }).click();
+
+    await page.locator('input[placeholder="Nome completo"]').fill('Ana Paula');
+    await digitarCronometro(page.locator('input[placeholder="00:03:33"]').first(), '0412'); // 00:04:12 (erro de leitura)
+    await page.locator('button', { hasText: 'Salvar participante' }).click();
+
+    const cardUltimo = page.locator('.card', { hasText: 'Último cadastrado' });
+    await cardUltimo.locator('button', { hasText: 'Adicionar tentativa 2' }).click();
+    await digitarCronometro(cardUltimo.locator('input[placeholder="00:03:33"]'), '0351'); // 00:03:51
+    await cardUltimo.locator('button', { hasText: 'Salvar' }).click();
+    await expect(cardUltimo).toContainText('Tentativa 2');
+
+    // Corrige a Tentativa 1 (operador leu "00:04:12" errado, era "00:03:41") —
+    // 1º botão "Corrigir tentativa" no DOM é sempre o da Tentativa 1 (ordem
+    // da lista); usar um filtro por texto aqui seria ambíguo, já que o
+    // container flex das tentativas também contém "Tentativa 1" como
+    // substring do seu texto total (junto com "Tentativa 2").
+    await cardUltimo.locator('button[title="Corrigir tentativa"]').first().click();
+    await digitarCronometro(cardUltimo.locator('input[placeholder="00:03:33"]'), '0341'); // 00:03:41
+    await cardUltimo.locator('button', { hasText: 'Salvar' }).click();
+
+    // Continua sendo a Tentativa 1 (não virou uma 3ª), valor corrigido, Tentativa 2 intacta
+    await expect(cardUltimo).toContainText('Tentativa 1');
+    await expect(cardUltimo).toContainText('00:03:41');
+    await expect(cardUltimo).toContainText('Tentativa 2');
+    await expect(cardUltimo).toContainText('00:03:51');
+    await expect(cardUltimo.locator('button', { hasText: 'Adicionar tentativa 3' })).toBeVisible();
+    await expect(page.locator('text=00:04:12')).toHaveCount(0);
+  });
+
   test('cadastra participante com acerto exato — vai para Ganhadores, não pro Ranking', async ({ page }) => {
     await goToDesafio(page);
     await page.locator('input[placeholder="Ex: Sexta-feira"]').fill('Dia Ganhador');

@@ -3100,6 +3100,29 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-100] — Desafio RJNet: correção de uma tentativa já registrada
+
+**Data:** 2026-08-26
+**Tipo:** Feature
+
+**Contexto:** O responsável reportou que, após o D-098 (múltiplas tentativas por participante), dava pra corrigir nome/telefone de um participante (`DesafioEditarParticipante.jsx`) mas não o valor de uma tentativa já registrada — um erro de leitura do cronômetro pelo operador (ex: "00:04:12" quando era "00:03:41") só podia ser corrigido cadastrando uma tentativa nova, o que distorce o histórico (mostra 2 tentativas quando só houve 1) e pode até estourar o limite do dia sem necessidade.
+
+**Decisão:** Cada linha de tentativa já registrada em `DesafioTentativas.jsx` ganha um botão "✎" próprio ("Corrigir tentativa") que abre o mesmo `CronometroInput` inline usado para adicionar tentativa nova, só que sobre a tentativa existente — nunca cria uma linha nova nem muda `attemptNumber`. Nova função `updateDesafioTentativa(entryId, attemptId, resultDisplay, onError)` em `desafioApi.js`, mesmo princípio de `addDesafioTentativa`: recalcula tudo via `calcularResultadoDesafio()` contra o `targetCentiseconds` do dia (nunca aceita um resultado já calculado), atualização otimista local + `db.updateDesafioAttempt()` (novo, `dataService.js`) — UPDATE parcial só dos campos de resultado (`result_display`/`result_centiseconds`/`target_centiseconds`/`difference_centiseconds`/`is_exact_hit`), nunca `attempt_number`/`entry_id`/`event_id` (identidade da tentativa não muda). Dispara o mesmo broadcast (`desafioRealtime.js`) das demais mutações do módulo — Ranking/Ganhadores/Tela de TV refletem a correção sem F5, já que ambos agregam pela melhor tentativa (`melhorTentativa()`) recalculada a cada leitura. RLS de `timer_challenge_attempts` já cobria UPDATE (`for all to authenticated using/with check papel_atual() = 'marketing'`, `migracao-desafio-tentativas.sql`) — nenhuma migração de banco nova.
+
+**Alternativas Avaliadas:**
+- **Excluir a tentativa errada e deixar o operador adicionar uma nova** — descartado: reordenaria `attemptNumber` de forma confusa (excluir a Tentativa 1 quando já existe Tentativa 2 deixaria um buraco ou exigiria renumerar) e ainda gastaria uma das `maxTentativas` do participante por um erro do operador, não do participante.
+- **Editar só como parte do modal `DesafioEditarParticipante`** — descartado: esse modal já tem escopo fechado (nome/telefone/já-cliente, D-098/D-099) e não lista tentativas; misturar os dois tornaria o modal maior sem necessidade, já que `DesafioTentativas.jsx` já é o componente único de UI de tentativas do módulo.
+
+**Impactos:** Nenhuma quebra de comportamento existente — puramente aditivo (novo botão, nova função, novo `db.*`). Ranking/Ganhadores/Painel/Tela de TV/CSV não mudam de lógica — já recalculam a melhor tentativa a cada leitura via `melhorTentativa()`, então uma correção só muda o valor que entra nesse cálculo.
+
+**Arquivos Afetados:** `src/lib/dataService.js` (`db.updateDesafioAttempt`, novo); `src/api/desafioApi.js` (`updateDesafioTentativa`, novo); `src/context/AppProvider.jsx` (wiring); `src/features/desafio/DesafioTentativas.jsx` (botão "✎" por tentativa + edição inline); `tests/desafio.test.js` (1 cenário novo).
+
+**Riscos:** Nenhum identificado. Validado via `node tests/desafioCronometro.unit.test.js` (43 asserções, lógica de cálculo não mudou) e `npx playwright test tests/desafio.test.js`.
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:
