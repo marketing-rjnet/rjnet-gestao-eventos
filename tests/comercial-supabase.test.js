@@ -28,6 +28,38 @@ const USERS = {
     },
     perfil: { id: 'u-vend-1', email: 'vendedora@rjnet.com', nome: 'Vendedora Supabase', papel: 'vendedor', ativo: true, criado_em: '2026-01-01T00:00:00Z' },
   },
+  // D-101: conta comercial — usada pelo teste de leitura/export do Desafio.
+  comercial: {
+    user: {
+      id: 'u-com-1', aud: 'authenticated', role: 'authenticated',
+      email: 'comercial@rjnet.com', email_confirmed_at: '2026-01-01T00:00:00Z',
+      app_metadata: { provider: 'email' }, user_metadata: { nome: 'Comercial Supabase' },
+      created_at: '2026-01-01T00:00:00Z',
+    },
+    perfil: { id: 'u-com-1', email: 'comercial@rjnet.com', nome: 'Comercial Supabase', papel: 'comercial', ativo: true, criado_em: '2026-01-01T00:00:00Z' },
+  },
+};
+
+// D-101: fixture mínima de um dia do Desafio + 1 participante com 1
+// tentativa — só o suficiente pra validar que o comercial enxerga o dia,
+// abre o Painel (leitura das 3 tabelas via RLS ampliada) e o botão de
+// export CSV aparece, sem nenhuma das sub-abas de gestão.
+const DESAFIO_EVENTO_DB = {
+  id: 'des-sup-1', name: 'Sexta-feira', slug: 'sexta-feira-sup1',
+  target_centiseconds: 333, max_attempts: 3, active: true,
+  created_at: '2026-06-01T10:00:00Z',
+  prize_description: null, prize_image_path: null, prize_updated_at: null, prize_ranking: [],
+};
+const DESAFIO_ENTRY_DB = {
+  id: 'entry-sup-1', event_id: 'des-sup-1', participant_name: 'Participante Supabase',
+  phone: '(24) 99999-0000', prize_type: null, delivered: false,
+  delivery_responsible: null, delivery_at: null, ja_cliente_rjnet: false,
+  created_at: '2026-06-10T12:00:00Z',
+};
+const DESAFIO_ATTEMPT_DB = {
+  id: 'attempt-sup-1', event_id: 'des-sup-1', entry_id: 'entry-sup-1', attempt_number: 1,
+  result_display: '00:03:35', result_centiseconds: 335, target_centiseconds: 333,
+  difference_centiseconds: 2, is_exact_hit: false, created_at: '2026-06-10T12:00:00Z',
 };
 
 const sessionJson = (user) => ({
@@ -40,7 +72,7 @@ const sessionJson = (user) => ({
  * Intercepta Auth e REST do Supabase. GETs de dados respondem com `delayMs`
  * de atraso para simular a chegada assíncrona.
  */
-async function mockSupabase(page, { delayMs = 600, papel = 'vendedor', leads = [] } = {}) {
+async function mockSupabase(page, { delayMs = 600, papel = 'vendedor', leads = [], comDesafio = false } = {}) {
   const conta = USERS[papel];
   /** @type {any[]} */
   const leadsInseridos = [];
@@ -83,6 +115,11 @@ async function mockSupabase(page, { delayMs = 600, papel = 'vendedor', leads = [
       const dados =
         tabela === 'eventos' ? [EVENTO_DB] :
         tabela === 'leads' ? [...leads, ...leadsInseridos] :
+        // D-101: fixture do Desafio, só quando o teste pede (comDesafio) —
+        // valida a RLS de SELECT ampliada pro papel comercial.
+        (comDesafio && tabela === 'timer_challenge_events') ? [DESAFIO_EVENTO_DB] :
+        (comDesafio && tabela === 'timer_challenge_entries') ? [DESAFIO_ENTRY_DB] :
+        (comDesafio && tabela === 'timer_challenge_attempts') ? [DESAFIO_ATTEMPT_DB] :
         [];
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dados) });
     }
@@ -191,6 +228,34 @@ test.describe('Supabase Auth — papéis e dados assíncronos', () => {
     } finally {
       EVENTO_DB.status = 'ativo';
     }
+  });
+
+  // D-101: comercial ganha leitura + exportação do Desafio, gestão continua marketing-only.
+  test('comercial enxerga o Desafio só no Painel (leitura + export), sem sub-abas de gestão', async ({ page }) => {
+    await mockSupabase(page, { papel: 'comercial', comDesafio: true });
+    await loginPorEmail(page, 'comercial');
+
+    await expect(page.locator('.user-badge .ub-name')).toHaveText('Comercial');
+    const abaDesafio = page.locator('.nav-tab', { hasText: 'Desafio' });
+    await expect(abaDesafio).toBeVisible();
+    await abaDesafio.click();
+
+    // Lista o dia criado pelo marketing, sem formulário de criação nem
+    // botões de encerrar/reativar/excluir (só DesafioTab.jsx, marketing, tem isso).
+    await expect(page.locator('.page-title', { hasText: 'Desafio RJNET' })).toBeVisible();
+    await expect(page.locator('text=Sexta-feira')).toBeVisible();
+    await expect(page.locator('input[placeholder="Ex: Sexta-feira"]')).toHaveCount(0);
+
+    await page.locator('button', { hasText: 'Ver / Exportar' }).click();
+
+    // Só a sub-aba "Painel" existe — nunca Cadastro/Ranking/Ganhadores/Prêmio/Tela de TV.
+    await expect(page.locator('.seg-btn')).toHaveCount(1);
+    await expect(page.locator('.seg-btn', { hasText: 'Painel' })).toBeVisible();
+    await expect(page.locator('.seg-btn', { hasText: 'Cadastro' })).toHaveCount(0);
+
+    // Estatísticas vieram das 3 tabelas liberadas por RLS + botão de export.
+    await expect(page.locator('.kpi', { hasText: 'Participantes' })).toContainText('1');
+    await expect(page.locator('button', { hasText: '⬇️ Exportar CSV' })).toBeEnabled();
   });
 
 });

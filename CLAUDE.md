@@ -81,7 +81,7 @@ src/
 ├── apps/
 │   ├── Root.jsx          # Roteador raiz: detecta modo e dark mode (etapa 14)
 │   ├── MarketingApp.jsx  # Shell do usuário marketing: navegação, tabs, dark mode (etapa 14)
-│   ├── ComercialApp.jsx  # Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059)
+│   ├── ComercialApp.jsx  # Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios/Desafio(leitura), sem estoque/equipe/monitor (D-059, D-101)
 │   └── VendedorApp.jsx   # Shell completo do vendedor + LeadEditInline + OfertaPickerModal (etapa 13, D-057)
 ├── auth/
 │   ├── Login.jsx         # Formulário de login modo legado (etapa 8)
@@ -132,9 +132,10 @@ src/
 │   ├── simulador/
 │   │   ├── SimuladorTab.jsx  # Campanhas do Simulador (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/faixas + Sorteador (só quem concluiu o quiz, D-083) + QR (UTM impresso embutido) + link, marketing only (D-072, D-075, D-076, D-080, D-083, D-084)
 │   │   └── index.js          # Re-export de simulador (D-072)
-│   └── desafio/               # Desafio RJNet — Acerte 00:03:33, marketing only (D-089, D-098)
+│   └── desafio/               # Desafio RJNet — Acerte 00:03:33, gestão marketing only; comercial só leitura/export (D-089, D-098, D-101)
 │       ├── DesafioTab.jsx      # Lista/criação de dias do desafio (tempo-alvo + tentativas por participante, configuráveis por dia, D-098)
-│       ├── DesafioDetail.jsx   # Sub-navegação de um dia: Cadastro/Ranking/Ganhadores/Prêmio/Painel/Tela de TV
+│       ├── DesafioComercialTab.jsx # Versão comercial: lista de dias + Painel (estatísticas + export CSV), só leitura (D-101)
+│       ├── DesafioDetail.jsx   # Sub-navegação de um dia: Cadastro/Ranking/Ganhadores/Prêmio/Painel/Tela de TV; `subTabs`/`initialSub` opcionais restringem pro comercial (D-101)
 │       ├── DesafioCadastro.jsx    # Console do operador: cadastro (nome/telefone/prêmio/1ª tentativa) + lista "Participantes cadastrados" buscável (D-098)
 │       ├── DesafioTentativas.jsx  # Bloco progressivo de tentativas de 1 participante — só mostra "+ Adicionar tentativa N" após a anterior; botão "✎" corrige uma tentativa já registrada (D-098, D-100)
 │       ├── DesafioEditarParticipante.jsx # Modal de edição rápida nome/telefone sobre o id existente, preserva tentativas/prêmio/ranking (D-098)
@@ -199,6 +200,7 @@ supabase/
 ├── migracao-desafio-premio-ranking-fixo.sql # D-093: prêmios do ranking viram catálogo fixo de 3 opções (sem imagem) — limpa iconPath legado
 ├── migracao-desafio-tentativas.sql    # D-098: tabela timer_challenge_attempts (1 linha por tentativa) + timer_challenge_events.max_attempts + backfill + RPC recriada
 ├── migracao-desafio-ja-cliente.sql    # D-099: coluna timer_challenge_entries.ja_cliente_rjnet (mesmo campo de leads.ja_cliente_rjnet)
+├── migracao-desafio-comercial-select.sql # D-101: amplia as 3 policies de SELECT do Desafio pra papel_atual() in ('marketing','comercial') — escrita continua marketing-only
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
@@ -302,7 +304,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing`/`comercial` (D-059)
 - `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
 - `formularios`/`campos_personalizados` (D-062, D-063): **primeiras policies `anon` do projeto** — leitura pública restrita a `ativo=true`, necessária para a página pública do Form Builder renderizar sem sessão; escrita restrita a `marketing`
-- `timer_challenge_events`/`timer_challenge_entries`/`timer_challenge_attempts` (D-089, D-098): leitura e escrita restritas a `marketing` (mesmo padrão de Estoque/Equipe, não `comercial`); **sem** policy `anon` — a tela pública de TV nunca lê as tabelas direto, só via a RPC `timer_challenge_painel_publico` (SECURITY DEFINER, único `grant execute ... to anon` do projeto, restrito a ranking Top 10 + ganhadores sem telefone)
+- `timer_challenge_events`/`timer_challenge_entries`/`timer_challenge_attempts` (D-089, D-098, D-101): escrita restrita a `marketing` (mesmo padrão de Estoque/Equipe); leitura liberada também para `comercial` desde D-101 (só exportação — UI de `comercial` só mostra a sub-aba "Painel", sem cadastro/edição); **sem** policy `anon` — a tela pública de TV nunca lê as tabelas direto, só via a RPC `timer_challenge_painel_publico` (SECURITY DEFINER, único `grant execute ... to anon` do projeto, restrito a ranking Top 10 + ganhadores sem telefone)
 
 ### Storage
 
@@ -334,7 +336,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 
 ## Módulos da UI
 
-**Navegação do Marketing (D-065, D-089):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários, Simulador), **Comercial** (Ofertas), **Ativação** (Desafio), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial mantém os 4 botões diretos de sempre (sem "Mais"), Vendedor não muda.
+**Navegação do Marketing (D-065, D-089):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários, Simulador), **Comercial** (Ofertas), **Ativação** (Desafio), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial ganha um 5º botão direto "Desafio" (leitura + export, D-101), ainda sem "Mais" — Vendedor não muda.
 
 | Tab | Papel | Funcionalidade |
 |-----|-------|---------------|
@@ -346,7 +348,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Equipe | marketing | CRUD de vendedores/usuários (comercial não gerencia equipe — D-059) |
 | Formulários | marketing | Form Builder — criação de formulários dinâmicos (catálogo fixo de campos + campos personalizados reutilizáveis); cada formulário já gera seu próprio QR Code/link para divulgação (D-062, D-063; absorve o antigo gerador de QR Code standalone, retirado em D-065) |
 | Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (cadastro ANTES do quiz → perguntas com resposta certa/errada e feedback verde/vermelho → faixa de classificação editável, ex: evento MotoFest → CTA explícito "Participar do sorteio") — este último ganha também um Sorteador entre quem CONCLUIU o quiz; duplicidade de cadastro bloqueada por número de WhatsApp na campanha, nunca por navegador (D-084); cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080, D-083, D-084) |
-| Desafio | marketing | **Desafio RJNet — Acerte 00:03:33** (D-089, D-090, D-098): cadastro de participantes por dia/edição do desafio (nome/telefone/prêmio que está concorrendo, campo de cronômetro MM:SS:CC com máscara automática — sem "número do participante", D-090), até `maxTentativas` tentativas por participante (padrão 3, configurável por dia) sem recadastrar a pessoa — UI progressiva ("+ Adicionar tentativa N", nunca 3 espaços vazios) e classificação sempre pela MELHOR tentativa (D-098), edição rápida de nome/telefone sobre o participante existente sem duplicar registro (D-098), ranking Top 10 por menor diferença (nunca inclui acertos exatos), colunas de melhor tempo/tentativas/prêmio do participante, lista de 🏆 Ganhadores Instantâneos com controle de entrega de prêmio, sub-aba **Prêmio** com descrição + imagem opcional do prêmio do dia (streamings — Disney+/HBO Max/RJNet Play, D-091) e prêmios individuais por posição do ranking 1º-10º (catálogo fixo de 3 opções — RJNET Móvel/HBO Max/Disney+, escolhida por botão, sem texto livre nem imagem, D-092/D-093), painel de estatísticas + export CSV, e QR Code/link de uma tela pública de TV (`/tv/:slug`) com ranking + KPIs (participantes, ganhadores, menor diferença, média dos tempos, alvo) em tempo real, painel de Prêmio ao lado do ranking (D-091), coluna própria de prêmio por posição (texto) na tabela do ranking sempre com as 10 posições visíveis mesmo sem participante (D-092–D-094) e animação de novo ganhador; múltiplos dias 100% independentes; marketing-only (não `comercial`) |
+| Desafio | marketing (gestão), comercial (leitura + export, D-101) | **Desafio RJNet — Acerte 00:03:33** (D-089, D-090, D-098): cadastro de participantes por dia/edição do desafio (nome/telefone/prêmio que está concorrendo, campo de cronômetro MM:SS:CC com máscara automática — sem "número do participante", D-090), até `maxTentativas` tentativas por participante (padrão 3, configurável por dia) sem recadastrar a pessoa — UI progressiva ("+ Adicionar tentativa N", nunca 3 espaços vazios) e classificação sempre pela MELHOR tentativa (D-098), edição rápida de nome/telefone sobre o participante existente sem duplicar registro (D-098), ranking Top 10 por menor diferença (nunca inclui acertos exatos), colunas de melhor tempo/tentativas/prêmio do participante, lista de 🏆 Ganhadores Instantâneos com controle de entrega de prêmio, sub-aba **Prêmio** com descrição + imagem opcional do prêmio do dia (streamings — Disney+/HBO Max/RJNet Play, D-091) e prêmios individuais por posição do ranking 1º-10º (catálogo fixo de 3 opções — RJNET Móvel/HBO Max/Disney+, escolhida por botão, sem texto livre nem imagem, D-092/D-093), painel de estatísticas + export CSV, e QR Code/link de uma tela pública de TV (`/tv/:slug`) com ranking + KPIs (participantes, ganhadores, menor diferença, média dos tempos, alvo) em tempo real, painel de Prêmio ao lado do ranking (D-091), coluna própria de prêmio por posição (texto) na tabela do ranking sempre com as 10 posições visíveis mesmo sem participante (D-092–D-094) e animação de novo ganhador; múltiplos dias 100% independentes; gestão (cadastro/ranking/prêmio/config) continua marketing-only — `comercial` só vê a sub-aba "Painel" (estatísticas + export CSV) via `DesafioComercialTab.jsx`, D-101 |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
 
 ---
@@ -431,7 +433,8 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/hooks/useDesafioPainelPublico.js` | ~105 | Hook da tela de TV — RPC pública + Broadcast em modo Supabase, poll leve em modo local; detecta ganhador novo comparando com a última lista vista; espelha o prêmio do dia e a agregação por melhor tentativa no `painelLocal()` (D-089, D-091, D-098) |
 | `src/public/DesafioPublico.jsx` | ~199 | Tela pública de TV (`/tv/:slug`) — sem sessão, tela cheia, ranking Top 10 (com coluna própria de prêmio por posição, texto do catálogo fixo, D-092/D-093) + painel de Prêmio geral (quando configurado) + ganhadores instantâneos + animação "Novo Ganhador" (confete, ~5s, volta sozinha) (D-089, D-091, D-092, D-093); sempre mostra as 10 posições do ranking, mesmo sem participante ainda, pra deixar claro os 3 prêmios possíveis (D-094); payload da RPC manteve o mesmo contrato após D-098, sem alteração de código |
 | `src/features/desafio/DesafioTab.jsx` | ~125 | Lista/criação de dias do desafio (tempo-alvo + tentativas por participante, configuráveis por dia, campo de cronômetro com máscara automática) (D-089, D-098) |
-| `src/features/desafio/DesafioDetail.jsx` | ~63 | Sub-navegação de um dia (Cadastro/Ranking/Ganhadores/Prêmio/Painel/Tela de TV); carrega participações (+ tentativas) on-demand (D-089, D-091, D-092, D-098) |
+| `src/features/desafio/DesafioDetail.jsx` | ~65 | Sub-navegação de um dia (Cadastro/Ranking/Ganhadores/Prêmio/Painel/Tela de TV); carrega participações (+ tentativas) on-demand (D-089, D-091, D-092, D-098); props opcionais `subTabs`/`initialSub` reaproveitadas pelo comercial pra restringir só ao Painel (D-101) |
+| `src/features/desafio/DesafioComercialTab.jsx` | ~75 | Versão comercial (só leitura): lista os dias criados pelo marketing e abre `DesafioDetail` restrito à sub-aba "Painel" (estatísticas + export CSV), D-101 |
 | `src/features/desafio/DesafioCadastro.jsx` | ~180 | Console do operador: cadastro (nome/telefone/prêmio/1ª tentativa via `CronometroInput`) + card "Último cadastrado" com tentativas progressivas + lista "Participantes cadastrados" buscável (nova tentativa/edição sem recadastrar) (D-089, D-090, D-098) |
 | `src/features/desafio/DesafioTentativas.jsx` | ~110 | Bloco progressivo de tentativas de 1 participante — lista as já registradas, "+ Adicionar tentativa N" só até `maxTentativas`, botão "✎" por linha corrige o valor de uma tentativa já registrada sem criar uma nova (D-098, D-100) |
 | `src/features/desafio/DesafioEditarParticipante.jsx` | ~55 | Modal de edição rápida nome/telefone sobre o `id` do participante existente — nunca cria registro novo, preserva tentativas/prêmio/ranking (D-098) |
@@ -444,7 +447,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-desafio-premio-ranking-fixo.sql` | ~35 | D-093: limpa a chave `iconPath` legada de `prize_ranking` — prêmios do ranking viram catálogo fixo de 3 opções, sem imagem |
 | `src/context/AppProvider.jsx` | ~161 | Provider: orquestra estado, efeitos e factories de API; `carregarLeadsMes` + contexto de refetch dual evento/mês (etapas 16–17, D-058) |
 | `src/apps/VendedorApp.jsx` | ~884 | Shell completo do vendedor + LeadEditInline + OfertaPickerModal; seletor Evento/Atividade do Mês (etapa 13, D-057, D-058) |
-| `src/apps/ComercialApp.jsx` | ~67 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios, sem estoque/equipe/monitor (D-059); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |
+| `src/apps/ComercialApp.jsx` | ~70 | Shell do gerente comercial: Início/Eventos/Ofertas/Relatórios/Desafio, sem estoque/equipe/monitor e sem gestão de Desafio (D-059, D-101); `abrirEvento` para o card de evento do Início — card de mês fica embutido no próprio `Dashboard.jsx` (D-060) |
 | `src/auth/Login.jsx` | ~55 | Login modo legado (etapa 8) |
 | `src/auth/LoginAuth.jsx` | ~75 | Login Supabase + recuperação de senha (etapa 8) |
 | `src/auth/NovaSenha.jsx` | ~55 | Redefinição de senha por link (etapa 8) |

@@ -4,14 +4,18 @@ import SyncBadge from '../components/SyncBadge';
 import { Dashboard, EventosTab, EventDetail } from '../features/events';
 import { OfertasTab } from '../features/offers';
 import { LeadsTab } from '../features/leads';
+import { DesafioComercialTab } from '../features/desafio';
 
 // D-059: shell do perfil comercial — mesmo nível de acesso do marketing em
 // eventos/ofertas/relatórios, sem estoque, sem gestão de equipe e sem monitor.
+// D-101: ganha a aba "Desafio", só leitura + exportação CSV (DesafioComercialTab) —
+// cadastro/ranking/prêmio do Desafio continuam exclusivos do marketing.
 const TABS = [
   { id: "inicio",  label: "Início",     ico: "home" },
   { id: "eventos", label: "Eventos",    ico: "calendar" },
   { id: "ofertas", label: "Ofertas",    ico: "box" },
   { id: "leads",   label: "Relatórios", ico: "users" },
+  { id: "desafio", label: "Desafio",    ico: "target" },
 ];
 
 export default function ComercialApp({ session, onLogout, darkMode, toggleDark }) {
@@ -50,8 +54,9 @@ export default function ComercialApp({ session, onLogout, darkMode, toggleDark }
         : <EventosTab onOpen={setDetailId} />)}
       {tab === "ofertas" && <OfertasTab />}
       {tab === "leads" && <LeadsTab session={session} />}
+      {tab === "desafio" && <DesafioComercialTab />}
 
-      {/* Bottom nav — mobile only (4 itens cabem sem sheet "Mais") */}
+      {/* Bottom nav — mobile only (5 itens cabem sem sheet "Mais") */}
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
           {TABS.map((t) => (
