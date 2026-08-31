@@ -3123,6 +3123,33 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-101] — Desafio RJNet: comercial ganha leitura + exportação, gestão continua marketing-only
+
+**Data:** 2026-08-31
+**Tipo:** Feature / mudança de RLS
+
+**Contexto:** O responsável pediu que a conta comercial também consiga exportar os dados dos dias do Desafio já criados pelo marketing. Até aqui o módulo era marketing-only tanto em leitura quanto em escrita (D-089), mesmo padrão de Estoque/Equipe/Monitor — e o próprio D-089 registrava explicitamente que qualquer reabertura pra `comercial` exigiria "decisão explícita". Esta é essa decisão, e ela é deliberadamente estreita: só LEITURA, nunca gestão.
+
+**Decisão:**
+- **RLS** (`migracao-desafio-comercial-select.sql`): as 3 policies `*_select_interno` de `timer_challenge_events`/`timer_challenge_entries`/`timer_challenge_attempts` passam de `papel_atual() = 'marketing'` para `papel_atual() in ('marketing', 'comercial')`. As policies `*_write` (`for all`) **não mudam** — continuam exigindo `papel_atual() = 'marketing'` exclusivamente, então cadastro de participante, tentativas, edição de prêmio, ativar/encerrar dia e qualquer outra mutação do módulo permanecem impossíveis para `comercial` mesmo com acesso direto à API REST.
+- **UI**: novo `DesafioComercialTab.jsx`, montado como 5ª aba direta em `ComercialApp.jsx` ("Desafio", ícone `target`, mesmo do marketing). Lista só os dias já criados (sem formulário de criação, sem encerrar/reativar/excluir — ao contrário de `DesafioTab.jsx`) e, ao abrir um dia, reaproveita `DesafioDetail.jsx` restrito por novas props opcionais `subTabs`/`initialSub` a **só** a sub-aba "Painel" (`DesafioDashboard.jsx`) — a única tela do módulo 100% leitura, que já tinha o botão "⬇️ Exportar CSV". Cadastro/Ranking/Ganhadores/Prêmio/Tela de TV não aparecem para o comercial — não por RLS (a leitura agora é liberada), mas porque não fazem parte do pedido e envolveriam controles de escrita (editar participante, marcar entrega de prêmio, configurar prêmio do dia) que continuam sendo decisão do marketing.
+- `DesafioDetail.jsx` ganhou `subTabs = SUB_TABS` e `initialSub = 'cadastro'` como props opcionais — o marketing não passa nada e continua vendo as 6 sub-abas de sempre; só o comercial usa a versão restrita.
+
+**Alternativas Avaliadas:**
+- **Dar ao comercial o mesmo nível do marketing no módulo inteiro (D-059)** — descartado: o pedido era só exportar dados, e abrir cadastro/edição de participantes/prêmio ampliaria a superfície de escrita sem necessidade, contrariando o espírito original do D-089 (marketing-only, mesmo padrão de Estoque/Equipe).
+- **Exportar via `LeadsTab.jsx` (Relatórios), reaproveitando o padrão de export CSV já existente ali** — descartado: Desafio não é um Lead (não tem `vendedor_id`/serviço de interesse/evento), misturar os dois exports confundiria mais do que ajudaria; um card dedicado no módulo Desafio já existente (`DesafioDashboard.jsx`) resolvia sem gambiarra.
+- **Comercial só lê a tabela via RLS, sem UI dedicada (export manual via ferramenta externa)** — descartado: o marketing é uma pessoa só (ver nota no topo do `SYSTEM_MAP.md`) e o comercial não tem acesso a ferramentas de banco; sem uma tela, a leitura liberada na RLS não teria uso prático.
+
+**Impactos:** Nenhuma quebra de comportamento existente — mudança aditiva tanto em RLS (`in (...)` é estritamente mais permissivo que `=`) quanto em UI (`subTabs`/`initialSub` têm defaults que preservam o comportamento do marketing). `ComercialApp.jsx` passa de 4 para 5 abas diretas — decisão de manter todas diretas (sem "Mais"), mesma lógica do D-065 aplicada em ComercialApp: 5 ainda cabe sem precisar agrupar.
+
+**Arquivos Afetados:** `supabase/migracao-desafio-comercial-select.sql` (novo); `src/features/desafio/DesafioDetail.jsx` (props `subTabs`/`initialSub`); `src/features/desafio/DesafioComercialTab.jsx` (novo); `src/features/desafio/index.js` (export); `src/apps/ComercialApp.jsx` (5ª aba).
+
+**Riscos:** Baixo. A RLS de escrita não foi tocada — testável em produção conferindo que uma tentativa de POST/PATCH/DELETE nas 3 tabelas autenticada como `comercial` continua sendo rejeitada pela policy `*_write`. Migração precisa ser aplicada manualmente no SQL Editor do Supabase (mesma dívida estrutural do D-078) + `NOTIFY pgrst`.
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

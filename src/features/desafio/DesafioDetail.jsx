@@ -22,9 +22,13 @@ const SUB_TABS = [
 // participações desse dia on-demand (mesmo modelo de EventDetail.jsx) e
 // nunca mistura com outro dia (toda leitura do array `desafioEntries` já
 // vem filtrada pelo backend por event_id).
-export function DesafioDetail({ desafio, onBack }) {
+// D-101: `subTabs`/`initialSub` opcionais — permitem ao comercial reaproveitar
+// este mesmo componente restrito só ao "Painel" (leitura + export CSV, ver
+// DesafioComercialTab.jsx), sem duplicar a lógica de carregamento/navegação.
+// Marketing não passa essas props e continua vendo as 6 sub-abas de sempre.
+export function DesafioDetail({ desafio, onBack, subTabs = SUB_TABS, initialSub = 'cadastro' }) {
   const { carregarDesafioEntries, desafioEntries } = useApp();
-  const [sub, setSub] = useState('cadastro');
+  const [sub, setSub] = useState(initialSub);
 
   useEffect(() => { carregarDesafioEntries(desafio.id); }, [desafio.id]);
 
@@ -37,8 +41,8 @@ export function DesafioDetail({ desafio, onBack }) {
         </div>
       </div>
 
-      <div className="seg-control" style={{ marginTop: 14, gridTemplateColumns: `repeat(${SUB_TABS.length}, 1fr)` }}>
-        {SUB_TABS.map((t) => (
+      <div className="seg-control" style={{ marginTop: 14, gridTemplateColumns: `repeat(${subTabs.length}, 1fr)` }}>
+        {subTabs.map((t) => (
           <button key={t.id} type="button" className={'seg-btn' + (sub === t.id ? ' active' : '')} onClick={() => setSub(t.id)}>
             <Icon name={t.ico} size={14} /> {t.label}
           </button>
