@@ -62,7 +62,7 @@ export function createDesafioApi({ desafios, setDesafios, entries, setEntries })
 
     // D-092/D-093: prêmios por posição do ranking (1º ao 10º) — independente
     // do prêmio geral acima. `ranking` chega com as 10 posições, cada uma
-    // com `name` sendo uma das 3 opções fixas (`PREMIOS_POSICAO_RANKING`)
+    // com `name` sendo uma das opções fixas (`PREMIOS_POSICAO_RANKING`)
     // ou string vazia (sem prêmio) — sem imagem/ícone (D-093 removeu). 100%
     // otimista: sem upload, reflete na hora. D-099: broadcast no onSuccess
     // (mesmo fix do saveDesafioPremio acima).

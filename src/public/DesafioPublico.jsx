@@ -17,8 +17,9 @@ const CONFETTI_EMOJIS = ['🎉', '🎊', '⭐', '🏆', '✨'];
 const POSICOES_RANKING = Array.from({ length: 10 }, (_, i) => i + 1);
 
 // D-092/D-093: prêmio por posição do ranking — array independente do
-// prêmio geral do dia (D-091). Catálogo fixo de 3 opções, só texto (sem
-// imagem, D-093). Só existe entrada pra posição que o marketing configurou.
+// prêmio geral do dia (D-091). Catálogo fixo de opções, só texto (sem
+// imagem, D-093; 4ª opção "RJNET Play" — D-102). Só existe entrada pra
+// posição que o marketing configurou.
 function premioDaPosicao(prizeRanking, position) {
   const p = (prizeRanking || []).find((x) => x.position === position);
   return p?.name || null;

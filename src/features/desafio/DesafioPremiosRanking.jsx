@@ -6,9 +6,9 @@ const POSICOES = Array.from({ length: 10 }, (_, i) => i + 1);
 
 // Desafio RJNet — Acerte 00:03:33 (D-092, D-093): prêmio por POSIÇÃO do
 // ranking (1º ao 10º), independente do prêmio geral do dia (D-091,
-// DesafioPremio.jsx) — os dois coexistem. D-093: catálogo FIXO de 3
-// opções (RJNET Móvel/HBO Max/Disney+), sem texto livre nem imagem — cada
-// posição escolhe uma delas clicando direto no botão (as 3 opções ficam
+// DesafioPremio.jsx) — os dois coexistem. D-093: catálogo FIXO (RJNET
+// Móvel/HBO Max/Disney+/RJNET Play — D-102), sem texto livre nem imagem —
+// cada posição escolhe uma delas clicando direto no botão (as opções ficam
 // visíveis lado a lado, não escondidas num dropdown). Exibido como coluna
 // própria na tabela do ranking da Tela de TV, atualizando ao vivo
 // conforme os participantes vão ocupando cada posição.
@@ -53,7 +53,7 @@ export function DesafioPremiosRanking({ desafio }) {
     <div className="card" style={{ marginTop: 18, maxWidth: 620 }}>
       <span className="section-title">🏅 Prêmios do Ranking (1º ao 10º)</span>
       <p className="campo-hint" style={{ marginTop: 4, marginBottom: 14 }}>
-        Escolha um prêmio pra cada posição do Top 10, clicando numa das 3 opções — aparece como coluna própria na
+        Escolha um prêmio pra cada posição do Top 10, clicando numa das opções — aparece como coluna própria na
         tabela do ranking da Tela de TV, ao vivo, conforme os participantes vão ocupando cada posição. Clique de
         novo na opção marcada pra deixar a posição sem prêmio.
       </p>
