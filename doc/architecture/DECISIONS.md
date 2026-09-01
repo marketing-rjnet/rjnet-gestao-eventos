@@ -3150,6 +3150,28 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 ---
 
+### [D-102] — Desafio RJNet: prêmios do ranking ganham 4ª opção "RJNET Play"
+
+**Data:** 2026-09-01
+**Tipo:** Feature
+
+**Contexto:** O responsável pediu para adicionar "RJNET Play" ao catálogo de prêmios por posição do ranking (D-092/D-093), que até aqui tinha 3 opções fixas (RJNET Móvel/HBO Max/Disney+).
+
+**Decisão:** `PREMIOS_POSICAO_RANKING` (`src/lib/desafioCronometro.js`) ganha um 4º item, `'RJNET Play'`, ao lado dos 3 já existentes. Como `DesafioPremiosRanking.jsx` (formulário de edição) e `DesafioPublico.jsx`/`DesafioRanking.jsx` (exibição) já renderizam esse catálogo dinamicamente via `.map()`, nenhuma mudança de UI foi necessária além dos comentários que citavam "3 opções" — a 4ª opção já aparece como botão a mais em cada uma das 10 posições. Sem migração de banco: `prize_ranking` já é `jsonb` de texto livre por posição, validado só no cliente contra o catálogo (mesmo nível de enforcement do D-093).
+
+**Alternativas Avaliadas:**
+- Nenhuma — mudança de catálogo, sem trade-off de desenho.
+
+**Impactos:** Nenhuma quebra — puramente aditivo. Posições já salvas com uma das 3 opções antigas continuam válidas.
+
+**Arquivos Afetados:** `src/lib/desafioCronometro.js` (`PREMIOS_POSICAO_RANKING` → 4 itens); `src/features/desafio/DesafioPremiosRanking.jsx`, `src/api/desafioApi.js`, `src/lib/dataService.js`, `src/public/DesafioPublico.jsx` (comentários atualizados, sem mudança de lógica).
+
+**Riscos:** Nenhum identificado.
+
+**Status:** Ativa.
+
+---
+
 ## Processo Obrigatório
 
 Sempre que uma etapa da refatoração for concluída:

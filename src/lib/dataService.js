@@ -317,7 +317,7 @@ const desafioEventoFromDb = (r) => ({
   premioDescricao: r.prize_description ?? '',
   premioImagemPath: r.prize_image_path ?? null,
   premioImagemUrl: desafioPremioIconUrl(r.prize_image_path, r.prize_updated_at || r.created_at),
-  // D-093: catálogo fixo (RJNET Móvel/HBO Max/Disney+), sem imagem — só nome.
+  // D-093: catálogo fixo (RJNET Móvel/HBO Max/Disney+/RJNET Play — D-102), sem imagem — só nome.
   premiosRanking: (r.prize_ranking || []).map((p) => ({ position: p.position, nome: p.name || '' })),
 });
 const desafioEventoToDb = (e) => ({

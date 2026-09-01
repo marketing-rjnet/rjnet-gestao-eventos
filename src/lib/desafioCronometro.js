@@ -21,11 +21,12 @@ export const MAX_TENTATIVAS_PADRAO = 3;
 // cadastro (nunca uma segunda lista de prêmios).
 export const TIPOS_PREMIO = ['RJNET Móvel 24GB', 'Disney+', 'HBO Max', 'Outro'];
 
-// D-093: prêmios por POSIÇÃO do ranking (1º ao 10º) — catálogo fixo de 3
+// D-093: prêmios por POSIÇÃO do ranking (1º ao 10º) — catálogo fixo de
 // opções (sem texto livre, sem imagem), cada posição escolhe uma delas.
 // Distinto de TIPOS_PREMIO acima (que é o prêmio ENTREGUE a um ganhador
 // instantâneo específico, D-089) — conceitos independentes do módulo.
-export const PREMIOS_POSICAO_RANKING = ['RJNET Móvel', 'HBO Max', 'Disney+'];
+// D-102: 4ª opção "RJNET Play" adicionada ao catálogo original de 3.
+export const PREMIOS_POSICAO_RANKING = ['RJNET Móvel', 'HBO Max', 'Disney+', 'RJNET Play'];
 
 const REGEX_TEMPO = /^(\d{2}):(\d{2}):(\d{2})$/;
 
