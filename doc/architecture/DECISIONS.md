@@ -3168,6 +3168,35 @@ Validado visualmente rodando o app em modo local (`npm run dev` + captura de tel
 
 **Riscos:** Nenhum identificado.
 
+---
+
+### [D-103] — Simulador: peso das opções deixa de vazar na leitura pública
+
+**Data:** 2026-09-02
+**Tipo:** Hardening de segurança / mudança de RLS
+
+**Contexto:** Revisão de superfície pública identificou que `simuladores_select_publico` (RLS `to anon`, D-072) libera SELECT na LINHA inteira de uma campanha ativa — RLS é controle por linha, não por coluna. Isso expunha `perguntas` (tipo `demanda`, com `peso` de cada opção, D-075) direto via REST (`/rest/v1/simuladores?select=perguntas`, com a anon key pública do bundle), sem precisar nem abrir `/s/:slug`. Quem soubesse o peso podia escolher sempre a opção de maior peso pra forçar `temperatura='quente'` na fila de distribuição, comprometendo o sinal de qualificação do lead.
+
+O mesmo padrão existe em `quiz_perguntas` (`respostaCorretaId`, D-080) — **não** corrigido aqui: o feedback visual verde/vermelho do Quiz (`SimuladorPublico.jsx`) é calculado no cliente comparando a resposta escolhida com esse campo, que só está disponível ali porque veio no mesmo payload público. Esconder o gabarito exigiria mover a checagem de resposta pro servidor (round-trip por pergunta) — mudança de UX, não um ajuste isolado de RLS. Registrado como decisão em aberto, não como bug desta correção.
+
+**Decisão:**
+- Nova function `simulador_publico(p_slug text)` (SECURITY DEFINER, `migracao-simulador-peso-oculto.sql`) substitui a leitura direta da tabela pro público — devolve as mesmas colunas de `simuladores` (mesmos nomes, pra `simuladorFromDb` não precisar mudar), com `peso` removido de cada opção de `perguntas` via `jsonb_agg`/`-` operator. `quiz_perguntas`/`quiz_faixas` continuam devolvidos sem alteração (ver contexto acima).
+- Policy `simuladores_select_publico` (`to anon`) **removida** — a tabela não tem mais SELECT direto pra `anon`; único jeito de ler uma campanha publicamente passa a ser a function, com `grant execute ... to anon` explícito (mesmo padrão de `timer_challenge_painel_publico`, D-089).
+- `fetchSimuladorPublico` (`dataService.js`) troca `.from('simuladores').select(...)` por `supabase.rpc('simulador_publico', { p_slug: slug })`.
+- A Edge Function `submeter-simulador` não muda — ela já buscava sua própria cópia de `perguntas`/`quiz_perguntas` direto do banco com `SUPABASE_SERVICE_ROLE_KEY` (bypassa RLS) pra recalcular pontuação/temperatura, nunca confiando no payload do cliente. Esta migração não altera nenhum cálculo, só o que é exposto antes da submissão.
+
+**Alternativas Avaliadas:**
+- **Coluna separada `peso` fora de `perguntas` (jsonb com 2 campos, um público/um privado)** — descartado: quebraria `simuladorToDb`/`PerguntasBuilder` (gestão) e o `resumoPerfil()` (snapshot em `leads.perfil_consumo`), que dependem de `perguntas` como um único blob; a function resolve sem tocar o shape gravado.
+- **Corrigir também o gabarito do Quiz nesta mesma migração** — descartado: exige mudança de arquitetura (checagem de resposta no servidor), não é uma correção de RLS isolada; misturar os dois adicionaria risco de quebra a uma mudança que hoje é 100% aditiva.
+
+**Impactos:** Nenhuma quebra de comportamento visível — `SimuladorPublico.jsx` nunca leu `peso` (só texto de pergunta/opção); scoring já era recalculado no servidor a partir de uma leitura própria (service role), independente do que o público recebe. Leitura autenticada (`SimuladorTab.jsx`, gestão) não é afetada — usa a policy `simuladores_select_interno`, intocada.
+
+**Arquivos Afetados:** `supabase/migracao-simulador-peso-oculto.sql` (novo); `src/lib/dataService.js` (`fetchSimuladorPublico`).
+
+**Riscos:** Baixo. Migração precisa ser aplicada manualmente no SQL Editor do Supabase (mesma dívida estrutural do D-078) + `NOTIFY pgrst`; até a migração rodar em produção, o comportamento antigo (tabela ainda com policy `to anon`) continua valendo — sem regressão, só sem o ganho de segurança até o deploy.
+
+**Status:** Ativa.
+
 **Status:** Ativa.
 
 ---

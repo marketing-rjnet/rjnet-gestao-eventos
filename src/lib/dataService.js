@@ -596,16 +596,16 @@ export async function fetchCamposPersonalizadosPublico(ids) {
 }
 
 // Simulador: leitura pública (anon) de uma campanha ativa pelo slug —
-// mesmo padrão de fetchFormularioPublico. RLS restringe a `ativo = true`
-// (migracao-simulador.sql).
+// mesmo padrão de fetchFormularioPublico. D-103: passou de leitura direta
+// da tabela para a RPC `simulador_publico` (SECURITY DEFINER) — RLS é por
+// linha, não por coluna, então a policy `to anon` antiga expunha o `peso`
+// de cada opção de `perguntas` (tipo demanda) pra quem lesse o REST direto,
+// permitindo forçar `temperatura='quente'` escolhendo sempre a opção de
+// maior peso. A RPC devolve as mesmas colunas de `simuladores` (mesmo
+// mapeamento via simuladorFromDb), só com `peso` removido de cada opção.
 export async function fetchSimuladorPublico(slug) {
   if (!isSupabaseMode() || !slug) return null;
-  const { data, error } = await supabase
-    .from('simuladores')
-    .select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo')
-    .eq('slug', slug)
-    .eq('ativo', true)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('simulador_publico', { p_slug: slug });
   if (error || !data) return null;
   return simuladorFromDb(data);
 }

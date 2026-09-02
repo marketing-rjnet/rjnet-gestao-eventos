@@ -193,6 +193,7 @@ supabase/
 ├── migracao-simulador-perguntas.sql  # Coluna simuladores.perguntas (jsonb) — questionário próprio por campanha (D-075)
 ├── migracao-simulador-tipos.sql      # Migra tipo perfil_consumo/territorial → oferta/demanda + coluna mensagem_resultado (D-076)
 ├── migracao-simulador-quiz.sql       # 3º tipo 'quiz' + colunas simuladores.quiz_perguntas/quiz_faixas (D-080)
+├── migracao-simulador-peso-oculto.sql # RPC simulador_publico() esconde peso das opções (demanda) da leitura anon; remove policy simuladores_select_publico (D-103)
 ├── migracao-desafio-cronometro.sql   # Tabelas timer_challenge_events/timer_challenge_entries + RPC pública timer_challenge_painel_publico (D-089)
 ├── migracao-desafio-remove-numero.sql # Remove timer_challenge_entries.participant_number; RPC ganha minDifferenceCentiseconds/averageCentiseconds (D-090)
 ├── migracao-desafio-premio.sql        # Colunas timer_challenge_events.prize_description/prize_image_path + bucket desafio-premios + RPC recriada (D-091)
@@ -424,6 +425,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-simulador-perguntas.sql` | ~30 | Coluna simuladores.perguntas (jsonb) — questionário próprio por campanha (D-075) |
 | `supabase/migracao-simulador-tipos.sql` | ~40 | Migra tipo perfil_consumo/territorial → oferta/demanda + coluna mensagem_resultado (D-076) |
 | `supabase/migracao-simulador-quiz.sql` | ~45 | 3º tipo 'quiz' na constraint + colunas simuladores.quiz_perguntas/quiz_faixas (D-080) |
+| `supabase/migracao-simulador-peso-oculto.sql` | ~55 | RPC `simulador_publico(slug)` (SECURITY DEFINER) esconde `peso` das opções de `perguntas` da leitura pública; remove policy `simuladores_select_publico` (D-103) |
 | `supabase/functions/_shared/captacao.ts` | ~80 | Miolo compartilhado das Edge Functions públicas: CORS, sanitização, containsLink, rate limit por IP (D-072) |
 | `supabase/functions/submeter-simulador/index.ts` | ~598 | Edge Function pública — ramifica por tipo (oferta: deduz perfil do quiz fixo; demanda: recalcula score das perguntas da campanha; quiz: 2 fases `cadastro`/`conclusao` em vez de insert único, guarda atômica `pontuacao is null`, cadastro recusa número de WhatsApp já cadastrado na campanha), nunca aceita perfil/score/acertos pronto do cliente, sanitiza UTM (D-072, D-076, D-077, D-080, D-083, D-084) |
 | `src/lib/desafioCronometro.js` | ~120 | Domínio puro do Desafio RJNet — parse/format MM:SS:CC↔centésimos, `calcularResultadoDesafio()` (diferença + acerto exato), `formatarDigitosCronometro()` (máscara automática do cronômetro), `melhorTentativa()` (única fonte de verdade de qual tentativa vale, D-098), catálogos `TIPOS_PREMIO`/`PREMIOS_POSICAO_RANKING`/`MAX_TENTATIVAS_PADRAO`; sem imports, testável standalone (D-089, D-093, D-098) |
