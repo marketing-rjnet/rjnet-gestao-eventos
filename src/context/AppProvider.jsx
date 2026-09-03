@@ -15,6 +15,7 @@ import { createFormularioApi } from '../api/formularioApi';
 import { createCampoPersonalizadoApi } from '../api/campoPersonalizadoApi';
 import { createSimuladorApi } from '../api/simuladorApi';
 import { createDesafioApi } from '../api/desafioApi';
+import { createLandingPageApi } from '../api/landingPageApi';
 
 export function AppProvider({ children }) {
   const [materiais, setMateriais] = usePersisted("rjnet_materiais", isSupabaseMode() ? [] : MOCK_MATERIAIS);
@@ -34,6 +35,10 @@ export function AppProvider({ children }) {
   // participações do dia atualmente aberto na gestão (on-demand)
   const [desafios, setDesafios] = usePersisted("rjnet_desafios", []);
   const [desafioEntries, setDesafioEntries] = usePersisted("rjnet_desafio_entries", []);
+  // D-104: Landing Pages (entidade genérica de aquisição) — tabela pequena,
+  // carrega no boot; sessões/eventos NUNCA entram no contexto (só agregados
+  // via RPC, on-demand, dentro do módulo Aquisição)
+  const [landingPages, setLandingPages] = usePersisted("rjnet_landing_pages", []);
   const [isLoading, setIsLoading] = useState(isSupabaseMode());
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.IDLE);
 
@@ -65,6 +70,7 @@ export function AppProvider({ children }) {
     setCamposPersonalizados(dados.camposPersonalizados);
     setSimuladores(dados.simuladores);
     setDesafios(dados.desafios);
+    setLandingPages(dados.landingPages);
     // D-089: recarrega participações do dia do Desafio atualmente aberto na gestão
     if (desafioContextRef.current) {
       const desafioEntriesData = await fetchDesafioEntries(desafioContextRef.current, signal);
@@ -140,7 +146,7 @@ export function AppProvider({ children }) {
         abortRef.current?.abort();
         setMateriais([]); setVendedores([]); setEventos([]); setLeads([]);
         setOfertas([]); setOfertasEnviadas([]); setFormularios([]); setCamposPersonalizados([]); setSimuladores([]);
-        setDesafios([]); setDesafioEntries([]);
+        setDesafios([]); setDesafioEntries([]); setLandingPages([]);
         setSyncStatus(SYNC_STATUS.IDLE);
       }
     });
@@ -190,6 +196,9 @@ export function AppProvider({ children }) {
     saveDesafioPremio, saveDesafioPremiosRanking,
   } = createDesafioApi({ desafios, setDesafios, entries: desafioEntries, setEntries: setDesafioEntries });
 
+  const { addLandingPage, updateLandingPage, removeLandingPage } =
+    createLandingPageApi({ landingPages, setLandingPages });
+
   // TB-009: antes recalculava o flatMap sobre eventos/materiais a cada
   // chamada de getMateriaisDisponiveis() (EstoqueTab, Dashboard, EventDetail
   // chamam em todo render). Memoizado por [materiais, eventos] — a função
@@ -207,8 +216,9 @@ export function AppProvider({ children }) {
 
   const value = useMemo(() => ({
     materiais, eventos, leads, vendedores, ofertas, formularios, camposPersonalizados, simuladores,
-    desafios, desafioEntries,
+    desafios, desafioEntries, landingPages,
     isLoading, syncStatus,
+    addLandingPage, updateLandingPage, removeLandingPage,
     addEvento, updateEvento, removeEvento,
     addLead, updateLead, removeLead,
     removeMaterial, addMaterial, updateMaterial,
@@ -232,7 +242,7 @@ export function AppProvider({ children }) {
     ofertaJaEnviada: (leadId, servico) => ofertasEnviadas.some((o) => o.leadId === leadId && o.servico === servico),
     getMateriaisDisponiveis: () => materiaisDisponiveis,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, simuladores, desafios, desafioEntries, isLoading, syncStatus, materiaisDisponiveis]);
+  }), [materiais, eventos, leads, vendedores, ofertas, ofertasEnviadas, formularios, camposPersonalizados, simuladores, desafios, desafioEntries, landingPages, isLoading, syncStatus, materiaisDisponiveis]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

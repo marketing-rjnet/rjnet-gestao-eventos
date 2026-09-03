@@ -12,6 +12,7 @@ import { MonitoringTab } from '../features/monitoring';
 import { FormBuilderTab } from '../features/formularios';
 import { SimuladorTab } from '../features/simulador';
 import { DesafioTab } from '../features/desafio';
+import { AquisicaoTab } from '../features/aquisicao';
 
 // D-065: 3 botões diretos (uso diário) + 1 botão "Mais" com o restante
 // agrupado por categoria — mesma estrutura no header desktop e no bottom
@@ -24,6 +25,8 @@ const DIRECT_TABS = [
 
 const MORE_GROUPS = [
   { title: "Captação",  items: [{ id: "formularios", label: "Formulários", ico: "edit" }, { id: "simulador", label: "Simulador", ico: "chart" }] },
+  // D-104: Landing Pages + monitoramento de aquisição (Dashboard/LPs/Campanhas/Conversões dentro da própria tab)
+  { title: "Aquisição", items: [{ id: "aquisicao", label: "Landing Pages", ico: "globe" }] },
   { title: "Comercial", items: [{ id: "ofertas", label: "Ofertas", ico: "box" }] },
   { title: "Ativação",  items: [{ id: "desafio", label: "Desafio", ico: "target" }] },
   { title: "Operação",  items: [{ id: "estoque", label: "Estoque", ico: "box" }, { id: "checkin", label: "Check-in", ico: "search" }] },
@@ -97,6 +100,7 @@ export default function MarketingApp({ session, onLogout, darkMode, toggleDark }
       {tab === "formularios" && <FormBuilderTab />}
       {tab === "simulador" && <SimuladorTab session={session} />}
       {tab === "desafio" && <DesafioTab />}
+      {tab === "aquisicao" && <AquisicaoTab session={session} />}
       {tab === "leads" && <LeadsTab session={session} />}
       {tab === "equipe" && (isSupabaseMode() ? <EquipeAuthTab /> : <EquipeTab />)}
       {tab === "checkin" && <CheckinTab />}

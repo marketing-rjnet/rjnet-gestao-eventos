@@ -201,6 +201,10 @@ const leadFromDb = (r) => ({
   ofertaRecomendada: r.oferta_recomendada ?? null,
   cidade: r.cidade ?? "",
   utm: r.utm ?? null,
+  // D-104: Landing Pages — vínculo de proveniência (origem='landing_page'),
+  // mesmo eixo ortogonal de formulario_id/simulador_id
+  landingPageId: r.landing_page_id ?? null,
+  lpSessionId: r.lp_session_id ?? null,
 });
 const leadToDb = (l) => ({
   id: l.id, evento_id: l.eventoId ?? null, mes_referencia: l.mesReferencia ?? null,
@@ -231,7 +235,47 @@ const leadToDb = (l) => ({
   oferta_recomendada: l.ofertaRecomendada ?? null,
   cidade: l.cidade || null,
   utm: l.utm ?? null,
+  landing_page_id: l.landingPageId ?? null,
+  lp_session_id: l.lpSessionId ?? null,
 });
+
+// D-104: Landing Page — entidade genérica de aquisição. `tracking` guarda
+// só IDs PÚBLICOS (GTM/GA4/Ads/Meta), nunca secrets.
+const landingPageFromDb = (r) => ({
+  id: r.id, nome: r.nome, slug: r.slug,
+  descricao: r.descricao ?? '', dominio: r.dominio ?? '',
+  servico: r.servico ?? null, status: r.status ?? 'preparacao',
+  campanhaPadrao: r.campanha_padrao ?? '',
+  whatsappEnabled: r.whatsapp_enabled ?? true,
+  whatsappNumber: r.whatsapp_number ?? null,
+  whatsappLabel: r.whatsapp_label ?? '',
+  whatsappMensagem: r.whatsapp_mensagem ?? '',
+  tracking: r.tracking ?? {},
+  criadoEm: r.criado_em, atualizadoEm: r.atualizado_em ?? r.criado_em,
+});
+const landingPageToDb = (lp) => ({
+  id: lp.id, nome: lp.nome, slug: lp.slug,
+  descricao: lp.descricao || null, dominio: lp.dominio || null,
+  servico: lp.servico || null, status: lp.status || 'preparacao',
+  campanha_padrao: lp.campanhaPadrao || null,
+  whatsapp_enabled: lp.whatsappEnabled ?? true,
+  whatsapp_number: lp.whatsappNumber || null,
+  whatsapp_label: lp.whatsappLabel || null,
+  whatsapp_mensagem: lp.whatsappMensagem || null,
+  tracking: lp.tracking ?? {},
+  criado_em: lp.criadoEm || new Date().toISOString(),
+  atualizado_em: new Date().toISOString(),
+});
+const lpSessionFromDb = (r) => ({
+  id: r.id, landingPageId: r.landing_page_id, landingPageUrl: r.landing_page_url ?? '', referrer: r.referrer ?? '',
+  utmSource: r.utm_source ?? null, utmMedium: r.utm_medium ?? null, utmCampaign: r.utm_campaign ?? null,
+  utmTerm: r.utm_term ?? null, utmContent: r.utm_content ?? null, device: r.device ?? null, criadoEm: r.criado_em,
+});
+const lpEventFromDb = (r) => ({
+  id: r.id, landingPageId: r.landing_page_id, sessionId: r.session_id ?? null, leadId: r.lead_id ?? null,
+  nome: r.nome, propriedades: r.propriedades ?? {}, criadoEm: r.criado_em,
+});
+const LANDING_PAGES_COLS = 'id,nome,slug,descricao,dominio,servico,status,campanha_padrao,whatsapp_enabled,whatsapp_number,whatsapp_label,whatsapp_mensagem,tracking,criado_em,atualizado_em';
 
 // Form Builder: `campos`/`campos_obrigatorios` guardam só chaves do
 // catálogo fixo CAMPOS_FORMULARIO (src/lib/constants.js) — nunca schema
@@ -410,7 +454,7 @@ const ofertaToDb = (o) => ({
 /* ─── Leitura ────────────────────────────────────────────────────── */
 
 // Colunas de leads reutilizadas em fetchLeadsEvento e fetchLeadsEventos
-const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,origem_ip,qr_code_id,qr_code_label,formulario_id,bairro,campos_extras,simulador_id,perfil_consumo,pontuacao,oferta_recomendada,cidade,utm';
+const LEADS_COLS = 'id,evento_id,mes_referencia,vendedor_nome,vendedor_id,nome,telefone,cpf,endereco,servico_interesse,temperatura,observacao,ja_cliente_rjnet,criado_em,consentimento_coletado,consentimento_em,versao_termo,origem,origem_ip,qr_code_id,qr_code_label,formulario_id,bairro,campos_extras,simulador_id,perfil_consumo,pontuacao,oferta_recomendada,cidade,utm,landing_page_id,lp_session_id';
 
 // TB-004: busca apenas materiais, eventos e perfis no boot.
 // Leads são carregados on-demand por evento via fetchLeadsEvento / fetchLeadsEventos.
@@ -421,7 +465,7 @@ export async function fetchAll(signal) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // QW-004: selecionar apenas colunas usadas pelos mapeadores fromDb
-      const [materiais, perfis, eventos, ofertas, formularios, camposPersonalizados, simuladores, desafios] = await Promise.all([
+      const [materiais, perfis, eventos, ofertas, formularios, camposPersonalizados, simuladores, desafios, landingPages] = await Promise.all([
         supabase.from('materiais').select('id,nome,quantidade,descricao').order('nome').abortSignal(signal),
         supabase.from('perfis').select('id,email,nome,papel,ativo').order('nome').abortSignal(signal),
         supabase.from('eventos').select('id,nome,local,data_inicio,data_fim,status,tipo,observacoes,materiais,criado_em').order('data_inicio').abortSignal(signal),
@@ -434,6 +478,8 @@ export async function fetchAll(signal) {
         supabase.from('simuladores').select('id,nome,slug,tipo,campanha,versao_perguntas,perguntas,mensagem_resultado,quiz_perguntas,quiz_faixas,ativo,criado_em').order('criado_em', { ascending: false }).abortSignal(signal),
         // D-089/D-091/D-092/D-098: Desafio RJNet — tabela pequena e estática, mesmo tratamento de ofertas/simuladores
         supabase.from('timer_challenge_events').select('id,name,slug,target_centiseconds,max_attempts,active,created_at,prize_description,prize_image_path,prize_updated_at,prize_ranking').order('created_at', { ascending: false }).abortSignal(signal),
+        // D-104: Landing Pages — tabela pequena e estática, mesmo tratamento de simuladores
+        supabase.from('landing_pages').select(LANDING_PAGES_COLS).order('criado_em', { ascending: false }).abortSignal(signal),
       ]);
 
       const erro = materiais.error || eventos.error;
@@ -459,6 +505,7 @@ export async function fetchAll(signal) {
         camposPersonalizados: camposPersonalizados.error ? [] : camposPersonalizados.data.map(campoPersonalizadoFromDb),
         simuladores: simuladores.error ? [] : simuladores.data.map(simuladorFromDb),
         desafios: desafios.error ? [] : desafios.data.map(desafioEventoFromDb),
+        landingPages: landingPages.error ? [] : landingPages.data.map(landingPageFromDb),
         leads: [],
       };
     }, { maxAttempts: 3, baseDelayMs: 800 })
@@ -711,7 +758,7 @@ export async function fetchLeadsQrCode(signal) {
       const { data, error } = await supabase
         .from('leads')
         .select(LEADS_COLS)
-        .in('origem', ['qrcode', 'formulario', 'simulador'])
+        .in('origem', ['qrcode', 'formulario', 'simulador', 'landing_page'])
         .eq('deletado', false)
         .order('criado_em', { ascending: false })
         .abortSignal(signal);
@@ -721,6 +768,126 @@ export async function fetchLeadsQrCode(signal) {
   ).catch((err) => {
     if (err.name === 'AbortError') return null;
     console.error('[rjnet] Falha ao buscar leads de QR Code:', err.message || err);
+    return null;
+  });
+}
+
+/* ─── D-104: Aquisição / Landing Pages (leituras on-demand, marketing) ─── */
+
+// Métricas agregadas via RPC (visitas/interações/leads/WhatsApp, por LP,
+// por campanha, por dia) — sessões/eventos NUNCA entram no contexto,
+// só este agregado. `filtros` em camelCase; a RPC exige papel marketing.
+export async function fetchAquisicaoMetricas(filtros = {}, signal) {
+  if (!isSupabaseMode()) return null;
+  return trackPerf('aquisicaoMetricas', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase.rpc('aquisicao_metricas', {
+        p_de: filtros.de || null,
+        p_ate: filtros.ate || null,
+        p_landing_page_id: filtros.landingPageId || null,
+        p_utm_source: filtros.utmSource || null,
+        p_utm_medium: filtros.utmMedium || null,
+        p_utm_campaign: filtros.utmCampaign || null,
+        p_vendedor_id: filtros.vendedorId || null,
+        p_temperatura: filtros.temperatura || null,
+      });
+      if (error) throw error;
+      return data;
+    }, { maxAttempts: 2, baseDelayMs: 500 })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao carregar métricas de aquisição:', err.message || err);
+    return null;
+  });
+}
+
+// Feed de eventos recentes de UMA LP (tela "Eventos" do detalhe) — trilha
+// de observabilidade do tracking: evento recebido / associado ao lead.
+export async function fetchLpEventos(landingPageId, limite = 200, signal) {
+  if (!isSupabaseMode() || !landingPageId) return null;
+  return trackPerf('fetchLpEventos', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('lp_events')
+        .select('id,landing_page_id,session_id,lead_id,nome,propriedades,criado_em')
+        .eq('landing_page_id', landingPageId)
+        .order('criado_em', { ascending: false })
+        .limit(limite)
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(lpEventFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar eventos da landing page:', err.message || err);
+    return null;
+  });
+}
+
+// Sessões recentes de UMA LP — usado só pra mostrar de onde vieram as
+// visitas (referrer/UTM/dispositivo) no detalhe; anônimas por construção.
+export async function fetchLpSessoes(landingPageId, limite = 200, signal) {
+  if (!isSupabaseMode() || !landingPageId) return null;
+  return trackPerf('fetchLpSessoes', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const { data, error } = await supabase
+        .from('lp_sessions')
+        .select('id,landing_page_id,landing_page_url,referrer,utm_source,utm_medium,utm_campaign,utm_term,utm_content,device,criado_em')
+        .eq('landing_page_id', landingPageId)
+        .order('criado_em', { ascending: false })
+        .limit(limite)
+        .abortSignal(signal);
+      if (error) throw error;
+      return data.map(lpSessionFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar sessões da landing page:', err.message || err);
+    return null;
+  });
+}
+
+// Leads de UMA LP (ou de todas, quando landingPageId é nulo) — mesmo
+// modelo de fetchLeadsPorSimuladorCompleto. RLS de leads decide o recorte.
+export async function fetchLeadsPorLandingPage(landingPageId, signal) {
+  if (!isSupabaseMode()) return null;
+  return trackPerf('fetchLeadsPorLandingPage', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      let q = supabase.from('leads').select(LEADS_COLS).eq('origem', 'landing_page').eq('deletado', false);
+      if (landingPageId) q = q.eq('landing_page_id', landingPageId);
+      const { data, error } = await q.order('criado_em', { ascending: false }).abortSignal(signal);
+      if (error) throw error;
+      return data.map(leadFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar leads da landing page:', err.message || err);
+    return null;
+  });
+}
+
+// Cliques de WhatsApp com lead vinculado (tela "Conversões") — quem
+// preencheu o formulário E clicou no WhatsApp.
+export async function fetchLpConversoes(landingPageId, limite = 300, signal) {
+  if (!isSupabaseMode()) return null;
+  return trackPerf('fetchLpConversoes', () =>
+    withRetry(async () => {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      let q = supabase.from('lp_events')
+        .select('id,landing_page_id,session_id,lead_id,nome,propriedades,criado_em')
+        .eq('nome', 'whatsapp_click').not('lead_id', 'is', null);
+      if (landingPageId) q = q.eq('landing_page_id', landingPageId);
+      const { data, error } = await q.order('criado_em', { ascending: false }).limit(limite).abortSignal(signal);
+      if (error) throw error;
+      return data.map(lpEventFromDb);
+    })
+  ).catch((err) => {
+    if (err.name === 'AbortError') return null;
+    console.error('[rjnet] Falha ao buscar conversões da landing page:', err.message || err);
     return null;
   });
 }
@@ -1022,6 +1189,11 @@ export const db = {
   // Simulador: mesmo padrão simples de saveFormulario.
   saveSimulador: (s) => exec(supabase?.from('simuladores').upsert(simuladorToDb(s)), 'salvar simulador'),
   removeSimulador: (id) => exec(supabase?.from('simuladores').delete().eq('id', id), 'remover simulador'),
+
+  // D-104: Landing Pages — mesmo padrão simples de saveSimulador. Sessões/
+  // eventos NÃO têm db.save*: só as Edge Functions (service_role) escrevem.
+  saveLandingPage: (lp) => exec(supabase?.from('landing_pages').upsert(landingPageToDb(lp)), 'salvar landing page'),
+  removeLandingPage: (id) => exec(supabase?.from('landing_pages').delete().eq('id', id), 'remover landing page'),
 
   // D-089: Desafio RJNet — mesmo padrão simples de saveFormulario/saveSimulador.
   saveDesafioEvento: (e, onSuccess) => exec(supabase?.from('timer_challenge_events').upsert(desafioEventoToDb(e)), 'salvar desafio', undefined, onSuccess),
