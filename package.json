@@ -7,8 +7,8 @@
     "preview": "vite preview",
     "test": "playwright test",
     "test:security": "playwright test tests/security.test.js",
-    "test:unit": "node tests/security.unit.test.js && node tests/lead.unit.test.js && node tests/simulador.unit.test.js && node tests/desafioCronometro.unit.test.js",
-    "test:all": "node tests/security.unit.test.js && node tests/lead.unit.test.js && node tests/simulador.unit.test.js && node tests/desafioCronometro.unit.test.js && playwright test",
+    "test:unit": "node tests/security.unit.test.js && node tests/lead.unit.test.js && node tests/simulador.unit.test.js && node tests/desafioCronometro.unit.test.js && node tests/aquisicao.unit.test.js",
+    "test:all": "node tests/security.unit.test.js && node tests/lead.unit.test.js && node tests/simulador.unit.test.js && node tests/desafioCronometro.unit.test.js && node tests/aquisicao.unit.test.js && playwright test",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report"
   },

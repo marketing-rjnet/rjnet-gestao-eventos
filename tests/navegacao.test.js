@@ -32,7 +32,7 @@ test.describe('Navegação entre abas', () => {
     await loginMarketing(page);
     await page.locator('.header-nav .nav-tab', { hasText: 'Mais' }).click();
     await expect(page.locator('.nav-more-dropdown')).toBeVisible();
-    await expect(page.locator('.nav-more-group-title')).toHaveText(['Captação', 'Comercial', 'Operação', 'Sistema']);
+    await expect(page.locator('.nav-more-group-title')).toHaveText(['Captação', 'Aquisição', 'Comercial', 'Ativação', 'Operação', 'Sistema']);
   });
 
   test('clicando em Estoque (dentro de Mais) exibe seção de estoque', async ({ page }) => {

@@ -232,6 +232,8 @@ MFA é recomendado apenas para usuários com papel `marketing` (acesso total a d
 | 20 | `supabase/migracao-rls-vendedor-leads-v2.sql` | ✅ Aplicado em produção em 2026-07-07 (PA-11 v2) | RLS: reaplica `vendedor_id = auth.uid()` em `leads_select` por cima da versão vigente (linha 15). Confirmado via `pg_policies` pós-aplicação. **Qualquer migração futura que reescreva `leads_select` sem essa condição reabre o mesmo gap** — checar esta linha antes de tocar nessa policy de novo |
 | 21 | `supabase/migracao-desafio-cronometro.sql` | ⚠️ Pendente execução em produção (D-089) | Tabelas `timer_challenge_events`/`timer_challenge_entries` (domínio novo e independente, sem tocar `leads`/`eventos`), RLS marketing-only, RPC pública `timer_challenge_painel_publico` (SECURITY DEFINER). Não depende de nenhuma migração anterior desta lista além de `migracao-auth.sql` (usa `papel_atual()`) — pode ser aplicada em qualquer momento |
 
+| 22 | `supabase/migracao-landing-pages.sql` | ⚠️ Pendente execução em produção (D-104) | Tabelas `landing_pages`/`lp_sessions`/`lp_events`, colunas `leads.landing_page_id`/`lp_session_id`, RPC pública `landing_page_publica` (SECURITY DEFINER, `anon`), RPC interna `aquisicao_metricas` (marketing), retenção `limpar_lp_tracking_expirado()` + job pg_cron (guardados por `if exists`), **seed da LP Fibra**. Depende só de `migracao-auth.sql` (e opcionalmente `migracao-retencao.sql`); rodar `NOTIFY pgrst` (já incluso) |
+
 > Status "⚠️ Pendente execução em produção" nas linhas 9–19 reflete o que estava
 > registrado antes destas migrações existirem — **confirme o estado real em
 > produção** (via `verificar-migracao-auth.sql` ou consulta direta) antes de
@@ -310,3 +312,16 @@ Processo de remoção/denúncia de conteúdo ilegal: `doc/SEGURANCA_MODERACAO.md
 - Sem Edge Function nova: o cadastro é sempre feito por um usuário `marketing` autenticado (nunca por formulário público), então não há "cliente hostil" a se defender — `src/lib/desafioCronometro.js` já é a fonte de verdade do cálculo, chamada uma única vez no cliente antes do INSERT.
 - Realtime da tela de TV via **Broadcast** (canal `desafio-painel-<eventId>`, mesmo idioma de `activityLog.js`/Monitor), nunca `postgres_changes` — a tela é anônima e não tem policy de SELECT nas tabelas, então uma subscription normal não entregaria nada a ela.
 - Não depende de `NOTIFY pgrst` pra funcionar no frontend admin (usa o `fetchAll` genérico), mas rode mesmo assim por hábito depois de aplicar.
+
+---
+
+## Landing Pages e Aquisição (D-104)
+
+**`migracao-landing-pages.sql`** cria um domínio novo e genérico (a LP Fibra é só a primeira linha):
+
+- `landing_pages` (identidade, status, campanha padrão, destino do WhatsApp — número nasce **nulo** —, `tracking` jsonb com IDs públicos de GTM/GA4/Ads/Meta). RLS: escrita `marketing`; leitura interna `papel_atual() is not null` (só metadado — o comercial precisa do nome da LP na fila de distribuição).
+- `lp_sessions` (sessão anônima: UUID do cliente, UTM first-touch, referrer, URL, `device`; **sem IP/user-agent**) e `lp_events` (uma tabela para todos os tipos; `nome` validado por whitelist em código). RLS: leitura `marketing`; **nenhuma policy de escrita** — só as Edge Functions (`service_role`) gravam.
+- `leads.landing_page_id`/`leads.lp_session_id` (FK `set null`) + `origem='landing_page'`; UTM reaproveita `leads.utm`.
+- RPC pública `landing_page_publica(p_slug)` — único acesso `anon` (padrão D-103): identidade + WhatsApp + IDs de tracking. RPC interna `aquisicao_metricas(...)` — exige `papel_atual()='marketing'`, devolve totais/por LP/por campanha/por dia.
+- Retenção: `limpar_lp_tracking_expirado()` (395 dias, chave `retencao_lp_sessoes_dias`), `REVOKE` de `public/anon/authenticated`, job `lgpd-limpar-lp-tracking` às 05:30 UTC.
+- Edge Functions **`rastrear-lp`** (sessão + eventos) e **`submeter-lp`** (lead) — mesmas camadas de `_shared/captacao.ts` (CORS, sanitização, `containsLink`, IP confiável, rate limit). **Adicionar o domínio da LP em `CORS_ALLOWED_ORIGINS`** (ex.: `https://fibra.rjnet.com.br`). Guia completo: `doc/aquisicao/INTEGRACAO_LP.md`.

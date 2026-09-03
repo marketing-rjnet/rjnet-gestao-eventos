@@ -21,6 +21,8 @@ Sistema de gerenciamento de eventos para a RJNet. Permite controle de eventos, e
 | `doc/BOAS_PRATICAS.md` | **Boas práticas e dicas do sistema** — fluxo de desenvolvimento, git, preview Vercel, commits atômicos, princípios de UX | Referência geral; ao iniciar qualquer sessão de desenvolvimento |
 | `doc/SEGURANCA_MODERACAO.md` | **Moderação da captação pública** — processo de remoção/denúncia para conteúdo ilegal submetido via formulário público, proteções técnicas em vigor (D-067) | Antes de alterar o formulário público ou lidar com um lead suspeito/ilegal |
 | `doc/SEGURANCA_HARDENING.md` | **Hardening de segurança (painel + deploy)** — checklist de configuração externa que sustenta os controles do código: ordem de migrações, auto-cadastro off, secret `CORS_ALLOWED_ORIGINS`, padrão `revoke` em SECURITY DEFINER, bucket público (D-078, auditoria de 2026-07-17) | Antes de alterar RLS/Edge Functions/auth, ao aplicar migrações ou preparar deploy; ao criar qualquer função SECURITY DEFINER ou policy nova |
+| `doc/aquisicao/AQUISICAO_ANALISE.md` | **Análise arquitetural do módulo de Landing Pages + Aquisição (D-104)** — 13 pontos: arquitetura relevante, entidades reutilizadas, integração, banco, frontend, fluxo, segurança, tracking, impactos, riscos, arquivos | Antes de mexer em Landing Pages/aquisição/tracking ou conectar uma LP nova |
+| `doc/aquisicao/INTEGRACAO_LP.md` | **Guia de integração de uma LP** (D-104) — checklist de deploy (migração, Edge Functions, `CORS_ALLOWED_ORIGINS`), contrato do SDK (`data-rjnet-*`, campos do form), UTMs, WhatsApp Fase 1, diagnóstico | Ao conectar a LP Fibra ou qualquer LP futura; ao investigar tracking sem eventos |
 | `doc/simulador/SIMULADOR_IMPLEMENTATION_PLAN.md` | 🗂️ **Plano ORIGINAL de implementação do Simulador** (F0–F5 implementadas, D-072/D-073) — parcialmente superado pela evolução do produto em D-074–D-077 (nota no topo do arquivo aponta as divergências); útil como histórico, não como arquitetura corrente | Consulta histórica do desenho original; para o estado atual, use a seção "Simulador" de `SYSTEM_MAP.md` |
 | `doc/architecture/ARCHITECTURE_FIX_PLAN.md` | Plano de correções arquiteturais pós-auditoria (D-030) — desvios identificados e corrigidos | Antes de qualquer refatoração estrutural ou auditoria de conformidade arquitetural |
 | 🗂️ `doc/architecture/historico/REFATORAÇÃO.md` | **HISTÓRICO.** Estado da refatoração original de `main.jsx` (18/18 concluídas) | Raramente — refatoração encerrada |
@@ -73,7 +75,8 @@ src/
 │   ├── formularioApi.js  # Factory createFormularioApi — CRUD de formulários do Form Builder (D-062)
 │   ├── campoPersonalizadoApi.js # Factory createCampoPersonalizadoApi — campos personalizados reutilizáveis (D-063)
 │   ├── simuladorApi.js   # Factory createSimuladorApi — campanhas do Simulador, 3 tipos oferta/demanda/quiz (D-072, D-076, D-080)
-│   └── desafioApi.js     # Factory createDesafioApi — dias/participações do Desafio RJNet — Acerte 00:03:33 (D-089)
+│   ├── desafioApi.js     # Factory createDesafioApi — dias/participações do Desafio RJNet — Acerte 00:03:33 (D-089)
+│   └── landingPageApi.js # Factory createLandingPageApi — Landing Pages, entidade genérica de aquisição (D-104)
 ├── context/
 │   ├── AppContext.js     # createContext — definição do AppContext (etapa 16)
 │   ├── AppProvider.jsx   # Provider: orquestra estado + chama factories de API (etapas 16–17)
@@ -132,6 +135,17 @@ src/
 │   ├── simulador/
 │   │   ├── SimuladorTab.jsx  # Campanhas do Simulador (tipos Oferta/Demanda/Quiz): CRUD + construtor de perguntas/faixas + Sorteador (só quem concluiu o quiz, D-083) + QR (UTM impresso embutido) + link, marketing only (D-072, D-075, D-076, D-080, D-083, D-084)
 │   │   └── index.js          # Re-export de simulador (D-072)
+│   ├── aquisicao/             # Landing Pages + Aquisição (D-104), marketing only — Fibra é só a 1ª LP
+│   │   ├── AquisicaoTab.jsx        # Sub-navegação Dashboard/Landing Pages/Campanhas/Conversões + filtros reais
+│   │   ├── AquisicaoDashboard.jsx  # KPIs Visitas/Leads/Conversão/WhatsApp, funil, evolução diária, cards por LP
+│   │   ├── AquisicaoFunil.jsx      # Funil Visitas→Interações→Leads→Cliques WhatsApp (CSS puro)
+│   │   ├── AquisicaoFiltros.jsx    # Período/LP/campanha/source/medium/vendedor/status do lead
+│   │   ├── LandingPagesTab.jsx     # Lista + cadastro (LandingPageCard reaproveitado pelo dashboard)
+│   │   ├── LandingPageForm.jsx     # Criar/editar LP: identidade, status, WhatsApp (número pode ficar vazio), IDs de tracking
+│   │   ├── LandingPageDetail.jsx   # Visão geral/Eventos/Leads/Campanhas/Conversões/Integração (snippet)/Configurar
+│   │   ├── CampanhasTab.jsx        # Tabela por UTM (source/medium/campaign/content → visitas/leads/WhatsApp)
+│   │   ├── ConversoesTab.jsx       # Leads que clicaram no WhatsApp (whatsapp_click com lead_id)
+│   │   └── index.js
 │   └── desafio/               # Desafio RJNet — Acerte 00:03:33, gestão marketing only; comercial só leitura/export (D-089, D-098, D-101)
 │       ├── DesafioTab.jsx      # Lista/criação de dias do desafio (tempo-alvo + tentativas por participante, configuráveis por dia, D-098)
 │       ├── DesafioComercialTab.jsx # Versão comercial: lista de dias + Painel (estatísticas + export CSV), só leitura (D-101)
@@ -154,7 +168,8 @@ src/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)
 │   ├── useRanking.js     # Hook de polling de ranking com debounce e cleanup automático (etapa 15)
-│   └── useDesafioPainelPublico.js # Hook da tela de TV do Desafio RJNet — RPC pública + Broadcast (Supabase) ou poll leve (modo local), sem sessão (D-089)
+│   ├── useDesafioPainelPublico.js # Hook da tela de TV do Desafio RJNet — RPC pública + Broadcast (Supabase) ou poll leve (modo local), sem sessão (D-089)
+│   └── useAquisicaoMetricas.js # Métricas de aquisição — RPC aquisicao_metricas (Supabase) ou calcularFunil() sobre localStorage (modo local) (D-104)
 ├── utils/
 │   ├── format.js         # fmtDate, fmtDateLong, initials, label maps (etapa 1)
 │   ├── masks.js          # maskCpf, maskTel, validarCpf, validarTelefone (etapa 2)
@@ -173,7 +188,11 @@ src/
     ├── simulador.js      # Catálogo fixo PERGUNTAS_SIMULADOR + scoring (calcularPerfil/resumoPerfil) — sem imports, espelhado em Deno (D-072)
     ├── desafioCronometro.js # Domínio puro do Desafio RJNet: parse/format MM:SS:CC↔centésimos, cálculo de diferença/acerto exato — sem imports (D-089)
     ├── desafioRealtime.js   # Broadcast do painel do Desafio por dia (canal `desafio-painel-<eventId>`), mesmo idioma de activityLog.js (D-089)
+    ├── aquisicao.js      # Domínio puro de Aquisição: EVENTOS_LP (taxonomia própria), INTEGRACOES_TRACKING, MAPA_EVENTOS_EXTERNOS, calcularFunil(), sanitizarTracking/normalizarWhatsapp — sem imports, espelhado no SDK e em Deno (D-104)
     └── constants.js      # Constantes globais — SYNC_STATUS, STATUS_EVENTO, NIVEL_ESTOQUE, CAMPOS_FORMULARIO (etapas 5, D-062)
+
+public/
+└── rjnet-lp.js           # SDK público das Landing Pages (Tracking Layer): sessão, UTM, eventos internos, lead, WhatsApp, adapters (interno + GTM) — embutido no <head> da LP, servido pelo CRM (D-104)
 
 supabase/
 ├── schema.sql               # Schema inicial (4 tabelas + seed)
@@ -202,12 +221,15 @@ supabase/
 ├── migracao-desafio-tentativas.sql    # D-098: tabela timer_challenge_attempts (1 linha por tentativa) + timer_challenge_events.max_attempts + backfill + RPC recriada
 ├── migracao-desafio-ja-cliente.sql    # D-099: coluna timer_challenge_entries.ja_cliente_rjnet (mesmo campo de leads.ja_cliente_rjnet)
 ├── migracao-desafio-comercial-select.sql # D-101: amplia as 3 policies de SELECT do Desafio pra papel_atual() in ('marketing','comercial') — escrita continua marketing-only
+├── migracao-landing-pages.sql # D-104: tabelas landing_pages/lp_sessions/lp_events + colunas leads.landing_page_id/lp_session_id + RPCs landing_page_publica (anon) e aquisicao_metricas (marketing) + retenção + seed da LP Fibra
 ├── seed-usuarios-teste.sql
 ├── config.toml              # Config local do Supabase
 └── functions/
     ├── _shared/captacao.ts               # CORS, sanitização, validadores e rate limit compartilhados das portas públicas (D-072)
     ├── atualizar-email-usuario/index.ts  # Edge Function (gerenciamento de usuários)
     ├── submeter-formulario/index.ts      # Edge Function pública — submissão do Form Builder; bloqueio de link, IP e rate limit (D-062, D-063, D-067)
+    ├── rastrear-lp/index.ts              # Edge Function pública — tracking das Landing Pages: sessão anônima + eventos internos (whitelist, teto por sessão, sem IP), nunca cria lead (D-104)
+    ├── submeter-lp/index.ts              # Edge Function pública — lead da Landing Page no `leads` de sempre (origem='landing_page', UTM da sessão, consentimento, rate limit, dedupe 24h) + evento lead_created (D-104)
     └── submeter-simulador/index.ts       # Edge Function pública — submissão do Simulador; ramifica por tipo oferta/demanda/quiz, recalcula perfil/score/acertos no servidor; tipo quiz usa 2 fases (cadastro/conclusao) em vez de insert único, cadastro bloqueia número de WhatsApp duplicado na campanha (D-072, D-076, D-077, D-080, D-083, D-084)
 
 tests/
@@ -218,6 +240,8 @@ tests/
 ├── simulador.test.js     # E2E: wizard público do Simulador em modo local (D-072)
 ├── desafioCronometro.unit.test.js # Unit: parse/format do cronômetro + cálculo de diferença/acerto exato (D-089)
 ├── desafio.test.js       # E2E: Desafio RJNet — cadastro, ranking, ganhadores, painel, export CSV e tela de TV (D-089)
+├── aquisicao.unit.test.js # Unit: taxonomia de eventos, sanitização de tracking/WhatsApp, calcularFunil() (mesma regra da RPC) (D-104)
+├── aquisicao.test.js     # E2E: tela de Aquisição em modo local + SDK rjnet-lp.js numa LP sintética com Edge Functions interceptadas (D-104)
 ├── comercial.test.js     # E2E: dashboard comercial
 ├── estoque.test.js       # E2E: inventário
 ├── marketing.test.js     # E2E: dashboard marketing
@@ -284,6 +308,9 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 | `simuladores` | Campanhas do Simulador — identidade (nome, slug, tipo, agrupador); tipo `oferta` usa quiz fixo em código (sem construtor); tipo `demanda` guarda seu PRÓPRIO questionário em `perguntas` (jsonb) + `mensagem_resultado`; tipo `quiz` guarda perguntas com resposta certa em `quiz_perguntas` (jsonb) + faixas de classificação em `quiz_faixas` (jsonb), editados pelo marketing; leitura `anon` restrita a `ativo=true` (D-072, D-075, D-076, D-080) |
 | `timer_challenge_events` | Desafio RJNet — Acerte 00:03:33 (D-089): dias/edições do desafio — nome, slug, `target_centiseconds` (tempo-alvo, configurável, default 333), `max_attempts` (tentativas por participante, configurável, default 3, D-098), ativo, `prize_description`/`prize_image_path`/`prize_updated_at` (prêmio do dia, D-091), `prize_ranking` (jsonb, prêmio por posição do ranking 1º-10º, D-092); sem leitura `anon` (tela pública só via RPC) |
 | `timer_challenge_entries` | Desafio RJNet (D-089, D-090, D-098, D-099): representa só o PARTICIPANTE de um dia — nome/telefone (sem número identificador, removido em D-090), prêmio que está concorrendo/recebeu (`prize_type`, selecionável já no cadastro desde D-098), controle de entrega (`delivered`/`delivery_responsible`/`delivery_at`), `ja_cliente_rjnet` (mesmo campo de `leads.ja_cliente_rjnet`, só uso interno/CSV, D-099); resultado do cronômetro NÃO fica mais aqui — ver `timer_challenge_attempts` |
+| `landing_pages` | D-104 — Landing Pages (entidade GENÉRICA; a LP Fibra é a primeira linha): nome, `slug` único, descrição, domínio, `servico` (enum de servicoInteresse), `status` (`ativa`/`preparacao`/`inativa`), `campanha_padrao`, WhatsApp (`whatsapp_enabled`, `whatsapp_number` — nulo até existir, `whatsapp_label`, `whatsapp_mensagem`), `tracking` jsonb (IDs públicos GTM/GA4/Ads/Meta). Sem leitura `anon` (só via RPC `landing_page_publica`) |
+| `lp_sessions` | D-104 — sessão de visita anônima da LP: id UUID gerado no cliente, `landing_page_id`, `landing_page_url`, `referrer`, `utm_source/medium/campaign/term/content` (first touch), `device`; **sem IP nem user-agent**. Só Edge Function escreve; só marketing lê. Retenção 395 dias |
+| `lp_events` | D-104 — eventos internos das LPs, UMA tabela pra todos os tipos (`nome` na whitelist `EVENTOS_LP`: page_view/cta_click/form_start/form_submit/lead_created/whatsapp_click), `session_id`/`lead_id` opcionais, `propriedades` jsonb curto. Só Edge Function escreve; só marketing lê |
 | `timer_challenge_attempts` | Desafio RJNet (D-098): até `max_attempts` tentativas por participante — `entry_id` (FK), `event_id` (denormalizado, mesmo padrão de `leads.evento_id`), `attempt_number`, resultado (`result_display`/`result_centiseconds`), `difference_centiseconds`, `is_exact_hit` (ganhador instantâneo); "melhor tentativa" (menor diferença) calculada por `melhorTentativa()` (`src/lib/desafioCronometro.js`), replicada na RPC pública |
 
 ### Enums usados nos dados
@@ -295,7 +322,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - **metas do vendedor:** `META_BRONZE=20`, `META_PRATA=40`, `META_OURO=60` — `META_DIARIA` é alias de `META_OURO`
 - **papel perfil:** `marketing`, `vendedor`, `comercial` (D-059 — mesmo nível do marketing em eventos/ofertas/leads, sem estoque nem gestão de equipe)
 - **mês de referência do lead (D-058):** `mes_referencia` é `date` com o primeiro dia do mês (ex: `2026-07-01`); `leads.evento_id`/`leads.mes_referencia` são mutuamente exclusivos (`check (num_nonnulls(evento_id, mes_referencia) <= 1)` — relaxado de `= 1` para `<= 1` em D-061, permitindo leads sem nenhum dos dois: origem QR Code/Formulário)
-- **atribuição do lead (D-061, D-062, D-063, D-072):** `origem` (`evento`/`mes`/`qrcode`/`formulario`/`simulador`), `qr_code_id`/`qr_code_label`, `formulario_id`, `simulador_id`, `bairro`/`cidade`, `campos_extras` (JSONB), `perfil_consumo`/`pontuacao`/`oferta_recomendada` (Simulador, calculados no servidor), `utm` (JSONB, atribuição de tráfego) — eixo ortogonal ao contexto operacional (evento/mês); leads de captação digital não têm `vendedor_id` até serem distribuídos pelo marketing/comercial
+- **atribuição do lead (D-061, D-062, D-063, D-072, D-104):** `origem` (`evento`/`mes`/`qrcode`/`formulario`/`simulador`/`landing_page`), `qr_code_id`/`qr_code_label`, `formulario_id`, `simulador_id`, `landing_page_id`/`lp_session_id` (D-104), `bairro`/`cidade`, `campos_extras` (JSONB), `perfil_consumo`/`pontuacao`/`oferta_recomendada` (Simulador, calculados no servidor), `utm` (JSONB, atribuição de tráfego) — eixo ortogonal ao contexto operacional (evento/mês); leads de captação digital não têm `vendedor_id` até serem distribuídos pelo marketing/comercial
 
 ### RLS (Row Level Security)
 
@@ -305,6 +332,7 @@ Sem `VITE_SUPABASE_URL`, o app usa localStorage como fallback.
 - `ofertas`: leitura para qualquer papel autenticado; escrita restrita a `marketing`/`comercial` (D-059)
 - `oferta_envios`: leitura para marketing/vendedor; inserção pelo marketing (qualquer) ou vendedor (apenas com seu próprio `vendedor_id`)
 - `formularios`/`campos_personalizados` (D-062, D-063): **primeiras policies `anon` do projeto** — leitura pública restrita a `ativo=true`, necessária para a página pública do Form Builder renderizar sem sessão; escrita restrita a `marketing`
+- `landing_pages` (D-104): escrita `marketing`; leitura interna `papel_atual() is not null` (só metadado — o comercial precisa do nome da LP na fila de distribuição). `lp_sessions`/`lp_events`: leitura `marketing`, **nenhuma policy de escrita** (só as Edge Functions `rastrear-lp`/`submeter-lp` com `service_role`). Sem `anon` nas tabelas — leitura pública só pela RPC `landing_page_publica` (SECURITY DEFINER, `grant to anon`); métricas só pela RPC `aquisicao_metricas` (exige `marketing`)
 - `timer_challenge_events`/`timer_challenge_entries`/`timer_challenge_attempts` (D-089, D-098, D-101): escrita restrita a `marketing` (mesmo padrão de Estoque/Equipe); leitura liberada também para `comercial` desde D-101 (só exportação — UI de `comercial` só mostra a sub-aba "Painel", sem cadastro/edição); **sem** policy `anon` — a tela pública de TV nunca lê as tabelas direto, só via a RPC `timer_challenge_painel_publico` (SECURITY DEFINER, único `grant execute ... to anon` do projeto, restrito a ranking Top 10 + ganhadores sem telefone)
 
 ### Storage
@@ -337,7 +365,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 
 ## Módulos da UI
 
-**Navegação do Marketing (D-065, D-089):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários, Simulador), **Comercial** (Ofertas), **Ativação** (Desafio), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial ganha um 5º botão direto "Desafio" (leitura + export, D-101), ainda sem "Mais" — Vendedor não muda.
+**Navegação do Marketing (D-065, D-089, D-104):** 3 botões diretos no header/bottom nav — Início, Eventos, Relatórios — e um botão "Mais" com dropdown (desktop)/bottom sheet (mobile) agrupado por categoria: **Captação** (Formulários, Simulador), **Aquisição** (Landing Pages — D-104), **Comercial** (Ofertas), **Ativação** (Desafio), **Operação** (Estoque, Check-in), **Sistema** (Equipe, Monitor). Comercial ganha um 5º botão direto "Desafio" (leitura + export, D-101), ainda sem "Mais" — Vendedor não muda.
 
 | Tab | Papel | Funcionalidade |
 |-----|-------|---------------|
@@ -351,6 +379,7 @@ Fonte oficial: `doc/architecture/SYSTEM_MAP.md` §2 "Arquitetura Atual" (auto-ca
 | Simulador | marketing | 3 tipos de campanha independentes: **Oferta** (quiz fixo de qualificação → perfil deduzido → pacote + combo de upsell, incluindo plano Móvel), **Demanda** (perguntas configuráveis com peso → mensagem de resultado personalizada) e **Quiz de Acertos** (cadastro ANTES do quiz → perguntas com resposta certa/errada e feedback verde/vermelho → faixa de classificação editável, ex: evento MotoFest → CTA explícito "Participar do sorteio") — este último ganha também um Sorteador entre quem CONCLUIU o quiz; duplicidade de cadastro bloqueada por número de WhatsApp na campanha, nunca por navegador (D-084); cada campanha gera link (tráfego pago) e QR Code (impresso, UTMs embutidos); leads chegam com perfil/pontuação/temperatura calculados no servidor e caem na fila de distribuição (D-072, D-074–D-077, D-080, D-083, D-084) |
 | Desafio | marketing (gestão), comercial (leitura + export, D-101) | **Desafio RJNet — Acerte 00:03:33** (D-089, D-090, D-098): cadastro de participantes por dia/edição do desafio (nome/telefone/prêmio que está concorrendo, campo de cronômetro MM:SS:CC com máscara automática — sem "número do participante", D-090), até `maxTentativas` tentativas por participante (padrão 3, configurável por dia) sem recadastrar a pessoa — UI progressiva ("+ Adicionar tentativa N", nunca 3 espaços vazios) e classificação sempre pela MELHOR tentativa (D-098), edição rápida de nome/telefone sobre o participante existente sem duplicar registro (D-098), ranking Top 10 por menor diferença (nunca inclui acertos exatos), colunas de melhor tempo/tentativas/prêmio do participante, lista de 🏆 Ganhadores Instantâneos com controle de entrega de prêmio, sub-aba **Prêmio** com descrição + imagem opcional do prêmio do dia (streamings — Disney+/HBO Max/RJNet Play, D-091) e prêmios individuais por posição do ranking 1º-10º (catálogo fixo de 4 opções — RJNET Móvel/HBO Max/Disney+/RJNET Play, escolhida por botão, sem texto livre nem imagem, D-092/D-093/D-102), painel de estatísticas + export CSV, e QR Code/link de uma tela pública de TV (`/tv/:slug`) com ranking + KPIs (participantes, ganhadores, menor diferença, média dos tempos, alvo) em tempo real, painel de Prêmio ao lado do ranking (D-091), coluna própria de prêmio por posição (texto) na tabela do ranking sempre com as 10 posições visíveis mesmo sem participante (D-092–D-094) e animação de novo ganhador; múltiplos dias 100% independentes; gestão (cadastro/ranking/prêmio/config) continua marketing-only — `comercial` só vê a sub-aba "Painel" (estatísticas + export CSV) via `DesafioComercialTab.jsx`, D-101 |
 | Monitor | marketing | Diagnóstico ao vivo (3 canais: CustomEvent/storage/Realtime) + histórico 30 dias, cards, feed 7 tipos (D-044–D-046); restrito ao marketing (D-059) |
+| Landing Pages (Aquisição) | marketing | **D-104** — Campanha → LP → Visita → Lead → Clique no WhatsApp com dados reais: Dashboard (KPIs Visitas/Leads/Conversão/WhatsApp, funil de 4 etapas, evolução diária, cards por LP), cadastro/detalhe de Landing Pages (entidade genérica; Fibra é a 1ª — novas LPs sem código), Campanhas por UTM, Conversões (leads que clicaram no WhatsApp), filtros período/LP/campanha/source/medium/vendedor/status; aba "Integração" gera o snippet do SDK `rjnet-lp.js`; WhatsApp só como configuração por LP (número nasce nulo) + evento de clique — sem API nesta fase |
 
 ---
 
@@ -391,6 +420,7 @@ Execução sequencial (1 worker) para evitar conflitos de estado React.
 ```bash
 node tests/security.unit.test.js  # sanitização e validação
 node tests/lead.unit.test.js       # validação de leads
+node tests/aquisicao.unit.test.js  # taxonomia de eventos, tracking/WhatsApp e funil de aquisição (D-104)
 ```
 
 ---
@@ -428,6 +458,15 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-simulador-peso-oculto.sql` | ~55 | RPC `simulador_publico(slug)` (SECURITY DEFINER) esconde `peso` das opções de `perguntas` da leitura pública; remove policy `simuladores_select_publico` (D-103) |
 | `supabase/functions/_shared/captacao.ts` | ~80 | Miolo compartilhado das Edge Functions públicas: CORS, sanitização, containsLink, rate limit por IP (D-072) |
 | `supabase/functions/submeter-simulador/index.ts` | ~598 | Edge Function pública — ramifica por tipo (oferta: deduz perfil do quiz fixo; demanda: recalcula score das perguntas da campanha; quiz: 2 fases `cadastro`/`conclusao` em vez de insert único, guarda atômica `pontuacao is null`, cadastro recusa número de WhatsApp já cadastrado na campanha), nunca aceita perfil/score/acertos pronto do cliente, sanitiza UTM (D-072, D-076, D-077, D-080, D-083, D-084) |
+| `src/lib/aquisicao.js` | ~150 | Domínio puro de Aquisição (D-104): `EVENTOS_LP` (taxonomia própria), `INTEGRACOES_TRACKING`/`MAPA_EVENTOS_EXTERNOS` (pontos de extensão GA4/Ads/Meta), `calcularFunil()` (mesma regra da RPC `aquisicao_metricas`, usada no modo local e nos testes), `sanitizarTracking`/`normalizarWhatsapp`/`montarLinkWhatsapp`/`gerarSnippetLp` — sem imports |
+| `public/rjnet-lp.js` | ~280 | SDK público das Landing Pages (Tracking Layer, D-104): sessão em sessionStorage + UTM first-touch + device; config pública via RPC `landing_page_publica`; adapters (`interno` → Edge `rastrear-lp` com buffer/keepalive; `gtm` só com container configurado); `submitLead` → Edge `submeter-lp`; `whatsapp()` rastreia e abre `wa.me` com o número da LP (ou deixa o href da LP seguir); auto-bind `data-rjnet-cta`/`data-rjnet-form`/`data-rjnet-whatsapp`. Tracking nunca bloqueia a conversão |
+| `src/api/landingPageApi.js` | ~50 | Factory createLandingPageApi — add/update/remove de LP com normalização de WhatsApp e tracking (D-104) |
+| `src/hooks/useAquisicaoMetricas.js` | ~80 | Hook de métricas: RPC (Supabase) ou `calcularFunil()` sobre `rjnet_lp_sessions`/`rjnet_lp_events` do localStorage (modo local); `periodoPadrao()` (D-104) |
+| `src/features/aquisicao/AquisicaoTab.jsx` | ~90 | Sub-navegação Dashboard/Landing Pages/Campanhas/Conversões + filtros compartilhados; métricas gerais e da LP aberta em chamadas independentes (D-104) |
+| `src/features/aquisicao/LandingPageDetail.jsx` | ~230 | Detalhe de UMA LP: Visão geral (KPIs+funil), Eventos (trilha do tracking), Leads, Campanhas, Conversões, Integração (snippet + instruções + status das integrações), Configurar (form + exclusão) (D-104) |
+| `supabase/migracao-landing-pages.sql` | ~330 | Tabelas `landing_pages`/`lp_sessions`/`lp_events`, colunas em `leads`, RLS (sem `anon`, sem escrita autenticada em sessão/evento), RPC `landing_page_publica` (anon) + `aquisicao_metricas` (marketing), retenção + pg_cron, seed da LP Fibra (D-104) |
+| `supabase/functions/rastrear-lp/index.ts` | ~170 | Edge Function pública de tracking: LP ativa, UUID, whitelist de eventos, ≤20/req, props achatadas, teto 500/sessão, `lead_id` só se for da mesma LP, sem IP; aceita text/plain (D-104) |
+| `supabase/functions/submeter-lp/index.ts` | ~190 | Edge Function pública de lead: honeypot, sanitização, `containsLink`, telefone, consentimento, rate limit por IP, UTM da sessão como fonte de verdade, dedupe 24h por telefone na LP, insert em `leads` + evento `lead_created` (D-104) |
 | `src/lib/desafioCronometro.js` | ~120 | Domínio puro do Desafio RJNet — parse/format MM:SS:CC↔centésimos, `calcularResultadoDesafio()` (diferença + acerto exato), `formatarDigitosCronometro()` (máscara automática do cronômetro), `melhorTentativa()` (única fonte de verdade de qual tentativa vale, D-098), catálogos `TIPOS_PREMIO`/`PREMIOS_POSICAO_RANKING`/`MAX_TENTATIVAS_PADRAO`; sem imports, testável standalone (D-089, D-093, D-098) |
 | `src/lib/desafioRealtime.js` | ~35 | Broadcast do painel do Desafio por dia (`desafio-painel-<eventId>`), mesmo idioma de `activityLog.js`; usado pelo painel admin (emissor) e pela tela de TV anônima (receptor) (D-089) |
 | `src/components/CronometroInput.jsx` | ~100 | Campo MM:SS:CC com máscara automática — dígitos preenchem da direita pra esquerda via `onKeyDown` (fallback por `onChange` nativo pra autofill/testes); reaproveitado em cadastro, tentativa nova e tempo-alvo (D-098) |
@@ -480,7 +519,7 @@ node tests/lead.unit.test.js       # validação de leads
 | `src/utils/ids.js` | ~2 | `genId(prefix)` — gerador de IDs temporários para modo local |
 | `src/lib/constants.js` | ~29 | Constantes centralizadas (etapa 5) |
 | `src/lib/mode.js` | ~10 | Detecção de modo Supabase/local centralizada (etapa 18) |
-| `src/lib/dataService.js` | ~1230 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058); `origem_ip` em `LEADS_COLS`/`leadFromDb`/`leadToDb` (D-067); `fetchLeadsPorSimulador` filtra `pontuacao != null` — só quem concluiu o quiz é sorteável (D-083); `db.saveDesafioPremio` — upload no bucket `desafio-premios` + UPDATE parcial (D-091); `db.saveDesafioPremiosRanking` — UPDATE parcial síncrono, catálogo fixo sem imagem (D-092, D-093); `fetchDesafioEntries` faz 2 queries em paralelo (entries + attempts) e agrupa `tentativas` por participante em memória; `db.saveDesafioAttempt` — insert de 1 tentativa (D-098); `db.updateDesafioAttempt` — UPDATE parcial só dos campos de resultado de uma tentativa já existente, nunca attempt_number/entry_id/event_id (D-100) |
+| `src/lib/dataService.js` | ~1450 | Queries Supabase, auth, realtime, retry; `exec()` com onSuccess para lead_sync_ok (D-044b); fetch/ranking por mês em paralelo ao de evento (D-058); `origem_ip` em `LEADS_COLS`/`leadFromDb`/`leadToDb` (D-067); `fetchLeadsPorSimulador` filtra `pontuacao != null` — só quem concluiu o quiz é sorteável (D-083); `db.saveDesafioPremio` — upload no bucket `desafio-premios` + UPDATE parcial (D-091); `db.saveDesafioPremiosRanking` — UPDATE parcial síncrono, catálogo fixo sem imagem (D-092, D-093); `fetchDesafioEntries` faz 2 queries em paralelo (entries + attempts) e agrupa `tentativas` por participante em memória; `db.saveDesafioAttempt` — insert de 1 tentativa (D-098); `db.updateDesafioAttempt` — UPDATE parcial só dos campos de resultado de uma tentativa já existente, nunca attempt_number/entry_id/event_id (D-100); D-104: `landingPageFromDb/ToDb`, `landing_pages` no `fetchAll`, `landing_page_id`/`lp_session_id` em `LEADS_COLS`/`leadFromDb`/`leadToDb`, `fetchLeadsQrCode` inclui `landing_page`, `fetchAquisicaoMetricas` (RPC), `fetchLpEventos`/`fetchLpSessoes`/`fetchLeadsPorLandingPage`/`fetchLpConversoes`, `db.saveLandingPage`/`removeLandingPage` |
 | `src/lib/activityLog.js` | ~100 | Buffer localStorage + Supabase Realtime broadcast + receiveActivityLog (D-044, D-045, D-046) |
 | `src/features/monitoring/MonitoringTab.jsx` | ~460 | Monitor: 3 listeners (CustomEvent/storage/Realtime), histórico por dia, cards com status de atividade, feed 9 tipos, perf tiers, toolbar sessão, limpar log (D-044–D-051) |
 | `src/lib/security.js` | ~57 | Sanitização de inputs; `containsLink()` detecta URL em texto livre (D-067) |
@@ -495,5 +534,5 @@ node tests/lead.unit.test.js       # validação de leads
 | `supabase/migracao-campos-personalizados.sql` | ~63 | Tabela `campos_personalizados`, colunas em `formularios`/`leads`, RLS `anon` (D-063) |
 | `supabase/functions/submeter-formulario/index.ts` | ~251 | Edge Function pública — submissão do Form Builder + campos personalizados (D-062, D-063); bloqueio de link, captura de IP e rate limit (D-067) |
 | `supabase/migracao-moderacao-formulario.sql` | ~40 | Coluna `leads.origem_ip` + índice para rate limit (D-067) |
-| `vercel.json` | ~35 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrite SPA para `/f/:path*` (D-062; a rewrite `/qr/:path*` foi retirada em D-065) e `/tv/:path*` (D-089) |
+| `vercel.json` | ~45 | Headers CSP e segurança (img-src ampliado para Storage, D-057); rewrite SPA para `/f/:path*` (D-062; a rewrite `/qr/:path*` foi retirada em D-065) e `/tv/:path*` (D-089); cache de 5 min + CORS `*` só para `/rjnet-lp.js` (SDK das LPs, D-104) |
 | `playwright.config.js` | ~71 | Config E2E dual-server |

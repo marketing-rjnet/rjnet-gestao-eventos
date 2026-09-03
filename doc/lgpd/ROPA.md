@@ -52,6 +52,25 @@
 
 ---
 
+## Operação 6 — Captação Pública via Landing Pages com Tracking de Aquisição (D-104)
+
+| Campo | Valor |
+|-------|-------|
+| **Nome da operação** | Captação de leads por landing pages de aquisição (LP Fibra e futuras) com registro de sessão de visita, eventos de interação e atribuição de campanha (UTM) |
+| **Finalidade** | Contato comercial a partir de auto-submissão do titular na landing page; mensuração de performance de campanhas (visitas → leads → cliques no WhatsApp) para decisão de investimento em mídia |
+| **Base legal** | Consentimento — art. 7°, I LGPD (formulário com checkbox obrigatório, mesmo texto das demais portas públicas). Dados de sessão/evento são **anônimos** (identificador aleatório de sessão, UTM, referrer, URL, tipo de dispositivo) — sem IP, sem user-agent, sem cookie de terceiros; só passam a se relacionar a uma pessoa quando ela mesma envia o formulário (vínculo `lead_id`) |
+| **Categorias de titulares** | Visitantes públicos da landing page; leads que preencheram o formulário |
+| **Categorias de dados** | Lead: nome, telefone, bairro/cidade/endereço (opcionais), mensagem (opcional), serviço de interesse, consentimento/versão do termo, `origem_ip` (só moderação/rate limit, D-067), UTM da sessão. Sessão/eventos: id aleatório, `landing_page_url`, `referrer`, `utm_*`, `device`, nome do evento e propriedades curtas (ex.: nome do CTA) |
+| **Dados sensíveis?** | Não |
+| **Destinatários internos** | Marketing (métricas, eventos, configuração de LPs); marketing/comercial (fila "Leads sem vendedor"); vendedor (só leads já distribuídos a ele) |
+| **Destinatários externos** | Supabase Inc. (armazenamento — EUA); Vercel (serve o script do SDK, sem receber dados de titular). **Nesta fase nenhuma plataforma de anúncios/analytics recebe dados** — GTM só se o marketing configurar um container por LP (aí a governança das tags é do container) |
+| **Transferência internacional** | Sim — EUA (Supabase Inc.) — mesma base e mesma pendência de DPA da Operação 1 |
+| **Prazo de retenção** | Lead: retenção padrão de leads sem evento/mês (D-064, por `criado_em`). Sessões/eventos: 395 dias (`retencao_lp_sessoes_dias`), exclusão automática diária (`limpar_lp_tracking_expirado()`); ao expirar, o vínculo no lead vira nulo — o lead não é apagado por essa rotina |
+| **Medidas de segurança** | Escrita só via Edge Functions com `service_role` (`rastrear-lp`/`submeter-lp`); consentimento obrigatório; honeypot; bloqueio de link; rate limit 5/10min por IP no lead; whitelist de eventos + teto por sessão no tracking; RLS sem `anon` nas tabelas; leitura pública só por RPC restrita a metadado da LP; métricas só para `marketing`; nenhum secret no frontend |
+| **Sistema** | `public/rjnet-lp.js`, `supabase/functions/rastrear-lp/index.ts`, `supabase/functions/submeter-lp/index.ts`, `supabase/migracao-landing-pages.sql`, `src/features/aquisicao/*` |
+
+---
+
 ## Operação 2 — Exportação de Dados para Equipe Técnica
 
 | Campo | Valor |

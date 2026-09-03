@@ -4,6 +4,26 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.29] — Módulo de Landing Pages + Aquisição (D-104)
+**Data:** 2026-09-03
+**Branch:** `claude/landing-pages-acquisition-module-8gn4u2`
+
+**O que mudou**
+- Nova infraestrutura **genérica** de Landing Pages e monitoramento de aquisição — Campanha → LP → Visita → Lead → Clique no WhatsApp. A LP Fibra é só a primeira instância (seed na migração); LPs novas são cadastradas na tela, sem código.
+- **Banco** (`supabase/migracao-landing-pages.sql`): `landing_pages`, `lp_sessions`, `lp_events`, colunas `leads.landing_page_id`/`lp_session_id`, RPCs `landing_page_publica` (anon) e `aquisicao_metricas` (marketing), retenção automática (395 dias).
+- **Edge Functions** `rastrear-lp` (sessão + eventos internos) e `submeter-lp` (lead no `leads` de sempre, `origem='landing_page'`, consentimento obrigatório, rate limit, dedupe 24h).
+- **SDK público** `public/rjnet-lp.js` (Tracking Layer): sessão, UTM first-touch, eventos `page_view/cta_click/form_start/form_submit/whatsapp_click`, envio do lead, abertura do WhatsApp com número configurado na LP (nunca hardcoded), adapters de integração (interno + GTM; GA4/Ads/Meta preparados).
+- **CRM**: Mais → Aquisição → Landing Pages — Dashboard (KPIs + funil + evolução diária + cards por LP), Landing Pages (cadastro/detalhe: eventos, leads, campanhas, conversões, snippet de integração, configuração), Campanhas (por UTM), Conversões (leads que clicaram no WhatsApp), filtros por período/LP/campanha/source/medium/vendedor/status. Fila "Leads sem vendedor" rotula "Landing Page — LP Fibra — utm_campaign".
+- Testes: `tests/aquisicao.unit.test.js` (32 asserções) e `tests/aquisicao.test.js` (tela + SDK com Edge Functions interceptadas).
+
+**Por que mudou**
+- Pedido do responsável: acompanhar aquisição por campanha/LP com dados reais, preparando (sem implementar) a integração de WhatsApp e o tracking externo.
+
+**Ações manuais necessárias**
+- Rodar `supabase/migracao-landing-pages.sql`; publicar `rastrear-lp` e `submeter-lp`; incluir o domínio da LP em `CORS_ALLOWED_ORIGINS`; colar o snippet (aba "Integração") na LP Fibra. Guia: `doc/aquisicao/INTEGRACAO_LP.md`.
+
+---
+
 ## [v5.28] — Relatórios: card "Leads sem vendedor" também vira accordion (D-087)
 **Data:** 2026-07-22
 **Branch:** `claude/relatorio-leads-espera-83tvyy` → mesclado em `main`

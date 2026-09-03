@@ -7,7 +7,7 @@ import { fetchLeadsEvento, fetchLeadsEventos, fetchLeadsMes, fetchLeadsMeses, fe
 import { isSupabaseMode } from '../../lib/mode';
 import { resumoPerfil } from '../../lib/simulador';
 
-const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário', simulador: 'Simulador' };
+const ORIGEM_LABEL = { qrcode: 'QR Code', formulario: 'Formulário', simulador: 'Simulador', landing_page: 'Landing Page' };
 
 const TEMPERATURA_COR = { frio: '#60a5fa', morno: '#fb923c', quente: '#ef4444', convertido: '#22c55e' };
 
@@ -16,7 +16,7 @@ const TEMPERATURA_COR = { frio: '#60a5fa', morno: '#fb923c', quente: '#ef4444', 
 // manualmente — a mesma operação de negócio pra qualquer origem, sem regra
 // nova por canal.
 function FilaDistribuicao({ session }) {
-  const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados, simuladores } = useApp();
+  const { vendedores, leads: leadsCompartilhados, updateLead, removeLead, camposPersonalizados, simuladores, landingPages } = useApp();
   const [leadsRemotos, setLeadsRemotos] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   // Accordion fechado por padrão, mesmo padrão de Eventos/Meses (D-086) —
@@ -55,6 +55,9 @@ function FilaDistribuicao({ session }) {
     const partes = [ORIGEM_LABEL[l.origem] || l.origem];
     if (l.qrCodeLabel) partes.push(l.qrCodeLabel);
     if (l.simuladorId && nomeSimulador(l.simuladorId)) partes.push(nomeSimulador(l.simuladorId));
+    // D-104: nome da Landing Page (ex: "Landing Page — LP Fibra — fibra_setembro")
+    const nomeLp = l.landingPageId && landingPages?.find((lp) => lp.id === l.landingPageId)?.nome;
+    if (nomeLp) partes.push(nomeLp);
     if (l.utm?.utm_campaign) partes.push(l.utm.utm_campaign);
     return partes.join(' — ');
   };
@@ -96,7 +99,7 @@ function FilaDistribuicao({ session }) {
   // do Simulador quando existe (mais específico), senão o formulário/QR Code,
   // senão a origem crua. Chave estável (id) pro filtro, rótulo legível
   // (origemDetalhe, já usado na coluna Origem) pro dropdown.
-  const temaChave = (l) => l.simuladorId || l.formularioId || l.qrCodeId || `origem:${l.origem}`;
+  const temaChave = (l) => l.simuladorId || l.formularioId || l.landingPageId || l.qrCodeId || `origem:${l.origem}`;
   const temasDisponiveis = (() => {
     const mapa = new Map();
     leadsFrios.forEach((l) => { const chave = temaChave(l); if (!mapa.has(chave)) mapa.set(chave, origemDetalhe(l)); });

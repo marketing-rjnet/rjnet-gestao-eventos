@@ -93,3 +93,15 @@ permissiva em algum momento. Regras:
 - [ ] Monitorar picos de leads por IP/janela; considerar CAPTCHA invisível
       se o abuso persistir (o rate limit por IP é mitigação, não barreira
       absoluta contra atacante distribuído).
+- [ ] **D-104 (Landing Pages):** as Edge Functions `rastrear-lp` e `submeter-lp`
+      também importam o `_shared` — redeployar as **quatro** públicas a cada
+      edição dele. `submeter-lp` herda o rate limit por IP; `rastrear-lp` não
+      guarda IP (minimização) e se protege por whitelist de eventos + teto de
+      500 eventos/sessão + 20 eventos/request.
+- [ ] **D-104:** incluir o domínio de cada LP (ex.: `https://fibra.rjnet.com.br`)
+      em `CORS_ALLOWED_ORIGINS` (seção 3) — sem isso o SDK da LP é bloqueado
+      pelo navegador (silenciosamente: a LP funciona, mas nada é rastreado).
+- [ ] **D-104:** `landing_page_publica` e `aquisicao_metricas` são SECURITY
+      DEFINER com `revoke ... from public` — a primeira com `grant to anon`
+      (só metadado da LP + IDs públicos de tracking), a segunda só
+      `authenticated` + checagem interna de `papel_atual() = 'marketing'`.
