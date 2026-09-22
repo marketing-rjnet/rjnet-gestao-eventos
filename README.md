@@ -337,12 +337,12 @@ export function createExemploApi({ itens, setItens }) {
 | Versão | Data | Mudança principal |
 |--------|------|-------------------|
 | v5.29 | Set/2026 | Módulo de Landing Pages + Aquisição: LPs genéricas, SDK `rjnet-lp.js`, funil Visitas → Leads → WhatsApp (D-104) |
-| — | Set/2026 | Segurança: `peso` das opções do Simulador escondido da leitura pública via RPC `simulador_publico` (D-103) |
-| — | Ago–Set/2026 | **Desafio RJNET — Acerte 00:03:33**: cronômetro de ativação, ranking, ganhadores, Tela de TV (D-089, D-090); prêmio do dia e por posição (D-091–D-095, D-102); múltiplas tentativas + máscara do cronômetro (D-098); "Já é cliente" (D-099); correção de tentativa (D-100); leitura/export para comercial (D-101) |
-| — | Ago/2026 | Separação por tema/campanha na fila, Demanda por região e export do Simulador (D-096); "Já é cliente RJNET?" no Quiz + grafia RJNET (D-097) |
+| v5.28.9 | Set/2026 | Segurança: `peso` das opções do Simulador escondido da leitura pública via RPC `simulador_publico` (D-103) |
+| v5.28.1–v5.28.8 | Ago–Set/2026 | **Desafio RJNET — Acerte 00:03:33**: cronômetro de ativação, ranking, ganhadores, Tela de TV (D-089, D-090); prêmio do dia e por posição (D-091–D-095, D-102); múltiplas tentativas + máscara do cronômetro (D-098); "Já é cliente" (D-099); correção de tentativa (D-100); leitura/export para comercial (D-101) |
+| v5.28.3–v5.28.4 | Ago/2026 | Separação por tema/campanha na fila, Demanda por região e export do Simulador (D-096); "Já é cliente RJNET?" no Quiz + grafia RJNET (D-097) |
 | v5.26–v5.28 | Jul/2026 | Export CSV dos leads em espera (D-085); accordions em Relatórios (D-086, D-087) |
 | v5.24–v5.25 | Jul/2026 | Quiz de Acertos: cadastro antes do quiz, 2 fases no servidor (D-083); duplicidade bloqueada por WhatsApp (D-084) |
-| — | Jul/2026 | Quiz de Acertos: 3º tipo de campanha do Simulador + Sorteador (D-080); ajustes mobile (D-081) |
+| v5.23.2–v5.23.4 | Jul/2026 | Quiz de Acertos: 3º tipo de campanha do Simulador + Sorteador (D-080); ajustes mobile (D-081); resumo compartilhável, depois removido (D-082) |
 | v5.23 | Jul/2026 | Hardening de segurança pós-auditoria: RLS de leads, RPC destrutiva, rate limit, CSP, auto-cadastro off (D-078) |
 | v5.16–v5.22 | Jul/2026 | Simulador: captação gamificada por link/QR com UTM (D-072) → pacote por perfil + combo (D-074) → perguntas por campanha (D-075) → fluxos Oferta/Demanda independentes (D-076) → perfil deduzido por quiz + plano Móvel (D-077) |
 | v5.12–v5.15 | Jul/2026 | Horário no MesDetail e correções de sombra/scroll no tema escuro (D-068–D-070); drift de RLS de leads |

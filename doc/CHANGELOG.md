@@ -24,6 +24,166 @@ Histórico de mudanças relevantes. Mais recente no topo.
 
 ---
 
+## [v5.28.9] — Simulador: peso das opções deixa de vazar na leitura pública (D-103)
+**Data:** 2026-09-02
+**Branch:** mesclado em `main` (PR #113)
+
+> Registro retroativo (2026-09-22): as entradas v5.28.1–v5.28.9 foram adicionadas depois, a partir de `doc/architecture/DECISIONS.md`, para fechar a lacuna entre v5.28 e v5.29.
+
+**O que mudou**
+- A policy `simuladores_select_publico` (RLS por linha, `ativo=true`) não escondia colunas: quem lesse `/rest/v1/simuladores?select=perguntas` via o `peso` de cada opção das campanhas `demanda` e podia forçar `temperatura='quente'`.
+- **`supabase/migracao-simulador-peso-oculto.sql`** — nova RPC `simulador_publico(slug)` (SECURITY DEFINER, `grant to anon`) devolve as mesmas colunas com `peso` removido; a policy `to anon` da tabela é removida.
+- **`src/lib/dataService.js`** — `fetchSimuladorPublico` passa a usar `supabase.rpc('simulador_publico', ...)`. Scoring não muda (a Edge Function já lia a própria cópia via `service_role`).
+- Fora do escopo, registrado como decisão em aberto: `quiz_perguntas.respostaCorretaId` continua público porque o feedback verde/vermelho do Quiz é calculado no cliente.
+
+**Por que mudou**
+- Correção de segurança: o peso das opções é regra de negócio e não pode ser lido por visitante anônimo.
+
+**Ações manuais necessárias**
+- Rodar `migracao-simulador-peso-oculto.sql` no SQL Editor + `NOTIFY pgrst, 'reload schema';`. Até lá, o comportamento antigo continua valendo, sem regressão.
+
+---
+
+## [v5.28.8] — Desafio RJNET: 4ª opção "RJNET Play" nos prêmios do ranking (D-102)
+**Data:** 2026-09-01
+**Branch:** `claude/add-rjnet-play-prizes-r9l0pp` → mesclado em `main` (PR #112)
+
+**O que mudou**
+- **`src/lib/desafioCronometro.js`** — `PREMIOS_POSICAO_RANKING` ganha "RJNET Play" ao lado de RJNET Móvel/HBO Max/Disney+. A UI já renderizava o catálogo dinamicamente; só comentários mudaram nos demais arquivos.
+
+**Por que mudou**
+- Pedido do responsável: novo prêmio disponível para as posições do ranking.
+
+**Ações manuais necessárias**
+- Nenhuma — sem migração (`prize_ranking` já é jsonb de texto por posição).
+
+---
+
+## [v5.28.7] — Desafio RJNET: comercial ganha leitura + exportação (D-101)
+**Data:** 2026-08-31
+**Branch:** `claude/commercial-account-challenge-export-6mz3mr` → mesclado em `main` (PR #111)
+
+**O que mudou**
+- **`supabase/migracao-desafio-comercial-select.sql`** — as 3 policies de SELECT (`timer_challenge_events`/`entries`/`attempts`) passam a aceitar `papel_atual() in ('marketing','comercial')`. As policies `*_write` continuam exclusivas de `marketing`.
+- **`src/features/desafio/DesafioComercialTab.jsx`** (novo) — 5ª aba direta do `ComercialApp.jsx`: lista os dias e abre `DesafioDetail` restrito à sub-aba "Painel" (estatísticas + export CSV) via novas props opcionais `subTabs`/`initialSub`.
+
+**Por que mudou**
+- Pedido do responsável: o comercial precisa exportar os participantes do Desafio sem poder cadastrar, editar prêmio ou encerrar dia.
+
+**Ações manuais necessárias**
+- Rodar `migracao-desafio-comercial-select.sql` no SQL Editor + `NOTIFY pgrst, 'reload schema';`.
+
+---
+
+## [v5.28.6] — Desafio RJNET: correção de uma tentativa já registrada (D-100)
+**Data:** 2026-08-26
+**Branch:** mesclado em `main` (PR #109)
+
+**O que mudou**
+- **`src/features/desafio/DesafioTentativas.jsx`** — cada tentativa ganha o botão "✎" (Corrigir tentativa), que reabre o `CronometroInput` sobre a MESMA tentativa — nunca cria uma nova nem muda `attemptNumber`.
+- **`src/api/desafioApi.js`** — nova `updateDesafioTentativa()` recalcula com `calcularResultadoDesafio()`; **`dataService.js`** ganha `db.updateDesafioAttempt()` (UPDATE parcial só dos campos de resultado). Mesmo broadcast das demais mutações: Ranking/Ganhadores/Tela de TV refletem sem F5.
+
+- **Relatórios (PR #110, sem número de decisão)** — card "Demanda por região" (`LeadsTab.jsx`) vira accordion fechado por padrão, mesmo padrão do D-087: filtro por tema e "Atualizar" ficam fora do toggle.
+
+**Por que mudou**
+- Pedido do responsável: corrigir erro de leitura do operador sem gastar uma tentativa do participante.
+
+**Ações manuais necessárias**
+- Nenhuma — RLS de `timer_challenge_attempts` já cobria UPDATE.
+
+---
+
+## [v5.28.5] — Desafio RJNET: múltiplas tentativas, edição rápida, máscara do cronômetro e "Já é cliente" (D-098, D-099)
+**Data:** 2026-08-10
+**Branch:** `claude/rjnet-multiple-attempts-p5rzv5` → mesclado em `main` (PRs #106, #107, #108)
+
+**O que mudou**
+- **Múltiplas tentativas por participante** (até `max_attempts` do dia, padrão 3): nova tabela `timer_challenge_attempts` (1 linha por tentativa); `timer_challenge_entries` passa a representar só o participante. UI progressiva — "+ Adicionar tentativa N" só aparece depois da anterior (`DesafioTentativas.jsx`).
+- **`melhorTentativa()`** (`desafioCronometro.js`) é a única regra de qual tentativa vale (menor diferença; empate pela de menor número), replicada em SQL na RPC pública. Ranking/Ganhadores continuam com 1 linha por participante.
+- **`CronometroInput.jsx`** (novo) — máscara automática: o operador digita "0333" e o campo mostra "00:03:33".
+- **Edição rápida de nome/telefone** (`DesafioEditarParticipante.jsx`) sobre o id existente, preservando tentativas/prêmio/ranking.
+- **Prêmio do participante** selecionável já no cadastro (catálogo `TIPOS_PREMIO`); Ranking ganha colunas "Melhor tempo"/"Tentativas"/"Prêmio".
+- **D-099** — fix: `saveDesafioPremio`/`saveDesafioPremiosRanking` não disparavam broadcast, então a Tela de TV não refletia a troca de prêmio em modo Supabase. Novo campo "Já é cliente RJNET?" no cadastro (`timer_challenge_entries.ja_cliente_rjnet`), só uso interno/CSV.
+
+**Por que mudou**
+- Pedido do responsável após a primeira edição ao vivo: permitir mais de uma tentativa sem recadastrar a pessoa e agilizar a digitação do operador.
+
+**Ações manuais necessárias**
+- [x] `migracao-desafio-tentativas.sql` (com backfill da tentativa única virando Tentativa 1) e `migracao-desafio-ja-cliente.sql` aplicadas em produção pelo responsável, antes do frontend.
+
+---
+
+## [v5.28.4] — Quiz: "Já é cliente RJNET?" no cadastro + grafia "RJNET" na interface (D-097)
+**Data:** 2026-08-07
+
+**O que mudou**
+- **`src/public/SimuladorPublico.jsx`** — cadastro do Quiz ganha o controle Sim/Não "Já é cliente RJNET?" (mesmo campo `jaClienteRjnet`/`leads.ja_cliente_rjnet` do vendedor, sem coluna nova).
+- **`supabase/functions/submeter-simulador/index.ts`** — fase `cadastro` grava o valor enviado em vez de `false` fixo.
+- Grafia da marca normalizada para "RJNET" em todo texto visível ao usuário (logos, títulos, mensagens, rótulos, cabeçalhos de CSV, mocks). Comentários, `doc/` e identificadores técnicos ficaram de fora deliberadamente.
+
+**Por que mudou**
+- Pedido do responsável: capturar se o participante já é cliente e padronizar a marca.
+
+**Ações manuais necessárias**
+- Redeploy da Edge Function `submeter-simulador`.
+
+---
+
+## [v5.28.3] — Separação por tema/campanha na fila, Demanda por Região e Simulador (D-096)
+**Data:** 2026-08-07
+**Branch:** `claude/leads-vendedor-tema-filters-w2uam0` → mesclado em `main` (PR #105)
+
+**O que mudou**
+- **`SimuladorTab.jsx`** — botão "↓ Exportar leads" em cada campanha (3 tipos), com todos os leads daquele `simulador_id` (nova `fetchLeadsPorSimuladorCompleto()` + `exportLeadsSimuladorCSV()`), auditado via `db.registrarExportacao()`.
+- **`LeadsTab.jsx`** — `FilaDistribuicao` e `DemandaPorRegiao` ganham dropdown "Tema" (só com mais de 1 tema carregado); o filtro vale para a tabela e para a exportação.
+- **`supabase/migracao-demanda-tema.sql`** — RPC `demanda_por_regiao()` ganha parâmetro opcional `p_simulador_id` (sem ele, comportamento antigo).
+
+**Por que mudou**
+- Com várias campanhas ativas ao mesmo tempo, os relatórios misturavam leads de ações diferentes.
+
+**Ações manuais necessárias**
+- Rodar `migracao-demanda-tema.sql` (faz `DROP FUNCTION` antes de recriar — fora do horário de uso do relatório) + `NOTIFY pgrst, 'reload schema';`.
+
+---
+
+## [v5.28.2] — Desafio RJNET: prêmios do dia e por posição do ranking (D-091–D-095)
+**Data:** 2026-08-06
+
+**O que mudou**
+- **D-091 — Prêmio do dia**: `timer_challenge_events` ganha `prize_description`/`prize_image_path`/`prize_updated_at`; nova sub-aba "Prêmio" (`DesafioPremio.jsx`, texto + imagem no bucket público `desafio-premios`); a Tela de TV mostra o painel de prêmio ao lado do ranking.
+- **D-092 — Prêmio por posição (1º–10º)**: coluna `prize_ranking` (jsonb), formulário `DesafioPremiosRanking.jsx` e 5ª coluna "Prêmio" na tabela do ranking da Tela de TV.
+- **D-093** — prêmios por posição viram catálogo fixo (`PREMIOS_POSICAO_RANKING`), escolhidos por botão, sem texto livre nem imagem; save vira UPDATE síncrono.
+- **D-094** — a Tela de TV sempre mostra as 10 posições, mesmo vazias, com o prêmio de cada uma visível.
+- **D-095** — `DesafioRanking.jsx` e o CSV exportado mostram posição e prêmio do ranking; a coluna antiga vira "Prêmio (Ganhador Instantâneo)".
+
+**Por que mudou**
+- Pedido do responsável: deixar claro para o público (TV) e para a equipe (painel/CSV) o que está em jogo em cada posição.
+
+**Ações manuais necessárias**
+- Rodar, nesta ordem, `migracao-desafio-premio.sql`, `migracao-desafio-premio-ranking.sql` e `migracao-desafio-premio-ranking-fixo.sql` + `NOTIFY pgrst, 'reload schema';`.
+
+---
+
+## [v5.28.1] — Novo módulo: Desafio RJNET — Acerte 00:03:33 (D-089, D-090)
+**Data:** 2026-08-05
+
+**O que mudou**
+- Módulo de ativação de evento, independente de Eventos/Leads: o participante tenta parar um cronômetro exatamente no tempo-alvo (configurável por dia, padrão 00:03:33) e o marketing registra o tempo lido.
+- **Banco** (`migracao-desafio-cronometro.sql`): `timer_challenge_events` (dias/edições) e `timer_challenge_entries` (participações, sempre filtradas por `event_id`); RLS marketing-only; RPC pública `timer_challenge_painel_publico` (SECURITY DEFINER, `grant to anon`, sem telefone).
+- **Domínio puro** `src/lib/desafioCronometro.js` — MM:SS:CC ↔ centésimos, diferença e acerto exato.
+- **UI** (Mais → Ativação → Desafio): Cadastro, Ranking Top 10 (menor diferença, acertos exatos fora), Ganhadores Instantâneos com controle de entrega, Painel + export CSV, QR/link da Tela de TV.
+- **Tela pública de TV** (`/tv/:slug`, `DesafioPublico.jsx`) — ranking e ganhadores em tempo real via RPC + Broadcast (`desafioRealtime.js`), animação de novo ganhador.
+- **D-090** — removido o "número do participante" (`migracao-desafio-remove-numero.sql`); a Tela de TV ganha os KPIs menor diferença, média dos tempos e alvo.
+- Testes: `tests/desafioCronometro.unit.test.js` e `tests/desafio.test.js`.
+
+**Por que mudou**
+- Pedido do responsável: ativação de marca em eventos com premiação imediata e ranking ao vivo.
+
+**Ações manuais necessárias**
+- Rodar `migracao-desafio-cronometro.sql` e `migracao-desafio-remove-numero.sql` + `NOTIFY pgrst, 'reload schema';`. Rewrite `/tv/:path*` já está no `vercel.json`.
+
+---
+
 ## [v5.28] — Relatórios: card "Leads sem vendedor" também vira accordion (D-087)
 **Data:** 2026-07-22
 **Branch:** `claude/relatorio-leads-espera-83tvyy` → mesclado em `main`
@@ -110,6 +270,58 @@ Histórico de mudanças relevantes. Mais recente no topo.
 **Ações manuais necessárias**
 - [x] Redeploy manual da Edge Function `submeter-simulador` no painel do Supabase — feito pelo responsável antes deste merge. **Nota operacional**: o editor do painel não resolve o import relativo `../_shared/captacao.ts` do repositório (nem como arquivo extra dentro da própria função) — a cópia do painel precisou ter o conteúdo de `_shared/captacao.ts` colado direto no `index.ts`, sem import. O repositório mantém a versão limpa com import, correta pra um futuro deploy via Supabase CLI.
 - Nenhuma migração SQL — `pontuacao`/`perfil_consumo` já eram nullable, reaproveitados como sinal de "cadastro sem resultado ainda".
+
+---
+
+## [v5.23.4] — Quiz de Acertos: resumo compartilhável do resultado (D-082) — removido na v5.24
+**Data:** 2026-07-21
+**Branch:** `claude/interactive-quiz-lead-capture-thqh7g` → mesclado em `main` (PR #87)
+
+> Registro retroativo (2026-09-22): as entradas v5.23.2–v5.23.4 foram adicionadas depois, a partir de `doc/architecture/DECISIONS.md`.
+
+**O que mudou**
+- **`src/public/SimuladorPublico.jsx`** — card 1080x1080 gerado no cliente via `<canvas>` (faixa, acertos, tempo, link da campanha), compartilhado pela Web Share API ou baixado como PNG, só depois do contato enviado.
+- **Removido por completo na v5.24 (D-083).** Mantido aqui só como histórico.
+
+**Por que mudou**
+- Mecânica viral para eventos ao vivo (MotoFest): a pessoa divulga o próprio resultado.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança só no cliente.
+
+---
+
+## [v5.23.3] — Simulador/Form Builder: correções de responsividade mobile (D-081)
+**Data:** 2026-07-20
+**Branch:** mesclado em `main` (PR #86)
+
+**O que mudou**
+- **`src/index.css`** — nova classe `.consentimento-check`: checkbox LGPD com tamanho fixo e texto que sempre quebra linha (antes herdava `input { width: 100% }` e estourava a largura do card no iPhone).
+- **`SimuladorPublico.jsx`/`FormularioPublico.jsx`** — logo sempre centralizada nas telas de pergunta e de contato.
+
+**Por que mudou**
+- Problemas reportados em teste manual num iPhone real após o D-080.
+
+**Ações manuais necessárias**
+- Nenhuma — mudança só de CSS.
+
+---
+
+## [v5.23.2] — Simulador: 3º tipo de campanha, Quiz de Acertos + Sorteador (D-080)
+**Data:** 2026-07-20
+**Branch:** `claude/interactive-quiz-lead-capture-thqh7g` → mesclado em `main` (PR #85)
+
+**O que mudou**
+- Novo tipo `quiz` ao lado de `oferta`/`demanda`: perguntas de escolha única com resposta certa (`respostaCorretaId`), pontuação = contagem de acertos, faixas de classificação totalmente editáveis (min/max, emoji, título). Semeado com o molde do MotoFest (10 perguntas + 4 faixas).
+- **`supabase/migracao-simulador-quiz.sql`** — colunas `simuladores.quiz_perguntas`/`quiz_faixas` (jsonb) e constraint de tipo ampliada; sem coluna nova em `leads`.
+- **`submeter-simulador`** — branch `quiz` recalcula acertos/faixa no servidor.
+- **`SimuladorTab.jsx`** — construtor `QuizBuilder` e **Sorteador** de N ganhadores entre os leads da campanha (`fetchLeadsPorSimulador`).
+
+**Por que mudou**
+- Pedido do responsável para o evento MotoFest: quiz de conhecimento com sorteio entre os participantes.
+
+**Ações manuais necessárias**
+- [x] `migracao-simulador-quiz.sql` + `NOTIFY pgrst` e redeploy de `submeter-simulador` antes do frontend — validado em produção pelo responsável.
 
 ---
 
