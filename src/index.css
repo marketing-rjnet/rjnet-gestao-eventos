@@ -917,6 +917,20 @@
 .desafio-confetti { position: absolute; top: -10px; font-size: 28px; animation: desafioFall linear forwards; }
 @keyframes desafioFall { from { transform: translateY(-10px) rotate(0deg); opacity: 1; } to { transform: translateY(110vh) rotate(360deg); opacity: .9; } }
 
+/* Tela de TV — modo claro. Estrutura idêntica; só ajusta o que o tema
+   global (.light) não cobre: amarelo como TEXTO perde contraste no branco
+   (vira dourado escuro), sombras/bordas dos painéis e o toggle discreto. */
+.desafio-tv-theme-toggle { opacity: .45; transition: opacity .2s; }
+.desafio-tv-theme-toggle:hover, .desafio-tv-theme-toggle:focus-visible { opacity: 1; }
+.light .desafio-tv-title,
+.light .desafio-tv-panel-title,
+.light .desafio-tv-ranking-row.top1 { color: #9a7400; }
+.light .desafio-tv-kpi,
+.light .desafio-tv-panel { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 1px var(--border); }
+.light .desafio-tv-winner-item { background: rgba(245,192,0,.14); border-color: rgba(245,192,0,.45); }
+/* overlay de ganhador continua escuro nos 2 temas (comemoração) */
+.light .desafio-tv-winner-overlay .detail { color: #cccccc; }
+
 @media (max-width: 900px) {
   .desafio-tv-body { grid-template-columns: 1fr; }
   .desafio-tv-ranking-row { grid-template-columns: 32px 1fr 66px 66px 66px; }
