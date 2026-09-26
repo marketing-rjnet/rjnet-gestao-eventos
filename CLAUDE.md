@@ -163,7 +163,7 @@ src/
 ├── public/
 │   ├── FormularioPublico.jsx   # Página pública dinâmica do Form Builder, sem sessão (D-062, D-063)
 │   ├── SimuladorPublico.jsx    # Página pública — 3 fluxos independentes (Oferta: quiz→perfil deduzido→pacote+combo; Demanda: perguntas→mensagem; Quiz: cadastro ANTES do quiz→perguntas com feedback verde/vermelho→faixa→CTA "Participar do sorteio"), captura UTM, retomada via localStorage; duplicidade bloqueada por WhatsApp no servidor, não por navegador (D-072, D-076, D-077, D-080, D-083, D-084)
-│   └── DesafioPublico.jsx      # Tela pública de TV do Desafio RJNet (`/tv/:slug`) — sem sessão, tela cheia, ranking Top 10 + ganhadores em tempo real via RPC + Broadcast, animação de novo ganhador (D-089)
+│   └── DesafioPublico.jsx      # Tela pública de TV do Desafio RJNet (`/tv/:slug`) — sem sessão, tela cheia, ranking Top 10 + ganhadores em tempo real via RPC + Broadcast, animação de novo ganhador (D-089; modo claro/escuro próprio (botão discreto + `?tema=claro|escuro`, chave `rjnet-tv-theme`)
 ├── hooks/
 │   ├── useApp.js         # Hook useApp() — wrapper de useContext(AppContext) (etapa 7)
 │   ├── usePersisted.js   # Hook de sincronização de estado com localStorage/sessionStorage (etapa 15)

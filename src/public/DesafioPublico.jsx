@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDesafioPainelPublico } from '../hooks/useDesafioPainelPublico';
 import { centesimosParaTempo, formatarDiferenca } from '../lib/desafioCronometro';
+import { Icon } from '../components/ui';
 
 // Desafio RJNet — Acerte 00:03:33 (D-089, D-090): tela pública de TV —
 // sem sessão, sem menus, tela cheia, atualização automática (ver
@@ -20,6 +21,33 @@ const POSICOES_RANKING = Array.from({ length: 10 }, (_, i) => i + 1);
 // prêmio geral do dia (D-091). Catálogo fixo de opções, só texto (sem
 // imagem, D-093; 4ª opção "RJNET Play" — D-102). Só existe entrada pra
 // posição que o marketing configurou.
+// Modo claro/escuro da Tela de TV — a rota /tv/:slug renderiza fora do
+// Root.jsx, então o tema é controlado aqui, com chave própria no
+// localStorage (a TV do evento não herda o tema de quem usa o painel).
+// `?tema=claro|escuro` na URL força o modo (TV/kiosk sem teclado/mouse).
+const TV_THEME_KEY = 'rjnet-tv-theme';
+
+function temaInicial() {
+  const param = new URLSearchParams(window.location.search).get('tema');
+  if (param === 'claro') return false;
+  if (param === 'escuro') return true;
+  try {
+    const saved = localStorage.getItem(TV_THEME_KEY);
+    if (saved) return saved === 'dark';
+  } catch { /* storage indisponível — usa o padrão */ }
+  return true;
+}
+
+function useTemaTv() {
+  const [darkMode, setDarkMode] = useState(temaInicial);
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', !darkMode);
+    try { localStorage.setItem(TV_THEME_KEY, darkMode ? 'dark' : 'light'); } catch { /* ignore */ }
+  }, [darkMode]);
+  const toggle = useCallback(() => setDarkMode((d) => !d), []);
+  return [darkMode, toggle];
+}
+
 function premioDaPosicao(prizeRanking, position) {
   const p = (prizeRanking || []).find((x) => x.position === position);
   return p?.name || null;
@@ -67,6 +95,7 @@ function WinnerOverlay({ ganhador, targetCentiseconds, onFim }) {
 
 export default function DesafioPublico({ slug }) {
   const { painel, carregando } = useDesafioPainelPublico(slug);
+  const [darkMode, toggleTema] = useTemaTv();
   const [overlayGanhador, setOverlayGanhador] = useState(null);
   const ultimosIdsRef = useRef(null);
 
@@ -104,6 +133,14 @@ export default function DesafioPublico({ slug }) {
   }
 
   const { event, stats, ranking, winners } = painel;
+  const temaBtn = (
+    <button
+      className="theme-toggle desafio-tv-theme-toggle" onClick={toggleTema}
+      title={darkMode ? 'Modo claro' : 'Modo escuro'} aria-label="Alternar tema"
+    >
+      <Icon name={darkMode ? 'sun' : 'moon'} size={17} />
+    </button>
+  );
 
   return (
     <div className="desafio-tv">
@@ -143,6 +180,7 @@ export default function DesafioPublico({ slug }) {
             <div className="desafio-tv-kpi-label">Alvo</div>
           </div>
         </div>
+        {temaBtn}
       </div>
 
       <div className="desafio-tv-body">
